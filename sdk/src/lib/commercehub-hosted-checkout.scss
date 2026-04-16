@@ -1,0 +1,388 @@
+:host {
+  display: block;
+}
+
+.checkout-shell {
+  --checkout-page-surface: #f7f8f9;
+  --checkout-shadow-card: 0 12px 32px rgba(15, 23, 42, 0.08);
+  --checkout-shadow-soft: 0 4px 16px rgba(15, 23, 42, 0.06);
+  --checkout-focus-ring: color-mix(in srgb, var(--ch-brand-primary) 20%, white);
+  min-height: 100%;
+  font-family: var(--ch-brand-font);
+  color: var(--ch-brand-ink);
+  background: var(--checkout-page-surface);
+}
+
+.checkout-shell__main {
+  margin: 0 auto;
+  display: flex;
+  min-height: 100%;
+  width: 100%;
+  max-width: 38rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.checkout-shell__card {
+  width: 100%;
+  border: 1px solid var(--ch-brand-border);
+  border-radius: var(--ch-brand-radius);
+  background: var(--ch-brand-surface);
+  box-shadow: var(--checkout-shadow-card);
+}
+
+.checkout-shell__auth {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 1.25rem;
+}
+
+.checkout-shell__brand-row,
+.checkout-shell__inline-actions,
+.checkout-shell__review-card,
+.checkout-shell__footer {
+  display: flex;
+  gap: 1rem;
+}
+
+.checkout-shell__brand-row {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.checkout-shell__brand-lockup {
+  border-left: 4px solid var(--ch-brand-primary);
+  padding-left: 0.9rem;
+}
+
+.checkout-shell__brand-eyebrow,
+.checkout-shell__step-eyebrow,
+.checkout-shell__summary-label {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.checkout-shell__brand-eyebrow {
+  color: var(--ch-brand-muted);
+}
+
+.checkout-shell__brand-mark {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  color: var(--ch-brand-ink);
+  font-size: clamp(1.45rem, 4vw, 2.25rem);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.checkout-shell__auth-stage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.checkout-shell__step,
+.checkout-shell__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.checkout-shell__step h3,
+.checkout-shell__loading h3 {
+  margin: 0;
+  color: var(--ch-brand-ink);
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.checkout-shell__step-eyebrow,
+.checkout-shell__summary-label {
+  color: var(--ch-brand-primary-strong);
+}
+
+.checkout-shell__step-copy,
+.checkout-shell__loading p,
+.checkout-shell__footer p,
+.checkout-shell__source-copy span,
+.checkout-shell__review-card span {
+  margin: 0;
+  color: var(--ch-brand-muted);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.checkout-shell__divider {
+  height: 1px;
+  width: 100%;
+  background: var(--ch-brand-border);
+}
+
+.checkout-shell__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.checkout-shell__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--ch-brand-ink);
+}
+
+.checkout-shell__field input {
+  width: 100%;
+  min-height: 3rem;
+  border: 1px solid var(--ch-brand-border);
+  border-radius: 1rem;
+  background: #fff;
+  padding: 0.95rem 1rem;
+  color: var(--ch-brand-ink);
+  box-shadow: none;
+}
+
+.checkout-shell__field input:focus {
+  outline: none;
+  border-color: var(--ch-brand-primary);
+  box-shadow: 0 0 0 4px var(--checkout-focus-ring);
+}
+
+.checkout-shell__otp-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.checkout-shell__inline-actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.checkout-shell__inline-actions--end {
+  justify-content: flex-end;
+}
+
+.checkout-shell__sources {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.checkout-shell__source-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--ch-brand-border);
+  border-radius: 1.15rem;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+.checkout-shell__source-card:hover,
+.checkout-shell__source-card.is-selected {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--ch-brand-primary) 28%, white);
+  box-shadow: var(--checkout-shadow-soft);
+}
+
+.checkout-shell__source-icon,
+.checkout-shell__success-icon {
+  display: grid;
+  place-items: center;
+}
+
+.checkout-shell__source-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--ch-brand-primary) 10%, white);
+  color: var(--ch-brand-primary-strong);
+  font-size: 1rem;
+}
+
+.checkout-shell__source-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.checkout-shell__source-copy strong,
+.checkout-shell__review-card strong {
+  color: var(--ch-brand-ink);
+  font-size: 1rem;
+}
+
+.checkout-shell__source-chevron {
+  color: var(--ch-brand-muted);
+}
+
+.checkout-shell__empty-state,
+.checkout-shell__review-card {
+  border: 1px solid var(--ch-brand-border);
+  border-radius: 1.15rem;
+}
+
+.checkout-shell__empty-state,
+.checkout-shell__review-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.checkout-shell__review-card {
+  justify-content: space-between;
+  padding: 1rem;
+  background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.82) 100%);
+}
+
+.checkout-shell__empty-state {
+  justify-content: flex-start;
+  padding: 1rem;
+  color: var(--ch-brand-muted);
+}
+
+.checkout-shell__review-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.checkout-shell__step--success {
+  align-items: center;
+  text-align: center;
+}
+
+.checkout-shell__success-icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 999px;
+  background: rgba(15, 122, 83, 0.12);
+  color: #0f7a53;
+  font-size: 1.35rem;
+}
+
+.checkout-shell__loading {
+  align-items: center;
+  padding: 1.2rem 0.25rem;
+  text-align: center;
+}
+
+.checkout-shell__footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.checkout-shell__footer strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.checkout-shell__security-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.6rem 0.95rem;
+  background: color-mix(in srgb, var(--ch-brand-primary) 12%, white);
+  color: var(--ch-brand-primary-strong);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+:host ::ng-deep .checkout-shell .p-button {
+  min-height: 3rem;
+  border-radius: 1rem;
+}
+
+:host ::ng-deep .checkout-shell .p-button:not(.p-button-text) {
+  background: var(--ch-brand-primary);
+  border-color: var(--ch-brand-primary);
+}
+
+:host ::ng-deep .checkout-shell .p-button:not(.p-button-text):enabled:hover {
+  background: var(--ch-brand-primary-strong);
+  border-color: var(--ch-brand-primary-strong);
+}
+
+:host ::ng-deep .checkout-shell .p-button.p-button-text {
+  color: var(--ch-brand-primary-strong);
+}
+
+:host ::ng-deep .checkout-shell .p-inputtext,
+:host ::ng-deep .checkout-shell .p-inputotp-input {
+  border-color: var(--ch-brand-border);
+  box-shadow: none;
+}
+
+:host ::ng-deep .checkout-shell .p-inputotp {
+  gap: 0.55rem;
+}
+
+:host ::ng-deep .checkout-shell .p-inputotp-input {
+  width: 3rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  color: var(--ch-brand-ink);
+  font-weight: 700;
+}
+
+:host ::ng-deep .checkout-shell .p-inputotp-input:focus,
+:host ::ng-deep .checkout-shell .p-inputtext:focus {
+  border-color: var(--ch-brand-primary);
+  box-shadow: 0 0 0 4px var(--checkout-focus-ring);
+}
+
+:host ::ng-deep .checkout-shell .p-message {
+  border-radius: 1rem;
+}
+
+:host ::ng-deep .checkout-shell__brand-row .p-button.p-button-text {
+  color: var(--ch-brand-muted);
+}
+
+:host ::ng-deep .checkout-shell__brand-row .p-button.p-button-text:enabled:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+@media (min-width: 640px) {
+  .checkout-shell__auth {
+    padding: 2rem 1.75rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .checkout-shell__review-card,
+  .checkout-shell__footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  :host ::ng-deep .checkout-shell .p-inputotp-input {
+    width: 2.65rem;
+  }
+}
