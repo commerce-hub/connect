@@ -4,8 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng build commercehub-hosted-checkout --watch --configuration development",
-    "build": "ng build && npm run build:browser-sdk",
-    "build:browser-sdk": "node scripts/build-browser-sdk.mjs",
+    "build": "ng build commercehub-hosted-checkout && npm run build:browser-sdk",
+    "build:browser-sdk": "ng build browser-sdk-frame && node scripts/build-browser-sdk.mjs",
     "watch": "ng build commercehub-hosted-checkout --watch --configuration development",
     "test": "ng test commercehub-hosted-checkout --watch=false"
   },

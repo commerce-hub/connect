@@ -70,6 +70,7 @@ The iframe-based browser SDK source lives in:
 Browser SDK contract:
 
 - caller provides a container `div` id via `containerId`
+- caller provides `apiBaseUrl` as either a same-origin proxy path such as `/api` or a backend origin such as `http://localhost:8080`
 - SDK creates and manages its own iframe internally
 - caller mounts with `sdk.mount()`
 
@@ -89,3 +90,4 @@ node demo/server.js
 ```
 
 Then open `http://127.0.0.1:4173`. The demo proxies `/api/*` to `http://localhost:8080` by default and avoids the CORS failure from direct browser calls to the backend.
+When `apiBaseUrl` is cross-origin, the Angular SDK now routes requests through the local `/api` proxy automatically and forwards the backend origin in `x-demo-target-origin`.

@@ -3,8 +3,9 @@
 Angular 20 SDK workspace containing:
 
 - `commercehub-hosted-checkout`: reusable hosted checkout SDK library
-- `browser-sdk/commercehub-connect-sdk.js`: iframe-based embeddable browser SDK source
-- `../demo`: framework-free HTML and JavaScript demo page
+- `browser-sdk/commercehub-connect-sdk.js`: generated single-file browser SDK with the Angular iframe app embedded inside it
+- `browser-sdk-frame/`: Angular application used at build time and inlined into the browser SDK output
+- `../demo`: plain HTML launcher page for the browser SDK
 
 ## Stack
 
@@ -27,7 +28,7 @@ Build the library package with:
 npm run build
 ```
 
-`npm run build` also copies the generated browser SDK artifact to `../demo/commercehub-connect-sdk.js`.
+`npm run build` also builds the Angular iframe app, inlines it into `browser-sdk/commercehub-connect-sdk.js`, and copies that single distributable file to `../demo`.
 
 ## SDK usage
 
@@ -49,20 +50,22 @@ Browser SDK:
         authType: 'FINAL_SALE',
         expiryMinutes: 30,
         email: 'buyer@example.com',
-        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD']
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
       },
       payment: {
         amount: 149.99,
         currency: 'USD',
-        callToAction: 'Pay with CommerceHub Connect'
-      }
+        callToAction: 'Pay with CommerceHub Connect',
+      },
     },
-    branding
+    branding,
   });
 
-  sdk.mount();
+sdk.mount();
 </script>
 ```
+
+The browser SDK output is a single JavaScript file. It creates its own iframe document from embedded Angular build artifacts, so merchants do not need to host `index.html`, `main.js`, `polyfills.js`, or any sidecar frame assets next to the SDK file.
 
 Interaction params expected by the SDK:
 

@@ -5,6 +5,28 @@
     "packageManager": "npm"
   },
   "projects": {
+    "browser-sdk-frame": {
+      "projectType": "application",
+      "root": "browser-sdk-frame",
+      "sourceRoot": "browser-sdk-frame/src",
+      "prefix": "ch",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/browser-sdk-frame",
+            "browser": "browser-sdk-frame/main.ts",
+            "index": "browser-sdk-frame/index.html",
+            "polyfills": ["zone.js"],
+            "tsConfig": "tsconfig.browser-sdk-frame.json",
+            "assets": [],
+            "styles": [],
+            "scripts": [],
+            "outputHashing": "none"
+          }
+        }
+      }
+    },
     "commercehub-hosted-checkout": {
       "projectType": "library",
       "root": "commercehub-hosted-checkout",
@@ -27,10 +49,7 @@
           "builder": "@angular/build:karma",
           "options": {
             "tsConfig": "tsconfig.spec.json",
-            "polyfills": [
-              "zone.js",
-              "zone.js/testing"
-            ]
+            "polyfills": ["zone.js", "zone.js/testing"]
           }
         }
       }

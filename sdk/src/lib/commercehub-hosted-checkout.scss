@@ -1,5 +1,14 @@
-:host {
+@mixin checkout-otp-width($width) {
+  .checkout-shell {
+    .p-inputotp-input {
+      width: $width;
+    }
+  }
+}
+
+.ch-hosted-checkout-host {
   display: block;
+  @include checkout-otp-width(3rem);
 }
 
 .checkout-shell {
@@ -42,7 +51,9 @@
 .checkout-shell__brand-row,
 .checkout-shell__inline-actions,
 .checkout-shell__review-card,
-.checkout-shell__footer {
+.checkout-shell__footer,
+.checkout-shell__add-panel-header,
+.checkout-shell__step-heading {
   display: flex;
   gap: 1rem;
 }
@@ -90,10 +101,20 @@
 }
 
 .checkout-shell__step,
-.checkout-shell__loading {
+.checkout-shell__loading,
+.checkout-shell__stack {
   display: flex;
   flex-direction: column;
+}
+
+.checkout-shell__step,
+.checkout-shell__loading,
+.checkout-shell__stack {
   gap: 1rem;
+}
+
+.checkout-shell__stack--tight {
+  gap: 0.35rem;
 }
 
 .checkout-shell__step h3,
@@ -115,7 +136,8 @@
 .checkout-shell__loading p,
 .checkout-shell__footer p,
 .checkout-shell__source-copy span,
-.checkout-shell__review-card span {
+.checkout-shell__review-card span,
+.checkout-shell__add-panel-header span {
   margin: 0;
   color: var(--ch-brand-muted);
   font-size: 0.95rem;
@@ -173,12 +195,20 @@
   justify-content: flex-end;
 }
 
-.checkout-shell__sources {
+.checkout-shell__step-heading,
+.checkout-shell__add-panel-header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.checkout-shell__sources,
+.checkout-shell__method-options {
   display: grid;
   gap: 0.9rem;
 }
 
-.checkout-shell__source-card {
+.checkout-shell__source-card,
+.checkout-shell__method-card {
   display: flex;
   align-items: center;
   gap: 0.9rem;
@@ -197,7 +227,8 @@
 }
 
 .checkout-shell__source-card:hover,
-.checkout-shell__source-card.is-selected {
+.checkout-shell__source-card.is-selected,
+.checkout-shell__method-card:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--ch-brand-primary) 28%, white);
   box-shadow: var(--checkout-shadow-soft);
@@ -206,6 +237,7 @@
 .checkout-shell__source-icon,
 .checkout-shell__success-icon {
   display: grid;
+  flex-shrink: 0;
   place-items: center;
 }
 
@@ -226,7 +258,8 @@
 }
 
 .checkout-shell__source-copy strong,
-.checkout-shell__review-card strong {
+.checkout-shell__review-card strong,
+.checkout-shell__add-panel-header strong {
   color: var(--ch-brand-ink);
   font-size: 1rem;
 }
@@ -236,7 +269,9 @@
 }
 
 .checkout-shell__empty-state,
-.checkout-shell__review-card {
+.checkout-shell__review-card,
+.checkout-shell__add-panel,
+.checkout-shell__unsupported-panel {
   border: 1px solid var(--ch-brand-border);
   border-radius: 1.15rem;
 }
@@ -264,6 +299,53 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.checkout-shell__add-panel,
+.checkout-shell__unsupported-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.88) 100%);
+}
+
+.checkout-shell__method-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checkout-shell__method-card {
+  position: relative;
+}
+
+.checkout-shell__method-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  background: color-mix(in srgb, var(--ch-brand-primary) 12%, white);
+  color: var(--ch-brand-primary-strong);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.checkout-shell__method-badge--static {
+  align-self: flex-start;
+}
+
+.checkout-shell__add-form-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checkout-shell__field--full {
+  grid-column: 1 / -1;
 }
 
 .checkout-shell__step--success {
@@ -298,7 +380,7 @@
   margin-bottom: 0.2rem;
 }
 
-.checkout-shell__security-pill {
+.ch-hosted-checkout-host .checkout-shell__security-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -314,61 +396,6 @@
   white-space: nowrap;
 }
 
-:host ::ng-deep .checkout-shell .p-button {
-  min-height: 3rem;
-  border-radius: 1rem;
-}
-
-:host ::ng-deep .checkout-shell .p-button:not(.p-button-text) {
-  background: var(--ch-brand-primary);
-  border-color: var(--ch-brand-primary);
-}
-
-:host ::ng-deep .checkout-shell .p-button:not(.p-button-text):enabled:hover {
-  background: var(--ch-brand-primary-strong);
-  border-color: var(--ch-brand-primary-strong);
-}
-
-:host ::ng-deep .checkout-shell .p-button.p-button-text {
-  color: var(--ch-brand-primary-strong);
-}
-
-:host ::ng-deep .checkout-shell .p-inputtext,
-:host ::ng-deep .checkout-shell .p-inputotp-input {
-  border-color: var(--ch-brand-border);
-  box-shadow: none;
-}
-
-:host ::ng-deep .checkout-shell .p-inputotp {
-  gap: 0.55rem;
-}
-
-:host ::ng-deep .checkout-shell .p-inputotp-input {
-  width: 3rem;
-  height: 3.25rem;
-  border-radius: 1rem;
-  color: var(--ch-brand-ink);
-  font-weight: 700;
-}
-
-:host ::ng-deep .checkout-shell .p-inputotp-input:focus,
-:host ::ng-deep .checkout-shell .p-inputtext:focus {
-  border-color: var(--ch-brand-primary);
-  box-shadow: 0 0 0 4px var(--checkout-focus-ring);
-}
-
-:host ::ng-deep .checkout-shell .p-message {
-  border-radius: 1rem;
-}
-
-:host ::ng-deep .checkout-shell__brand-row .p-button.p-button-text {
-  color: var(--ch-brand-muted);
-}
-
-:host ::ng-deep .checkout-shell__brand-row .p-button.p-button-text:enabled:hover {
-  background: rgba(15, 23, 42, 0.04);
-}
-
 @media (min-width: 640px) {
   .checkout-shell__auth {
     padding: 2rem 1.75rem;
@@ -377,12 +404,19 @@
 
 @media (max-width: 767px) {
   .checkout-shell__review-card,
-  .checkout-shell__footer {
+  .checkout-shell__footer,
+  .checkout-shell__step-heading,
+  .checkout-shell__add-panel-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  :host ::ng-deep .checkout-shell .p-inputotp-input {
-    width: 2.65rem;
+  .checkout-shell__method-options,
+  .checkout-shell__add-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ch-hosted-checkout-host {
+    @include checkout-otp-width(2.65rem);
   }
 }

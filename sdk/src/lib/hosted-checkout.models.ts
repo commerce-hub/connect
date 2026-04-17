@@ -1,6 +1,7 @@
 export type TenderType = 'CARD' | 'BANK_ACCOUNT' | 'DYNAMIC_SESSION_CARD';
-export type AuthType = 'FINAL_SALE';
+export type AuthType = 'FINAL_SALE' | 'AUTH_ONLY';
 export type CurrencyCode = 'USD';
+export type OTPChannel = 'EMAIL' | 'PHONE';
 export type InteractionStatus =
   | 'EMAIL_REQUESTED'
   | 'OTP_VALIDATION_PENDING'
@@ -9,6 +10,11 @@ export type InteractionStatus =
   | 'PAYMENT_SOURCE_ATTACHED'
   | 'ABANDONED'
   | 'COMPLETED';
+export type DynamicSessionCardStatus = 'ACTIVE' | 'INACTIVE';
+export type PaymentType = 'CREDIT' | 'DEBIT';
+export type PaymentChannel = 'ONLINE' | 'MACHINE';
+export type PaymentStatus = 'PENDING' | 'APPROVED' | 'DECLINED';
+export type CardNetwork = 'Visa' | 'Mastercard' | 'AmericanExpress' | 'Discover';
 
 export interface InteractionRequest {
   sessionReferenceId: string;
@@ -19,6 +25,7 @@ export interface InteractionRequest {
   expiryMinutes?: number;
   email: string;
   allowedTenderTypes: TenderType[];
+  allowEmailChange?: boolean;
 }
 
 export interface HostedCheckoutPaymentRequest {
@@ -32,14 +39,28 @@ export interface HostedCheckoutLaunchRequest {
   payment: HostedCheckoutPaymentRequest;
 }
 
-export interface HostedCheckoutCompletionRequest {
+export interface InteractionCompletionRequest {
   interactionId: string;
   amount: number;
   currency: CurrencyCode;
 }
 
+export type HostedCheckoutCompletionRequest = InteractionCompletionRequest;
+
 export interface StringHolder {
   value: string;
+}
+
+export interface OTPValidateRequest {
+  email?: string;
+  otp: string;
+  channel?: OTPChannel;
+}
+
+export interface OTPResponse {
+  email?: string;
+  phone?: PhoneDetails;
+  channel?: OTPChannel;
 }
 
 export interface PhoneDetails {
@@ -48,57 +69,141 @@ export interface PhoneDetails {
   verifiedTimestamp?: number;
 }
 
-export interface BaseSource {
+export interface Address {
+  id?: string;
+  street?: string;
+  houseNumberOrName?: string;
+  recipientNameOrAddress?: string;
+  city?: string;
+  stateOrProvince?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+export interface BankAccountDetail {
+  bankName?: string;
+  routingNumber?: string;
+  accountNumber?: string;
+  accountType?: string;
+}
+
+export interface CardDetail {
+  cardNumber?: string;
+  nameOnCard?: string;
+  expirationMonth?: string;
+  expirationYear?: string;
+  cvv?: string;
+  network?: CardNetwork;
+}
+
+export interface AbstractSource {
   id?: string;
   name?: string;
   tenderType: TenderType;
 }
 
-export interface CardSource extends BaseSource {
+export type BaseSource = AbstractSource;
+
+export interface Card extends AbstractSource {
   tenderType: 'CARD';
-  card?: {
-    cardNumber?: string;
-    nameOnCard?: string;
-    expirationMonth?: string;
-    expirationYear?: string;
-    cvv?: string;
-    network?: 'Visa' | 'Mastercard' | 'AmericanExpress' | 'Discover';
-  };
+  card?: CardDetail;
 }
 
-export interface BankAccountSource extends BaseSource {
+export type CardSource = Card;
+
+export interface BankAccount extends AbstractSource {
   tenderType: 'BANK_ACCOUNT';
-  bankAccount?: {
-    bankName?: string;
-    routingNumber?: string;
-    accountNumber?: string;
-    accountType?: string;
-  };
+  bankAccount?: BankAccountDetail;
 }
 
-export interface DynamicSessionCardSource extends BaseSource {
+export type BankAccountSource = BankAccount;
+
+export interface DSCDisplayCard extends AbstractSource {
   tenderType: 'DYNAMIC_SESSION_CARD';
 }
 
-export type HostedCheckoutPaymentSource =
-  | CardSource
-  | BankAccountSource
-  | DynamicSessionCardSource;
+export type DynamicSessionCardSource = DSCDisplayCard;
 
-export interface HostedCheckoutInteraction {
+export type PaymentSource = Card | BankAccount | DSCDisplayCard;
+export type HostedCheckoutPaymentSource = PaymentSource;
+
+export interface InteractionResponse {
   interactionId: string;
   status: InteractionStatus;
   email?: string;
-  selectedSource?: HostedCheckoutPaymentSource;
+  selectedSource?: PaymentSource;
   allowedTenderTypes?: TenderType[];
-  paymentSources?: HostedCheckoutPaymentSource[];
+  paymentSources?: PaymentSource[];
   allowEmailChange?: boolean;
   phone?: PhoneDetails;
 }
 
+export type HostedCheckoutInteraction = InteractionResponse;
+
 export interface HostedCheckoutCompletionEvent {
   interaction: HostedCheckoutInteraction;
   payment: HostedCheckoutPaymentRequest;
+}
+
+export interface CreateRequest {
+  amount?: number;
+  currency?: CurrencyCode;
+  paymentSourceId?: string;
+  expiryMinutes?: number;
+}
+
+export interface DynamicSessionCard {
+  email?: string;
+  id?: string;
+  source?: PaymentSource;
+  currency?: CurrencyCode;
+  createTimestamp?: number;
+  expiryTimestamp?: number;
+  totalAmount?: number;
+  saleAmount?: number;
+  remainingAmount?: number;
+  finalRefundedAmount?: number;
+  status?: DynamicSessionCardStatus;
+}
+
+export interface PaymentsSearchRequest {
+  fromDate?: number;
+  toDate?: number;
+}
+
+export interface Payment {
+  email?: string;
+  merchantTransactionId?: string;
+  agentId?: string;
+  merchantOrderId?: string;
+  merchantInvoiceNumber?: string;
+  type?: PaymentType;
+  amount?: number;
+  currency?: CurrencyCode;
+  timestamp?: number;
+  source?: PaymentSource;
+  channel?: PaymentChannel;
+  status?: PaymentStatus;
+  machinePaymentId?: string;
+}
+
+export interface LoginInfo {
+  timestamp?: number;
+  browser?: string;
+  os?: string;
+  device?: string;
+}
+
+export interface Profile {
+  email?: string;
+  name?: string;
+  phoneDetails?: PhoneDetails;
+  shippingAddress?: Address[];
+  billingAddress?: Address[];
+  defaultSource?: PaymentSource;
+  sources?: PaymentSource[];
+  machinePayments?: boolean;
+  logins?: Record<string, LoginInfo>;
 }
 
 export interface HostedCheckoutBranding {
@@ -123,7 +228,8 @@ export const DEFAULT_HOSTED_CHECKOUT_BRANDING: HostedCheckoutBranding = {
   productName: 'Hosted Checkout SDK',
   eyebrow: 'White-label hosted checkout',
   supportLabel: 'Need support?',
-  supportCopy: 'Route support, recovery, or brand-specific FAQs through your own merchant support surfaces.',
+  supportCopy:
+    'Route support, recovery, or brand-specific FAQs through your own merchant support surfaces.',
   primaryColor: '#0a5dff',
   primaryColorStrong: '#084ccf',
   primaryContrastColor: '#ffffff',
@@ -133,12 +239,6 @@ export const DEFAULT_HOSTED_CHECKOUT_BRANDING: HostedCheckoutBranding = {
   borderColor: '#e5e5e5',
   radius: '1.75rem',
   fontFamily: '"Open Sans", sans-serif',
-};
-
-export const SOURCE_LABELS: Record<TenderType, string> = {
-  CARD: 'Cards',
-  BANK_ACCOUNT: 'Bank accounts',
-  DYNAMIC_SESSION_CARD: 'Dynamic session cards',
 };
 
 export function sourceDisplayName(source: HostedCheckoutPaymentSource): string {

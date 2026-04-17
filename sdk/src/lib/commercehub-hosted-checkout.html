@@ -13,7 +13,7 @@
   <main class="checkout-shell__main">
     <div class="checkout-shell__card">
       <section class="checkout-shell__auth">
-        <div class="checkout-shell__brand-row">
+        <!--<div class="checkout-shell__brand-row">
           <div class="checkout-shell__brand-lockup">
             <p class="checkout-shell__brand-eyebrow">{{ brand().eyebrow }}</p>
             <div class="checkout-shell__brand-mark">
@@ -23,14 +23,14 @@
           </div>
 
           <p-button type="button" icon="pi pi-times" [text]="true" [rounded]="true" (click)="closeCheckout()" />
-        </div>
+        </div>-->
 
         <div class="checkout-shell__auth-stage">
           @if (errorMessage()) {
             <p-message severity="error" [closable]="false">{{ errorMessage() }}</p-message>
           }
 
-          @if (activeAction() === 'init' && !interaction()) {
+          @if (isInitializing() && !interaction()) {
             <section class="checkout-shell__loading">
               <p-progressSpinner strokeWidth="4" ariaLabel="Preparing checkout"></p-progressSpinner>
               <div>
@@ -43,8 +43,8 @@
               <p class="checkout-shell__step-eyebrow">Sign in</p>
               <h3>Enter your email address to access your payment wallet.</h3>
               <p class="checkout-shell__step-copy">
-                Use the same welcome entry point as the wallet experience while keeping the checkout surface
-                merchant-branded.
+                Use the same welcome entry point as the wallet experience while keeping the checkout
+                surface merchant-branded.
               </p>
 
               <div class="checkout-shell__divider"></div>
@@ -62,12 +62,16 @@
                 </label>
 
                 @if (emailForm.controls.email.invalid && emailForm.controls.email.touched) {
-                  <p-message severity="error" variant="simple" size="small">{{ emailErrorMessage() }}</p-message>
+                  <p-message severity="error" variant="simple" size="small">{{
+                    emailErrorMessage()
+                  }}</p-message>
                 }
 
                 <p-button
                   type="submit"
-                  [label]="isBusy() && activeAction() === 'send-otp' ? 'Sending code...' : 'Continue'"
+                  [label]="
+                    isBusy() && activeAction() === 'send-otp' ? 'Sending code...' : 'Continue'
+                  "
                   [loading]="isBusy() && activeAction() === 'send-otp'"
                   icon="pi pi-arrow-right"
                 />
@@ -78,7 +82,8 @@
               <p class="checkout-shell__step-eyebrow">Email verification</p>
               <h3>We sent a one-time code to {{ maskedEmail() }}.</h3>
               <p class="checkout-shell__step-copy">
-                Verify the customer before showing saved payment methods from the hosted wallet interaction.
+                Verify the customer before showing saved payment methods from the hosted wallet
+                interaction.
               </p>
 
               <div class="checkout-shell__divider"></div>
@@ -89,7 +94,9 @@
                 </div>
 
                 @if (otpForm.controls.otp.invalid && otpForm.controls.otp.touched) {
-                  <p-message severity="error" variant="simple" size="small">{{ otpErrorMessage() }}</p-message>
+                  <p-message severity="error" variant="simple" size="small">{{
+                    otpErrorMessage()
+                  }}</p-message>
                 }
 
                 <p-button
@@ -102,7 +109,12 @@
 
               <div class="checkout-shell__inline-actions">
                 @if (canChangeEmail()) {
-                  <p-button type="button" label="Use another email" [text]="true" (click)="useAnotherEmail()" />
+                  <p-button
+                    type="button"
+                    label="Use another email"
+                    [text]="true"
+                    (click)="useAnotherEmail()"
+                  />
                 }
 
                 <p-button type="button" label="Resend code" [text]="true" (click)="sendOtp()" />
@@ -111,12 +123,235 @@
           } @else if (currentStep() === 'source') {
             <section class="checkout-shell__step">
               <p class="checkout-shell__step-eyebrow">Saved payment methods</p>
-              <h3>Select a wallet source to complete checkout.</h3>
-              <p class="checkout-shell__step-copy">
-                Sources are presented in your visual language while the SDK continues to call the hosted checkout APIs.
-              </p>
+
+              <div class="checkout-shell__step-heading">
+                <div class="checkout-shell__stack checkout-shell__stack--tight">
+                  <h3>Select a wallet source to complete checkout.</h3>
+                  <p class="checkout-shell__step-copy">
+                    Sources are presented in your visual language while the SDK continues to call
+                    the hosted checkout APIs.
+                  </p>
+                </div>
+
+                <p-button
+                  type="button"
+                  label="Add"
+                  icon="pi pi-plus"
+                  [text]="true"
+                  (click)="openAddPaymentMethodChooser()"
+                />
+              </div>
 
               <div class="checkout-shell__divider"></div>
+
+              @if (addPaymentMethodOpen()) {
+                <div class="checkout-shell__add-panel">
+                  <div class="checkout-shell__add-panel-header">
+                    <div class="checkout-shell__stack checkout-shell__stack--tight">
+                      <p class="checkout-shell__summary-label">Add payment method</p>
+                      <strong>{{ addPaymentMethodTitle() }}</strong>
+                      <span>{{ addPaymentMethodDescription() }}</span>
+                    </div>
+
+                    <p-button
+                      type="button"
+                      label="Cancel"
+                      [text]="true"
+                      (click)="closeAddPaymentMethodChooser()"
+                    />
+                  </div>
+
+                  @if (!selectedAddPaymentMethod()) {
+                    <div class="checkout-shell__method-options">
+                      @for (option of addPaymentMethodOptions; track option.type) {
+                        <button
+                          type="button"
+                          class="checkout-shell__method-card"
+                          (click)="selectAddPaymentMethod(option.type)"
+                        >
+                          <span class="checkout-shell__source-icon" [class]="option.icon"></span>
+
+                          <div class="checkout-shell__source-copy">
+                            <strong>{{ option.label }}</strong>
+                            <span>{{ option.description }}</span>
+                          </div>
+
+                          @if (!option.supported) {
+                            <span class="checkout-shell__method-badge">Soon</span>
+                          }
+                        </button>
+                      }
+                    </div>
+                  } @else if (selectedAddPaymentMethod() === 'CARD') {
+                    <form
+                      class="checkout-shell__form"
+                      [formGroup]="cardForm"
+                      (ngSubmit)="submitAddPaymentMethod()"
+                    >
+                      <div class="checkout-shell__add-form-grid">
+                        <label class="checkout-shell__field checkout-shell__field--full">
+                          <span>Name on card</span>
+                          <input
+                            pInputText
+                            type="text"
+                            formControlName="nameOnCard"
+                            autocomplete="cc-name"
+                          />
+                        </label>
+
+                        <label class="checkout-shell__field checkout-shell__field--full">
+                          <span>Card number</span>
+                          <input
+                            pInputText
+                            type="text"
+                            formControlName="cardNumber"
+                            autocomplete="cc-number"
+                          />
+                        </label>
+
+                        <label class="checkout-shell__field">
+                          <span>Expiration month</span>
+                          <input
+                            pInputText
+                            type="text"
+                            formControlName="expirationMonth"
+                            autocomplete="cc-exp-month"
+                            placeholder="MM"
+                          />
+                        </label>
+
+                        <label class="checkout-shell__field">
+                          <span>Expiration year</span>
+                          <input
+                            pInputText
+                            type="text"
+                            formControlName="expirationYear"
+                            autocomplete="cc-exp-year"
+                            placeholder="YY or YYYY"
+                          />
+                        </label>
+
+                        <label class="checkout-shell__field checkout-shell__field--full">
+                          <span>Security code</span>
+                          <input
+                            pInputText
+                            type="password"
+                            formControlName="cvv"
+                            autocomplete="cc-csc"
+                          />
+                        </label>
+                      </div>
+
+                      @if (cardForm.invalid && cardForm.touched) {
+                        <p-message severity="error" variant="simple" size="small">{{
+                          addPaymentMethodErrorMessage()
+                        }}</p-message>
+                      }
+
+                      <div
+                        class="checkout-shell__inline-actions checkout-shell__inline-actions--end"
+                      >
+                        <p-button
+                          type="button"
+                          label="Back"
+                          [text]="true"
+                          (click)="backToAddPaymentMethodChooser()"
+                        />
+                        <p-button
+                          type="submit"
+                          label="Save payment method"
+                          icon="pi pi-check"
+                          [loading]="isBusy() && activeAction() === 'add-source'"
+                        />
+                      </div>
+                    </form>
+                  } @else if (selectedAddPaymentMethod() === 'BANK_ACCOUNT') {
+                    <form
+                      class="checkout-shell__form"
+                      [formGroup]="bankAccountForm"
+                      (ngSubmit)="submitAddPaymentMethod()"
+                    >
+                      <div class="checkout-shell__add-form-grid">
+                        <label class="checkout-shell__field checkout-shell__field--full">
+                          <span>Bank name</span>
+                          <input
+                            pInputText
+                            type="text"
+                            formControlName="bankName"
+                            autocomplete="organization"
+                          />
+                        </label>
+
+                        <label class="checkout-shell__field">
+                          <span>Routing number</span>
+                          <input pInputText type="text" formControlName="routingNumber" />
+                        </label>
+
+                        <label class="checkout-shell__field">
+                          <span>Account number</span>
+                          <input pInputText type="text" formControlName="accountNumber" />
+                        </label>
+
+                        <label class="checkout-shell__field checkout-shell__field--full">
+                          <span>Account type</span>
+                          <input
+                            pInputText
+                            type="text"
+                            formControlName="accountType"
+                            placeholder="Checking or savings"
+                          />
+                        </label>
+                      </div>
+
+                      @if (bankAccountForm.invalid && bankAccountForm.touched) {
+                        <p-message severity="error" variant="simple" size="small">{{
+                          addPaymentMethodErrorMessage()
+                        }}</p-message>
+                      }
+
+                      <div
+                        class="checkout-shell__inline-actions checkout-shell__inline-actions--end"
+                      >
+                        <p-button
+                          type="button"
+                          label="Back"
+                          [text]="true"
+                          (click)="backToAddPaymentMethodChooser()"
+                        />
+                        <p-button
+                          type="submit"
+                          label="Save payment method"
+                          icon="pi pi-check"
+                          [loading]="isBusy() && activeAction() === 'add-source'"
+                        />
+                      </div>
+                    </form>
+                  } @else {
+                    <div class="checkout-shell__unsupported-panel">
+                      <span
+                        class="checkout-shell__method-badge checkout-shell__method-badge--static"
+                        >Not yet supported</span
+                      >
+                      <p class="checkout-shell__step-copy">
+                        This option is listed in the add-payment-method chooser, but the current API
+                        only exposes save-source endpoints for card and bank account payment
+                        methods.
+                      </p>
+
+                      <div
+                        class="checkout-shell__inline-actions checkout-shell__inline-actions--end"
+                      >
+                        <p-button
+                          type="button"
+                          label="Back"
+                          [text]="true"
+                          (click)="backToAddPaymentMethodChooser()"
+                        />
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
 
               @if (availableSources().length) {
                 <div class="checkout-shell__sources">
@@ -124,7 +359,9 @@
                     <button
                       type="button"
                       class="checkout-shell__source-card"
-                      [class.is-selected]="selectedSourceId() === source.id || selectedSource()?.id === source.id"
+                      [class.is-selected]="
+                        selectedSourceId() === source.id || selectedSource()?.id === source.id
+                      "
                       (click)="selectAndAttachSource(source)"
                     >
                       <span class="checkout-shell__source-icon" [class]="sourceIcon(source)"></span>
@@ -166,7 +403,10 @@
                   <div>
                     <p class="checkout-shell__summary-label">Amount</p>
                     <strong>
-                      {{ launchRequest().payment.amount | currency: launchRequest().payment.currency : 'symbol' : '1.2-2' }}
+                      {{
+                        launchRequest().payment.amount
+                          | currency: launchRequest().payment.currency : 'symbol' : '1.2-2'
+                      }}
                     </strong>
                   </div>
                 </div>
@@ -198,7 +438,8 @@
               <p class="checkout-shell__step-eyebrow">Payment complete</p>
               <h3>Hosted checkout finished successfully.</h3>
               <p class="checkout-shell__step-copy">
-                The SDK completed the session-controller payment flow and returned a finalized interaction.
+                The SDK completed the session-controller payment flow and returned a finalized
+                interaction.
               </p>
 
               <div class="checkout-shell__review-card">
