@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CommerceHub Connect Hosted Checkout Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="demo-page">
+      <section class="demo-page__intro">
+        <p class="demo-page__eyebrow">Pure HTML / JavaScript demo</p>
+        <h1>Hosted checkout browser demo</h1>
+        <p class="demo-page__copy">
+          This page lives outside the Angular workspace and invokes a browser SDK with no framework
+          dependencies. Its visual system mirrors the wallet welcome experience while the flow
+          still uses the hosted checkout endpoints from <code>session-controller</code> and
+          <code>interaction-controller</code> through a local same-origin proxy.
+        </p>
+      </section>
+
+      <section class="demo-page__grid">
+        <section class="demo-card">
+          <div class="demo-card__heading">
+            <div>
+              <p class="demo-card__kicker">Launcher</p>
+              <h2>Merchant and white-label settings</h2>
+            </div>
+          </div>
+
+          <form id="launcher-form" class="demo-form">
+            <label>
+              <span>Backend target URL</span>
+              <input name="apiBaseUrl" value="http://localhost:8080" required />
+            </label>
+
+            <label>
+              <span>Session reference ID</span>
+              <input name="sessionReferenceId" value="demo-session-reference" required />
+            </label>
+
+            <div class="demo-form__row">
+              <label>
+                <span>Transaction ID</span>
+                <input name="merchantTransactionId" value="txn-demo-10001" required />
+              </label>
+
+              <label>
+                <span>Order ID</span>
+                <input name="merchantOrderId" value="order-demo-10001" required />
+              </label>
+            </div>
+
+            <div class="demo-form__row">
+              <label>
+                <span>Invoice number</span>
+                <input name="merchantInvoiceNumber" value="inv-demo-10001" required />
+              </label>
+
+              <label>
+                <span>Amount</span>
+                <input name="amount" type="number" value="149.99" step="0.01" min="0.01" required />
+              </label>
+            </div>
+
+            <label>
+              <span>Prefill email</span>
+              <input name="email" type="email" value="buyer@example.com" required />
+            </label>
+
+            <div class="demo-form__divider"></div>
+
+            <div class="demo-form__row">
+              <label>
+                <span>Merchant name</span>
+                <input name="merchantName" value="CommerceHub Connect" required />
+              </label>
+
+              <label>
+                <span>Product name</span>
+                <input name="productName" value="Hosted Checkout SDK" required />
+              </label>
+            </div>
+
+            <label>
+              <span>Hero title</span>
+              <input
+                name="heroTitle"
+                value="Secure wallet checkout with your brand in front."
+                required
+              />
+            </label>
+
+            <label>
+              <span>Primary color</span>
+              <input name="primaryColor" value="#0a5dff" required />
+            </label>
+
+            <button type="submit" class="demo-button">Launch demo</button>
+          </form>
+        </section>
+
+        <section class="demo-card">
+          <div class="demo-card__heading">
+            <div>
+              <p class="demo-card__kicker">Browser SDK</p>
+              <h2>What the page invokes</h2>
+            </div>
+          </div>
+
+          <pre class="demo-code"><code>const sdk = new window.CommerceHubConnectSdk({
+  containerId: 'checkout-root',
+  apiBaseUrl: '/api',
+  proxyTargetOrigin: 'http://localhost:8080',
+  launchRequest,
+  branding
+});
+
+sdk.mount();</code></pre>
+
+          <div id="sdk-events" class="demo-events"></div>
+        </section>
+      </section>
+
+      <section id="checkout-root" class="demo-checkout"></section>
+    </main>
+
+    <script src="./commercehub-connect-sdk.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
