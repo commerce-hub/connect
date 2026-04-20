@@ -1,0 +1,405 @@
+<section class="ch-sdk-shell">
+  <div class="ch-sdk-card">
+    @if (sdk.loading()) {
+      <div class="ch-sdk-loading">
+        <p-progressspinner ariaLabel="Loading payment session" strokeWidth="4" />
+      </div>
+    } @else {
+      <header class="ch-sdk-header">
+        @if (logoUrl()) {
+          <img [src]="logoUrl()" alt="Merchant logo" class="ch-sdk-logo" />
+        }
+
+        <h1 class="ch-sdk-title">{{ paymentTitle() }}</h1>
+
+        <p class="ch-sdk-subtitle">{{ summaryLabel() }}</p>
+      </header>
+
+      <p-divider />
+
+      @if (sdk.lastError() && errorStage() !== 'otp_send' && errorStage() !== 'otp_validate') {
+        <p-message severity="error" variant="simple" styleClass="ch-sdk-error">
+          {{ errorMessage() }}
+        </p-message>
+      }
+
+      @switch (displayStep()) {
+        @case ('email') {
+          <form [formGroup]="emailForm" class="ch-sdk-form" (ngSubmit)="submitEmail()">
+            <div class="ch-sdk-field">
+              <label class="ch-sdk-label" for="sdk-email">Email address</label>
+              <input
+                id="sdk-email"
+                pInputText
+                fluid
+                formControlName="email"
+                type="email"
+                autocomplete="email"
+                [invalid]="fieldInvalid(emailForm.controls.email)"
+                placeholder="Email address"
+              />
+
+              @if (submitted() && emailForm.controls.email.invalid) {
+                <p-message severity="error" variant="simple" size="small">
+                  {{ emailErrorMessage() }}
+                </p-message>
+              }
+
+              @if (errorStage() === 'otp_send') {
+                <p-message severity="error" variant="simple" size="small">
+                  {{ errorMessage() || 'Unable to send sign-in code.' }}
+                </p-message>
+              }
+            </div>
+
+            <p-button
+              type="submit"
+              label="Continue"
+              icon="pi pi-arrow-right"
+              iconPos="right"
+              [fluid]="true"
+              [loading]="sdk.submitting()"
+            />
+          </form>
+        }
+        @case ('otp') {
+          <form [formGroup]="otpForm" class="ch-sdk-form" (ngSubmit)="submitOtp()">
+            <p class="ch-sdk-caption">{{ summaryLabel() }}</p>
+
+            <div class="ch-sdk-otp-stack">
+              <div class="ch-sdk-otp">
+                <p-inputotp
+                  formControlName="otp"
+                  [length]="6"
+                  [integerOnly]="true"
+                  inputStyleClass="ch-sdk-otp-input"
+                />
+              </div>
+
+              @if (otpSubmitted() && otpForm.controls.otp.invalid) {
+                <p-message severity="error" variant="simple" size="small">
+                  This field is incomplete.
+                </p-message>
+              }
+
+              @if (errorStage() === 'otp_validate') {
+                <p-message severity="error" variant="simple" size="small">
+                  {{ errorMessage() || 'Invalid code.' }}
+                </p-message>
+              }
+
+              @if (errorStage() === 'otp_send') {
+                <p-message severity="error" variant="simple" size="small">
+                  {{ errorMessage() || 'Unable to send one-time code.' }}
+                </p-message>
+              }
+            </div>
+
+            <p-button
+              type="submit"
+              label="Verify"
+              icon="pi pi-check"
+              [fluid]="true"
+              [loading]="sdk.submitting()"
+            />
+
+            <div class="ch-sdk-resend">
+              <span>Didn&rsquo;t receive the code?</span>
+              <div class="ch-sdk-resend-actions">
+                <p-button
+                  type="button"
+                  [label]="otpAlternateActionLabel()"
+                  [link]="true"
+                  [disabled]="sdk.submitting()"
+                  (onClick)="onOtpAlternateAction()"
+                />
+                <span aria-hidden="true">•</span>
+                <p-button
+                  type="button"
+                  label="Resend code"
+                  [link]="true"
+                  [disabled]="sdk.submitting()"
+                  (onClick)="resendCode()"
+                />
+              </div>
+            </div>
+          </form>
+        }
+        @case ('payment') {
+          <div class="ch-sdk-payment">
+            @if (paymentEntryMode() === 'list') {
+              <div class="ch-sdk-sources">
+                @for (source of availableSources(); track source.id ?? $index) {
+                  <button
+                    type="button"
+                    class="ch-sdk-source-card"
+                    [class.ch-sdk-source-card--selected]="isSelectedSource(source)"
+                    [disabled]="sdk.submitting()"
+                    (click)="selectExistingSource(source)"
+                  >
+                    <div class="ch-sdk-source-copy">
+                      <span class="ch-sdk-source-label">{{ sourceLabel(source) }}</span>
+                      <span class="ch-sdk-source-type">{{ sourceTypeLabel(source) }}</span>
+                    </div>
+
+                    <div class="ch-sdk-source-meta">
+                      <span class="ch-sdk-source-detail">{{ sourceDetailLabel(source) }}</span>
+                      @if (isSelectedSource(source)) {
+                        <span class="ch-sdk-source-badge">Selected</span>
+                      }
+                    </div>
+                  </button>
+                }
+
+                <button
+                  type="button"
+                  class="ch-sdk-add-option"
+                  (click)="showAddPaymentMethod()"
+                >
+                  <span class="pi pi-plus"></span>
+                  <span>Add a payment method</span>
+                </button>
+
+                <p-button
+                  type="button"
+                  label="Continue"
+                  icon="pi pi-arrow-right"
+                  iconPos="right"
+                  [fluid]="true"
+                  [disabled]="!selectedSource() || sdk.submitting()"
+                  [loading]="sdk.submitting()"
+                  (onClick)="continueWithSelectedSource()"
+                />
+              </div>
+            } @else {
+              <div class="ch-sdk-payment-add">
+                @if (availableSources().length) {
+                  <p-button
+                    type="button"
+                    label="Back to saved methods"
+                    icon="pi pi-arrow-left"
+                    [link]="true"
+                    (onClick)="backToPaymentList()"
+                  />
+                }
+
+                <p-tabs
+                  [value]="selectedTenderType()"
+                  (valueChange)="onTenderTypeChange($event)"
+                  class="ch-sdk-tabs"
+                >
+                  <p-tablist>
+                    @for (tenderType of supportedTenderTypes(); track tenderType) {
+                      <p-tab [value]="tenderType">{{ tenderLabel(tenderType) }}</p-tab>
+                    }
+                  </p-tablist>
+
+                  <p-tabpanels>
+                    <p-tabpanel value="CARD">
+                      <form [formGroup]="cardForm" class="ch-sdk-form" (ngSubmit)="submitPaymentSource()">
+                        <div class="ch-sdk-field">
+                          <label class="ch-sdk-label" for="card-name">Name on card</label>
+                          <input
+                            id="card-name"
+                            pInputText
+                            fluid
+                            formControlName="nameOnCard"
+                            autocomplete="cc-name"
+                            [invalid]="fieldInvalid(cardForm.controls.nameOnCard)"
+                            placeholder="Cardholder name"
+                          />
+                        </div>
+
+                        <div class="ch-sdk-field">
+                          <label class="ch-sdk-label" for="card-number">Card number</label>
+                          <input
+                            id="card-number"
+                            pInputText
+                            fluid
+                            formControlName="cardNumber"
+                            autocomplete="cc-number"
+                            [invalid]="fieldInvalid(cardForm.controls.cardNumber)"
+                            placeholder="1234 5678 9012 3456"
+                            (input)="applyCardNumberMask($event)"
+                          />
+                        </div>
+
+                        <div class="ch-sdk-row">
+                          <div class="ch-sdk-field">
+                            <label class="ch-sdk-label" for="card-exp-month">MM</label>
+                            <input
+                              id="card-exp-month"
+                              pInputText
+                              fluid
+                              formControlName="expirationMonth"
+                              autocomplete="cc-exp-month"
+                              [invalid]="fieldInvalid(cardForm.controls.expirationMonth)"
+                              placeholder="MM"
+                              (input)="applyNumericMask('expirationMonth', $event, 2)"
+                            />
+                          </div>
+
+                          <div class="ch-sdk-field">
+                            <label class="ch-sdk-label" for="card-exp-year">YYYY</label>
+                            <input
+                              id="card-exp-year"
+                              pInputText
+                              fluid
+                              formControlName="expirationYear"
+                              autocomplete="cc-exp-year"
+                              [invalid]="fieldInvalid(cardForm.controls.expirationYear) || cardForm.hasError('expired')"
+                              placeholder="YYYY"
+                              (input)="applyNumericMask('expirationYear', $event, 4)"
+                            />
+                          </div>
+
+                          <div class="ch-sdk-field">
+                            <label class="ch-sdk-label" for="card-cvv">CVV</label>
+                            <input
+                              id="card-cvv"
+                              pInputText
+                              fluid
+                              formControlName="cvv"
+                              autocomplete="cc-csc"
+                              [invalid]="fieldInvalid(cardForm.controls.cvv)"
+                              placeholder="CVV"
+                              (input)="applyNumericMask('cvv', $event, 4)"
+                            />
+                          </div>
+                        </div>
+
+                        <p class="ch-sdk-helper">
+                          Card data is routed through a PCI-vault placeholder service and is ready for vault integration.
+                        </p>
+
+                        <p-button
+                          type="submit"
+                          label="Save card"
+                          [fluid]="true"
+                          [loading]="sdk.submitting()"
+                        />
+                      </form>
+                    </p-tabpanel>
+
+                    <p-tabpanel value="BANK_ACCOUNT">
+                      <form [formGroup]="bankForm" class="ch-sdk-form" (ngSubmit)="submitPaymentSource()">
+                        <div class="ch-sdk-field">
+                          <label class="ch-sdk-label" for="bank-name">Account nickname</label>
+                          <input
+                            id="bank-name"
+                            pInputText
+                            fluid
+                            formControlName="name"
+                            [invalid]="fieldInvalid(bankForm.controls.name)"
+                            placeholder="Primary checking"
+                          />
+                        </div>
+
+                        <div class="ch-sdk-field">
+                          <label class="ch-sdk-label" for="bank-name-field">Bank name</label>
+                          <input
+                            id="bank-name-field"
+                            pInputText
+                            fluid
+                            formControlName="bankName"
+                            [invalid]="fieldInvalid(bankForm.controls.bankName)"
+                            placeholder="Bank name"
+                          />
+                        </div>
+
+                        <div class="ch-sdk-row">
+                          <div class="ch-sdk-field">
+                            <label class="ch-sdk-label" for="routing-number">Routing number</label>
+                            <input
+                              id="routing-number"
+                              pInputText
+                              fluid
+                              formControlName="routingNumber"
+                              [invalid]="fieldInvalid(bankForm.controls.routingNumber)"
+                              placeholder="123456789"
+                              (input)="applyBankNumericMask('routingNumber', $event, 9)"
+                            />
+                          </div>
+
+                          <div class="ch-sdk-field">
+                            <label class="ch-sdk-label" for="account-number">Account number</label>
+                            <input
+                              id="account-number"
+                              pInputText
+                              fluid
+                              formControlName="accountNumber"
+                              [invalid]="fieldInvalid(bankForm.controls.accountNumber)"
+                              placeholder="Account number"
+                              (input)="applyBankNumericMask('accountNumber', $event, 17)"
+                            />
+                          </div>
+                        </div>
+
+                        <div class="ch-sdk-field">
+                          <label class="ch-sdk-label" for="account-type">Account type</label>
+                          <select
+                            id="account-type"
+                            class="ch-sdk-select"
+                            formControlName="accountType"
+                          >
+                            @for (accountType of bankAccountTypes; track accountType) {
+                              <option [value]="accountType">{{ accountType }}</option>
+                            }
+                          </select>
+                        </div>
+
+                        <p-button
+                          type="submit"
+                          label="Save bank account"
+                          [fluid]="true"
+                          [loading]="sdk.submitting()"
+                        />
+                      </form>
+                    </p-tabpanel>
+
+                    <p-tabpanel value="DYNAMIC_SESSION_CARD">
+                      <div class="ch-sdk-banklink">
+                        <p class="ch-sdk-caption">
+                          Launch Fiserv BankLink using the Pay By Bank configuration from the integration guide.
+                        </p>
+
+                        <div [id]="payByBankMountId()" class="ch-sdk-banklink-mount"></div>
+
+                        @if (!bankLinkReady()) {
+                          <p-message severity="warn" variant="simple">
+                            Provide <code>accessToken</code> and <code>encryptionKey</code> inside
+                            <code>configuration.payByBank</code> to enable BankLink launch.
+                          </p-message>
+                        }
+
+                        <p-button
+                          type="button"
+                          label="Launch Pay By Bank"
+                          icon="pi pi-link"
+                          [fluid]="true"
+                          [disabled]="!bankLinkReady()"
+                          [loading]="sdk.bankLinkLoading()"
+                          (onClick)="submitPaymentSource()"
+                        />
+                      </div>
+                    </p-tabpanel>
+                  </p-tabpanels>
+                </p-tabs>
+              </div>
+            }
+          </div>
+        }
+        @case ('success') {
+          <div class="ch-sdk-success">
+            <div class="ch-sdk-success-icon">
+              <span class="pi pi-check"></span>
+            </div>
+            <p class="ch-sdk-success-copy">
+              The payment source has been attached to this interaction and is ready for the next step.
+            </p>
+          </div>
+        }
+      }
+    }
+  </div>
+</section>

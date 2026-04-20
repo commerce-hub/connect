@@ -1,0 +1,256 @@
+:host {
+  display: block;
+  font-family: var(--ch-font-family, 'Open Sans', sans-serif);
+  color: var(--ch-text-color, #000);
+}
+
+.ch-sdk-shell {
+  width: min(100%, 28rem);
+  margin: 0 auto;
+}
+
+.ch-sdk-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--ch-secondary-color) 16%, white);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(249, 251, 255, 0.92) 100%);
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.12);
+}
+
+.ch-sdk-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 0.35rem;
+  background: linear-gradient(
+    90deg,
+    var(--ch-primary-color),
+    color-mix(in srgb, var(--ch-primary-color) 60%, white)
+  );
+}
+
+.ch-sdk-loading {
+  display: grid;
+  min-height: 20rem;
+  place-items: center;
+}
+
+.ch-sdk-header {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ch-sdk-logo {
+  max-height: 2.25rem;
+  max-width: 9rem;
+  object-fit: contain;
+}
+
+.ch-sdk-title {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--ch-text-color);
+}
+
+.ch-sdk-subtitle,
+.ch-sdk-caption,
+.ch-sdk-helper,
+.ch-sdk-success-copy {
+  margin: 0;
+  color: color-mix(in srgb, var(--ch-secondary-color) 88%, white);
+  line-height: 1.6;
+}
+
+.ch-sdk-form,
+.ch-sdk-banklink,
+.ch-sdk-success {
+  display: grid;
+  gap: 1rem;
+}
+
+.ch-sdk-payment,
+.ch-sdk-payment-add,
+.ch-sdk-sources {
+  display: grid;
+  gap: 1rem;
+}
+
+.ch-sdk-otp-stack {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.ch-sdk-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ch-sdk-source-card,
+.ch-sdk-add-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--ch-secondary-color) 20%, white);
+  border-radius: 1.15rem;
+  padding: 1rem 1.05rem;
+  background: rgba(255, 255, 255, 0.78);
+  text-align: left;
+  color: var(--ch-text-color);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.ch-sdk-source-card:hover,
+.ch-sdk-add-option:hover {
+  border-color: color-mix(in srgb, var(--ch-primary-color) 32%, white);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.ch-sdk-source-card--selected {
+  border-color: color-mix(in srgb, var(--ch-primary-color) 45%, white);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ch-primary-color) 10%, white);
+}
+
+.ch-sdk-source-copy,
+.ch-sdk-source-meta {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.ch-sdk-source-meta {
+  justify-items: end;
+}
+
+.ch-sdk-source-label {
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.ch-sdk-source-type,
+.ch-sdk-source-detail {
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--ch-secondary-color) 84%, white);
+}
+
+.ch-sdk-source-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  background: color-mix(in srgb, var(--ch-primary-color) 10%, white);
+  color: var(--ch-primary-color);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.ch-sdk-add-option {
+  justify-content: center;
+  font-weight: 700;
+  color: var(--ch-primary-color);
+}
+
+.ch-sdk-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--ch-secondary-color) 78%, white);
+}
+
+.ch-sdk-row {
+  display: grid;
+  gap: 0.875rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ch-sdk-select {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--ch-secondary-color) 24%, white);
+  border-radius: 0.95rem;
+  padding: 0.95rem 1rem;
+  font: inherit;
+  color: var(--ch-text-color);
+  background: white;
+}
+
+.ch-sdk-select:focus {
+  outline: 0;
+  border-color: var(--ch-primary-color);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ch-primary-color) 12%, white);
+}
+
+.ch-sdk-otp {
+  display: grid;
+  justify-content: center;
+  padding: 0.25rem 0 0.75rem;
+}
+
+.ch-sdk-resend {
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+  text-align: center;
+  font-size: 0.92rem;
+  color: color-mix(in srgb, var(--ch-secondary-color) 88%, white);
+}
+
+.ch-sdk-resend-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.ch-sdk-success {
+  place-items: center;
+  text-align: center;
+  padding: 1rem 0 0.25rem;
+}
+
+.ch-sdk-success-icon {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ch-primary-color) 12%, white);
+  color: var(--ch-primary-color);
+  font-size: 1.4rem;
+}
+
+.ch-sdk-banklink-mount {
+  min-height: 1px;
+}
+
+.ch-sdk-error {
+  margin-bottom: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .ch-sdk-card {
+    border-radius: 1.25rem;
+    padding: 1.25rem;
+  }
+
+  .ch-sdk-title {
+    font-size: 1.7rem;
+  }
+
+  .ch-sdk-row {
+    grid-template-columns: 1fr;
+  }
+}
