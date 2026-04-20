@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-"start": "ng serve --port 4500 --proxy-config proxy.conf.json",
+    "start": "ng serve --port 4500 --proxy-config proxy.conf.json",
     "build": "ng build",
     "build:sdk": "ng build commerce-hub-connect-sdk",
     "watch": "ng build --watch --configuration development",
@@ -32,6 +32,7 @@
     "@angular/platform-browser": "20.3.19",
     "@angular/router": "20.3.19",
     "@primeuix/themes": "2.0.3",
+    "angular-cc-library": "^3.5.1",
     "primeicons": "7.0.0",
     "primeng": "20.4.0",
     "rxjs": "7.8.2",
@@ -39,10 +40,10 @@
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.1.4",
     "@angular/build": "20.3.24",
     "@angular/cli": "20.3.24",
     "@angular/compiler-cli": "20.3.19",
+    "@tailwindcss/postcss": "4.1.4",
     "@types/jasmine": "~5.1.0",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.0",

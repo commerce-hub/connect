@@ -23,7 +23,7 @@ Act as a Senior Angular Architect specializing in financial technology (FinTech)
       - `merchantInvoiceNumber` optional
       - `authType`: choices [FINAL_SALE, AUTH_ONLY],
       - `expiryMinutes` optional
-      - `allowedTenderTypes` optional [ CARD, BANK_ACCOUNT, DYNAMIC_SESSION_CARD ]. If not provided, default to all.
+      - `allowedTenderTypes` optional [ CARD, BANK_ACCOUNT ]. If not provided, default to both.
       - `allowEmailChange` optional
     - Add another JSON optional parameter to control white labeling.
       - `primaryColor`: optional, default to '#0a5dff'

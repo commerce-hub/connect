@@ -28,11 +28,7 @@ export class AppComponent {
     merchantInvoiceNumber: 'invoice-30003',
     expiryMinutes: 30,
     allowEmailChange: true,
-    allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
-    payByBank: {
-      accessToken: 'replace-with-session-token-id',
-      encryptionKey: 'replace-with-session-public-key',
-    },
+    allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
     onSuccess: (result: CommerceHubSuccessResult) => this.handleSuccess(result),
     onError: (error: CommerceHubSdkError) => this.handleError(error),
   };
