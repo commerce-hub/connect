@@ -1,0 +1,464 @@
+<div class="mx-auto w-full max-w-[26rem] overflow-hidden p-3">
+  <div class="grid gap-4" [style.font-family]="brand().fontFamily" [style.color]="brand().textColor">
+    @if (sdk.loading()) {
+      <div class="grid place-items-center py-8">
+        <p-progress-spinner ariaLabel="Loading payment session" strokeWidth="4" />
+      </div>
+    } @else {
+      @if (logoUrl()) {
+        <header class="flex justify-start">
+          <img [src]="logoUrl()" alt="Merchant logo" class="max-h-10 max-w-40 object-contain" />
+        </header>
+      }
+
+<!--      <header class="grid gap-2">
+        <h1 class="m-0 text-4xl font-extrabold tracking-tight">{{ paymentTitle() }}</h1>
+        @if (showStepSummary()) {
+          <p class="m-0 text-sm leading-6 opacity-70">{{ summaryLabel() }}</p>
+        }
+      </header>-->
+
+      @if (sdk.lastError() && errorStage() !== 'otp_send' && errorStage() !== 'otp_validate') {
+        <p-message severity="error" variant="simple">
+          {{ errorMessage() }}
+        </p-message>
+      }
+
+      @switch (displayStep()) {
+        @case ('email') {
+          <form [formGroup]="emailForm" class="grid gap-4" (ngSubmit)="submitEmail()">
+            <div class="grid gap-2">
+              <label class="text-sm font-medium" for="sdk-email">Email address</label>
+              <input
+                id="sdk-email"
+                pInputText
+                fluid
+                formControlName="email"
+                type="email"
+                autocomplete="email"
+                [invalid]="fieldInvalid(emailForm.controls.email)"
+                placeholder="Email address"
+              />
+
+              @if (submitted() && emailForm.controls.email.invalid) {
+                <p-message severity="error" variant="simple" size="small">
+                  {{ emailErrorMessage() }}
+                </p-message>
+              }
+
+              @if (errorStage() === 'otp_send') {
+                <p-message severity="error" variant="simple" size="small">
+                  {{ errorMessage() || 'Unable to send sign-in code.' }}
+                </p-message>
+              }
+            </div>
+
+            <p-button
+              type="submit"
+              label="Continue"
+              icon="pi pi-arrow-right"
+              iconPos="right"
+              [fluid]="true"
+              [rounded]="true"
+              [loading]="sdk.submitting()"
+            />
+          </form>
+        }
+        @case ('otp') {
+          <form [formGroup]="otpForm" class="grid gap-4" (ngSubmit)="submitOtp()">
+            <p class="m-0 text-sm leading-6 opacity-70">{{ summaryLabel() }}</p>
+
+            <div class="flex flex-col items-center justify-center gap-3">
+              <p-input-otp formControlName="otp" [length]="6" [integerOnly]="true" />
+
+              @if (otpSubmitted() && otpForm.controls.otp.invalid) {
+                <p-message styleClass="w-full" severity="error" variant="simple" size="small">
+                  This field is incomplete.
+                </p-message>
+              }
+
+              @if (errorStage() === 'otp_validate') {
+                <p-message severity="error" variant="simple" size="small">
+                  {{ errorMessage() || 'Invalid code.' }}
+                </p-message>
+              }
+
+              @if (errorStage() === 'otp_send') {
+                <p-message severity="error" variant="simple" size="small">
+                  {{ errorMessage() || 'Unable to send one-time code.' }}
+                </p-message>
+              }
+            </div>
+
+            <p-button
+              type="submit"
+              label="Verify"
+              icon="pi pi-check"
+              [fluid]="true"
+              [rounded]="true"
+              [loading]="sdk.submitting()"
+            />
+
+            <div class="grid justify-items-center gap-2 text-center text-sm">
+              <span>Didn&rsquo;t receive the code?</span>
+              <div class="flex flex-wrap items-center justify-center gap-2">
+                <p-button
+                  type="button"
+                  [label]="otpAlternateActionLabel()"
+                  [link]="true"
+                  [disabled]="sdk.submitting()"
+                  (onClick)="onOtpAlternateAction()"
+                />
+                <span aria-hidden="true">•</span>
+                <p-button
+                  type="button"
+                  label="Resend code"
+                  [link]="true"
+                  [disabled]="sdk.submitting()"
+                  (onClick)="resendCode()"
+                />
+              </div>
+            </div>
+          </form>
+        }
+        @case ('payment') {
+          <div class="grid gap-4">
+            @if (paymentEntryMode() === 'list') {
+              <div class="grid gap-4">
+                @for (source of availableSources(); track source.id ?? $index) {
+                  <button
+                    type="button"
+                    class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-[1.25rem] border bg-[var(--p-surface-0)] px-4 py-3 text-left shadow-sm transition sm:min-h-[5.75rem]"
+                    [ngClass]="isSelectedSource(source)
+                      ? 'border-[var(--p-button-primary-border-color)] ring-1 ring-[var(--p-button-primary-border-color)]'
+                      : 'border-[var(--p-content-border-color)]'"
+                    [disabled]="sdk.submitting()"
+                    [attr.aria-pressed]="isSelectedSource(source)"
+                    (click)="selectExistingSource(source)"
+                  >
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--p-content-border-color)]">
+                      @if (isSelectedSource(source)) {
+                        <span class="h-2.5 w-2.5 rounded-full bg-[var(--p-button-primary-background)]"></span>
+                      }
+                    </span>
+
+                    <span class="grid min-w-0 gap-0.5">
+                      <span class="truncate text-lg font-bold">{{ sourcePrimaryLabel(source) }}</span>
+                      @if (sourceSecondaryLabel(source); as secondaryLabel) {
+                        <span class="truncate text-sm opacity-70">{{ secondaryLabel }}</span>
+                      }
+                      @if (sourceTertiaryLabel(source); as tertiaryLabel) {
+                        <span class="truncate text-sm opacity-80">{{ tertiaryLabel }}</span>
+                      }
+                    </span>
+
+                    <span class="justify-self-end">
+                      <p-tag [value]="sourceBadgeLabel(source)" severity="contrast" />
+                    </span>
+                  </button>
+                }
+
+                @if (hasSavedSources()) {
+                  <p-divider align="center">
+                    <span>or</span>
+                  </p-divider>
+                }
+
+                <div class="grid gap-3">
+                  @if (canAddCard()) {
+                    <p-button
+                      type="button"
+                      severity="secondary"
+                      [outlined]="true"
+                      [rounded]="true"
+                      icon="pi pi-credit-card"
+                      label="Add a Credit Card"
+                      [fluid]="true"
+                      (onClick)="showAddCardMethod()"
+                    />
+                  }
+
+                  @if (canAddBankAccount()) {
+                    <p-button
+                      type="button"
+                      severity="secondary"
+                      [outlined]="true"
+                      [rounded]="true"
+                      icon="pi pi-building-columns"
+                      label="Add Bank Account"
+                      [fluid]="true"
+                      (onClick)="showAddBankAccountMethod()"
+                    />
+                  }
+                </div>
+
+                <p-button
+                  type="button"
+                  label="Continue"
+                  icon="pi pi-arrow-right"
+                  iconPos="right"
+                  [fluid]="true"
+                  [rounded]="true"
+                  [disabled]="!selectedSource() || sdk.submitting()"
+                  [loading]="sdk.submitting()"
+                  (onClick)="continueWithSelectedSource()"
+                />
+              </div>
+            } @else {
+              <div class="grid gap-4">
+                @if (selectedTenderType() === 'CARD') {
+                  <form [formGroup]="cardForm" class="grid grid-cols-2 gap-3" (ngSubmit)="submitPaymentSource()">
+                    <p-floatlabel class="col-span-2" variant="in">
+                      <input
+                        id="card-name"
+                        type="text"
+                        pInputText
+                        class="w-full"
+                        formControlName="name"
+                        autocomplete="cc-additional-name"
+                        [class.p-invalid]="fieldInvalid(cardForm.controls.name)"
+                      />
+                      <label for="card-name">Card Name</label>
+                    </p-floatlabel>
+
+                    <p-floatlabel class="col-span-2" variant="in">
+                      <input
+                        id="card-number"
+                        type="tel"
+                        pInputText
+                        class="w-full"
+                        formControlName="cardNumber"
+                        autocomplete="cc-number"
+                        inputmode="numeric"
+                        [class.p-invalid]="fieldInvalid(cardForm.controls.cardNumber)"
+                        (blur)="onCardNumberBlur()"
+                        ccNumber
+                      />
+                      <label for="card-number">Card number</label>
+                    </p-floatlabel>
+
+                    <p-floatlabel variant="in">
+                      <input
+                        id="card-expiration"
+                        type="tel"
+                        pInputText
+                        class="w-full"
+                        formControlName="expiration"
+                        autocomplete="cc-exp"
+                        inputmode="numeric"
+                        [class.p-invalid]="fieldInvalid(cardForm.controls.expiration)"
+                        ccExp
+                      />
+                      <label for="card-expiration">Expiration</label>
+                    </p-floatlabel>
+
+                    <p-floatlabel variant="in">
+                      <input
+                        id="card-cvc"
+                        type="tel"
+                        pInputText
+                        class="w-full"
+                        formControlName="cvc"
+                        autocomplete="cc-csc"
+                        inputmode="numeric"
+                        [class.p-invalid]="fieldInvalid(cardForm.controls.cvc)"
+                        (blur)="onCvvBlur()"
+                        ccCVC
+                      />
+                      <label for="card-cvc">CVC</label>
+                    </p-floatlabel>
+
+                    <p-floatlabel class="col-span-2" variant="in">
+                      <input
+                        id="card-full-name"
+                        type="text"
+                        pInputText
+                        class="w-full"
+                        formControlName="fullName"
+                        autocomplete="cc-name"
+                        [class.p-invalid]="fieldInvalid(cardForm.controls.fullName)"
+                      />
+                      <label for="card-full-name">Full name</label>
+                    </p-floatlabel>
+
+                    <p-floatlabel class="col-span-2" variant="in">
+                      <p-select
+                        inputId="card-billing-address"
+                        class="w-full"
+                        [options]="billingAddressOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        formControlName="billingAddressValue"
+                        appendTo="body"
+                      />
+                      <label for="card-billing-address">Billing address</label>
+                    </p-floatlabel>
+
+                    @if (selectedBillingAddress() && !addingNewBillingAddress()) {
+                      <div class="col-span-2 rounded-2xl border border-[var(--p-content-border-color)] bg-[var(--p-surface-50)] px-4 py-4">
+                        <div class="text-sm font-semibold">{{ selectedBillingAddressLine1() }}</div>
+                        @if (selectedBillingAddressLine2()) {
+                          <div class="mt-1 text-xs opacity-70">{{ selectedBillingAddressLine2() }}</div>
+                        }
+                      </div>
+                    }
+
+                    @if (addingNewBillingAddress()) {
+                      <p-floatlabel class="col-span-2" variant="in">
+                        <p-select
+                          inputId="billing-country"
+                          class="w-full"
+                          [options]="countryOptions"
+                          formControlName="country"
+                          appendTo="body"
+                        />
+                        <label for="billing-country">Country or region</label>
+                      </p-floatlabel>
+
+                      <p-floatlabel class="col-span-2" variant="in">
+                        <input
+                          id="billing-address-1"
+                          type="text"
+                          pInputText
+                          class="w-full"
+                          formControlName="addressLine1"
+                          autocomplete="address-line1"
+                          [class.p-invalid]="fieldInvalid(cardForm.controls.addressLine1)"
+                        />
+                        <label for="billing-address-1">Address</label>
+                      </p-floatlabel>
+
+                      <p-floatlabel class="col-span-2" variant="in">
+                        <input
+                          id="billing-address-2"
+                          type="text"
+                          pInputText
+                          class="w-full"
+                          formControlName="addressLine2"
+                          autocomplete="address-line2"
+                        />
+                        <label for="billing-address-2">Address line 2</label>
+                      </p-floatlabel>
+
+                      <p-floatlabel class="col-span-2" variant="in">
+                        <input
+                          id="billing-city"
+                          type="text"
+                          pInputText
+                          class="w-full"
+                          formControlName="city"
+                          autocomplete="address-level2"
+                          [class.p-invalid]="fieldInvalid(cardForm.controls.city)"
+                        />
+                        <label for="billing-city">City</label>
+                      </p-floatlabel>
+
+                      <p-floatlabel class="col-span-2" variant="in">
+                        <p-select
+                          inputId="billing-state"
+                          class="w-full"
+                          [options]="states"
+                          optionLabel="name"
+                          optionValue="code"
+                          formControlName="state"
+                          appendTo="body"
+                        />
+                        <label for="billing-state">State</label>
+                      </p-floatlabel>
+
+                      <p-floatlabel class="col-span-2" variant="in">
+                        <input
+                          id="billing-zip"
+                          type="text"
+                          pInputText
+                          class="w-full"
+                          formControlName="zip"
+                          autocomplete="postal-code"
+                          inputmode="numeric"
+                          [class.p-invalid]="fieldInvalid(cardForm.controls.zip)"
+                        />
+                        <label for="billing-zip">ZIP code</label>
+                      </p-floatlabel>
+                    }
+
+                      @if (cardSecurityErrorMessage()) {
+                          <p-message class="col-span-2" severity="error" variant="simple" size="small">
+                              {{ cardSecurityErrorMessage() }}
+                          </p-message>
+                      }
+
+                      <p-button
+                              type="button"
+                              label="Back to payment methods"
+                              icon="pi pi-arrow-left"
+                              [text]="true"
+                              (onClick)="backToPaymentList()"
+                      />
+
+                    <p-button
+                      type="submit"
+                      label="Save card"
+                      [fluid]="true"
+                      [rounded]="true"
+                      [loading]="cardSecurityBusy()"
+                    />
+
+                      <p class="col-span-2 m-0 italic text-sm leading-6 opacity-70">
+                          Card number and CVC are secured through the wallet masking API before the source is saved.
+                      </p>
+                  </form>
+                }
+
+                @if (selectedTenderType() === 'BANK_ACCOUNT') {
+                  <div class="grid gap-4">
+                    <p class="m-0 text-sm leading-6 opacity-70">
+                      Add a bank account using the PayByBank flow configured for this integration.
+                    </p>
+
+                    <div [id]="payByBankMountId()" class="min-h-px"></div>
+
+                    @if (!bankLinkReady()) {
+                      <p-message severity="warn" variant="simple">
+                        Provide valid <code>accessToken</code>, <code>encryptionKey</code>, and
+                        <code>aggregatorKey</code> inside <code>configuration.payByBank</code> to
+                        enable the Pay by Bank flow.
+                      </p-message>
+                    }
+
+                    <p-button
+                      type="button"
+                      label="Add Bank Account"
+                      icon="pi pi-link"
+                      [fluid]="true"
+                      [rounded]="true"
+                      [disabled]="!bankLinkReady()"
+                      [loading]="sdk.bankLinkLoading()"
+                      (onClick)="submitPaymentSource()"
+                    />
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+        @case ('success') {
+          <div class="grid gap-4">
+            @if (completedSource(); as source) {
+              <p-card class="rounded-[1.25rem] border shadow-sm">
+                <div class="grid gap-1">
+                  <span class="text-lg font-bold">{{ sourcePrimaryLabel(source) }}</span>
+                  @if (sourceSecondaryLabel(source); as secondaryLabel) {
+                    <span class="text-sm opacity-70">{{ secondaryLabel }}</span>
+                  }
+                  @if (sourceTertiaryLabel(source); as tertiaryLabel) {
+                    <span class="text-sm opacity-80">{{ tertiaryLabel }}</span>
+                  }
+                </div>
+              </p-card>
+            }
+          </div>
+        }
+      }
+    }
+  </div>
+</div>

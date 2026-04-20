@@ -1,0 +1,38 @@
+<main class="app-shell">
+  <section class="app-copy">
+    <p class="app-kicker">Angular 20 SDK Demo</p>
+    <h1>CommerceHub Connect Wallet SDK</h1>
+    <p class="app-description">
+      Standalone Angular library with card capture, bank-account capture through PayByBank, OTP
+      verification, and PCI vault placeholder routing through the internal proxy.
+    </p>
+
+    <div class="app-code">
+      <h2>Usage</h2>
+      <pre><code>&lt;commerce-hub-connect-capture
+  [configuration]="sdkConfiguration"
+  [whiteLabel]="whiteLabel" /&gt;</code></pre>
+    </div>
+
+    <div class="app-events">
+      <h2>Callback log</h2>
+
+      @if (events().length) {
+        <ul>
+          @for (event of events(); track event) {
+            <li>{{ event }}</li>
+          }
+        </ul>
+      } @else {
+        <p>Callbacks will appear here as the SDK flow completes.</p>
+      }
+    </div>
+  </section>
+
+  <section class="app-widget">
+    <commerce-hub-connect-capture
+      [configuration]="sdkConfiguration"
+      [whiteLabel]="whiteLabel"
+    />
+  </section>
+</main>
