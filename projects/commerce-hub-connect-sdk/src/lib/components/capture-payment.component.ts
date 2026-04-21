@@ -26,7 +26,6 @@ import {
   ExpiryFormatDirective,
 } from 'angular-cc-library';
 import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputOtpModule } from 'primeng/inputotp';
@@ -34,7 +33,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectModule } from 'primeng/select';
-import { TagModule } from 'primeng/tag';
 
 import {
   Address,
@@ -128,7 +126,6 @@ const US_STATES = [
     ExpiryFormatDirective,
     CvcFormatDirective,
     ButtonModule,
-    CardModule,
     DividerModule,
     FloatLabelModule,
     InputOtpModule,
@@ -136,7 +133,6 @@ const US_STATES = [
     MessageModule,
     ProgressSpinnerModule,
     SelectModule,
-    TagModule,
   ],
   providers: [CommerceHubConnectSdkService],
   host: {
@@ -370,7 +366,7 @@ export class CommerceHubConnectCaptureComponent {
         this.emailForm.controls.email.enable({ emitEvent: false });
       }
 
-      if (this.initializedSessionReferenceId() !== configuration.sessionReferenceId) {
+      if (this.emailForm.controls.email.value && this.initializedSessionReferenceId() !== configuration.sessionReferenceId) {
         this.initializedSessionReferenceId.set(configuration.sessionReferenceId);
         void this.sdk.initialize(configuration);
       }
@@ -645,14 +641,26 @@ export class CommerceHubConnectCaptureComponent {
 
   protected sourcePrimaryLabel(source: PaymentSource): string {
     if (source.tenderType === 'CARD') {
-      const cardSuffix = source.card.cardNumber.slice(-4) || '----';
-      return `${source.card.network ?? 'Card'} **** ${cardSuffix}`;
+      return source.name?.trim() || source.card.nameOnCard?.trim() || `${source.card.network ?? 'Card'} card`;
     }
 
-    return source.name?.trim() || source.bankAccount.bankName?.trim() || 'Bank account';
+    return (
+        source.bankAccount.bankName?.trim() ||
+        source.bankAccount.accountType?.trim() ||
+        source.name?.trim() ||
+        'Bank account'
+    );
   }
 
   protected sourceSecondaryLabel(source: PaymentSource): string | undefined {
+    if (source.tenderType === 'CARD') {
+      return `•••• ${source.card.cardNumber.slice(-4) || '----'}`;
+    }
+
+    return `•••${source.bankAccount.accountNumber.slice(-4) || '----'}`;
+  }
+
+  /*protected sourceTertiaryLabel(source: PaymentSource): string | undefined {
     if (source.tenderType === 'CARD') {
       const month = source.card.expirationMonth?.trim();
       const year = source.card.expirationYear?.trim();
@@ -661,26 +669,40 @@ export class CommerceHubConnectCaptureComponent {
         return `Expires ${month}/${year}`;
       }
 
-      return undefined;
+      return source.card.network?.trim() || undefined;
     }
 
-    return source.bankAccount.bankName?.trim() || source.bankAccount.accountType?.trim() || 'Bank account';
-  }
-
-  protected sourceTertiaryLabel(source: PaymentSource): string | undefined {
-    if (source.tenderType === 'CARD') {
-      return source.card.nameOnCard?.trim() || source.name?.trim() || undefined;
-    }
-
-    return `Acct •••• ${source.bankAccount.accountNumber.slice(-4) || '—'}`;
-  }
+  }*/
 
   protected sourceBadgeLabel(source: PaymentSource): string {
     if (source.tenderType === 'CARD') {
-      return source.card.network ?? 'Card';
+      switch (source.card.network) {
+        case 'AmericanExpress':
+          return 'AMEX';
+        case 'Mastercard':
+          return 'MC';
+        case 'Discover':
+          return 'DISC';
+        case 'Visa':
+          return 'VISA';
+        default:
+          return 'CARD';
+      }
     }
 
-    return 'Bank';
+    const bankName = source.bankAccount.bankName?.trim();
+    if (!bankName) {
+      return 'BANK';
+    }
+
+    const initials = bankName
+      .split(/\s+/)
+      .map((part) => part[0] ?? '')
+      .join('')
+      .slice(0, 4)
+      .toUpperCase();
+
+    return initials || 'BANK';
   }
 
   protected showStepSummary(): boolean {

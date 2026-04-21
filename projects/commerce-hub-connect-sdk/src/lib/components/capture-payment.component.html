@@ -1,5 +1,5 @@
-<div class="mx-auto w-full overflow-hidden p-3">
-    <div class="grid gap-4" [style.font-family]="brand().fontFamily" [style.color]="brand().textColor">
+<div class="mx-auto w-full max-w-[24rem] rounded-[1.75rem] border border-[var(--p-content-border-color)] bg-[var(--p-surface-0)] px-4 py-2 shadow-sm">
+    <div class="grid gap-3" [style.font-family]="brand().fontFamily" [style.color]="brand().textColor">
         @if (sdk.loading()) {
             <div class="grid place-items-center py-8">
                 <p-progress-spinner ariaLabel="Loading payment session" strokeWidth="4"/>
@@ -7,16 +7,9 @@
         } @else {
             @if (logoUrl()) {
                 <header class="flex justify-start">
-                    <img [src]="logoUrl()" alt="Merchant logo" class="max-h-10 max-w-40 object-contain"/>
+                    <img [src]="logoUrl()" alt="Merchant logo" class="max-h-8 max-w-32 object-contain"/>
                 </header>
             }
-
-            <!--      <header class="grid gap-2">
-                    <h1 class="m-0 text-4xl font-extrabold tracking-tight">{{ paymentTitle() }}</h1>
-                    @if (showStepSummary()) {
-                      <p class="m-0 text-sm leading-6 opacity-70">{{ summaryLabel() }}</p>
-                    }
-                  </header>-->
 
             @if (sdk.lastError() && errorStage() !== 'otp_send' && errorStage() !== 'otp_validate') {
                 <p-message severity="error" variant="simple">
@@ -24,10 +17,12 @@
                 </p-message>
             }
 
+
             @switch (displayStep()) {
                 @case ('email') {
-                    <form [formGroup]="emailForm" class="grid gap-4 items-center" (ngSubmit)="submitEmail()">
+                    <form [formGroup]="emailForm" class="grid gap-3" (ngSubmit)="submitEmail()">
                         <div class="grid gap-2">
+                            <p-floatlabel class="w-full" variant="in">
                             <label class="text-sm font-medium" for="sdk-email">Email address</label>
                             <input
                                     id="sdk-email"
@@ -37,8 +32,8 @@
                                     type="email"
                                     autocomplete="email"
                                     [invalid]="fieldInvalid(emailForm.controls.email)"
-                                    placeholder="Email address"
                             />
+                            </p-floatlabel>
 
                             @if (submitted() && emailForm.controls.email.invalid) {
                                 <p-message severity="error" variant="simple" size="small">
@@ -58,15 +53,19 @@
                                 label="Continue"
                                 icon="pi pi-arrow-right"
                                 iconPos="right"
-                                styleClass="min-w-[200px]"
+                                class="w-full"
+                                [fluid]="true"
                                 [rounded]="true"
                                 [loading]="sdk.submitting()"
                         />
                     </form>
                 }
                 @case ('otp') {
-                    <form [formGroup]="otpForm" class="grid gap-4 justify-center" (ngSubmit)="submitOtp()">
-                        <p class="m-0 text-sm leading-6 opacity-70">{{ summaryLabel() }}</p>
+                    <form [formGroup]="otpForm" class="grid gap-3" (ngSubmit)="submitOtp()">
+                        <div class="grid gap-1 text-center">
+                            <h2 class="m-0 text-lg font-semibold">Enter the code</h2>
+                            <p class="m-0 text-sm leading-6 opacity-70">{{ summaryLabel() }}</p>
+                        </div>
 
                         <div class="flex flex-col items-center justify-center gap-3">
                             <p-input-otp formControlName="otp" [length]="6" [integerOnly]="true"/>
@@ -90,17 +89,15 @@
                             }
                         </div>
 
-                        <div class="flex justify-center w-full">
-                            <p-button
-                                    type="submit"
-                                    label="Verify"
-                                    icon="pi pi-check"
-                                    styleClass="min-w-[200px]"
-                                    [fluid]="true"
-                                    [rounded]="true"
-                                    [loading]="sdk.submitting()"
-                            />
-                        </div>
+                        <p-button
+                                type="submit"
+                                label="Verify"
+                                icon="pi pi-check"
+                                class="w-full"
+                                [fluid]="true"
+                                [rounded]="true"
+                                [loading]="sdk.submitting()"
+                        />
 
                         <div class="grid justify-items-center gap-2 text-center text-sm">
                             <span>Didn&rsquo;t receive the code?</span>
@@ -125,72 +122,60 @@
                     </form>
                 }
                 @case ('payment') {
-                    <div class="grid gap-4">
+                    <div class="grid gap-3">
                         @if (paymentEntryMode() === 'list') {
-                            <div class="flex flex-col gap-4 justify-center">
-                                @for (source of availableSources(); track source.id ?? $index) {
-                                    <button
-                                            type="button"
-                                            class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-[1.25rem] border bg-[var(--p-surface-0)] px-4 py-3 text-left shadow-sm transition sm:min-h-[5.75rem]"
-                                            [ngClass]="isSelectedSource(source)
-                      ? 'border-[var(--p-button-primary-border-color)] ring-1 ring-[var(--p-button-primary-border-color)]'
-                      : 'border-[var(--p-content-border-color)]'"
-                                            [disabled]="sdk.submitting()"
-                                            [attr.aria-pressed]="isSelectedSource(source)"
-                                            (click)="selectExistingSource(source)"
-                                    >
-                    <span class="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--p-content-border-color)]">
-                      @if (isSelectedSource(source)) {
-                          <span class="h-2.5 w-2.5 rounded-full bg-[var(--p-button-primary-background)]"></span>
-                      }
-                    </span>
+                            <div class="grid gap-3">
+                                <div class="grid gap-2">
+                                    <div class="flex items-center justify-between">
+                                        <h2 class="m-0 text-lg font-semibold">Pay with</h2>
+                                    </div>
 
-                                        <span class="grid min-w-0 gap-0.5">
-                      <span class="truncate text-lg font-bold">{{ sourcePrimaryLabel(source) }}</span>
-                                            @if (sourceSecondaryLabel(source); as secondaryLabel) {
-                                                <span class="truncate text-sm opacity-70">{{ secondaryLabel }}</span>
-                                            }
-                                            @if (sourceTertiaryLabel(source); as tertiaryLabel) {
-                                                <span class="truncate text-sm opacity-80">{{ tertiaryLabel }}</span>
-                                            }
-                    </span>
+                                    <div class="grid gap-1.5">
+                                        @for (source of availableSources(); track source.id ?? $index) {
+                                            <button
+                                                    type="button"
+                                                    class="grid w-full grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[1rem] border px-3 py-3 text-left transition"
+                                                    [ngClass]="isSelectedSource(source)
+                      ? 'border-[var(--p-button-primary-border-color)] ring-1 ring-[var(--p-button-primary-border-color)] bg-[var(--p-surface-50)]'
+                      : 'border-[var(--p-content-border-color)] bg-[var(--p-surface-0)]'"
+                                                    [disabled]="sdk.submitting()"
+                                                    [attr.aria-pressed]="isSelectedSource(source)"
+                                                    (click)="selectExistingSource(source)"
+                                            >
+                                                <span class="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--p-content-border-color)] bg-[var(--p-surface-0)]">
+                                                    @if (isSelectedSource(source)) {
+                                                        <span class="h-2.5 w-2.5 rounded-full bg-[var(--p-button-primary-background)]"></span>
+                                                    }
+                                                </span>
 
-                                        <span class="justify-self-end">
-                      <p-tag [value]="sourceBadgeLabel(source)" severity="contrast"/>
-                    </span>
-                                    </button>
-                                }
+                                                <span class="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-content-border-color)] bg-[var(--p-surface-50)]">
+                                                    @if (source.tenderType === 'CARD') {
+                                                        <span class="px-1 text-[0.625rem] font-semibold uppercase tracking-wide">
+                                                            {{ sourceBadgeLabel(source) }}
+                                                        </span>
+                                                    } @else {
+                                                        <i class="pi pi-building-columns text-sm" [style.color]="brand().primaryColor" aria-hidden="true"></i>
+                                                    }
+                                                </span>
 
-                                @if (hasSavedSources()) {
-                                    <p-divider align="center">
-                                        <span>or</span>
-                                    </p-divider>
-                                }
+                                                <span class="grid min-w-0 gap-0.5">
+                                                    <span class="truncate text-sm font-semibold">{{ sourcePrimaryLabel(source) }}</span>
+                                                    @if (sourceSecondaryLabel(source); as secondaryLabel) {
+                                                        <span class="truncate text-xs opacity-70">{{ secondaryLabel }}</span>
+                                                    }
+                                                </span>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
 
-                                <div class="grid gap-3 mb-10 mx-auto">
+                                <div class="grid gap-2">
                                     @if (canAddCard()) {
-                                        <p-button
-                                                type="button"
-                                                severity="secondary"
-                                                [outlined]="true"
-                                                [rounded]="true"
-                                                icon="pi pi-credit-card"
-                                                label="Add a Credit Card"
-                                                (onClick)="showAddCardMethod()"
-                                        />
+                                        <p-button styleClass="w-full !justify-start" [link]="true" label="Add a credit or debit card" icon="pi pi-plus" (click)="showAddCardMethod()"></p-button>
                                     }
 
                                     @if (canAddBankAccount()) {
-                                        <p-button
-                                                type="button"
-                                                severity="secondary"
-                                                [outlined]="true"
-                                                [rounded]="true"
-                                                icon="pi pi-building-columns"
-                                                label="Add Bank Account"
-                                                [fluid]="true"
-                                                (onClick)="showAddBankAccountMethod()"
-                                        />
+                                        <p-button styleClass="w-full !justify-start" [link]="true" label="Add bank account" icon="pi pi-plus" (click)="showAddBankAccountMethod()"></p-button>
                                     }
                                 </div>
 
@@ -199,7 +184,8 @@
                                         label="Continue"
                                         icon="pi pi-arrow-right"
                                         iconPos="right"
-                                        styleClass="min-w-[200px]"
+                                        class="w-full"
+                                        [fluid]="true"
                                         [rounded]="true"
                                         [disabled]="!selectedSource() || sdk.submitting()"
                                         [loading]="sdk.submitting()"
@@ -209,7 +195,12 @@
                         } @else {
                             <div class="grid gap-4">
                                 @if (selectedTenderType() === 'CARD') {
-                                    <form [formGroup]="cardForm" class="grid grid-cols-2 gap-3" (ngSubmit)="submitPaymentSource()">
+                                    <form [formGroup]="cardForm" class="grid grid-cols-2 gap-2.5 bg-[var(--p-surface-0)]" (ngSubmit)="submitPaymentSource()">
+                                        <div class="col-span-2 grid gap-1">
+                                            <h2 class="m-0 text-base font-semibold">Add a credit card</h2>
+                                            <p class="m-0 text-xs opacity-70">Add a new payment method for this session.</p>
+                                        </div>
+
                                         <p-floatlabel class="col-span-2" variant="in">
                                             <input
                                                     id="card-name"
@@ -412,13 +403,19 @@
                                 }
 
                                 @if (selectedTenderType() === 'BANK_ACCOUNT') {
-                                    <div class="grid gap-4 ">
+                                    <div class="grid gap-3 bg-[var(--p-surface-0)]">
+                                        <div class="grid gap-1">
+                                            <h2 class="m-0 text-base font-semibold">Add bank account</h2>
+                                            <p class="m-0 text-xs opacity-70">Securely connect your bank through PayByBank.</p>
+                                        </div>
+
                                         <div [id]="payByBankMountId()" class="min-h-[720px] w-full"></div>
 
                                         <p-button
                                                 type="button"
                                                 label="Add Bank Account"
                                                 icon="pi pi-link"
+                                                class="w-full"
                                                 [fluid]="true"
                                                 [rounded]="true"
                                                 [disabled]="sdk.bankLinkLoading()"
@@ -432,69 +429,51 @@
                     </div>
                 }
                 @case ('success') {
-                    <div class="grid gap-4">
+                    <div class="grid gap-3">
                         @if (completedSource(); as source) {
-                            <p-card class="rounded-[1.25rem] border shadow-sm">
-                                <div class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-[1.25rem] border bg-[var(--p-surface-0)] px-4 py-3 text-left shadow-sm transition sm:min-h-[5.75rem]">
-                                    <span class="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--p-content-border-color)]">
+                            <div class="grid gap-2 bg-[var(--p-surface-0)]">
+                                <div class="flex items-center justify-between">
+                                    <h2 class="m-0 text-lg font-semibold">Pay with</h2>
+                                    @if (canManagePaymentInCurrentSession()) {
+                                        <p-button
+                                                type="button"
+                                                label="Change"
+                                                [link]="true"
+                                                [disabled]="sdk.submitting()"
+                                                (onClick)="backToPaymentList()"
+                                        />
+                                    }
+                                </div>
+
+                                <div class="grid w-full grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[1rem] border border-[var(--p-button-primary-border-color)] bg-[var(--p-surface-50)] px-3 py-3 text-left">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-full border border-[var(--p-content-border-color)] bg-[var(--p-surface-0)]">
                                         <span class="h-2.5 w-2.5 rounded-full bg-[var(--p-button-primary-background)]"></span>
                                     </span>
 
-                                    <div class="grid gap-1">
-                                        <span class="text-lg font-bold">{{ sourcePrimaryLabel(source) }}</span>
-                                        @if (sourceSecondaryLabel(source); as secondaryLabel) {
-                                            <span class="text-sm opacity-70">{{ secondaryLabel }}</span>
+                                    <span class="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-content-border-color)] bg-[var(--p-surface-0)]">
+                                        @if (source.tenderType === 'CARD') {
+                                            <span class="px-1 text-[0.625rem] font-semibold uppercase tracking-wide">
+                                                {{ sourceBadgeLabel(source) }}
+                                            </span>
+                                        } @else {
+                                            <i class="pi pi-building-columns text-sm" [style.color]="brand().primaryColor" aria-hidden="true"></i>
                                         }
-                                        @if (sourceTertiaryLabel(source); as tertiaryLabel) {
-                                            <span class="text-sm opacity-80">{{ tertiaryLabel }}</span>
+                                    </span>
+
+                                    <div class="grid gap-1">
+                                        <span class="text-sm font-semibold">{{ sourcePrimaryLabel(source) }}</span>
+                                        @if (sourceSecondaryLabel(source); as secondaryLabel) {
+                                            <span class="text-xs opacity-70">{{ secondaryLabel }}</span>
                                         }
                                     </div>
+
                                 </div>
-                            </p-card>
-                        }
-
-                        @if (canManagePaymentInCurrentSession()) {
-                            <div class="grid gap-3">
-                                <p-button
-                                        type="button"
-                                        severity="secondary"
-                                        [outlined]="true"
-                                        [rounded]="true"
-                                        label="Change Payment Method"
-                                        [fluid]="true"
-                                        (onClick)="backToPaymentList()"
-                                />
-
-                                @if (canAddCard()) {
-                                    <p-button
-                                            type="button"
-                                            severity="secondary"
-                                            [outlined]="true"
-                                            [rounded]="true"
-                                            icon="pi pi-credit-card"
-                                            label="Add a Credit Card"
-                                            [fluid]="true"
-                                            (onClick)="showAddCardMethod()"
-                                    />
-                                }
-
-                                @if (canAddBankAccount()) {
-                                    <p-button
-                                            type="button"
-                                            severity="secondary"
-                                            [outlined]="true"
-                                            [rounded]="true"
-                                            icon="pi pi-building-columns"
-                                            label="Add Bank Account"
-                                            [fluid]="true"
-                                            (onClick)="showAddBankAccountMethod()"
-                                    />
-                                }
                             </div>
                         }
                     </div>
                 }
             }
         }
+        <div class="flex justify-center w-full text-gray-300">CommerceHub Connect</div>
     </div>
 </div>
