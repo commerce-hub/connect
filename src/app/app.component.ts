@@ -21,7 +21,7 @@ export class AppComponent {
 
   protected readonly sdkConfiguration: CommerceHubSdkConfiguration = {
     sessionReferenceId: 'sdk-demo-session-20260417',
-    email: 'gregory.jablonski@fiserv.com',
+     email: 'gregory.jablonski@fiserv.com',
     authType: 'FINAL_SALE',
     merchantTransactionId: 'txn-10001',
     merchantOrderId: 'order-20002',

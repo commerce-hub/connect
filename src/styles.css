@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "primeicons/primeicons.css";
 @source "../projects";
 
 @theme {
@@ -34,6 +35,7 @@
 
 html,
 body {
+  font-size: 14px;
   min-height: 100%;
 }
 

@@ -13,6 +13,7 @@ import {
     MachinePaymentResponse,
     OTPResponse,
     OtpValidateRequest,
+    PayByBankSessionResponse,
     Payment,
     PaymentSource,
     PaymentsSearchRequest,
@@ -234,6 +235,21 @@ export class CommerceHubConnectApiService {
     deleteSource(sourceId: string): Observable<void> {
         return this.http.delete<void>(
             this.url(`/customer/source/${this.path(sourceId)}`),
+            this.opts({withCredentials: true}),
+        );
+    }
+
+    createPayByBankSession(): Observable<PayByBankSessionResponse> {
+        return this.http.get<PayByBankSessionResponse>(
+            this.url('/pbb/session'),
+            this.opts({withCredentials: true}),
+        );
+    }
+
+    finalizePayByBankSession(aldSessionId: string, pToken: string): Observable<void> {
+        return this.http.put<void>(
+            this.url(`/pbb/session/${this.path(aldSessionId)}/${this.path(pToken)}`),
+            null,
             this.opts({withCredentials: true}),
         );
     }

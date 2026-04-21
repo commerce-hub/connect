@@ -26,7 +26,6 @@ import {
   ExpiryFormatDirective,
 } from 'angular-cc-library';
 import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
 import { FloatLabelModule } from 'primeng/floatlabel';
 import { InputOtpModule } from 'primeng/inputotp';
@@ -34,7 +33,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { SelectModule } from 'primeng/select';
-import { TagModule } from 'primeng/tag';
 
 import {
   Address,
@@ -128,7 +126,6 @@ const US_STATES = [
     ExpiryFormatDirective,
     CvcFormatDirective,
     ButtonModule,
-    CardModule,
     DividerModule,
     FloatLabelModule,
     InputOtpModule,
@@ -136,7 +133,6 @@ const US_STATES = [
     MessageModule,
     ProgressSpinnerModule,
     SelectModule,
-    TagModule,
   ],
   providers: [CommerceHubConnectSdkService],
   host: {
@@ -246,6 +242,7 @@ export class CommerceHubConnectCaptureComponent {
   private readonly autoContinueSessionReferenceId = signal<string | null>(null);
   private readonly selectedSourceId = signal<string | null>(null);
   private readonly completedSourceResult = signal<CommerceHubSuccessResult | null>(null);
+  private readonly paymentStepOverride = signal<'list' | 'add' | null>(null);
   protected readonly brand = computed<ResolvedCommerceHubWhiteLabelOptions>(() => ({
     ...DEFAULT_WHITE_LABEL,
     ...this.whiteLabel(),
@@ -287,7 +284,16 @@ export class CommerceHubConnectCaptureComponent {
   protected readonly hasSavedSources = computed(() => this.availableSources().length > 0);
   protected readonly canAddCard = computed(() => this.supportedTenderTypes().includes('CARD'));
   protected readonly canAddBankAccount = computed(() => this.supportedTenderTypes().includes('BANK_ACCOUNT'));
+  protected readonly canManagePaymentInCurrentSession = computed(() => {
+    const step = this.currentStep();
+
+    return step === 'payment' || step === 'success';
+  });
   protected readonly displayStep = computed(() => {
+    if (this.paymentStepOverride()) {
+      return 'payment';
+    }
+
     if (this.completedSourceResult()) {
       return 'success';
     }
@@ -328,6 +334,7 @@ export class CommerceHubConnectCaptureComponent {
       case 'otp':
         if (this.otpDestination()) {
           return `We send a one-time code to ${this.otpDestination()}.`;
+          return `We send a one-time code to ${this.otpDestination()}.`;
         }
 
         return this.otpChannel() === 'PHONE'
@@ -346,16 +353,6 @@ export class CommerceHubConnectCaptureComponent {
         return 'Enter your email address to access your payment dashboard.';
     }
   });
-  protected readonly bankLinkReady = computed(() => {
-    const payByBank = this.configuration().payByBank;
-
-    return (
-      hasConfiguredPayByBankValue(payByBank?.accessToken) &&
-      hasConfiguredPayByBankValue(payByBank?.encryptionKey) &&
-      hasConfiguredPayByBankValue(payByBank?.aggregatorKey)
-    );
-  });
-
   private readonly initializedSessionReferenceId = signal<string | null>(null);
 
   constructor() {
@@ -369,7 +366,7 @@ export class CommerceHubConnectCaptureComponent {
         this.emailForm.controls.email.enable({ emitEvent: false });
       }
 
-      if (this.initializedSessionReferenceId() !== configuration.sessionReferenceId) {
+      if (this.emailForm.controls.email.value && this.initializedSessionReferenceId() !== configuration.sessionReferenceId) {
         this.initializedSessionReferenceId.set(configuration.sessionReferenceId);
         void this.sdk.initialize(configuration);
       }
@@ -396,7 +393,7 @@ export class CommerceHubConnectCaptureComponent {
     effect(() => {
       const step = this.currentStep();
 
-      if (step === 'payment' || step === 'success') {
+      if (step === 'payment' || step === 'success' || this.paymentStepOverride()) {
         this.authStepOverride.set(null);
       }
 
@@ -418,11 +415,12 @@ export class CommerceHubConnectCaptureComponent {
     });
 
     effect(() => {
-      if (this.currentStep() !== 'payment') {
+      if (!this.canManagePaymentInCurrentSession()) {
         this.initializedPaymentInteractionId.set(null);
         this.selectedSourceId.set(null);
         this.billingAddresses.set([]);
         this.completedSourceResult.set(null);
+        this.paymentStepOverride.set(null);
         this.clearSensitiveCardFields();
         return;
       }
@@ -547,6 +545,8 @@ export class CommerceHubConnectCaptureComponent {
   }
 
   protected showAddPaymentMethod(): void {
+    this.completedSourceResult.set(null);
+    this.paymentStepOverride.set('add');
     this.paymentEntryMode.set('add');
   }
 
@@ -555,13 +555,17 @@ export class CommerceHubConnectCaptureComponent {
     this.showAddPaymentMethod();
   }
 
-  protected showAddBankAccountMethod(): void {
+  protected async showAddBankAccountMethod(): Promise<void> {
     this.sdk.selectTenderType('BANK_ACCOUNT');
     this.showAddPaymentMethod();
+
+    await this.waitForNextFrame();
+    await this.submitPaymentSource();
   }
 
   protected backToPaymentList(): void {
     this.completedSourceResult.set(null);
+    this.paymentStepOverride.set('list');
     this.paymentEntryMode.set('list');
     this.clearSensitiveCardFields();
   }
@@ -577,7 +581,8 @@ export class CommerceHubConnectCaptureComponent {
       return;
     }
 
-    await this.sdk.attachExistingPaymentSource(source);
+    const result = await this.sdk.attachExistingPaymentSource(source);
+    this.handleCreatedPaymentSource(result);
   }
 
   protected onCardNumberBlur(): void {
@@ -636,14 +641,26 @@ export class CommerceHubConnectCaptureComponent {
 
   protected sourcePrimaryLabel(source: PaymentSource): string {
     if (source.tenderType === 'CARD') {
-      const cardSuffix = source.card.cardNumber.slice(-4) || '----';
-      return `${source.card.network ?? 'Card'} **** ${cardSuffix}`;
+      return source.name?.trim() || source.card.nameOnCard?.trim() || `${source.card.network ?? 'Card'} card`;
     }
 
-    return source.name?.trim() || source.bankAccount.bankName?.trim() || 'Bank account';
+    return (
+        source.bankAccount.bankName?.trim() ||
+        source.bankAccount.accountType?.trim() ||
+        source.name?.trim() ||
+        'Bank account'
+    );
   }
 
   protected sourceSecondaryLabel(source: PaymentSource): string | undefined {
+    if (source.tenderType === 'CARD') {
+      return `•••• ${source.card.cardNumber.slice(-4) || '----'}`;
+    }
+
+    return `•••${source.bankAccount.accountNumber.slice(-4) || '----'}`;
+  }
+
+  /*protected sourceTertiaryLabel(source: PaymentSource): string | undefined {
     if (source.tenderType === 'CARD') {
       const month = source.card.expirationMonth?.trim();
       const year = source.card.expirationYear?.trim();
@@ -652,26 +669,40 @@ export class CommerceHubConnectCaptureComponent {
         return `Expires ${month}/${year}`;
       }
 
-      return undefined;
+      return source.card.network?.trim() || undefined;
     }
 
-    return source.bankAccount.bankName?.trim() || source.bankAccount.accountType?.trim() || 'Bank account';
-  }
-
-  protected sourceTertiaryLabel(source: PaymentSource): string | undefined {
-    if (source.tenderType === 'CARD') {
-      return source.card.nameOnCard?.trim() || source.name?.trim() || undefined;
-    }
-
-    return `Acct •••• ${source.bankAccount.accountNumber.slice(-4) || '—'}`;
-  }
+  }*/
 
   protected sourceBadgeLabel(source: PaymentSource): string {
     if (source.tenderType === 'CARD') {
-      return source.card.network ?? 'Card';
+      switch (source.card.network) {
+        case 'AmericanExpress':
+          return 'AMEX';
+        case 'Mastercard':
+          return 'MC';
+        case 'Discover':
+          return 'DISC';
+        case 'Visa':
+          return 'VISA';
+        default:
+          return 'CARD';
+      }
     }
 
-    return 'Bank';
+    const bankName = source.bankAccount.bankName?.trim();
+    if (!bankName) {
+      return 'BANK';
+    }
+
+    const initials = bankName
+      .split(/\s+/)
+      .map((part) => part[0] ?? '')
+      .join('')
+      .slice(0, 4)
+      .toUpperCase();
+
+    return initials || 'BANK';
   }
 
   protected showStepSummary(): boolean {
@@ -761,6 +792,7 @@ export class CommerceHubConnectCaptureComponent {
   private handleCreatedPaymentSource(result: CommerceHubSuccessResult): void {
     this.selectedSourceId.set(result.paymentSourceId ?? null);
     this.completedSourceResult.set(result);
+    this.paymentStepOverride.set(null);
     this.paymentEntryMode.set('list');
     this.clearSensitiveCardFields();
   }
@@ -976,6 +1008,16 @@ export class CommerceHubConnectCaptureComponent {
     this.resetMaskedCvv();
     this.cardSecurityErrorMessage.set(null);
   }
+
+  private waitForNextFrame(): Promise<void> {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
 }
 
 function maskEmailAddress(email: string | null | undefined): string | undefined {
@@ -1117,10 +1159,4 @@ function cardNetworkFromNumber(cardNumber: string): CardNetwork | undefined {
     default:
       return undefined;
   }
-}
-
-function hasConfiguredPayByBankValue(value: string | undefined): value is string {
-  const normalized = value?.trim();
-
-  return Boolean(normalized && !normalized.startsWith('replace-with-'));
 }
