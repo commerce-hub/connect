@@ -246,6 +246,7 @@ export class CommerceHubConnectCaptureComponent {
   private readonly autoContinueSessionReferenceId = signal<string | null>(null);
   private readonly selectedSourceId = signal<string | null>(null);
   private readonly completedSourceResult = signal<CommerceHubSuccessResult | null>(null);
+  private readonly paymentStepOverride = signal<'list' | 'add' | null>(null);
   protected readonly brand = computed<ResolvedCommerceHubWhiteLabelOptions>(() => ({
     ...DEFAULT_WHITE_LABEL,
     ...this.whiteLabel(),
@@ -287,7 +288,16 @@ export class CommerceHubConnectCaptureComponent {
   protected readonly hasSavedSources = computed(() => this.availableSources().length > 0);
   protected readonly canAddCard = computed(() => this.supportedTenderTypes().includes('CARD'));
   protected readonly canAddBankAccount = computed(() => this.supportedTenderTypes().includes('BANK_ACCOUNT'));
+  protected readonly canManagePaymentInCurrentSession = computed(() => {
+    const step = this.currentStep();
+
+    return step === 'payment' || step === 'success';
+  });
   protected readonly displayStep = computed(() => {
+    if (this.paymentStepOverride()) {
+      return 'payment';
+    }
+
     if (this.completedSourceResult()) {
       return 'success';
     }
@@ -328,6 +338,7 @@ export class CommerceHubConnectCaptureComponent {
       case 'otp':
         if (this.otpDestination()) {
           return `We send a one-time code to ${this.otpDestination()}.`;
+          return `We send a one-time code to ${this.otpDestination()}.`;
         }
 
         return this.otpChannel() === 'PHONE'
@@ -346,16 +357,6 @@ export class CommerceHubConnectCaptureComponent {
         return 'Enter your email address to access your payment dashboard.';
     }
   });
-  protected readonly bankLinkReady = computed(() => {
-    const payByBank = this.configuration().payByBank;
-
-    return (
-      hasConfiguredPayByBankValue(payByBank?.accessToken) &&
-      hasConfiguredPayByBankValue(payByBank?.encryptionKey) &&
-      hasConfiguredPayByBankValue(payByBank?.aggregatorKey)
-    );
-  });
-
   private readonly initializedSessionReferenceId = signal<string | null>(null);
 
   constructor() {
@@ -396,7 +397,7 @@ export class CommerceHubConnectCaptureComponent {
     effect(() => {
       const step = this.currentStep();
 
-      if (step === 'payment' || step === 'success') {
+      if (step === 'payment' || step === 'success' || this.paymentStepOverride()) {
         this.authStepOverride.set(null);
       }
 
@@ -418,11 +419,12 @@ export class CommerceHubConnectCaptureComponent {
     });
 
     effect(() => {
-      if (this.currentStep() !== 'payment') {
+      if (!this.canManagePaymentInCurrentSession()) {
         this.initializedPaymentInteractionId.set(null);
         this.selectedSourceId.set(null);
         this.billingAddresses.set([]);
         this.completedSourceResult.set(null);
+        this.paymentStepOverride.set(null);
         this.clearSensitiveCardFields();
         return;
       }
@@ -547,6 +549,8 @@ export class CommerceHubConnectCaptureComponent {
   }
 
   protected showAddPaymentMethod(): void {
+    this.completedSourceResult.set(null);
+    this.paymentStepOverride.set('add');
     this.paymentEntryMode.set('add');
   }
 
@@ -555,13 +559,17 @@ export class CommerceHubConnectCaptureComponent {
     this.showAddPaymentMethod();
   }
 
-  protected showAddBankAccountMethod(): void {
+  protected async showAddBankAccountMethod(): Promise<void> {
     this.sdk.selectTenderType('BANK_ACCOUNT');
     this.showAddPaymentMethod();
+
+    await this.waitForNextFrame();
+    await this.submitPaymentSource();
   }
 
   protected backToPaymentList(): void {
     this.completedSourceResult.set(null);
+    this.paymentStepOverride.set('list');
     this.paymentEntryMode.set('list');
     this.clearSensitiveCardFields();
   }
@@ -577,7 +585,8 @@ export class CommerceHubConnectCaptureComponent {
       return;
     }
 
-    await this.sdk.attachExistingPaymentSource(source);
+    const result = await this.sdk.attachExistingPaymentSource(source);
+    this.handleCreatedPaymentSource(result);
   }
 
   protected onCardNumberBlur(): void {
@@ -761,6 +770,7 @@ export class CommerceHubConnectCaptureComponent {
   private handleCreatedPaymentSource(result: CommerceHubSuccessResult): void {
     this.selectedSourceId.set(result.paymentSourceId ?? null);
     this.completedSourceResult.set(result);
+    this.paymentStepOverride.set(null);
     this.paymentEntryMode.set('list');
     this.clearSensitiveCardFields();
   }
@@ -976,6 +986,16 @@ export class CommerceHubConnectCaptureComponent {
     this.resetMaskedCvv();
     this.cardSecurityErrorMessage.set(null);
   }
+
+  private waitForNextFrame(): Promise<void> {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
 }
 
 function maskEmailAddress(email: string | null | undefined): string | undefined {
@@ -1117,10 +1137,4 @@ function cardNetworkFromNumber(cardNumber: string): CardNetwork | undefined {
     default:
       return undefined;
   }
-}
-
-function hasConfiguredPayByBankValue(value: string | undefined): value is string {
-  const normalized = value?.trim();
-
-  return Boolean(normalized && !normalized.startsWith('replace-with-'));
 }

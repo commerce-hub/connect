@@ -27,6 +27,8 @@ export interface CommerceHubPayByBankOptions {
   apiKey?: string;
   configId?: string;
   paymentSdkUrl?: string;
+  environment?: string;
+  locale?: string;
   accessToken?: string;
   encryptionKey?: string;
   aggregatorKey?: string;

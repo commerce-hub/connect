@@ -47,6 +47,14 @@ export interface OtpValidateRequest {
   channel: OtpChannel;
 }
 
+export interface PayByBankSessionResponse {
+  aggregatorSessionId?: string;
+  tokenID?: string;
+  accessToken?: string;
+  publicKey?: string;
+  pToken?: string;
+}
+
 export interface PhoneDetails {
   countryCode?: string;
   phoneNumber?: string;

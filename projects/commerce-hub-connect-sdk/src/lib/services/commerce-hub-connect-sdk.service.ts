@@ -17,6 +17,7 @@ import {
   MachinePaymentResponse,
   OTPResponse,
   OtpValidateRequest,
+  PayByBankSessionResponse,
   Payment,
   PaymentSource,
   PaymentsSearchRequest,
@@ -35,17 +36,32 @@ import {
 } from '../models/sdk.models';
 import { CommerceHubConnectApiService } from './commerce-hub-connect-api.service';
 
+type PaymentSdkEventType = 'success' | 'failure' | 'cancel' | 'error' | string;
+
+type PaymentSdkEvent = {
+  type?: PaymentSdkEventType;
+  payload?: unknown;
+  [key: string]: unknown;
+};
+
+type PaymentSdkInitConfiguration = {
+  apiKey: string;
+  accessToken: string;
+  configId: string;
+  containerId: string;
+  onEvent: (event: PaymentSdkEvent) => void;
+  environment?: string;
+  locale?: string;
+  aggregatorSessionId?: string;
+  publicKey?: string;
+  pToken?: string;
+};
+
 declare global {
   interface Window {
-    CPSDK?: (
-      apiKey: string,
-      sandbox?: boolean,
-    ) => {
-      BankLink: (
-          configuration: { accessToken: string; configId: string; encryptionKey: string; aggregatorKey: string; debug: boolean },
-          options: Record<string, unknown>,
-          callback: (response: unknown) => void,
-      ) => { start: (mountElementId: string) => void };
+    PaymentSDK?: {
+      init: (configuration: PaymentSdkInitConfiguration) => void;
+      destroy?: () => void;
     };
   }
 }
@@ -57,10 +73,17 @@ const DEFAULT_ALLOWED_TENDERS: CommerceHubTenderType[] = [
 
 const DEFAULT_BANK_LINK_OPTIONS = {
   apiKey: 'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A',
-  configId: '864b884d-b03d-4af7-8bda-f0e9c343df11',
+  configId: 'cce84049-0940-4926-9a54-9eaca0c09830',
+  environment: 'qa',
+  locale: 'en-US',
   paymentSdkUrl: 'https://connect-qa.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js',
   useSandbox: false,
-} satisfies Required<Pick<CommerceHubPayByBankOptions, 'apiKey' | 'configId' | 'paymentSdkUrl' | 'useSandbox'>>;
+} satisfies Required<
+  Pick<
+    CommerceHubPayByBankOptions,
+    'apiKey' | 'configId' | 'environment' | 'locale' | 'paymentSdkUrl' | 'useSandbox'
+  >
+>;
 
 type CreateSourceResponse = PaymentSource | { id?: string; sourceId?: string; paymentSourceId?: string } | string | null;
 
@@ -387,62 +410,57 @@ export class CommerceHubConnectSdkService {
 
   async launchPayByBank(mountElementId: string): Promise<CommerceHubSuccessResult> {
     const configuration = this.sdkConfiguration();
-    const payByBank = this.resolvePayByBankOptions(configuration?.payByBank);
-
-    if (
-      !configuration ||
-      !hasConfiguredPayByBankValue(payByBank.accessToken) ||
-      !hasConfiguredPayByBankValue(payByBank.encryptionKey) ||
-      !hasConfiguredPayByBankValue(payByBank.aggregatorKey)
-    ) {
+    if (!configuration) {
       const error = this.toSdkError('pay_by_bank', {
-        message:
-          'Pay by bank requires accessToken, encryptionKey, and aggregatorKey in configuration.payByBank.',
+        message: 'No SDK configuration is available for Pay by Bank.',
       });
       this.lastErrorState.set(error);
-      configuration?.onError(error);
+      this.sdkConfiguration()?.onError(error);
       throw error;
     }
 
+    const payByBank = this.resolvePayByBankOptions(configuration.payByBank);
     this.bankLinkLoadingState.set(true);
     this.lastErrorState.set(null);
 
     try {
-      const accessToken = payByBank.accessToken!;
-      const encryptionKey = payByBank.encryptionKey!;
-      const aggregatorKey = payByBank.aggregatorKey!;
+      const existingBankSourceIds = await this.getExistingBankSourceIds();
+      const session = await firstValueFrom(this.api.createPayByBankSession());
+      let { aggregatorSessionId, accessToken, pToken, publicKey } = this.resolvePayByBankSession(session);
 
-      await this.loadBankLinkScript(payByBank.paymentSdkUrl);
+      await this.loadPaymentSdkScript(payByBank.paymentSdkUrl);
 
-      const cpSdk = window.CPSDK?.(payByBank.apiKey, payByBank.useSandbox);
-      if (!cpSdk) {
-        throw new Error('PaymentSDK.js loaded but CPSDK is not available on window.');
+      const paymentSdk = window.PaymentSDK;
+      if (!paymentSdk?.init) {
+        throw new Error('PaymentSDK.js loaded but PaymentSDK.init is not available on window.');
       }
 
       return await new Promise<CommerceHubSuccessResult>((resolve, reject) => {
         let settled = false;
 
-        const bankLink = cpSdk.BankLink(
-          {
-            accessToken,
-            configId: payByBank.configId,
-            encryptionKey,
-            aggregatorKey,
-            debug: true,
-          },
-          {},
-          async (response) => {
-            if (settled) {
+        this.destroyPaymentSdk();
+        paymentSdk.init({
+          apiKey: payByBank.apiKey,
+          accessToken,
+          configId: payByBank.configId,
+          environment: payByBank.environment,
+          locale: payByBank.locale,
+          publicKey: publicKey,
+          pToken: pToken,
+          containerId: mountElementId,
+          ...(aggregatorSessionId ? { aggregatorSessionId } : {}),
+          onEvent: async (event) => {
+            if (settled || !this.isTerminalPaymentSdkEvent(event)) {
               return;
             }
 
-            const responseId = this.extractSourceId(response);
+            this.destroyPaymentSdk();
 
-            if (!responseId) {
+            if (event.type !== 'success') {
               settled = true;
               const sdkError = this.toSdkError(
                 'pay_by_bank',
-                'Pay by Bank completed without returning a payment source id.',
+                this.describePaymentSdkTerminalEvent(event),
               );
               this.lastErrorState.set(sdkError);
               configuration.onError(sdkError);
@@ -451,8 +469,17 @@ export class CommerceHubConnectSdkService {
             }
 
             try {
-              await firstValueFrom(this.attachPaymentSource(responseId));
-              const result = this.buildAttachedSourceResult(responseId, undefined, response);
+              await firstValueFrom(this.api.finalizePayByBankSession(aggregatorSessionId, pToken));
+              const profile = await firstValueFrom(this.api.getCustomerProfile());
+              const bankSource = this.resolveAttachedBankSource(profile, existingBankSourceIds);
+              const paymentSourceId = bankSource.id?.trim();
+
+              if (!paymentSourceId) {
+                throw new Error('Pay by Bank completed but no bank payment source was returned by /customer.');
+              }
+
+              await firstValueFrom(this.attachPaymentSource(paymentSourceId));
+              const result = this.buildAttachedSourceResult(paymentSourceId, bankSource, event);
               this.sdkConfiguration()?.onSuccess(result);
               settled = true;
               resolve(result);
@@ -464,11 +491,10 @@ export class CommerceHubConnectSdkService {
               reject(sdkError);
             }
           },
-        );
-
-        bankLink.start(mountElementId);
+        });
       });
     } catch (error) {
+      this.destroyPaymentSdk();
       const sdkError = this.toSdkError('pay_by_bank', error);
       this.lastErrorState.set(sdkError);
       configuration.onError(sdkError);
@@ -581,7 +607,22 @@ export class CommerceHubConnectSdkService {
     };
   }
 
-  private loadBankLinkScript(scriptUrl: string): Promise<void> {
+  private async getExistingBankSourceIds(): Promise<Set<string>> {
+    try {
+      const profile = await firstValueFrom(this.api.getCustomerProfile());
+
+      return new Set(
+        (profile.sources ?? [])
+          .filter((source): source is PaymentSource => source.tenderType === 'BANK_ACCOUNT')
+          .map((source) => source.id?.trim())
+          .filter((sourceId): sourceId is string => Boolean(sourceId)),
+      );
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private loadPaymentSdkScript(scriptUrl: string): Promise<void> {
     const existing = document.querySelector<HTMLScriptElement>(`script[src="${scriptUrl}"]`);
     if (existing) {
       return Promise.resolve();
@@ -595,6 +636,14 @@ export class CommerceHubConnectSdkService {
       script.onerror = () => reject(new Error(`Unable to load Pay by Bank script: ${scriptUrl}`));
       document.head.appendChild(script);
     });
+  }
+
+  private destroyPaymentSdk(): void {
+    try {
+      window.PaymentSDK?.destroy?.();
+    } catch {
+      // Ignore destroy failures so the next init can still proceed.
+    }
   }
 
   private toInteractionRequest(configuration: ResolvedCommerceHubSdkConfiguration): InteractionRequest {
@@ -630,13 +679,37 @@ export class CommerceHubConnectSdkService {
   ): Required<
     Pick<
       CommerceHubPayByBankOptions,
-      'apiKey' | 'configId' | 'paymentSdkUrl' | 'useSandbox'
+      'apiKey' | 'configId' | 'environment' | 'locale' | 'paymentSdkUrl' | 'useSandbox'
     >
   > &
     CommerceHubPayByBankOptions {
+    void options;
+
     return {
       ...DEFAULT_BANK_LINK_OPTIONS,
-      ...options,
+    };
+  }
+
+  private resolvePayByBankSession(session: PayByBankSessionResponse): {
+    aggregatorSessionId: string;
+    accessToken: string;
+    pToken: string;
+    publicKey: string;
+  } {
+    const aggregatorSessionId = session.aggregatorSessionId?.trim();
+    const accessToken = session.tokenID?.trim() || session.accessToken?.trim();
+    const pToken = session.pToken?.trim();
+    const publicKey = session.publicKey?.trim();
+
+    if (!aggregatorSessionId || !accessToken || !pToken || !publicKey) {
+      throw new Error('The /pbb/session response is missing one or more required values.');
+    }
+
+    return {
+      aggregatorSessionId,
+      accessToken,
+      pToken,
+      publicKey
     };
   }
 
@@ -683,6 +756,114 @@ export class CommerceHubConnectSdkService {
       (typeof record['data'] === 'object' ? (record['data'] as Record<string, unknown>)['id'] : undefined);
 
     return typeof candidate === 'string' ? candidate : undefined;
+  }
+
+  private extractAldSessionId(response: unknown): string | undefined {
+    const directKeys = [
+      'aldSessionId',
+      'ald_session_id',
+      'aldSession',
+      'ald_session',
+      'sessionId',
+      'session_id',
+      'sid',
+      'token',
+    ];
+
+    return this.findNestedStringValue(response, directKeys);
+  }
+
+  private isTerminalPaymentSdkEvent(event: PaymentSdkEvent | undefined): boolean {
+    return ['success', 'failure', 'cancel', 'error'].includes(event?.type ?? '');
+  }
+
+  private describePaymentSdkTerminalEvent(event: PaymentSdkEvent): string {
+    const eventType = event.type?.trim() || 'unknown';
+    const eventMessage =
+      this.findNestedStringValue(event, [
+        'message',
+        'description',
+        'transactionStatusDescription',
+        'responseVerbiage',
+        'errorMessage',
+      ]) ?? `PaymentSDK returned a terminal "${eventType}" event.`;
+
+    return eventMessage;
+  }
+
+  private findNestedStringValue(
+    value: unknown,
+    keys: readonly string[],
+    visited = new Set<unknown>(),
+  ): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (typeof value !== 'object' || visited.has(value)) {
+      return undefined;
+    }
+
+    visited.add(value);
+    const record = value as Record<string, unknown>;
+
+    for (const key of keys) {
+      const candidate = record[key];
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+
+    for (const candidate of Object.values(record)) {
+      if (typeof candidate !== 'object' || !candidate) {
+        continue;
+      }
+
+      const nested = this.findNestedStringValue(candidate, keys, visited);
+      if (nested) {
+        return nested;
+      }
+    }
+
+    return undefined;
+  }
+
+  private resolveAttachedBankSource(
+    profile: Profile,
+    existingBankSourceIds: ReadonlySet<string>,
+  ): PaymentSource {
+    const sources = profile.sources ?? [];
+    const bankSources = sources.filter(
+      (source): source is PaymentSource => source.tenderType === 'BANK_ACCOUNT',
+    );
+
+    const newBankSource = bankSources.find((source) => {
+      const sourceId = source.id?.trim();
+      return sourceId ? !existingBankSourceIds.has(sourceId) : false;
+    });
+    if (newBankSource) {
+      return newBankSource;
+    }
+
+    if (profile.defaultSource?.tenderType === 'BANK_ACCOUNT') {
+      return profile.defaultSource;
+    }
+
+    const selectedSource = this.interactionState()?.selectedSource;
+    if (selectedSource?.tenderType === 'BANK_ACCOUNT') {
+      const selectedSourceId = selectedSource.id?.trim();
+      const refreshedSelectedSource = bankSources.find((source) => source.id?.trim() === selectedSourceId);
+      if (refreshedSelectedSource) {
+        return refreshedSelectedSource;
+      }
+    }
+
+    const firstBankSource = bankSources[0];
+    if (firstBankSource) {
+      return firstBankSource;
+    }
+
+    throw new Error('Pay by Bank completed but no bank payment source is available in /customer.');
   }
 
   private requireInteractionId(): string {
@@ -761,12 +942,6 @@ export class CommerceHubConnectSdkService {
       cause: error,
     };
   }
-}
-
-function hasConfiguredPayByBankValue(value: string | undefined): value is string {
-  const normalized = value?.trim();
-
-  return Boolean(normalized && !normalized.startsWith('replace-with-'));
 }
 
 function isSupportedTenderType(value: string): value is CommerceHubTenderType {
