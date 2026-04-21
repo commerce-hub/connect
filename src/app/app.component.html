@@ -1,18 +1,142 @@
-<main class="grid grid-cols-3 gap-3 p-10">
-  <section class="app-copy col-span-2">
+<main class="app-shell">
+  <section class="app-copy">
     <p class="app-kicker">Angular 20 SDK Demo</p>
     <h1>CommerceHub Connect Wallet SDK</h1>
     <p class="app-description">
-      Standalone Angular library with card capture, bank-account capture through PayByBank, OTP
-      verification, and PCI vault placeholder routing through the internal proxy.
+      Configure the SDK inputs below, then initialize the widget on demand. The demo remounts the
+      SDK every time you click the button so you can restart the same session or a new one.
     </p>
 
-    <div class="app-code">
-      <h2>Usage</h2>
-      <pre><code>&lt;commerce-hub-connect-capture
-  [configuration]="sdkConfiguration"
-  [whiteLabel]="whiteLabel" /&gt;</code></pre>
-    </div>
+    <form [formGroup]="demoForm" class="app-form" (ngSubmit)="initializeSdk()">
+      <section class="app-panel">
+        <div class="app-panel__header">
+          <h2>SDK Configuration</h2>
+          <p>These values are passed into `CommerceHubSdkConfiguration` on initialize.</p>
+        </div>
+
+        <div class="app-fields">
+          <label class="app-field">
+            <span>Session Reference ID</span>
+            <input pInputText type="text" formControlName="sessionReferenceId" />
+          </label>
+
+          <label class="app-field">
+            <span>Email</span>
+            <input pInputText type="email" formControlName="email" />
+          </label>
+
+          <label class="app-field">
+            <span>Payment Selection Title</span>
+            <input pInputText type="text" formControlName="paymentSelectionTitle" />
+          </label>
+
+          <label class="app-field">
+            <span>Continue/Confirm Button Label</span>
+            <input pInputText type="text" formControlName="paymentSelectionConfirmLabel" />
+          </label>
+
+          <label class="app-field">
+            <span>Region</span>
+            <input pInputText type="text" formControlName="region" />
+          </label>
+
+          <label class="app-field">
+            <span>Language</span>
+            <input pInputText type="text" formControlName="language" />
+          </label>
+
+          <label class="app-field">
+            <span>Merchant Transaction ID</span>
+            <input pInputText type="text" formControlName="merchantTransactionId" />
+          </label>
+
+          <label class="app-field">
+            <span>Merchant Order ID</span>
+            <input pInputText type="text" formControlName="merchantOrderId" />
+          </label>
+
+          <label class="app-field">
+            <span>Merchant Invoice Number</span>
+            <input pInputText type="text" formControlName="merchantInvoiceNumber" />
+          </label>
+
+          <label class="app-field">
+            <span>Auth Type</span>
+            <p-select
+              formControlName="authType"
+              [options]="authTypeOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+            />
+          </label>
+
+          <label class="app-field">
+            <span>Expiry Minutes</span>
+            <input pInputText type="number" min="1" formControlName="expiryMinutes" />
+          </label>
+        </div>
+
+        <div class="app-toggles">
+          <label class="app-toggle" for="allow-email-change">
+            <p-checkbox inputId="allow-email-change" formControlName="allowEmailChange" [binary]="true" />
+            <span>Allow email change</span>
+          </label>
+
+          <label class="app-toggle" for="allow-card">
+            <p-checkbox inputId="allow-card" formControlName="allowCard" [binary]="true" />
+            <span>Allow card</span>
+          </label>
+
+          <label class="app-toggle" for="allow-bank-account">
+            <p-checkbox inputId="allow-bank-account" formControlName="allowBankAccount" [binary]="true" />
+            <span>Allow bank account</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="app-panel">
+        <div class="app-panel__header">
+          <h2>White Label</h2>
+          <p>These values are passed into `CommerceHubWhiteLabelOptions` on initialize.</p>
+        </div>
+
+        <div class="app-fields">
+          <label class="app-field">
+            <span>Primary Color</span>
+            <input pInputText type="text" formControlName="primaryColor" />
+          </label>
+
+          <label class="app-field">
+            <span>Secondary Color</span>
+            <input pInputText type="text" formControlName="secondaryColor" />
+          </label>
+
+          <label class="app-field">
+            <span>Text Color</span>
+            <input pInputText type="text" formControlName="textColor" />
+          </label>
+
+          <label class="app-field">
+            <span>Font Family</span>
+            <input pInputText type="text" formControlName="fontFamily" />
+          </label>
+
+          <label class="app-field app-field--full">
+            <span>Logo URL</span>
+            <input pInputText type="text" formControlName="logoUrl" />
+          </label>
+        </div>
+      </section>
+
+      <div class="app-actions">
+        <p-button
+          type="submit"
+          [label]="activeConfiguration() ? 'Reinitialize SDK' : 'Initialize SDK'"
+          icon="pi pi-play"
+        />
+      </div>
+    </form>
 
     <div class="app-events">
       <h2>Callback log</h2>
@@ -30,9 +154,16 @@
   </section>
 
   <section class="app-widget">
-    <commerce-hub-connect-capture
-      [configuration]="sdkConfiguration"
-      [whiteLabel]="whiteLabel"
-    />
+    @if (activeConfiguration(); as configuration) {
+      <commerce-hub-connect-capture
+        [configuration]="configuration"
+        [whiteLabel]="activeWhiteLabel() ?? undefined"
+      />
+    } @else {
+      <div class="app-widget-placeholder">
+        <h2>SDK Preview</h2>
+        <p>Fill in the demo configuration and click Initialize SDK to mount the widget.</p>
+      </div>
+    }
   </section>
 </main>

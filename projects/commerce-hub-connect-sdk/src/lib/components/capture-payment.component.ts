@@ -59,8 +59,8 @@ const NEW_BILLING_ADDRESS_VALUE = '__new__';
 const DEFAULT_WHITE_LABEL: ResolvedCommerceHubWhiteLabelOptions = {
   primaryColor: '#0a5dff',
   secondaryColor: '#627d98',
-  textColor: '#000000',
-  fontFamily: 'Open Sans, sans-serif',
+  textColor: '#101828',
+  fontFamily: '"Open Sans", "Segoe UI", sans-serif',
 };
 
 const US_STATES = [
@@ -137,18 +137,12 @@ const US_STATES = [
   providers: [CommerceHubConnectSdkService],
   host: {
     class: 'ch-sdk-host',
-    '[style.--p-primary-color]': 'brand().primaryColor',
-    '[style.--p-focus-ring-color]': 'brand().primaryColor',
-    '[style.--p-button-primary-background]': 'brand().primaryColor',
-    '[style.--p-button-primary-border-color]': 'brand().primaryColor',
-    '[style.--p-button-primary-hover-background]': 'brand().secondaryColor',
-    '[style.--p-button-primary-hover-border-color]': 'brand().secondaryColor',
-    '[style.--p-button-primary-active-background]': 'brand().secondaryColor',
-    '[style.--p-button-primary-active-border-color]': 'brand().secondaryColor',
-    '[style.--p-button-primary-color]': 'primaryButtonTextColor()',
-    '[style.--p-button-primary-hover-color]': 'primaryButtonTextColor()',
-    '[style.--p-button-primary-active-color]': 'primaryButtonTextColor()',
-    '[style.--p-button-primary-focus-ring-color]': 'brand().primaryColor',
+    '[style.--brand-primary-color]': 'brand().primaryColor',
+    '[style.--brand-on-primary-color]': 'primaryContrastColor()',
+    '[style.--brand-secondary-color]': 'brand().secondaryColor',
+    '[style.--brand-on-secondary-color]': 'secondaryContrastColor()',
+    '[style.--brand-text-color]': 'brand().textColor',
+    '[style.--brand-font-family]': 'brand().fontFamily',
   },
   templateUrl: './capture-payment.component.html',
   styleUrl: './capture-payment.component.scss',
@@ -247,7 +241,10 @@ export class CommerceHubConnectCaptureComponent {
     ...DEFAULT_WHITE_LABEL,
     ...this.whiteLabel(),
   }));
-  protected readonly primaryButtonTextColor = computed(() => '#ffffff');
+  protected readonly primaryContrastColor = computed(() => resolveAccessibleTextColor(this.brand().primaryColor));
+  protected readonly secondaryContrastColor = computed(() =>
+    resolveAccessibleTextColor(this.brand().secondaryColor),
+  );
   protected readonly payByBankMountId = computed(
     () =>
       `commerce-hub-banklink-${this.sdk.interaction()?.interactionId ?? 'mount'}`.replace(
@@ -307,6 +304,12 @@ export class CommerceHubConnectCaptureComponent {
     return step;
   });
   protected readonly logoUrl = computed(() => this.brand().logoUrl);
+  protected readonly paymentSelectionTitle = computed(
+    () => this.configuration().paymentSelectionTitle?.trim() || 'Pay with',
+  );
+  protected readonly paymentSelectionConfirmLabel = computed(
+    () => this.configuration().paymentSelectionConfirmLabel?.trim() || 'Confirm',
+  );
   protected readonly completedSource = computed(
     () => this.completedSourceResult()?.paymentSource ?? this.selectedSource(),
   );
@@ -358,15 +361,16 @@ export class CommerceHubConnectCaptureComponent {
   constructor() {
     effect(() => {
       const configuration = this.configuration();
+      const configuredEmail = configuration.email?.trim();
 
       this.emailForm.controls.email.setValue(configuration.email || "");
-      if (configuration.allowEmailChange === false) {
+      if (configuration.allowEmailChange === false && configuredEmail) {
         this.emailForm.controls.email.disable({ emitEvent: false });
       } else {
         this.emailForm.controls.email.enable({ emitEvent: false });
       }
 
-      if (this.emailForm.controls.email.value && this.initializedSessionReferenceId() !== configuration.sessionReferenceId) {
+      if (this.initializedSessionReferenceId() !== configuration.sessionReferenceId) {
         this.initializedSessionReferenceId.set(configuration.sessionReferenceId);
         void this.sdk.initialize(configuration);
       }
@@ -487,7 +491,7 @@ export class CommerceHubConnectCaptureComponent {
     await this.sdk.sendOtp(this.emailForm.getRawValue().email, 'default');
   }
 
-  protected async submitOtp(): Promise<void> {
+  protected submitOtp(): void {
     this.otpSubmitted.set(true);
 
     if (this.otpForm.invalid) {
@@ -495,11 +499,11 @@ export class CommerceHubConnectCaptureComponent {
       return;
     }
 
-    await this.sdk.validateOtp({
+    this.sdk.validateOtp({
       email: this.emailForm.getRawValue().email,
       otp: this.otpForm.controls.otp.getRawValue(),
       channel: this.otpChannel(),
-    });
+    }).subscribe();
   }
 
   protected backToEmailEntry(): void {
@@ -1033,6 +1037,58 @@ function maskEmailAddress(email: string | null | undefined): string | undefined 
 
   const visible = localPart.slice(0, Math.min(2, localPart.length));
   return `${visible}${'*'.repeat(Math.max(1, localPart.length - visible.length))}@${domain}`;
+}
+
+function resolveAccessibleTextColor(color: string | null | undefined): string {
+  const rgb = parseColorToRgb(color);
+
+  if (!rgb) {
+    return '#ffffff';
+  }
+
+  const [red, green, blue] = rgb.map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+
+  return luminance > 0.45 ? '#111827' : '#ffffff';
+}
+
+function parseColorToRgb(color: string | null | undefined): [number, number, number] | null {
+  const trimmed = color?.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const shortHexMatch = /^#([\da-f]{3})$/i.exec(trimmed);
+  if (shortHexMatch) {
+    const [red, green, blue] = shortHexMatch[1]
+      .split('')
+      .map((value) => Number.parseInt(`${value}${value}`, 16));
+    return [red, green, blue];
+  }
+
+  const longHexMatch = /^#([\da-f]{6})$/i.exec(trimmed);
+  if (longHexMatch) {
+    const hex = longHexMatch[1];
+    return [
+      Number.parseInt(hex.slice(0, 2), 16),
+      Number.parseInt(hex.slice(2, 4), 16),
+      Number.parseInt(hex.slice(4, 6), 16),
+    ];
+  }
+
+  const rgbMatch = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i.exec(trimmed);
+  if (rgbMatch) {
+    const [red, green, blue] = rgbMatch.slice(1, 4).map((value) => Number.parseInt(value, 10));
+    return [red, green, blue];
+  }
+
+  return null;
 }
 
 function maskPhoneLast4(phoneNumber: string | null | undefined): string | undefined {

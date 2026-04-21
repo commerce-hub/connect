@@ -1,5 +1,5 @@
-<div class="mx-auto w-full max-w-[24rem] rounded-[1.75rem] border border-[var(--p-content-border-color)] bg-[var(--p-surface-0)] px-4 py-2 shadow-sm">
-    <div class="grid gap-3" [style.font-family]="brand().fontFamily" [style.color]="brand().textColor">
+<div #overlayHost class="mx-auto w-full bg-[var(--p-surface-0)] px-4 pt-3">
+    <div class="grid gap-3">
         @if (sdk.loading()) {
             <div class="grid place-items-center py-8">
                 <p-progress-spinner ariaLabel="Loading payment session" strokeWidth="4"/>
@@ -11,19 +11,12 @@
                 </header>
             }
 
-            @if (sdk.lastError() && errorStage() !== 'otp_send' && errorStage() !== 'otp_validate') {
-                <p-message severity="error" variant="simple">
-                    {{ errorMessage() }}
-                </p-message>
-            }
-
-
             @switch (displayStep()) {
                 @case ('email') {
                     <form [formGroup]="emailForm" class="grid gap-3" (ngSubmit)="submitEmail()">
                         <div class="grid gap-2">
                             <p-floatlabel class="w-full" variant="in">
-                            <label class="text-sm font-medium" for="sdk-email">Email address</label>
+                            <label class="font-normal" for="sdk-email">Email address</label>
                             <input
                                     id="sdk-email"
                                     pInputText
@@ -127,7 +120,7 @@
                             <div class="grid gap-3">
                                 <div class="grid gap-2">
                                     <div class="flex items-center justify-between">
-                                        <h2 class="m-0 text-lg font-semibold">Pay with</h2>
+                                        <h2 class="m-0 text-lg font-semibold">{{ paymentSelectionTitle() }}</h2>
                                     </div>
 
                                     <div class="grid gap-1.5">
@@ -181,7 +174,7 @@
 
                                 <p-button
                                         type="button"
-                                        label="Continue"
+                                        [label]="paymentSelectionConfirmLabel()"
                                         icon="pi pi-arrow-right"
                                         iconPos="right"
                                         class="w-full"
@@ -282,7 +275,7 @@
                                                     optionLabel="label"
                                                     optionValue="value"
                                                     formControlName="billingAddressValue"
-                                                    appendTo="body"
+                                                    [appendTo]="overlayHost"
                                             />
                                             <label for="card-billing-address">Billing address</label>
                                         </p-floatlabel>
@@ -303,7 +296,7 @@
                                                         class="w-full"
                                                         [options]="countryOptions"
                                                         formControlName="country"
-                                                        appendTo="body"
+                                                        [appendTo]="overlayHost"
                                                 />
                                                 <label for="billing-country">Country or region</label>
                                             </p-floatlabel>
@@ -354,7 +347,7 @@
                                                         optionLabel="name"
                                                         optionValue="code"
                                                         formControlName="state"
-                                                        appendTo="body"
+                                                        [appendTo]="overlayHost"
                                                 />
                                                 <label for="billing-state">State</label>
                                             </p-floatlabel>
@@ -433,7 +426,7 @@
                         @if (completedSource(); as source) {
                             <div class="grid gap-2 bg-[var(--p-surface-0)]">
                                 <div class="flex items-center justify-between">
-                                    <h2 class="m-0 text-lg font-semibold">Pay with</h2>
+                                    <h2 class="m-0 text-lg font-semibold">{{ paymentSelectionTitle() }}</h2>
                                     @if (canManagePaymentInCurrentSession()) {
                                         <p-button
                                                 type="button"
@@ -473,6 +466,11 @@
                     </div>
                 }
             }
+        }
+        @if (sdk.lastError() && errorStage() !== 'otp_send' && errorStage() !== 'otp_validate') {
+            <p-message severity="error" styleClass="w-full items-center">
+                {{ errorMessage() }}
+            </p-message>
         }
         <div class="flex justify-center w-full text-gray-300">CommerceHub Connect</div>
     </div>

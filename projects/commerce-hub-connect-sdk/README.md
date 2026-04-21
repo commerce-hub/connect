@@ -26,6 +26,14 @@ ng build commerce-hub-connect-sdk
 
 This command will compile your project, and the build artifacts will be placed in the `dist/` directory.
 
+## Stylesheet
+
+The SDK ships its own stylesheet and PrimeNG preset.
+
+- Import the SDK stylesheet from `commerce-hub-connect-sdk/theme/commerce-hub-sdk.css`.
+- Use the exported `provideCommerceHubSdkTheme()` helper to configure PrimeNG.
+- If needed, you can still access the raw `commerceHubSdkThemePreset`.
+
 ### Publishing the Library
 
 Once the project is built, you can publish your library by following these steps:
