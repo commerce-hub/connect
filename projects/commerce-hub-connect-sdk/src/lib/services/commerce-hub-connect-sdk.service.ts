@@ -174,20 +174,16 @@ export class CommerceHubConnectSdkService {
     );
   }
 
-  validateOtp(request: OtpValidateRequest): Promise<InteractionResponse> {
+  validateOtp(request: OtpValidateRequest): Observable<InteractionResponse> {
     const interactionId = this.requireInteractionId();
 
     this.submittingState.set(true);
     this.lastErrorState.set(null);
 
-    return firstValueFrom(
-      this.api
-        .validateInteractionOtp(interactionId, request)
-        .pipe(
-          tap((interaction) => this.commitInteraction(interaction)),
-          finalize(() => this.submittingState.set(false)),
-          catchError((error) => this.failWith('otp_validate', error)),
-        ),
+    return this.api.validateInteractionOtp(interactionId, request).pipe(
+      tap((interaction) => this.commitInteraction(interaction)),
+      finalize(() => this.submittingState.set(false)),
+      catchError((error) => this.failWith('otp_validate', error)),
     );
   }
 
@@ -654,7 +650,7 @@ export class CommerceHubConnectSdkService {
       merchantInvoiceNumber: configuration.merchantInvoiceNumber,
       authType: configuration.authType,
       expiryMinutes: configuration.expiryMinutes,
-      email: configuration.email || "",
+      ...(configuration.email?.trim() ? { email: configuration.email.trim() } : {}),
       allowedTenderTypes: configuration.allowedTenderTypes,
       allowEmailChange: configuration.allowEmailChange,
     };

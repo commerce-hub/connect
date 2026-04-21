@@ -1,33 +1,9 @@
-@import "tailwindcss";
-@import "primeicons/primeicons.css";
-@source "../projects";
-
-@theme {
-  --font-sans: "Open Sans", "Segoe UI", sans-serif;
-  --font-display: "Open Sans", "Segoe UI", sans-serif;
-  --color-sdk-primary: #0a5dff;
-  --color-sdk-secondary: #627d98;
-  --color-sdk-text: #101828;
-  --color-sdk-surface: #ffffff;
-  --color-sdk-border: #d7dfeb;
-  --color-sdk-muted: #eff3f8;
-  --color-sdk-success: #1f9d66;
-  --radius-sdk: 1rem;
-  --shadow-sdk: 0 24px 56px rgba(15, 23, 42, 0.12);
-}
+@import "../projects/commerce-hub-connect-sdk/src/lib/theme/commerce-hub-sdk.css";
 
 :root {
   color-scheme: light;
-  --ch-primary-color: #0a5dff;
-  --ch-secondary-color: #627d98;
-  --ch-text-color: #101828;
-  --ch-font-family: "Open Sans", "Segoe UI", sans-serif;
-  --ch-surface-color: #ffffff;
-  --ch-muted-surface: #f4f7fb;
-  --ch-border-color: #d7dfeb;
-  --ch-success-color: #1f9d66;
-  font-family: var(--ch-font-family);
-  color: var(--ch-text-color);
+  font-family: "Open Sans", "Segoe UI", sans-serif;
+  color: #101828;
   background:
     radial-gradient(circle at top, rgba(10, 93, 255, 0.12), transparent 32%),
     linear-gradient(180deg, #f6f9ff 0%, #eff4fb 100%);
@@ -41,8 +17,8 @@ body {
 
 body {
   margin: 0;
-  font-family: var(--ch-font-family);
-  color: var(--ch-text-color);
+  font-family: "Open Sans", "Segoe UI", sans-serif;
+  color: #101828;
   background:
     radial-gradient(circle at top, rgba(10, 93, 255, 0.12), transparent 32%),
     linear-gradient(180deg, #f6f9ff 0%, #eff4fb 100%);

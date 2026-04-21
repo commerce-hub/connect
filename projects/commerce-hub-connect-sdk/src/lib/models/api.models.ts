@@ -32,7 +32,7 @@ export interface InteractionRequest {
   merchantInvoiceNumber?: string;
   authType: CommerceHubAuthType;
   expiryMinutes?: number;
-  email: string;
+  email?: string;
   allowedTenderTypes?: CommerceHubTenderType[];
   allowEmailChange?: boolean;
 }

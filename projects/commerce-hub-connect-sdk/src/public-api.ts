@@ -4,3 +4,5 @@ export * from './lib/models/sdk.models';
 export * from './lib/services/commerce-hub-connect-api.service';
 export * from './lib/services/commerce-hub-connect-sdk.service';
 export * from './lib/services/commerce-hub-pci-vault.service';
+export * from './lib/theme/commerce-hub-sdk-theme.preset';
+export * from './lib/theme/provide-commerce-hub-sdk-theme';
