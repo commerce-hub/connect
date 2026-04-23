@@ -393,9 +393,7 @@
                                             Card number and CVC are secured through the wallet masking API before the source is saved.
                                         </p>
                                     </form>
-                                }
-
-                                @if (selectedTenderType() === 'BANK_ACCOUNT') {
+                                } @else if (selectedTenderType() === 'BANK_ACCOUNT') {
                                     <div class="grid gap-3 bg-[var(--p-surface-0)]">
                                         <div class="grid gap-1">
                                             <h2 class="m-0 text-base font-semibold">Add bank account</h2>
