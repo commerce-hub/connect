@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CommerceHub Widget Demo</title>
+    <title>CommerceHub Custom Element Demo</title>
     <style>
       :root {
         color: #122033;
@@ -166,11 +166,11 @@
   <body>
     <main>
       <section class="hero">
-        <p class="meta">Plain JavaScript Widget Demo</p>
+        <p class="meta">Angular Elements Demo</p>
         <h1>CommerceHub Connect Web SDK</h1>
         <p>
-          This page mounts the packaged web SDK on demand using
-          <code>window.CommerceHubConnectWebSdk.mount(...)</code>.
+          This page uses the packaged SDK as a browser custom element and listens for
+          <code>commerce-hub-success</code> and <code>commerce-hub-error</code> events.
         </p>
       </section>
 
@@ -179,13 +179,13 @@
           <div class="panel">
             <div class="panel__header">
               <h2>Configuration</h2>
-              <p class="meta">Set the API base URL and the widget inputs, then mount or remount it.</p>
+              <p class="meta">Set the API base URL and widget inputs, then create or recreate the element.</p>
             </div>
 
             <div class="grid">
               <div class="field">
                 <label for="api-base-url">API Base URL</label>
-                <input id="api-base-url" value="/api" />
+                <input id="api-base-url" />
               </div>
               <div class="field">
                 <label for="session-reference-id">Session Reference ID</label>
@@ -218,6 +218,10 @@
                 <span>Allow card</span>
               </label>
               <label class="toggle">
+                <input id="use-wallet" type="checkbox" />
+                <span>Use wallet</span>
+              </label>
+              <label class="toggle">
                 <input id="allow-bank-account" type="checkbox" checked />
                 <span>Allow bank account</span>
               </label>
@@ -228,15 +232,15 @@
             </div>
 
             <div class="actions">
-              <button type="button" id="mount-widget">Mount widget</button>
-              <button type="button" class="secondary" id="destroy-widget">Destroy widget</button>
+              <button type="button" id="mount-widget">Create element</button>
+              <button type="button" class="secondary" id="destroy-widget">Remove element</button>
             </div>
           </div>
 
           <div class="panel">
             <div class="panel__header">
-              <h2>Callback Log</h2>
-              <p class="meta">Shows SDK mount errors plus the widget `onSuccess` and `onError` callbacks.</p>
+              <h2>Event Log</h2>
+              <p class="meta">Shows lifecycle messages plus custom-element success and error events.</p>
             </div>
             <pre class="console" id="console-output">Waiting for widget bundle...</pre>
           </div>
@@ -251,7 +255,23 @@
     <script>
       const consoleOutput = document.getElementById('console-output');
       const sdkRoot = document.getElementById('sdk-root');
-      let mountedInstance = null;
+      const apiBaseUrlInput = document.getElementById('api-base-url');
+      let widgetElement = null;
+
+      function defaultApiBaseUrl() {
+        const isLocalHost =
+          window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if (window.location.port === '4500') {
+          return '/api';
+        }
+
+        if (window.location.protocol === 'file:' || isLocalHost) {
+          return 'http://localhost:8080';
+        }
+
+        return '/api';
+      }
 
       function value(id) {
         return document.getElementById(id).value.trim();
@@ -262,8 +282,8 @@
       }
 
       function appendLog(label, payload) {
-        const entry = `${new Date().toLocaleTimeString()} ${label}\n${JSON.stringify(payload, null, 2)}\n\n`;
-        consoleOutput.textContent = entry + consoleOutput.textContent;
+        const text = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+        consoleOutput.textContent = `[${new Date().toLocaleTimeString()}] ${label}\n${text}\n\n${consoleOutput.textContent}`;
       }
 
       function buildConfiguration() {
@@ -277,65 +297,57 @@
 
         return {
           sessionReferenceId: value('session-reference-id'),
-          email: value('email') || undefined,
-          authType: value('auth-type'),
-          allowedTenderTypes: allowedTenderTypes.length ? allowedTenderTypes : ['CARD'],
+          email: value('email'),
           allowEmailChange: checked('allow-email-change'),
-          onSuccess(result) {
-            appendLog('[onSuccess]', result);
-          },
-          onError(error) {
-            appendLog('[onError]', error);
-          },
+          allowedTenderTypes,
+          authType: value('auth-type'),
+          wallet: checked('use-wallet'),
         };
       }
 
       function buildWhiteLabel() {
         return {
-          primaryColor: value('primary-color') || undefined,
-          secondaryColor: value('secondary-color') || undefined,
+          primaryColor: value('primary-color'),
+          secondaryColor: value('secondary-color'),
         };
       }
 
-      async function mountWidget() {
-        try {
-          if (!window.CommerceHubConnectWebSdk) {
-            throw new Error('The widget bundle is not loaded yet.');
-          }
-
-          if (mountedInstance) {
-            mountedInstance.destroy();
-            mountedInstance = null;
-          }
-
-          mountedInstance = await window.CommerceHubConnectWebSdk.mount(sdkRoot, {
-            apiBaseUrl: value('api-base-url') || '/api',
-            configuration: buildConfiguration(),
-            whiteLabel: buildWhiteLabel(),
-          });
-
-          appendLog('[mount]', {
-            apiBaseUrl: value('api-base-url') || '/api',
-            sessionReferenceId: value('session-reference-id'),
-          });
-        } catch (error) {
-          appendLog('[mount-error]', {
-            message: error && error.message ? error.message : String(error),
-          });
+      function createWidgetElement() {
+        if (widgetElement) {
+          widgetElement.remove();
         }
+
+        widgetElement = document.createElement('commerce-hub-connect-widget');
+        widgetElement.apiBaseUrl = value('api-base-url');
+        widgetElement.configuration = buildConfiguration();
+        widgetElement.whiteLabel = buildWhiteLabel();
+        widgetElement.addEventListener('commerce-hub-success', (event) => {
+          appendLog('commerce-hub-success', event.detail);
+        });
+        widgetElement.addEventListener('commerce-hub-error', (event) => {
+          appendLog('commerce-hub-error', event.detail);
+        });
+
+        sdkRoot.replaceChildren(widgetElement);
+        appendLog('element created', {
+          tagName: widgetElement.tagName.toLowerCase(),
+          apiBaseUrl: widgetElement.apiBaseUrl,
+        });
       }
 
-      document.getElementById('mount-widget').addEventListener('click', () => {
-        void mountWidget();
-      });
+      function destroyWidget() {
+        widgetElement?.remove();
+        widgetElement = null;
+        sdkRoot.replaceChildren();
+        appendLog('element removed', 'Widget removed from the page.');
+      }
 
-      document.getElementById('destroy-widget').addEventListener('click', () => {
-        mountedInstance?.destroy();
-        mountedInstance = null;
-        appendLog('[destroy]', { destroyed: true });
-      });
+      document.getElementById('mount-widget').addEventListener('click', createWidgetElement);
+      document.getElementById('destroy-widget').addEventListener('click', destroyWidget);
 
-      consoleOutput.textContent = 'Widget bundle loaded. Click "Mount widget" to start.';
+      apiBaseUrlInput.value = defaultApiBaseUrl();
+      appendLog('ready', 'CommerceHubConnectSDK loaded and custom element registered.');
+      createWidgetElement();
     </script>
   </body>
 </html>

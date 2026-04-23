@@ -28,7 +28,7 @@ import { COMMERCE_HUB_CONNECT_API_BASE_URL } from './commerce-hub-connect-api-ba
 })
 export class CommerceHubConnectApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = inject(COMMERCE_HUB_CONNECT_API_BASE_URL);
+  private readonly resolveBaseUrl = inject(COMMERCE_HUB_CONNECT_API_BASE_URL);
 
   private interactionId: string | null = null;
 
@@ -256,7 +256,7 @@ export class CommerceHubConnectApiService {
     }
 
     private url(path: string): string {
-        return `${this.baseUrl}${path}`;
+        return `${this.resolveBaseUrl()}${path}`;
     }
 
     private path(value: string): string {

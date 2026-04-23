@@ -227,7 +227,7 @@ export class CommerceHubConnectCaptureComponent {
     formatAddressLine2(this.selectedBillingAddress()),
   );
   protected readonly addingNewBillingAddress = computed(
-    () => this.cardForm.controls.billingAddressValue.value === NEW_BILLING_ADDRESS_VALUE,
+    () => this.cardForm.controls.billingAddressValue.value === NEW_BILLING_ADDRESS_VALUE || !this.configuration().wallet,
   );
   protected readonly submitted = signal(false);
   protected readonly otpSubmitted = signal(false);

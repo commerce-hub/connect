@@ -53,7 +53,7 @@
             <h2>Client</h2>
             <p class='meta'>Set the API base URL, initialize the client, then run actions below.</p>
           </div>
-          <div class='grid'><div class='field field--full'><label for='base-url'>Base URL</label><input id='base-url' value='/api' /></div></div>
+          <div class='grid'><div class='field field--full'><label for='base-url'>Base URL</label><input id='base-url' /></div></div>
           <div class='actions'><button type='button' id='create-client'>Create client</button><button type='button' class='secondary' id='list-methods'>List methods</button></div>
           <div class='status'><span class='dot' id='client-dot'></span><span id='client-status'>SDK bundle loaded. Client not initialized.</span></div>
         </section>
@@ -129,6 +129,21 @@
     const fields = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
     const history = [];
     let client = null;
+
+    function defaultApiBaseUrl() {
+      const isLocalHost =
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+      if (window.location.port === '4500') {
+        return '/api';
+      }
+
+      if (window.location.protocol === 'file:' || isLocalHost) {
+        return 'http://localhost:8080';
+      }
+
+      return '/api';
+    }
 
     function value(id) { return fields[id].value.trim(); }
     function optional(id) { const current = value(id); return current || undefined; }
@@ -252,6 +267,7 @@
       field.addEventListener('input', preview);
       field.addEventListener('change', preview);
     });
+    fields['base-url'].value = defaultApiBaseUrl();
     preview();
     setStatus(false, 'SDK bundle loaded. Client not initialized.');
   </script>

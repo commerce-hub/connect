@@ -1,13 +1,20 @@
+import { provideHttpClient } from '@angular/common/http';
 import {
   ApplicationConfig,
   ApplicationRef,
-  ComponentRef,
-  Injector,
-  createComponent,
+  ChangeDetectionStrategy,
+  Component,
+  Injectable,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection,
+  signal,
 } from '@angular/core';
-import { provideHttpClient } from '@angular/common/http';
+import { createCustomElement } from '@angular/elements';
 import { createApplication } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
@@ -15,6 +22,8 @@ import {
   COMMERCE_HUB_CONNECT_API_BASE_URL,
   CommerceHubConnectCaptureComponent,
   CommerceHubSdkConfiguration,
+  CommerceHubSdkError,
+  CommerceHubSuccessResult,
   CommerceHubWhiteLabelOptions,
   provideCommerceHubSdkTheme,
 } from 'commerce-hub-connect-sdk';
@@ -23,133 +32,45 @@ const SDK_VERSION = '0.0.1';
 const SDK_TAG_NAME = 'commerce-hub-connect-widget';
 const SDK_SCRIPT_URL = resolveSdkScriptUrl();
 
-export interface CommerceHubConnectWebSdkMountOptions {
-  configuration: CommerceHubSdkConfiguration;
-  whiteLabel?: CommerceHubWhiteLabelOptions;
+export type CommerceHubConnectWebSdkConfiguration = Omit<
+  CommerceHubSdkConfiguration,
+  'onSuccess' | 'onError'
+> & {
+  onSuccess?: (result: CommerceHubSuccessResult) => void;
+  onError?: (error: CommerceHubSdkError) => void;
+};
+
+export interface CommerceHubConnectWebSdkElementOptions {
+  configuration?: CommerceHubConnectWebSdkConfiguration | null;
+  configurationJson?: string;
+  whiteLabel?: CommerceHubWhiteLabelOptions | null;
+  whiteLabelJson?: string;
   apiBaseUrl?: string;
+}
+
+export interface CommerceHubConnectWebSdkMountOptions extends CommerceHubConnectWebSdkElementOptions {
   replaceContents?: boolean;
 }
-
-export interface CommerceHubConnectWebSdkInstance {
-  readonly containerElement: Element;
-  readonly hostElement: HTMLElement;
-  update(options: CommerceHubConnectWebSdkMountOptions): void;
-  destroy(): void;
-}
-
-export interface CommerceHubConnectWebSdkElementOptions
-  extends Omit<CommerceHubConnectWebSdkMountOptions, 'replaceContents'> {}
 
 export interface CommerceHubConnectWebSdkNamespace {
   readonly version: string;
   readonly tagName: string;
+  define(): Promise<void>;
+  createElement(
+    options?: CommerceHubConnectWebSdkElementOptions,
+  ): Promise<CommerceHubConnectWidgetElement>;
   mount(
     target: string | Element,
-    options: CommerceHubConnectWebSdkMountOptions,
-  ): Promise<CommerceHubConnectWebSdkInstance>;
-  createElement(options?: CommerceHubConnectWebSdkElementOptions): CommerceHubConnectWidgetElement;
+    options?: CommerceHubConnectWebSdkMountOptions,
+  ): Promise<CommerceHubConnectWidgetElement>;
 }
 
-export class CommerceHubConnectWidgetElement extends HTMLElement {
-  private readonly mountRoot = document.createElement('div');
-  private instance: CommerceHubConnectWebSdkInstance | null = null;
-  private configurationValue: CommerceHubSdkConfiguration | null = null;
-  private whiteLabelValue?: CommerceHubWhiteLabelOptions;
-  private apiBaseUrlValue?: string;
-
-  static get observedAttributes(): string[] {
-    return ['api-base-url'];
-  }
-
-  connectedCallback(): void {
-    if (!this.mountRoot.isConnected) {
-      this.mountRoot.className = 'commerce-hub-connect-web-sdk-mount';
-      this.replaceChildren(this.mountRoot);
-    }
-
-    void this.renderWidget();
-  }
-
-  disconnectedCallback(): void {
-    this.instance?.destroy();
-    this.instance = null;
-  }
-
-  attributeChangedCallback(name: string, _oldValue: string | null, newValue: string | null): void {
-    if (name === 'api-base-url') {
-      this.apiBaseUrlValue = newValue?.trim() || undefined;
-      void this.renderWidget();
-    }
-  }
-
-  get configuration(): CommerceHubSdkConfiguration | null {
-    return this.configurationValue;
-  }
-
-  set configuration(value: CommerceHubSdkConfiguration | null) {
-    this.configurationValue = value;
-    void this.renderWidget();
-  }
-
-  get whiteLabel(): CommerceHubWhiteLabelOptions | undefined {
-    return this.whiteLabelValue;
-  }
-
-  set whiteLabel(value: CommerceHubWhiteLabelOptions | undefined) {
-    this.whiteLabelValue = value;
-    void this.renderWidget();
-  }
-
-  get apiBaseUrl(): string | undefined {
-    return this.apiBaseUrlValue;
-  }
-
-  set apiBaseUrl(value: string | undefined) {
-    const normalized = value?.trim() || undefined;
-    this.apiBaseUrlValue = normalized;
-    if (normalized && this.getAttribute('api-base-url') !== normalized) {
-      this.setAttribute('api-base-url', normalized);
-      return;
-    }
-    if (!normalized && this.hasAttribute('api-base-url')) {
-      this.removeAttribute('api-base-url');
-      return;
-    }
-    void this.renderWidget();
-  }
-
-  private async renderWidget(): Promise<void> {
-    if (!this.isConnected || !this.configurationValue) {
-      return;
-    }
-
-    const options: CommerceHubConnectWebSdkMountOptions = {
-      configuration: this.configurationValue,
-      whiteLabel: this.whiteLabelValue,
-      apiBaseUrl: this.apiBaseUrlValue,
-      replaceContents: true,
-    };
-
-    if (!this.instance) {
-      this.instance = await mount(this.mountRoot, options);
-      return;
-    }
-
-    try {
-      this.instance.update(options);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.includes('Changing apiBaseUrl after mount is not supported')
-      ) {
-        this.instance.destroy();
-        this.instance = await mount(this.mountRoot, options);
-        return;
-      }
-
-      throw error;
-    }
-  }
+export interface CommerceHubConnectWidgetElement extends HTMLElement {
+  configuration: CommerceHubConnectWebSdkConfiguration | null;
+  configurationJson?: string;
+  whiteLabel?: CommerceHubWhiteLabelOptions | null;
+  whiteLabelJson?: string;
+  apiBaseUrl?: string;
 }
 
 declare global {
@@ -165,6 +86,136 @@ declare global {
   }
 }
 
+@Injectable()
+class CommerceHubConnectWebSdkRuntimeConfig {
+  private readonly apiBaseUrlState = signal('/api');
+
+  readonly apiBaseUrl = this.apiBaseUrlState.asReadonly();
+
+  setApiBaseUrl(value: string | undefined): void {
+    this.apiBaseUrlState.set(normalizeApiBaseUrl(value));
+  }
+}
+
+@Component({
+  selector: 'ch-web-sdk-element',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommerceHubConnectCaptureComponent],
+  providers: [
+    CommerceHubConnectWebSdkRuntimeConfig,
+    {
+      provide: COMMERCE_HUB_CONNECT_API_BASE_URL,
+      useFactory: () => inject(CommerceHubConnectWebSdkRuntimeConfig).apiBaseUrl,
+    },
+  ],
+  host: {
+    class: 'commerce-hub-connect-web-sdk-element',
+  },
+  template: `
+    @if (resolvedConfiguration(); as configuration) {
+      <commerce-hub-connect-capture
+        [configuration]="configuration"
+        [whiteLabel]="resolvedWhiteLabel() ?? undefined"
+      />
+    } @else {
+      <section class="commerce-hub-connect-web-sdk-placeholder">
+        <h2>CommerceHub Connect</h2>
+        <p>Set the widget configuration before using this custom element.</p>
+      </section>
+    }
+  `,
+  styles: `
+    :host {
+      display: block;
+      width: 100%;
+    }
+
+    .commerce-hub-connect-web-sdk-placeholder {
+      display: grid;
+      gap: 0.5rem;
+      min-height: 12rem;
+      align-content: center;
+      justify-items: start;
+      border: 1px dashed rgba(16, 24, 40, 0.18);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      color: #475467;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .commerce-hub-connect-web-sdk-placeholder h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #101828;
+    }
+
+    .commerce-hub-connect-web-sdk-placeholder p {
+      margin: 0;
+      line-height: 1.5;
+    }
+  `,
+})
+class CommerceHubConnectWebSdkElementComponent {
+  readonly configuration = input<CommerceHubConnectWebSdkConfiguration | null>(null);
+  readonly configurationJson = input<string>();
+  readonly whiteLabel = input<CommerceHubWhiteLabelOptions | null>(null);
+  readonly whiteLabelJson = input<string>();
+  readonly apiBaseUrl = input('/api');
+
+  readonly commerceHubSuccess = output<CommerceHubSuccessResult>({
+    alias: 'commerce-hub-success',
+  });
+  readonly commerceHubError = output<CommerceHubSdkError>({
+    alias: 'commerce-hub-error',
+  });
+
+  private readonly runtimeConfig = inject(CommerceHubConnectWebSdkRuntimeConfig);
+
+  protected readonly resolvedWhiteLabel = computed(() => {
+    return (
+      this.whiteLabel() ??
+      parseJsonInput<CommerceHubWhiteLabelOptions>(this.whiteLabelJson()) ??
+      null
+    );
+  });
+
+  protected readonly resolvedConfiguration = computed<CommerceHubSdkConfiguration | null>(() => {
+    const source =
+      this.configuration() ??
+      parseJsonInput<CommerceHubConnectWebSdkConfiguration>(this.configurationJson());
+
+    if (!source?.sessionReferenceId?.trim()) {
+      return null;
+    }
+
+    if (source.authType !== 'FINAL_SALE' && source.authType !== 'AUTH_ONLY') {
+      return null;
+    }
+
+    const onSuccess = source.onSuccess;
+    const onError = source.onError;
+
+    return {
+      ...source,
+      onSuccess: (result) => {
+        onSuccess?.(result);
+        this.commerceHubSuccess.emit(result);
+      },
+      onError: (error) => {
+        onError?.(error);
+        this.commerceHubError.emit(error);
+      },
+    };
+  });
+
+  constructor() {
+    effect(() => {
+      this.runtimeConfig.setApiBaseUrl(this.apiBaseUrl());
+    });
+  }
+}
+
 const applicationConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
@@ -175,130 +226,71 @@ const applicationConfig: ApplicationConfig = {
   ],
 };
 
-const mountedWidgets = new WeakMap<Element, MountedWidget>();
-
 let applicationRefPromise: Promise<ApplicationRef> | null = null;
+let customElementDefinitionPromise: Promise<void> | null = null;
 let stylesheetPromise: Promise<void> | null = null;
 
-class MountedWidget implements CommerceHubConnectWebSdkInstance {
-  constructor(
-    private readonly applicationRef: ApplicationRef,
-    private readonly componentRef: ComponentRef<CommerceHubConnectCaptureComponent>,
-    readonly containerElement: Element,
-    readonly hostElement: HTMLElement,
-    private readonly apiBaseUrl: string,
-  ) {}
-
-  update(options: CommerceHubConnectWebSdkMountOptions): void {
-    assertMountOptions(options);
-
-    if (normalizeApiBaseUrl(options.apiBaseUrl) !== this.apiBaseUrl) {
-      throw new Error('Changing apiBaseUrl after mount is not supported. Destroy and mount again.');
-    }
-
-    this.componentRef.setInput('configuration', options.configuration);
-    this.componentRef.setInput('whiteLabel', options.whiteLabel);
-    this.componentRef.changeDetectorRef.detectChanges();
-  }
-
-  destroy(): void {
-    if (mountedWidgets.get(this.containerElement) === this) {
-      mountedWidgets.delete(this.containerElement);
-    }
-
-    this.applicationRef.detachView(this.componentRef.hostView);
-    this.componentRef.destroy();
-    this.hostElement.remove();
-  }
-}
-
 export async function registerCommerceHubConnectWebSdk(): Promise<CommerceHubConnectWebSdkNamespace> {
-  ensureCustomElementRegistered();
-
   const namespace: CommerceHubConnectWebSdkNamespace = {
     version: SDK_VERSION,
     tagName: SDK_TAG_NAME,
+    define: defineCustomElement,
+    createElement,
     mount,
-    createElement: (options?: CommerceHubConnectWebSdkElementOptions) => {
-      const element = document.createElement(SDK_TAG_NAME) as CommerceHubConnectWidgetElement;
-      if (options?.apiBaseUrl) {
-        element.apiBaseUrl = options.apiBaseUrl;
-      }
-      if (options?.whiteLabel) {
-        element.whiteLabel = options.whiteLabel;
-      }
-      if (options?.configuration) {
-        element.configuration = options.configuration;
-      }
-      return element;
-    },
   };
 
   window.CommerceHubConnectWebSdk = namespace;
+  await defineCustomElement();
   return namespace;
+}
+
+async function defineCustomElement(): Promise<void> {
+  if (customElements.get(SDK_TAG_NAME)) {
+    return;
+  }
+
+  if (!customElementDefinitionPromise) {
+    customElementDefinitionPromise = (async () => {
+      await ensureStylesheet();
+
+      if (customElements.get(SDK_TAG_NAME)) {
+        return;
+      }
+
+      const applicationRef = await getApplicationRef();
+      const element = createCustomElement(CommerceHubConnectWebSdkElementComponent, {
+        injector: applicationRef.injector,
+      });
+      customElements.define(SDK_TAG_NAME, element);
+    })();
+  }
+
+  await customElementDefinitionPromise;
+}
+
+export async function createElement(
+  options?: CommerceHubConnectWebSdkElementOptions,
+): Promise<CommerceHubConnectWidgetElement> {
+  await defineCustomElement();
+
+  const element = document.createElement(SDK_TAG_NAME) as CommerceHubConnectWidgetElement;
+  applyOptions(element, options);
+  return element;
 }
 
 export async function mount(
   target: string | Element,
-  options: CommerceHubConnectWebSdkMountOptions,
-): Promise<CommerceHubConnectWebSdkInstance> {
-  assertMountOptions(options);
-  await ensureStylesheet();
-
-  const applicationRef = await getApplicationRef();
+  options?: CommerceHubConnectWebSdkMountOptions,
+): Promise<CommerceHubConnectWidgetElement> {
   const containerElement = resolveTarget(target);
-  const existing = mountedWidgets.get(containerElement);
-  if (existing) {
-    existing.destroy();
-  }
+  const element = await createElement(options);
 
-  if (options.replaceContents !== false) {
+  if (options?.replaceContents !== false) {
     containerElement.replaceChildren();
   }
 
-  const hostElement = document.createElement('div');
-  hostElement.className = 'commerce-hub-connect-web-sdk-mount';
-  containerElement.appendChild(hostElement);
-
-  const componentRef = createComponent(CommerceHubConnectCaptureComponent, {
-    environmentInjector: applicationRef.injector,
-    elementInjector: Injector.create({
-      providers: [
-        {
-          provide: COMMERCE_HUB_CONNECT_API_BASE_URL,
-          useValue: normalizeApiBaseUrl(options.apiBaseUrl),
-        },
-      ],
-      parent: applicationRef.injector,
-    }),
-    hostElement,
-  });
-
-  applicationRef.attachView(componentRef.hostView);
-
-  try {
-    const instance = new MountedWidget(
-      applicationRef,
-      componentRef,
-      containerElement,
-      hostElement,
-      normalizeApiBaseUrl(options.apiBaseUrl),
-    );
-    instance.update(options);
-    mountedWidgets.set(containerElement, instance);
-    return instance;
-  } catch (error) {
-    applicationRef.detachView(componentRef.hostView);
-    componentRef.destroy();
-    hostElement.remove();
-    throw error;
-  }
-}
-
-function ensureCustomElementRegistered(): void {
-  if (!customElements.get(SDK_TAG_NAME)) {
-    customElements.define(SDK_TAG_NAME, CommerceHubConnectWidgetElement);
-  }
+  containerElement.appendChild(element);
+  return element;
 }
 
 async function getApplicationRef(): Promise<ApplicationRef> {
@@ -348,6 +340,61 @@ async function ensureStylesheet(): Promise<void> {
   return stylesheetPromise;
 }
 
+function applyOptions(
+  element: CommerceHubConnectWidgetElement,
+  options: CommerceHubConnectWebSdkElementOptions | undefined,
+): void {
+  if (!options) {
+    return;
+  }
+
+  if (typeof options.apiBaseUrl === 'string') {
+    element.apiBaseUrl = options.apiBaseUrl;
+  }
+  if (typeof options.configurationJson === 'string') {
+    element.configurationJson = options.configurationJson;
+  }
+  if (typeof options.whiteLabelJson === 'string') {
+    element.whiteLabelJson = options.whiteLabelJson;
+  }
+  if (options.configuration !== undefined) {
+    element.configuration = options.configuration;
+  }
+  if (options.whiteLabel !== undefined) {
+    element.whiteLabel = options.whiteLabel;
+  }
+}
+
+function resolveTarget(target: string | Element): Element {
+  if (typeof target === 'string') {
+    const resolved = document.querySelector(target);
+    if (!resolved) {
+      throw new Error(`Unable to find a mount target for selector: ${target}`);
+    }
+
+    return resolved;
+  }
+
+  return target;
+}
+
+function normalizeApiBaseUrl(value: string | undefined): string {
+  const trimmed = value?.trim();
+  return trimmed || '/api';
+}
+
+function parseJsonInput<T>(value: string | undefined): T | null {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
 function resolveSdkScriptUrl(): string | null {
   const moduleUrl = import.meta.url;
   if (moduleUrl) {
@@ -373,48 +420,4 @@ function resolveStylesheetUrl(): string {
   }
 
   return './styles.css';
-}
-
-function resolveTarget(target: string | Element): Element {
-  if (typeof target === 'string') {
-    const resolved = document.querySelector(target);
-    if (!resolved) {
-      throw new Error(`Unable to find a mount target for selector: ${target}`);
-    }
-
-    return resolved;
-  }
-
-  return target;
-}
-
-function normalizeApiBaseUrl(value: string | undefined): string {
-  const trimmed = value?.trim();
-  return trimmed || '/api';
-}
-
-function assertMountOptions(options: CommerceHubConnectWebSdkMountOptions): void {
-  if (!options || typeof options !== 'object') {
-    throw new Error('Mount options are required.');
-  }
-
-  if (!options.configuration || typeof options.configuration !== 'object') {
-    throw new Error('A CommerceHubSdkConfiguration object is required.');
-  }
-
-  if (!options.configuration.sessionReferenceId?.trim()) {
-    throw new Error('configuration.sessionReferenceId is required.');
-  }
-
-  if (typeof options.configuration.onSuccess !== 'function') {
-    throw new Error('configuration.onSuccess must be a function.');
-  }
-
-  if (typeof options.configuration.onError !== 'function') {
-    throw new Error('configuration.onError must be a function.');
-  }
-
-  if (options.configuration.authType !== 'FINAL_SALE' && options.configuration.authType !== 'AUTH_ONLY') {
-    throw new Error('configuration.authType must be FINAL_SALE or AUTH_ONLY.');
-  }
 }

@@ -1,4 +1,9 @@
-<div #overlayHost class="mx-auto w-full bg-[var(--p-surface-0)] px-4 pt-3">
+<div
+  #overlayHost
+  class="mx-auto w-full bg-[var(--p-surface-0)]"
+  [class.px-4]="selectedTenderType() !== 'BANK_ACCOUNT'"
+  [class.pt-3]="selectedTenderType() !== 'BANK_ACCOUNT'"
+>
     <div class="grid gap-3">
         @if (sdk.loading()) {
             <div class="grid place-items-center py-8">
@@ -267,18 +272,20 @@
                                             <label for="card-full-name">Full name</label>
                                         </p-floatlabel>
 
-                                        <p-floatlabel class="col-span-2" variant="in">
-                                            <p-select
-                                                    inputId="card-billing-address"
-                                                    class="w-full"
-                                                    [options]="billingAddressOptions()"
-                                                    optionLabel="label"
-                                                    optionValue="value"
-                                                    formControlName="billingAddressValue"
-                                                    [appendTo]="overlayHost"
-                                            />
-                                            <label for="card-billing-address">Billing address</label>
-                                        </p-floatlabel>
+                                        @if(this.configuration().wallet) {
+                                            <p-floatlabel class="col-span-2" variant="in">
+                                                <p-select
+                                                        inputId="card-billing-address"
+                                                        class="w-full"
+                                                        [options]="billingAddressOptions()"
+                                                        optionLabel="label"
+                                                        optionValue="value"
+                                                        formControlName="billingAddressValue"
+                                                        [appendTo]="overlayHost"
+                                                />
+                                                <label for="card-billing-address">Billing address</label>
+                                            </p-floatlabel>
+                                        }
 
                                         @if (selectedBillingAddress() && !addingNewBillingAddress()) {
                                             <div class="col-span-2 rounded-2xl border border-[var(--p-content-border-color)] bg-[var(--p-surface-50)] px-4 py-4">
@@ -344,10 +351,11 @@
                                                         inputId="billing-state"
                                                         class="w-full"
                                                         [options]="states"
+                                                        [filter]="true"
                                                         optionLabel="name"
                                                         optionValue="code"
                                                         formControlName="state"
-                                                        [appendTo]="overlayHost"
+                                                        appendTo="body"
                                                 />
                                                 <label for="billing-state">State</label>
                                             </p-floatlabel>
@@ -375,9 +383,9 @@
 
                                         <p-button
                                                 type="button"
-                                                label="Back to payment methods"
+                                                label="Back"
                                                 icon="pi pi-arrow-left"
-                                                [text]="true"
+                                                [link]="true"
                                                 (onClick)="backToPaymentList()"
                                         />
 
@@ -395,11 +403,16 @@
                                     </form>
                                 } @else if (selectedTenderType() === 'BANK_ACCOUNT') {
                                     <div class="grid gap-3 bg-[var(--p-surface-0)]">
-                                        <div class="grid gap-1">
-                                            <h2 class="m-0 text-base font-semibold">Add bank account</h2>
-                                        </div>
-
                                         <div [id]="payByBankMountId()" class="min-h-[720px] w-full"></div>
+
+                                        <p-button
+                                                type="button"
+                                                label="Back"
+                                                icon="pi pi-arrow-left"
+                                                [link]="true"
+                                                [disabled]="sdk.bankLinkLoading()"
+                                                (onClick)="backToPaymentList()"
+                                        />
 
                                         @if(!sdk.bankLinkLoading()) {
                                             <p-button
