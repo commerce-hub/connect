@@ -653,6 +653,7 @@ export class CommerceHubConnectSdkService {
       ...(configuration.email?.trim() ? { email: configuration.email.trim() } : {}),
       allowedTenderTypes: configuration.allowedTenderTypes,
       allowEmailChange: configuration.allowEmailChange,
+      wallet: configuration.wallet
     };
   }
 

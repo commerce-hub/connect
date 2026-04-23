@@ -1,50 +1,51 @@
-import {HttpClient, HttpHeaders} from '@angular/common/http';
-import {inject, Injectable} from '@angular/core';
-import {Observable} from 'rxjs';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
 
 import {
-    Address,
-    ConsumeTokenRequest,
-    CreateTokenRequest,
-    CreateTokenResponse,
-    InteractionCompletionRequest,
-    InteractionRequest,
-    InteractionResponse,
-    MachinePaymentResponse,
-    OTPResponse,
-    OtpValidateRequest,
-    PayByBankSessionResponse,
-    Payment,
-    PaymentSource,
-    PaymentsSearchRequest,
-    PhoneDetails,
-    Profile,
-    StringHolder,
+  Address,
+  ConsumeTokenRequest,
+  CreateTokenRequest,
+  CreateTokenResponse,
+  InteractionCompletionRequest,
+  InteractionRequest,
+  InteractionResponse,
+  MachinePaymentResponse,
+  OTPResponse,
+  OtpValidateRequest,
+  PayByBankSessionResponse,
+  Payment,
+  PaymentSource,
+  PaymentsSearchRequest,
+  PhoneDetails,
+  Profile,
+  StringHolder,
 } from '../models/api.models';
+import { COMMERCE_HUB_CONNECT_API_BASE_URL } from './commerce-hub-connect-api-base-url.token';
 
 @Injectable({
-    providedIn: 'root',
+  providedIn: 'root',
 })
 export class CommerceHubConnectApiService {
-    private readonly http = inject(HttpClient);
-    private readonly baseUrl = '/api';
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = inject(COMMERCE_HUB_CONNECT_API_BASE_URL);
 
-    private interactionId: string | null = null;
+  private interactionId: string | null = null;
 
-    setInteractionId(interactionId: string | null): void {
-        this.interactionId = interactionId;
-    }
+  setInteractionId(interactionId: string | null): void {
+    this.interactionId = interactionId;
+  }
 
-    updateSource(source: PaymentSource): Observable<void> {
-        return this.http.put<void>(this.url('/customer/source'), source, this.opts({withCredentials: true}));
-    }
+  updateSource(source: PaymentSource): Observable<void> {
+    return this.http.put<void>(this.url('/customer/source'), source, this.opts({ withCredentials: true }));
+  }
 
-    addSource(source: PaymentSource): Observable<string> {
-        return this.http.post(this.url('/customer/source'), source, {
-            ...this.opts({withCredentials: true}),
-            responseType: 'text',
-        });
-    }
+  addSource(source: PaymentSource): Observable<string> {
+    return this.http.post(this.url('/customer/source'), source, {
+      ...this.opts({ withCredentials: true }),
+      responseType: 'text',
+    });
+  }
 
     updateShippingAddress(id: string, address: Address): Observable<void> {
         return this.http.put<void>(

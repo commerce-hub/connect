@@ -51,6 +51,7 @@ import {
   CommerceHubPciVaultService,
   SecuredCardField,
 } from '../services/commerce-hub-pci-vault.service';
+import { CommerceHubConnectApiService } from '../services/commerce-hub-connect-api.service';
 import { CommerceHubConnectSdkService } from '../services/commerce-hub-connect-sdk.service';
 
 type MaskedFieldState = SecuredCardField;
@@ -134,7 +135,11 @@ const US_STATES = [
     ProgressSpinnerModule,
     SelectModule,
   ],
-  providers: [CommerceHubConnectSdkService],
+  providers: [
+    CommerceHubConnectApiService,
+    CommerceHubConnectSdkService,
+    CommerceHubPciVaultService,
+  ],
   host: {
     class: 'ch-sdk-host',
     '[style.--brand-primary-color]': 'brand().primaryColor',

@@ -399,22 +399,23 @@
                                     <div class="grid gap-3 bg-[var(--p-surface-0)]">
                                         <div class="grid gap-1">
                                             <h2 class="m-0 text-base font-semibold">Add bank account</h2>
-                                            <p class="m-0 text-xs opacity-70">Securely connect your bank through PayByBank.</p>
                                         </div>
 
                                         <div [id]="payByBankMountId()" class="min-h-[720px] w-full"></div>
 
-                                        <p-button
-                                                type="button"
-                                                label="Add Bank Account"
-                                                icon="pi pi-link"
-                                                class="w-full"
-                                                [fluid]="true"
-                                                [rounded]="true"
-                                                [disabled]="sdk.bankLinkLoading()"
-                                                [loading]="sdk.bankLinkLoading()"
-                                                (onClick)="submitPaymentSource()"
-                                        />
+                                        @if(!sdk.bankLinkLoading()) {
+                                            <p-button
+                                                    type="button"
+                                                    label="Add Bank Account"
+                                                    icon="pi pi-link"
+                                                    class="w-full"
+                                                    [fluid]="true"
+                                                    [rounded]="true"
+                                                    [disabled]="sdk.bankLinkLoading()"
+                                                    [loading]="sdk.bankLinkLoading()"
+                                                    (onClick)="submitPaymentSource()"
+                                            />
+                                        }
                                     </div>
                                 }
                             </div>
@@ -472,6 +473,6 @@
                 {{ errorMessage() }}
             </p-message>
         }
-        <div class="flex justify-center w-full text-gray-300">CommerceHub Connect</div>
+        <div class="flex justify-center w-full text-gray-300">Commerce Hub Connect</div>
     </div>
 </div>

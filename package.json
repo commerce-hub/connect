@@ -6,6 +6,10 @@
     "start": "ng serve --port 4500 --proxy-config proxy.conf.json",
     "build": "ng build",
     "build:sdk": "ng build commerce-hub-connect-sdk",
+    "build:web-sdk-widget": "node scripts/build-web-sdk-widget.mjs",
+    "build:web-sdk-widget:angular": "ng build commerce-hub-connect-web-sdk-widget",
+    "generate:react-app": "node scripts/generate-react-ts-app.mjs",
+    "generate:web-sdk": "node scripts/generate-web-sdk.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

@@ -1,7 +1,7 @@
 <main class="app-shell">
   <section class="app-copy">
     <p class="app-kicker">Angular 20 SDK Demo</p>
-    <h1>CommerceHub Connect Wallet SDK</h1>
+    <h1>Commerce Hub Connect Wallet SDK</h1>
     <p class="app-description">
       Configure the SDK inputs below, then initialize the widget on demand. The demo remounts the
       SDK every time you click the button so you can restart the same session or a new one.
@@ -78,6 +78,10 @@
         </div>
 
         <div class="app-toggles">
+            <label class="app-toggle" for="use-wallet">
+                <p-checkbox inputId="use-wallet" formControlName="wallet" [binary]="true" />
+                <span>Use Wallet</span>
+            </label>
           <label class="app-toggle" for="allow-email-change">
             <p-checkbox inputId="allow-email-change" formControlName="allowEmailChange" [binary]="true" />
             <span>Allow email change</span>

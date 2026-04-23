@@ -35,6 +35,7 @@ export interface InteractionRequest {
   email?: string;
   allowedTenderTypes?: CommerceHubTenderType[];
   allowEmailChange?: boolean;
+  wallet?: boolean;
 }
 
 export interface StringHolder {

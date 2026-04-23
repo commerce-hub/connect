@@ -126,6 +126,40 @@
           }
         }
       }
+    },
+    "commerce-hub-connect-web-sdk-widget": {
+      "projectType": "application",
+      "root": "projects/commerce-hub-connect-web-sdk",
+      "sourceRoot": "projects/commerce-hub-connect-web-sdk/src",
+      "prefix": "ch-web-sdk",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "projects/commerce-hub-connect-web-sdk/dist-widget",
+            "browser": "projects/commerce-hub-connect-web-sdk/src/main.ts",
+            "index": "projects/commerce-hub-connect-web-sdk/src/index.html",
+            "polyfills": [],
+            "tsConfig": "projects/commerce-hub-connect-web-sdk/tsconfig.app.json",
+            "inlineStyleLanguage": "css",
+            "styles": [
+              "projects/commerce-hub-connect-web-sdk/src/styles.css"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "outputHashing": "none"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "outputHashing": "none"
+            }
+          },
+          "defaultConfiguration": "production"
+        }
+      }
     }
   }
 }

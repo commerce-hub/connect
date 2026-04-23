@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8' />
+  <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+  <title>Commerce Hub Web SDK Demo</title>
+  <style>
+    :root { color: #122033; font-family: 'Avenir Next', 'Segoe UI', sans-serif; background: linear-gradient(180deg, #eef5ff, #f8fbff 50%, #eef2f7); }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    main { margin: 0 auto; max-width: 1280px; padding: 24px; }
+    h1, h2, p { margin: 0; }
+    .hero { display: grid; gap: 10px; margin-bottom: 24px; max-width: 760px; }
+    .eyebrow { color: #0a5dff; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .layout { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); }
+    .stack { display: grid; gap: 24px; }
+    .panel { background: rgba(255,255,255,.9); border: 1px solid rgba(18,32,51,.08); border-radius: 22px; box-shadow: 0 22px 50px rgba(18,32,51,.1); padding: 20px; }
+    .panel__header { display: grid; gap: 6px; margin-bottom: 14px; }
+    .meta { color: rgba(18,32,51,.68); font-size: 14px; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .field { display: grid; gap: 6px; }
+    .field--full { grid-column: 1 / -1; }
+    label { color: rgba(18,32,51,.78); font-size: 14px; font-weight: 600; }
+    input, select, button { font: inherit; }
+    input, select { background: #fff; border: 1px solid rgba(18,32,51,.12); border-radius: 14px; min-width: 0; padding: 11px 13px; width: 100%; }
+    .toggles, .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+    .toggle { align-items: center; display: inline-flex; gap: 8px; }
+    button { background: #0a5dff; border: 0; border-radius: 999px; color: #fff; cursor: pointer; padding: 10px 16px; }
+    button.secondary { background: rgba(18,32,51,.08); color: #122033; }
+    button.warn { background: #d74d64; }
+    .status { align-items: center; display: flex; gap: 10px; margin-top: 16px; }
+    .dot { background: #d74d64; border-radius: 999px; height: 10px; width: 10px; }
+    .dot.ok { background: #17b36b; }
+    .console { background: #07111f; border-radius: 20px; color: #d7e4ff; min-height: 240px; overflow: auto; padding: 16px; white-space: pre-wrap; }
+    .history { display: grid; gap: 10px; }
+    .history__item { background: rgba(18,32,51,.04); border-radius: 16px; padding: 12px 14px; }
+    @media (max-width: 1080px) { .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { main { padding: 16px; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class='hero'>
+      <p class='eyebrow'>Example Page</p>
+      <h1>Commerce Hub Web SDK Demo</h1>
+      <p>Interactive demo for the generated browser SDK client. It uses <code>../dist/commerce-hub-connect-sdk.js</code> and lets you exercise the main API calls.</p>
+    </section>
+
+    <section class='layout'>
+      <div class='stack'>
+        <section class='panel'>
+          <div class='panel__header'>
+            <h2>Client</h2>
+            <p class='meta'>Set the API base URL, initialize the client, then run actions below.</p>
+          </div>
+          <div class='grid'><div class='field field--full'><label for='base-url'>Base URL</label><input id='base-url' value='/api' /></div></div>
+          <div class='actions'><button type='button' id='create-client'>Create client</button><button type='button' class='secondary' id='list-methods'>List methods</button></div>
+          <div class='status'><span class='dot' id='client-dot'></span><span id='client-status'>SDK bundle loaded. Client not initialized.</span></div>
+        </section>
+        <section class='panel'>
+          <div class='panel__header'>
+            <h2>Interaction + OTP</h2>
+            <p class='meta'>Creates the interaction, sends OTP, validates OTP, and checks status.</p>
+          </div>
+          <div class='grid'>
+            <div class='field'><label for='session-reference-id'>Session Reference ID</label><input id='session-reference-id' value='web-demo-session-001' /></div>
+            <div class='field'><label for='email'>Email</label><input id='email' type='email' value='merchant@example.com' /></div>
+            <div class='field'><label for='auth-type'>Auth Type</label><select id='auth-type'><option value='FINAL_SALE'>FINAL_SALE</option><option value='AUTH_ONLY'>AUTH_ONLY</option></select></div>
+            <div class='field'><label for='expiry-minutes'>Expiry Minutes</label><input id='expiry-minutes' type='number' min='1' value='30' /></div>
+            <div class='field'><label for='merchant-transaction-id'>Merchant Transaction ID</label><input id='merchant-transaction-id' value='txn-10001' /></div>
+            <div class='field'><label for='otp-code'>OTP Code</label><input id='otp-code' value='123456' /></div>
+          </div>
+          <div class='toggles'>
+            <label class='toggle'><input id='allow-email-change' type='checkbox' checked /> <span>Allow email change</span></label>
+            <label class='toggle'><input id='allow-card' type='checkbox' checked /> <span>Allow card</span></label>
+            <label class='toggle'><input id='allow-bank-account' type='checkbox' checked /> <span>Allow bank account</span></label>
+          </div>
+          <div class='actions'>
+            <button type='button' id='create-interaction'>Create interaction</button>
+            <button type='button' class='secondary' id='get-interaction'>Get interaction</button>
+            <button type='button' class='secondary' id='send-otp'>Send OTP</button>
+            <button type='button' class='secondary' id='send-otp-email'>Send OTP To Email</button>
+            <button type='button' class='secondary' id='validate-otp'>Validate OTP</button>
+          </div>
+        </section>
+
+        <section class='panel'>
+          <div class='panel__header'>
+            <h2>Payment Source + Utilities</h2>
+            <p class='meta'>Sample card source payload plus utility endpoints.</p>
+          </div>
+          <div class='grid'>
+            <div class='field'><label for='source-id'>Source ID</label><input id='source-id' placeholder='filled after addSource' /></div>
+            <div class='field'><label for='source-name'>Source Name</label><input id='source-name' value='Demo Visa' /></div>
+            <div class='field'><label for='card-holder'>Card Holder</label><input id='card-holder' value='Demo Shopper' /></div>
+            <div class='field'><label for='card-number'>Card Number</label><input id='card-number' value='4111111111111111' /></div>
+            <div class='field'><label for='card-exp-month'>Exp Month</label><input id='card-exp-month' value='12' /></div>
+            <div class='field'><label for='card-exp-year'>Exp Year</label><input id='card-exp-year' value='2030' /></div>
+            <div class='field'><label for='card-cvv'>CVV</label><input id='card-cvv' value='123' /></div>
+            <div class='field'><label for='card-network'>Network</label><select id='card-network'><option value='Visa'>Visa</option><option value='Mastercard'>Mastercard</option><option value='AmericanExpress'>AmericanExpress</option><option value='Discover'>Discover</option></select></div>
+            <div class='field'><label for='mask-type'>Mask Type</label><select id='mask-type'><option value='card'>card</option><option value='cvv'>cvv</option><option value='bn'>bn</option><option value='rt'>rt</option></select></div>
+            <div class='field'><label for='mask-value'>Mask Value</label><input id='mask-value' value='4111111111111111' /></div>
+            <div class='field'><label for='ald-session-id'>ALD Session ID</label><input id='ald-session-id' /></div>
+            <div class='field'><label for='p-token'>P Token</label><input id='p-token' /></div>
+          </div>
+          <div class='actions'>
+            <button type='button' id='add-source'>Add source</button><button type='button' class='secondary' id='update-source'>Update source</button><button type='button' class='secondary' id='attach-source'>Attach source</button><button type='button' class='warn' id='delete-source'>Delete source</button><button type='button' class='secondary' id='get-profile'>Get profile</button><button type='button' class='secondary' id='mask-value-button'>Mask value</button><button type='button' class='secondary' id='create-pbb-session'>Create PBB session</button><button type='button' class='secondary' id='finalize-pbb-session'>Finalize PBB session</button>
+          </div>
+        </section>
+      </div>
+
+      <aside class='stack'>
+        <section class='panel'><div class='panel__header'><h2>Request Preview</h2><p class='meta'>Current payload built from the form.</p></div><pre class='console' id='request-preview'></pre></section>
+        <section class='panel'><div class='panel__header'><h2>Response Console</h2><p class='meta'>Latest response or error.</p></div><pre class='console' id='console-output'>SDK bundle loaded.</pre></section>
+        <section class='panel'><div class='panel__header'><h2>History</h2><p class='meta'>Recent actions.</p></div><div class='history' id='history'></div></section>
+      </aside>
+    </section>
+  </main>
+
+  <script src='../dist/commerce-hub-connect-sdk.js'></script>
+  <script>
+    const sdk = window.CommerceHubConnectWebSdk;
+    const clientDot = document.getElementById('client-dot');
+    const clientStatus = document.getElementById('client-status');
+    const consoleOutput = document.getElementById('console-output');
+    const requestPreview = document.getElementById('request-preview');
+    const historyRoot = document.getElementById('history');
+    const ids = ['base-url','session-reference-id','email','auth-type','expiry-minutes','merchant-transaction-id','otp-code','allow-email-change','allow-card','allow-bank-account','source-id','source-name','card-holder','card-number','card-exp-month','card-exp-year','card-cvv','card-network','mask-type','mask-value','ald-session-id','p-token'];
+    const fields = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+    const history = [];
+    let client = null;
+
+    function value(id) { return fields[id].value.trim(); }
+    function optional(id) { const current = value(id); return current || undefined; }
+    function allowedTenderTypes() {
+      const result = [];
+      if (fields['allow-card'].checked) result.push('CARD');
+      if (fields['allow-bank-account'].checked) result.push('BANK_ACCOUNT');
+      return result.length ? result : ['CARD'];
+    }
+    function interactionPayload() {
+      return {
+        sessionReferenceId: value('session-reference-id'),
+        email: optional('email'),
+        authType: value('auth-type'),
+        expiryMinutes: Number(value('expiry-minutes')) || undefined,
+        merchantTransactionId: optional('merchant-transaction-id'),
+        allowedTenderTypes: allowedTenderTypes(),
+        allowEmailChange: fields['allow-email-change'].checked,
+      };
+    }
+    function sourcePayload() {
+      return {
+        id: optional('source-id'),
+        name: optional('source-name'),
+        tenderType: 'CARD',
+        card: {
+          cardNumber: value('card-number'),
+          nameOnCard: value('card-holder'),
+          expirationMonth: value('card-exp-month'),
+          expirationYear: value('card-exp-year'),
+          cvv: value('card-cvv'),
+          network: value('card-network'),
+        },
+      };
+    }
+    function preview() {
+      requestPreview.textContent = JSON.stringify({
+        baseUrl: value('base-url'),
+        interactionRequest: interactionPayload(),
+        otpRequest: { value: value('email') },
+        otpValidateRequest: { email: value('email'), otp: value('otp-code'), channel: 'EMAIL' },
+        paymentSourceRequest: sourcePayload(),
+        maskRequest: { type: value('mask-type'), value: value('mask-value') },
+        finalizePayByBankRequest: { aldSessionId: optional('ald-session-id'), pToken: optional('p-token') },
+      }, null, 2);
+    }
+    function setStatus(ready, text) {
+      clientDot.classList.toggle('ok', ready);
+      clientStatus.textContent = text;
+    }
+    function escapeHtml(text) {
+      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
+    }
+    function pushHistory(label, detail) {
+      history.unshift({ label, detail, timestamp: new Date().toLocaleTimeString() });
+      historyRoot.innerHTML = history.slice(0, 8).map((item) => '<div class="history__item"><strong>' + escapeHtml(item.label) + '</strong><div class="meta">' + escapeHtml(item.timestamp) + '</div><div>' + escapeHtml(item.detail) + '</div></div>').join('');
+    }
+    function render(label, payload) {
+      consoleOutput.textContent = label + '\n\n' + JSON.stringify(payload, null, 2);
+      pushHistory(label, 'completed');
+    }
+    function renderError(label, error) {
+      consoleOutput.textContent = label + '\n\n' + JSON.stringify({
+        message: error && error.message ? error.message : String(error),
+        status: typeof error.status === 'number' ? error.status : undefined,
+        body: error && Object.prototype.hasOwnProperty.call(error, 'body') ? error.body : undefined,
+      }, null, 2);
+      pushHistory(label, 'failed');
+    }
+    function requireClient() {
+      if (!sdk || typeof sdk.createClient !== 'function') throw new Error('SDK bundle did not load correctly.');
+      if (!client) throw new Error('Create the SDK client first.');
+      return client;
+    }
+    async function run(label, action) {
+      preview();
+      try {
+        const result = await action();
+        if (label === 'addSource' && typeof result === 'string') fields['source-id'].value = result;
+        if (label === 'createPayByBankSession' && result && typeof result === 'object') {
+          if (result.aggregatorSessionId) fields['ald-session-id'].value = result.aggregatorSessionId;
+          if (result.pToken) fields['p-token'].value = result.pToken;
+        }
+        preview();
+        render(label, result);
+      } catch (error) {
+        renderError(label, error);
+      }
+    }
+    function bind(id, label, action) {
+      document.getElementById(id).addEventListener('click', () => run(label, action));
+    }
+    document.getElementById('create-client').addEventListener('click', () => {
+      try {
+        if (!sdk || typeof sdk.createClient !== 'function') throw new Error('window.CommerceHubConnectWebSdk.createClient is not available.');
+        client = sdk.createClient({ baseUrl: value('base-url') || '/api' });
+        setStatus(true, 'SDK client ready for ' + (value('base-url') || '/api'));
+        render('createClient', { baseUrl: value('base-url') || '/api', methods: Object.keys(client) });
+      } catch (error) {
+        setStatus(false, 'SDK client initialization failed.');
+        renderError('createClient', error);
+      }
+    });
+    document.getElementById('list-methods').addEventListener('click', () => {
+      try { render('listMethods', Object.keys(requireClient())); } catch (error) { renderError('listMethods', error); }
+    });
+    bind('create-interaction', 'createInteraction', () => requireClient().createInteraction(interactionPayload()));
+    bind('get-interaction', 'getInteractionStatus', () => requireClient().getInteractionStatus());
+    bind('send-otp', 'sendInteractionOtp', () => requireClient().sendInteractionOtp({ value: value('email') }));
+    bind('send-otp-email', 'sendInteractionOtpToEmail', () => requireClient().sendInteractionOtpToEmail({ value: value('email') }));
+    bind('validate-otp', 'validateInteractionOtp', () => requireClient().validateInteractionOtp({ email: value('email'), otp: value('otp-code'), channel: 'EMAIL' }));
+    bind('add-source', 'addSource', () => requireClient().addSource(sourcePayload()));
+    bind('update-source', 'updateSource', () => requireClient().updateSource(sourcePayload()));
+    bind('attach-source', 'attachPaymentSource', () => requireClient().attachPaymentSource(value('source-id')));
+    bind('delete-source', 'deleteSource', () => requireClient().deleteSource(value('source-id')));
+    bind('get-profile', 'getCustomerProfile', () => requireClient().getCustomerProfile());
+    bind('mask-value-button', 'mask', () => requireClient().mask(value('mask-type'), { value: value('mask-value') }));
+    bind('create-pbb-session', 'createPayByBankSession', () => requireClient().createPayByBankSession());
+    bind('finalize-pbb-session', 'finalizePayByBankSession', () => requireClient().finalizePayByBankSession(value('ald-session-id'), value('p-token')));
+    Object.values(fields).forEach((field) => {
+      field.addEventListener('input', preview);
+      field.addEventListener('change', preview);
+    });
+    preview();
+    setStatus(false, 'SDK bundle loaded. Client not initialized.');
+  </script>
+</body>
+</html>

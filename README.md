@@ -1,4 +1,4 @@
-# CommerceHub Connect Wallet SDK
+# Commerce Hub Connect Wallet SDK
 
 Angular 20 workspace containing:
 
@@ -39,6 +39,28 @@ Build the SDK library package:
 
 ```bash
 npm run build:sdk
+```
+
+Build the embeddable website widget bundle:
+
+```bash
+npm run build:web-sdk-widget
+```
+
+That command generates `projects/commerce-hub-connect-web-sdk/dist/CommerceHubConnectSDK.js`.
+
+## Generate Consumers
+
+Generate a pure browser JavaScript SDK scaffold under `projects/commerce-hub-connect-web-sdk`:
+
+```bash
+npm run generate:web-sdk
+```
+
+Generate a React + TypeScript starter app under `projects/commerce-hub-connect-react-app`:
+
+```bash
+npm run generate:react-app
 ```
 
 ## Example Usage
