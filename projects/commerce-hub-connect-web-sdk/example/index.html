@@ -1,275 +1,1065 @@
 <!doctype html>
-<html lang='en'>
-<head>
-  <meta charset='UTF-8' />
-  <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-  <title>Commerce Hub Web SDK Demo</title>
-  <style>
-    :root { color: #122033; font-family: 'Avenir Next', 'Segoe UI', sans-serif; background: linear-gradient(180deg, #eef5ff, #f8fbff 50%, #eef2f7); }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; }
-    main { margin: 0 auto; max-width: 1280px; padding: 24px; }
-    h1, h2, p { margin: 0; }
-    .hero { display: grid; gap: 10px; margin-bottom: 24px; max-width: 760px; }
-    .eyebrow { color: #0a5dff; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
-    .layout { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); }
-    .stack { display: grid; gap: 24px; }
-    .panel { background: rgba(255,255,255,.9); border: 1px solid rgba(18,32,51,.08); border-radius: 22px; box-shadow: 0 22px 50px rgba(18,32,51,.1); padding: 20px; }
-    .panel__header { display: grid; gap: 6px; margin-bottom: 14px; }
-    .meta { color: rgba(18,32,51,.68); font-size: 14px; }
-    .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .field { display: grid; gap: 6px; }
-    .field--full { grid-column: 1 / -1; }
-    label { color: rgba(18,32,51,.78); font-size: 14px; font-weight: 600; }
-    input, select, button { font: inherit; }
-    input, select { background: #fff; border: 1px solid rgba(18,32,51,.12); border-radius: 14px; min-width: 0; padding: 11px 13px; width: 100%; }
-    .toggles, .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
-    .toggle { align-items: center; display: inline-flex; gap: 8px; }
-    button { background: #0a5dff; border: 0; border-radius: 999px; color: #fff; cursor: pointer; padding: 10px 16px; }
-    button.secondary { background: rgba(18,32,51,.08); color: #122033; }
-    button.warn { background: #d74d64; }
-    .status { align-items: center; display: flex; gap: 10px; margin-top: 16px; }
-    .dot { background: #d74d64; border-radius: 999px; height: 10px; width: 10px; }
-    .dot.ok { background: #17b36b; }
-    .console { background: #07111f; border-radius: 20px; color: #d7e4ff; min-height: 240px; overflow: auto; padding: 16px; white-space: pre-wrap; }
-    .history { display: grid; gap: 10px; }
-    .history__item { background: rgba(18,32,51,.04); border-radius: 16px; padding: 12px 14px; }
-    @media (max-width: 1080px) { .layout { grid-template-columns: 1fr; } }
-    @media (max-width: 760px) { main { padding: 16px; } .grid { grid-template-columns: 1fr; } }
-  </style>
-</head>
-<body>
-  <main>
-    <section class='hero'>
-      <p class='eyebrow'>Example Page</p>
-      <h1>Commerce Hub Web SDK Demo</h1>
-      <p>Interactive demo for the generated browser SDK client. It uses <code>../dist/commerce-hub-connect-sdk.js</code> and lets you exercise the main API calls.</p>
-    </section>
-
-    <section class='layout'>
-      <div class='stack'>
-        <section class='panel'>
-          <div class='panel__header'>
-            <h2>Client</h2>
-            <p class='meta'>Set the API base URL, initialize the client, then run actions below.</p>
-          </div>
-          <div class='grid'><div class='field field--full'><label for='base-url'>Base URL</label><input id='base-url' /></div></div>
-          <div class='actions'><button type='button' id='create-client'>Create client</button><button type='button' class='secondary' id='list-methods'>List methods</button></div>
-          <div class='status'><span class='dot' id='client-dot'></span><span id='client-status'>SDK bundle loaded. Client not initialized.</span></div>
-        </section>
-        <section class='panel'>
-          <div class='panel__header'>
-            <h2>Interaction + OTP</h2>
-            <p class='meta'>Creates the interaction, sends OTP, validates OTP, and checks status.</p>
-          </div>
-          <div class='grid'>
-            <div class='field'><label for='session-reference-id'>Session Reference ID</label><input id='session-reference-id' value='web-demo-session-001' /></div>
-            <div class='field'><label for='email'>Email</label><input id='email' type='email' value='merchant@example.com' /></div>
-            <div class='field'><label for='auth-type'>Auth Type</label><select id='auth-type'><option value='FINAL_SALE'>FINAL_SALE</option><option value='AUTH_ONLY'>AUTH_ONLY</option></select></div>
-            <div class='field'><label for='expiry-minutes'>Expiry Minutes</label><input id='expiry-minutes' type='number' min='1' value='30' /></div>
-            <div class='field'><label for='merchant-transaction-id'>Merchant Transaction ID</label><input id='merchant-transaction-id' value='txn-10001' /></div>
-            <div class='field'><label for='otp-code'>OTP Code</label><input id='otp-code' value='123456' /></div>
-          </div>
-          <div class='toggles'>
-            <label class='toggle'><input id='allow-email-change' type='checkbox' checked /> <span>Allow email change</span></label>
-            <label class='toggle'><input id='allow-card' type='checkbox' checked /> <span>Allow card</span></label>
-            <label class='toggle'><input id='allow-bank-account' type='checkbox' checked /> <span>Allow bank account</span></label>
-          </div>
-          <div class='actions'>
-            <button type='button' id='create-interaction'>Create interaction</button>
-            <button type='button' class='secondary' id='get-interaction'>Get interaction</button>
-            <button type='button' class='secondary' id='send-otp'>Send OTP</button>
-            <button type='button' class='secondary' id='send-otp-email'>Send OTP To Email</button>
-            <button type='button' class='secondary' id='validate-otp'>Validate OTP</button>
-          </div>
-        </section>
-
-        <section class='panel'>
-          <div class='panel__header'>
-            <h2>Payment Source + Utilities</h2>
-            <p class='meta'>Sample card source payload plus utility endpoints.</p>
-          </div>
-          <div class='grid'>
-            <div class='field'><label for='source-id'>Source ID</label><input id='source-id' placeholder='filled after addSource' /></div>
-            <div class='field'><label for='source-name'>Source Name</label><input id='source-name' value='Demo Visa' /></div>
-            <div class='field'><label for='card-holder'>Card Holder</label><input id='card-holder' value='Demo Shopper' /></div>
-            <div class='field'><label for='card-number'>Card Number</label><input id='card-number' value='4111111111111111' /></div>
-            <div class='field'><label for='card-exp-month'>Exp Month</label><input id='card-exp-month' value='12' /></div>
-            <div class='field'><label for='card-exp-year'>Exp Year</label><input id='card-exp-year' value='2030' /></div>
-            <div class='field'><label for='card-cvv'>CVV</label><input id='card-cvv' value='123' /></div>
-            <div class='field'><label for='card-network'>Network</label><select id='card-network'><option value='Visa'>Visa</option><option value='Mastercard'>Mastercard</option><option value='AmericanExpress'>AmericanExpress</option><option value='Discover'>Discover</option></select></div>
-            <div class='field'><label for='mask-type'>Mask Type</label><select id='mask-type'><option value='card'>card</option><option value='cvv'>cvv</option><option value='bn'>bn</option><option value='rt'>rt</option></select></div>
-            <div class='field'><label for='mask-value'>Mask Value</label><input id='mask-value' value='4111111111111111' /></div>
-            <div class='field'><label for='ald-session-id'>ALD Session ID</label><input id='ald-session-id' /></div>
-            <div class='field'><label for='p-token'>P Token</label><input id='p-token' /></div>
-          </div>
-          <div class='actions'>
-            <button type='button' id='add-source'>Add source</button><button type='button' class='secondary' id='update-source'>Update source</button><button type='button' class='secondary' id='attach-source'>Attach source</button><button type='button' class='warn' id='delete-source'>Delete source</button><button type='button' class='secondary' id='get-profile'>Get profile</button><button type='button' class='secondary' id='mask-value-button'>Mask value</button><button type='button' class='secondary' id='create-pbb-session'>Create PBB session</button><button type='button' class='secondary' id='finalize-pbb-session'>Finalize PBB session</button>
-          </div>
-        </section>
-      </div>
-
-      <aside class='stack'>
-        <section class='panel'><div class='panel__header'><h2>Request Preview</h2><p class='meta'>Current payload built from the form.</p></div><pre class='console' id='request-preview'></pre></section>
-        <section class='panel'><div class='panel__header'><h2>Response Console</h2><p class='meta'>Latest response or error.</p></div><pre class='console' id='console-output'>SDK bundle loaded.</pre></section>
-        <section class='panel'><div class='panel__header'><h2>History</h2><p class='meta'>Recent actions.</p></div><div class='history' id='history'></div></section>
-      </aside>
-    </section>
-  </main>
-
-  <script src='../dist/commerce-hub-connect-sdk.js'></script>
-  <script>
-    const sdk = window.CommerceHubConnectWebSdk;
-    const clientDot = document.getElementById('client-dot');
-    const clientStatus = document.getElementById('client-status');
-    const consoleOutput = document.getElementById('console-output');
-    const requestPreview = document.getElementById('request-preview');
-    const historyRoot = document.getElementById('history');
-    const ids = ['base-url','session-reference-id','email','auth-type','expiry-minutes','merchant-transaction-id','otp-code','allow-email-change','allow-card','allow-bank-account','source-id','source-name','card-holder','card-number','card-exp-month','card-exp-year','card-cvv','card-network','mask-type','mask-value','ald-session-id','p-token'];
-    const fields = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
-    const history = [];
-    let client = null;
-
-    function defaultApiBaseUrl() {
-      const isLocalHost =
-        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-      if (window.location.port === '4500') {
-        return '/api';
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CommerceHub Connect Web SDK Sandbox</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --page-ink: #0d1b2a;
+        --page-muted: #52606d;
+        --page-surface: rgba(255, 255, 255, 0.9);
+        --page-border: rgba(13, 27, 42, 0.12);
+        --page-accent: #0a5dff;
+        --page-accent-strong: #0847c7;
+        --page-accent-soft: rgba(10, 93, 255, 0.12);
+        --page-warm: #f6bd60;
+        --page-danger: #b42318;
+        --page-danger-soft: rgba(180, 35, 24, 0.1);
+        --page-success: #047857;
+        --page-success-soft: rgba(4, 120, 87, 0.12);
+        --page-shadow: 0 24px 80px rgba(13, 27, 42, 0.14);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
 
-      if (window.location.protocol === 'file:' || isLocalHost) {
-        return 'http://localhost:8080';
+      * {
+        box-sizing: border-box;
       }
 
-      return '/api';
-    }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--page-ink);
+        background:
+          radial-gradient(circle at top left, rgba(246, 189, 96, 0.38), transparent 34%),
+          radial-gradient(circle at top right, rgba(10, 93, 255, 0.14), transparent 24%),
+          linear-gradient(180deg, #f5f7fb 0%, #eef2f7 52%, #e7edf5 100%);
+      }
 
-    function value(id) { return fields[id].value.trim(); }
-    function optional(id) { const current = value(id); return current || undefined; }
-    function allowedTenderTypes() {
-      const result = [];
-      if (fields['allow-card'].checked) result.push('CARD');
-      if (fields['allow-bank-account'].checked) result.push('BANK_ACCOUNT');
-      return result.length ? result : ['CARD'];
-    }
-    function interactionPayload() {
-      return {
-        sessionReferenceId: value('session-reference-id'),
-        email: optional('email'),
-        authType: value('auth-type'),
-        expiryMinutes: Number(value('expiry-minutes')) || undefined,
-        merchantTransactionId: optional('merchant-transaction-id'),
-        allowedTenderTypes: allowedTenderTypes(),
-        allowEmailChange: fields['allow-email-change'].checked,
-      };
-    }
-    function sourcePayload() {
-      return {
-        id: optional('source-id'),
-        name: optional('source-name'),
-        tenderType: 'CARD',
-        card: {
-          cardNumber: value('card-number'),
-          nameOnCard: value('card-holder'),
-          expirationMonth: value('card-exp-month'),
-          expirationYear: value('card-exp-year'),
-          cvv: value('card-cvv'),
-          network: value('card-network'),
-        },
-      };
-    }
-    function preview() {
-      requestPreview.textContent = JSON.stringify({
-        baseUrl: value('base-url'),
-        interactionRequest: interactionPayload(),
-        otpRequest: { value: value('email') },
-        otpValidateRequest: { email: value('email'), otp: value('otp-code'), channel: 'EMAIL' },
-        paymentSourceRequest: sourcePayload(),
-        maskRequest: { type: value('mask-type'), value: value('mask-value') },
-        finalizePayByBankRequest: { aldSessionId: optional('ald-session-id'), pToken: optional('p-token') },
-      }, null, 2);
-    }
-    function setStatus(ready, text) {
-      clientDot.classList.toggle('ok', ready);
-      clientStatus.textContent = text;
-    }
-    function escapeHtml(text) {
-      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
-    }
-    function pushHistory(label, detail) {
-      history.unshift({ label, detail, timestamp: new Date().toLocaleTimeString() });
-      historyRoot.innerHTML = history.slice(0, 8).map((item) => '<div class="history__item"><strong>' + escapeHtml(item.label) + '</strong><div class="meta">' + escapeHtml(item.timestamp) + '</div><div>' + escapeHtml(item.detail) + '</div></div>').join('');
-    }
-    function render(label, payload) {
-      consoleOutput.textContent = label + '\n\n' + JSON.stringify(payload, null, 2);
-      pushHistory(label, 'completed');
-    }
-    function renderError(label, error) {
-      consoleOutput.textContent = label + '\n\n' + JSON.stringify({
-        message: error && error.message ? error.message : String(error),
-        status: typeof error.status === 'number' ? error.status : undefined,
-        body: error && Object.prototype.hasOwnProperty.call(error, 'body') ? error.body : undefined,
-      }, null, 2);
-      pushHistory(label, 'failed');
-    }
-    function requireClient() {
-      if (!sdk || typeof sdk.createClient !== 'function') throw new Error('SDK bundle did not load correctly.');
-      if (!client) throw new Error('Create the SDK client first.');
-      return client;
-    }
-    async function run(label, action) {
-      preview();
-      try {
-        const result = await action();
-        if (label === 'addSource' && typeof result === 'string') fields['source-id'].value = result;
-        if (label === 'createPayByBankSession' && result && typeof result === 'object') {
-          if (result.aggregatorSessionId) fields['ald-session-id'].value = result.aggregatorSessionId;
-          if (result.pToken) fields['p-token'].value = result.pToken;
+      .page-shell {
+        width: min(1440px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 40px;
+      }
+
+      .page-hero {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+
+      .page-kicker {
+        margin: 0;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--page-accent);
+      }
+
+      .page-hero h1 {
+        margin: 0;
+        font-size: clamp(2.2rem, 4vw, 4rem);
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+        max-width: 12ch;
+      }
+
+      .page-hero p {
+        margin: 0;
+        max-width: 70ch;
+        color: var(--page-muted);
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      .page-grid {
+        display: grid;
+        grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+
+      .panel {
+        background: var(--page-surface);
+        border: 1px solid var(--page-border);
+        border-radius: 28px;
+        box-shadow: var(--page-shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .control-panel {
+        position: sticky;
+        top: 24px;
+        padding: 24px;
+      }
+
+      .panel-header {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 18px;
+      }
+
+      .panel-header h2,
+      .panel-header h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        letter-spacing: -0.02em;
+      }
+
+      .panel-header p {
+        margin: 0;
+        color: var(--page-muted);
+        line-height: 1.5;
+      }
+
+      .status-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: rgba(13, 27, 42, 0.05);
+        color: var(--page-ink);
+        font-size: 0.92rem;
+        font-weight: 600;
+      }
+
+      .status-pill strong {
+        color: var(--page-accent);
+      }
+
+      form {
+        display: grid;
+        gap: 18px;
+      }
+
+      fieldset {
+        margin: 0;
+        padding: 18px;
+        border: 1px solid var(--page-border);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      legend {
+        padding: 0 8px;
+        font-size: 0.86rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--page-muted);
+      }
+
+      .field-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field--full {
+        grid-column: 1 / -1;
+      }
+
+      .field label {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--page-ink);
+      }
+
+      .field input,
+      .field select,
+      .field textarea {
+        width: 100%;
+        border: 1px solid rgba(13, 27, 42, 0.12);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.95);
+        color: var(--page-ink);
+        font: inherit;
+        padding: 12px 14px;
+        transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+      }
+
+      .field input:focus,
+      .field select:focus,
+      .field textarea:focus {
+        outline: none;
+        border-color: rgba(10, 93, 255, 0.38);
+        box-shadow: 0 0 0 4px rgba(10, 93, 255, 0.12);
+      }
+
+      .toggle-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .toggle-row,
+      .tender-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .toggle-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px;
+        border: 1px solid rgba(13, 27, 42, 0.1);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        font-size: 0.92rem;
+        font-weight: 600;
+      }
+
+      .toggle-chip input {
+        margin: 0;
+        accent-color: var(--page-accent);
+      }
+
+      .actions {
+        display: grid;
+        gap: 12px;
+      }
+
+      .action-row {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 18px;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        padding: 14px 16px;
+        transition:
+          transform 140ms ease,
+          box-shadow 140ms ease,
+          background-color 140ms ease,
+          opacity 140ms ease;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.48;
+      }
+
+      .button-primary {
+        background: linear-gradient(135deg, var(--page-accent), #3477ff);
+        color: #fff;
+        box-shadow: 0 18px 34px rgba(10, 93, 255, 0.26);
+      }
+
+      .button-secondary {
+        background: rgba(13, 27, 42, 0.08);
+        color: var(--page-ink);
+      }
+
+      .button-danger {
+        background: var(--page-danger-soft);
+        color: var(--page-danger);
+      }
+
+      .preview-column {
+        display: grid;
+        gap: 24px;
+      }
+
+      .preview-panel {
+        padding: 24px;
+      }
+
+      .preview-stage {
+        display: grid;
+        gap: 18px;
+      }
+
+      .preview-card {
+        border: 1px dashed rgba(13, 27, 42, 0.14);
+        border-radius: 24px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.92)),
+          radial-gradient(circle at top left, rgba(246, 189, 96, 0.16), transparent 35%);
+        padding: 18px;
+      }
+
+      .preview-card__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+
+      .preview-card__header h3,
+      .preview-card__header p {
+        margin: 0;
+      }
+
+      .preview-card__header p {
+        color: var(--page-muted);
+      }
+
+      #payment-container {
+        min-height: 720px;
+        padding: 18px;
+        border-radius: 22px;
+        background:
+          radial-gradient(circle at top right, rgba(10, 93, 255, 0.08), transparent 28%),
+          rgba(255, 255, 255, 0.96);
+      }
+
+      .snippet-panel,
+      .log-panel {
+        padding: 24px;
+      }
+
+      .panel-topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .panel-topline h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .panel-topline span {
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--page-muted);
+      }
+
+      pre {
+        margin: 0;
+        overflow: auto;
+        border-radius: 20px;
+        padding: 18px;
+        background: #09111e;
+        color: #d6e5ff;
+        font-family: "SFMono-Regular", "Menlo", monospace;
+        font-size: 0.84rem;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+
+      .log-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .log-entry {
+        display: grid;
+        gap: 8px;
+        padding: 14px 16px;
+        border: 1px solid rgba(13, 27, 42, 0.08);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.92);
+      }
+
+      .log-entry--success {
+        background: var(--page-success-soft);
+        border-color: rgba(4, 120, 87, 0.18);
+      }
+
+      .log-entry--error {
+        background: var(--page-danger-soft);
+        border-color: rgba(180, 35, 24, 0.2);
+      }
+
+      .log-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .log-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: rgba(13, 27, 42, 0.08);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .log-time {
+        font-size: 0.82rem;
+        color: var(--page-muted);
+      }
+
+      .log-body {
+        margin: 0;
+        color: var(--page-muted);
+        font-family: "SFMono-Regular", "Menlo", monospace;
+        font-size: 0.82rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+
+      .empty-state {
+        margin: 0;
+        padding: 18px;
+        border: 1px dashed rgba(13, 27, 42, 0.14);
+        border-radius: 18px;
+        color: var(--page-muted);
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      @media (max-width: 1100px) {
+        .page-grid {
+          grid-template-columns: 1fr;
         }
-        preview();
-        render(label, result);
-      } catch (error) {
-        renderError(label, error);
+
+        .control-panel {
+          position: static;
+        }
       }
-    }
-    function bind(id, label, action) {
-      document.getElementById(id).addEventListener('click', () => run(label, action));
-    }
-    document.getElementById('create-client').addEventListener('click', () => {
-      try {
-        if (!sdk || typeof sdk.createClient !== 'function') throw new Error('window.CommerceHubConnectWebSdk.createClient is not available.');
-        client = sdk.createClient({ baseUrl: value('base-url') || '/api' });
-        setStatus(true, 'SDK client ready for ' + (value('base-url') || '/api'));
-        render('createClient', { baseUrl: value('base-url') || '/api', methods: Object.keys(client) });
-      } catch (error) {
-        setStatus(false, 'SDK client initialization failed.');
-        renderError('createClient', error);
+
+      @media (max-width: 720px) {
+        .page-shell {
+          width: min(100% - 24px, 1440px);
+          padding-top: 20px;
+        }
+
+        .field-grid,
+        .action-row {
+          grid-template-columns: 1fr;
+        }
+
+        #payment-container {
+          min-height: 560px;
+        }
       }
-    });
-    document.getElementById('list-methods').addEventListener('click', () => {
-      try { render('listMethods', Object.keys(requireClient())); } catch (error) { renderError('listMethods', error); }
-    });
-    bind('create-interaction', 'createInteraction', () => requireClient().createInteraction(interactionPayload()));
-    bind('get-interaction', 'getInteractionStatus', () => requireClient().getInteractionStatus());
-    bind('send-otp', 'sendInteractionOtp', () => requireClient().sendInteractionOtp({ value: value('email') }));
-    bind('send-otp-email', 'sendInteractionOtpToEmail', () => requireClient().sendInteractionOtpToEmail({ value: value('email') }));
-    bind('validate-otp', 'validateInteractionOtp', () => requireClient().validateInteractionOtp({ email: value('email'), otp: value('otp-code'), channel: 'EMAIL' }));
-    bind('add-source', 'addSource', () => requireClient().addSource(sourcePayload()));
-    bind('update-source', 'updateSource', () => requireClient().updateSource(sourcePayload()));
-    bind('attach-source', 'attachPaymentSource', () => requireClient().attachPaymentSource(value('source-id')));
-    bind('delete-source', 'deleteSource', () => requireClient().deleteSource(value('source-id')));
-    bind('get-profile', 'getCustomerProfile', () => requireClient().getCustomerProfile());
-    bind('mask-value-button', 'mask', () => requireClient().mask(value('mask-type'), { value: value('mask-value') }));
-    bind('create-pbb-session', 'createPayByBankSession', () => requireClient().createPayByBankSession());
-    bind('finalize-pbb-session', 'finalizePayByBankSession', () => requireClient().finalizePayByBankSession(value('ald-session-id'), value('p-token')));
-    Object.values(fields).forEach((field) => {
-      field.addEventListener('input', preview);
-      field.addEventListener('change', preview);
-    });
-    fields['base-url'].value = defaultApiBaseUrl();
-    preview();
-    setStatus(false, 'SDK bundle loaded. Client not initialized.');
-  </script>
-</body>
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="page-hero">
+        <p class="page-kicker">CommerceHub Connect Web SDK</p>
+        <h1>Sandbox the real browser mount flow.</h1>
+        <p>
+          This page loads the built <code>CommerceHubConnectSDK.js</code> bundle directly and
+          exercises the production browser API. Tune the config, mount the widget, update it in
+          place, inspect callbacks, and copy a ready-to-paste integration snippet.
+        </p>
+      </header>
+
+      <main class="page-grid">
+        <section class="panel control-panel" aria-label="Sandbox controls">
+          <div class="panel-header">
+            <h2>Control Surface</h2>
+            <p>
+              Configure the mount request, then test the lifecycle methods the same way a merchant
+              host page would.
+            </p>
+          </div>
+
+          <div class="status-row">
+            <div class="status-pill">Bundle: <strong id="bundle-status">Checking...</strong></div>
+            <div class="status-pill">Instance: <strong id="instance-status">Idle</strong></div>
+          </div>
+
+          <form id="sandbox-form">
+            <fieldset>
+              <legend>Configuration</legend>
+              <div class="field-grid">
+                <div class="field field--full">
+                  <label for="session-reference-id">Session Reference ID</label>
+                  <input id="session-reference-id" name="sessionReferenceId" type="text" />
+                </div>
+
+                <div class="field field--full">
+                  <label for="email">Email</label>
+                  <input id="email" name="email" type="email" />
+                </div>
+
+                <div class="field">
+                  <label for="auth-type">Auth Type</label>
+                  <select id="auth-type" name="authType">
+                    <option value="FINAL_SALE">FINAL_SALE</option>
+                    <option value="AUTH_ONLY">AUTH_ONLY</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="environment">Environment</label>
+                  <select id="environment" name="environment">
+                    <option value="dev">dev</option>
+                    <option value="qa">qa</option>
+                    <option value="cat">cat</option>
+                    <option value="prod">prod</option>
+                  </select>
+                </div>
+
+                <div class="field field--full">
+                  <label for="payment-selection-title">Payment Selection Title</label>
+                  <input
+                    id="payment-selection-title"
+                    name="paymentSelectionTitle"
+                    type="text"
+                  />
+                </div>
+
+                <div class="field field--full">
+                  <label for="payment-selection-confirm-label">Confirm Button Label</label>
+                  <input
+                    id="payment-selection-confirm-label"
+                    name="paymentSelectionConfirmLabel"
+                    type="text"
+                  />
+                </div>
+              </div>
+
+              <div class="toggle-grid">
+                <div class="toggle-row">
+                  <label class="toggle-chip">
+                    <input id="wallet" name="wallet" type="checkbox" />
+                    <span>Wallet enabled</span>
+                  </label>
+
+                  <label class="toggle-chip">
+                    <input id="allow-email-change" name="allowEmailChange" type="checkbox" />
+                    <span>Allow email change</span>
+                  </label>
+                </div>
+
+                <div class="tender-row">
+                  <label class="toggle-chip">
+                    <input id="allow-card" name="allowCard" type="checkbox" />
+                    <span>Allow card</span>
+                  </label>
+
+                  <label class="toggle-chip">
+                    <input id="allow-bank-account" name="allowBankAccount" type="checkbox" />
+                    <span>Allow bank account</span>
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>White Label</legend>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="primary-color">Primary Color</label>
+                  <input id="primary-color" name="primaryColor" type="text" />
+                </div>
+
+                <div class="field">
+                  <label for="secondary-color">Secondary Color</label>
+                  <input id="secondary-color" name="secondaryColor" type="text" />
+                </div>
+
+                <div class="field">
+                  <label for="text-color">Text Color</label>
+                  <input id="text-color" name="textColor" type="text" />
+                </div>
+
+                <div class="field">
+                  <label for="font-family">Font Family</label>
+                  <input id="font-family" name="fontFamily" type="text" />
+                </div>
+
+                <div class="field field--full">
+                  <label for="logo-url">Logo URL</label>
+                  <input id="logo-url" name="logoUrl" type="text" />
+                </div>
+              </div>
+            </fieldset>
+
+            <div class="actions">
+              <div class="action-row">
+                <button class="button-primary" id="mount-button" type="button">Mount</button>
+                <button class="button-secondary" id="update-button" type="button" disabled>
+                  Update
+                </button>
+              </div>
+
+              <div class="action-row">
+                <button class="button-danger" id="destroy-button" type="button" disabled>
+                  Destroy
+                </button>
+                <button class="button-secondary" id="reset-button" type="button">
+                  Reset Defaults
+                </button>
+              </div>
+
+              <button class="button-secondary" id="copy-config-button" type="button">
+                Copy Config
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="preview-column">
+          <section class="panel preview-panel">
+            <div class="panel-header">
+              <h2>Live Widget Mount</h2>
+              <p>
+                The preview container below is the real host target passed to
+                <code>window.CommerceHubConnectWebSdk.mount()</code>.
+              </p>
+            </div>
+
+            <div class="preview-stage">
+              <div class="preview-card">
+                <div class="preview-card__header">
+                  <div>
+                    <h3>Mount Container</h3>
+                    <p>Selector: <code>#payment-container</code></p>
+                  </div>
+                  <span class="status-pill">Current env: <strong id="current-environment">prod</strong></span>
+                </div>
+                <div id="payment-container" aria-live="polite"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel snippet-panel">
+            <div class="panel-topline">
+              <h3>Generated Mount Snippet</h3>
+              <span>Copy-safe</span>
+            </div>
+            <pre id="snippet-output"></pre>
+          </section>
+
+          <section class="panel log-panel">
+            <div class="panel-topline">
+              <h3>Event Log</h3>
+              <span>Action + callback trail</span>
+            </div>
+            <div class="log-list" id="log-list">
+              <p class="empty-state">No events yet. Mount the widget to begin the session trace.</p>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="../dist/CommerceHubConnectSDK.js"></script>
+    <script>
+      const DEFAULTS = {
+        sessionReferenceId: 'merchant-session-demo-001',
+        email: 'merchant@example.com',
+        paymentSelectionTitle: 'Choose a payment method',
+        paymentSelectionConfirmLabel: 'Continue',
+        authType: 'FINAL_SALE',
+        environment: 'prod',
+        wallet: true,
+        allowEmailChange: true,
+        allowCard: true,
+        allowBankAccount: true,
+        primaryColor: '#0a5dff',
+        secondaryColor: '#627d98',
+        textColor: '#101828',
+        fontFamily: '"Open Sans", sans-serif',
+        logoUrl: '',
+      };
+
+      const form = document.getElementById('sandbox-form');
+      const mountButton = document.getElementById('mount-button');
+      const updateButton = document.getElementById('update-button');
+      const destroyButton = document.getElementById('destroy-button');
+      const resetButton = document.getElementById('reset-button');
+      const copyConfigButton = document.getElementById('copy-config-button');
+      const logList = document.getElementById('log-list');
+      const snippetOutput = document.getElementById('snippet-output');
+      const bundleStatus = document.getElementById('bundle-status');
+      const instanceStatus = document.getElementById('instance-status');
+      const currentEnvironment = document.getElementById('current-environment');
+
+      let activeInstance = null;
+
+      function initializeForm() {
+        form.sessionReferenceId.value = DEFAULTS.sessionReferenceId;
+        form.email.value = DEFAULTS.email;
+        form.paymentSelectionTitle.value = DEFAULTS.paymentSelectionTitle;
+        form.paymentSelectionConfirmLabel.value = DEFAULTS.paymentSelectionConfirmLabel;
+        form.authType.value = DEFAULTS.authType;
+        form.environment.value = DEFAULTS.environment;
+        form.wallet.checked = DEFAULTS.wallet;
+        form.allowEmailChange.checked = DEFAULTS.allowEmailChange;
+        form.allowCard.checked = DEFAULTS.allowCard;
+        form.allowBankAccount.checked = DEFAULTS.allowBankAccount;
+        form.primaryColor.value = DEFAULTS.primaryColor;
+        form.secondaryColor.value = DEFAULTS.secondaryColor;
+        form.textColor.value = DEFAULTS.textColor;
+        form.fontFamily.value = DEFAULTS.fontFamily;
+        form.logoUrl.value = DEFAULTS.logoUrl;
+        currentEnvironment.textContent = form.environment.value;
+      }
+
+      function updateButtonState() {
+        const hasInstance = Boolean(activeInstance);
+        updateButton.disabled = !hasInstance;
+        destroyButton.disabled = !hasInstance;
+        instanceStatus.textContent = hasInstance ? 'Mounted' : 'Idle';
+      }
+
+      function getTrimmedValue(value) {
+        return typeof value === 'string' ? value.trim() : '';
+      }
+
+      function buildWhiteLabel() {
+        const whiteLabel = {};
+
+        const primaryColor = getTrimmedValue(form.primaryColor.value);
+        const secondaryColor = getTrimmedValue(form.secondaryColor.value);
+        const textColor = getTrimmedValue(form.textColor.value);
+        const fontFamily = getTrimmedValue(form.fontFamily.value);
+        const logoUrl = getTrimmedValue(form.logoUrl.value);
+
+        if (primaryColor) {
+          whiteLabel.primaryColor = primaryColor;
+        }
+
+        if (secondaryColor) {
+          whiteLabel.secondaryColor = secondaryColor;
+        }
+
+        if (textColor) {
+          whiteLabel.textColor = textColor;
+        }
+
+        if (fontFamily) {
+          whiteLabel.fontFamily = fontFamily;
+        }
+
+        if (logoUrl) {
+          whiteLabel.logoUrl = logoUrl;
+        }
+
+        return Object.keys(whiteLabel).length ? whiteLabel : undefined;
+      }
+
+      function buildAllowedTenderTypes() {
+        const allowedTenderTypes = [];
+
+        if (form.allowCard.checked) {
+          allowedTenderTypes.push('CARD');
+        }
+
+        if (form.allowBankAccount.checked) {
+          allowedTenderTypes.push('BANK_ACCOUNT');
+        }
+
+        return allowedTenderTypes.length ? allowedTenderTypes : undefined;
+      }
+
+      function buildMountPayload() {
+        const environment = form.environment.value;
+        const configuration = {
+          sessionReferenceId: getTrimmedValue(form.sessionReferenceId.value),
+          authType: form.authType.value,
+          wallet: form.wallet.checked,
+          allowEmailChange: form.allowEmailChange.checked,
+          onSuccess(result) {
+            logEvent('onSuccess', result, 'success');
+          },
+          onError(error) {
+            logEvent('onError', error, 'error');
+          },
+        };
+
+        const email = getTrimmedValue(form.email.value);
+        const paymentSelectionTitle = getTrimmedValue(form.paymentSelectionTitle.value);
+        const paymentSelectionConfirmLabel = getTrimmedValue(form.paymentSelectionConfirmLabel.value);
+        const allowedTenderTypes = buildAllowedTenderTypes();
+
+        if (email) {
+          configuration.email = email;
+        }
+
+        if (paymentSelectionTitle) {
+          configuration.paymentSelectionTitle = paymentSelectionTitle;
+        }
+
+        if (paymentSelectionConfirmLabel) {
+          configuration.paymentSelectionConfirmLabel = paymentSelectionConfirmLabel;
+        }
+
+        if (allowedTenderTypes) {
+          configuration.allowedTenderTypes = allowedTenderTypes;
+        }
+
+        const whiteLabel = buildWhiteLabel();
+        const options = {
+          configuration,
+        };
+
+        if (whiteLabel) {
+          options.whiteLabel = whiteLabel;
+        }
+
+        return { environment, options };
+      }
+
+      function serializeValue(value, indentLevel) {
+        if (Array.isArray(value)) {
+          return `[${value.map((entry) => serializeValue(entry, indentLevel)).join(', ')}]`;
+        }
+
+        if (value && typeof value === 'object') {
+          return serializeObject(value, indentLevel + 1);
+        }
+
+        if (typeof value === 'string') {
+          return JSON.stringify(value);
+        }
+
+        return String(value);
+      }
+
+      function serializeObject(objectValue, indentLevel) {
+        const indent = '  '.repeat(indentLevel);
+        const innerIndent = '  '.repeat(indentLevel + 1);
+        const entries = Object.entries(objectValue);
+
+        if (!entries.length) {
+          return '{}';
+        }
+
+        return `{\n${entries
+          .map(([key, value]) => `${innerIndent}${key}: ${serializeValue(value, indentLevel + 1)}`)
+          .join(',\n')}\n${indent}}`;
+      }
+
+      function buildSnippet() {
+        const payload = buildMountPayload();
+        const optionsClone = JSON.parse(JSON.stringify(payload.options));
+
+        optionsClone.configuration.onSuccess = '[callback]';
+        optionsClone.configuration.onError = '[callback]';
+
+        let snippet = `window.CommerceHubConnectWebSdk.mount(\n  '#payment-container',\n  ${serializeObject(
+          optionsClone,
+          1,
+        )},\n  ${JSON.stringify(payload.environment)}\n);`;
+
+        snippet = snippet
+          .replace('"[callback]"', "function onSuccess(result) {\n      console.log('Payment source linked:', result);\n    }")
+          .replace('"[callback]"', "function onError(error) {\n      console.error('SDK error:', error);\n    }");
+
+        return snippet;
+      }
+
+      function renderSnippet() {
+        snippetOutput.textContent = buildSnippet();
+        currentEnvironment.textContent = form.environment.value;
+      }
+
+      function replaceEmptyState() {
+        if (logList.querySelector('.empty-state')) {
+          logList.innerHTML = '';
+        }
+      }
+
+      function formatPayload(payload) {
+        if (payload === undefined) {
+          return '';
+        }
+
+        if (payload instanceof Error) {
+          return `${payload.name}: ${payload.message}`;
+        }
+
+        if (typeof payload === 'string') {
+          return payload;
+        }
+
+        try {
+          return JSON.stringify(payload, null, 2);
+        } catch (error) {
+          return String(error);
+        }
+      }
+
+      function logEvent(name, payload, tone) {
+        replaceEmptyState();
+
+        const entry = document.createElement('article');
+        entry.className = `log-entry${tone ? ` log-entry--${tone}` : ''}`;
+
+        const meta = document.createElement('div');
+        meta.className = 'log-meta';
+
+        const tag = document.createElement('span');
+        tag.className = 'log-tag';
+        tag.textContent = name;
+
+        const time = document.createElement('span');
+        time.className = 'log-time';
+        time.textContent = new Date().toLocaleTimeString();
+
+        meta.appendChild(tag);
+        meta.appendChild(time);
+        entry.appendChild(meta);
+
+        const body = document.createElement('pre');
+        body.className = 'log-body';
+        body.textContent = formatPayload(payload) || 'No payload';
+        entry.appendChild(body);
+
+        logList.prepend(entry);
+      }
+
+      function getSdkNamespace() {
+        if (!window.CommerceHubConnectWebSdk) {
+          throw new Error(
+            'window.CommerceHubConnectWebSdk is not available. Build the bundle first and verify ../dist/CommerceHubConnectSDK.js exists.',
+          );
+        }
+
+        return window.CommerceHubConnectWebSdk;
+      }
+
+      async function mountSdk() {
+        try {
+          if (activeInstance) {
+            activeInstance.destroy();
+            activeInstance = null;
+            logEvent('destroy', 'Replaced previous instance before mount.');
+          }
+
+          const sdk = getSdkNamespace();
+          const payload = buildMountPayload();
+          activeInstance = await sdk.mount('#payment-container', payload.options, payload.environment);
+          updateButtonState();
+          renderSnippet();
+          logEvent('mount', payload, 'success');
+        } catch (error) {
+          activeInstance = null;
+          updateButtonState();
+          logEvent('mount', error, 'error');
+        }
+      }
+
+      function updateSdk() {
+        if (!activeInstance) {
+          logEvent('update', 'No active instance to update.', 'error');
+          return;
+        }
+
+        try {
+          const payload = buildMountPayload();
+          activeInstance.update(payload.options, payload.environment);
+          renderSnippet();
+          logEvent('update', payload, 'success');
+        } catch (error) {
+          logEvent('update', error, 'error');
+        }
+      }
+
+      function destroySdk(logNoop) {
+        if (!activeInstance) {
+          if (logNoop) {
+            logEvent('destroy', 'Nothing is currently mounted.');
+          }
+          return;
+        }
+
+        activeInstance.destroy();
+        activeInstance = null;
+        updateButtonState();
+        logEvent('destroy', 'Removed the active widget instance.');
+      }
+
+      function resetDefaults() {
+        initializeForm();
+        logList.innerHTML =
+          '<p class="empty-state">No events yet. Mount the widget to begin the session trace.</p>';
+        renderSnippet();
+
+        if (activeInstance) {
+          logEvent('reset-defaults', 'Form reset. The mounted widget remains unchanged until you update or remount.');
+        } else {
+          logEvent('reset-defaults', 'Form reset to default values.');
+        }
+      }
+
+      async function copyConfig() {
+        const snippet = buildSnippet();
+
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(snippet);
+          } else {
+            const scratch = document.createElement('textarea');
+            scratch.value = snippet;
+            document.body.appendChild(scratch);
+            scratch.select();
+            document.execCommand('copy');
+            scratch.remove();
+          }
+
+          logEvent('copy-config', 'Copied the generated mount snippet to the clipboard.', 'success');
+        } catch (error) {
+          logEvent('copy-config', error, 'error');
+        }
+      }
+
+      function handleInputChange() {
+        renderSnippet();
+      }
+
+      initializeForm();
+      updateButtonState();
+      renderSnippet();
+
+      bundleStatus.textContent = window.CommerceHubConnectWebSdk ? 'Ready' : 'Missing';
+
+      if (window.CommerceHubConnectWebSdk) {
+        logEvent('bundle-ready', 'Loaded ../dist/CommerceHubConnectSDK.js successfully.', 'success');
+      } else {
+        logEvent(
+          'bundle-error',
+          'window.CommerceHubConnectWebSdk did not register. Build the bundle before using this page.',
+          'error',
+        );
+      }
+
+      form.addEventListener('input', handleInputChange);
+      form.addEventListener('change', handleInputChange);
+      mountButton.addEventListener('click', mountSdk);
+      updateButton.addEventListener('click', updateSdk);
+      destroyButton.addEventListener('click', () => destroySdk(true));
+      resetButton.addEventListener('click', resetDefaults);
+      copyConfigButton.addEventListener('click', copyConfig);
+    </script>
+  </body>
 </html>

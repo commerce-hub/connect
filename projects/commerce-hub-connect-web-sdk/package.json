@@ -6,7 +6,6 @@
   "types": "./dist/CommerceHubConnectSDK.d.ts",
   "files": [
     "dist",
-    "example",
     "README.md"
   ]
 }

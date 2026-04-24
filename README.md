@@ -3,15 +3,16 @@
 Angular 20 workspace containing:
 
 - `projects/commerce-hub-connect-sdk`: reusable standalone SDK library
-- `src/app`: demo host application that embeds the SDK
+- `projects/commerce-hub-connect-web-sdk`: browser bundle that exposes `window.CommerceHubConnectWebSdk`
+- `src/app`: Angular demo host application
 
 ## Features
 
-- OTP-based interaction flow using `POST /session/interaction/create`, OTP send/validate, and payment-source attach APIs through an internal `/api` proxy
-- Card capture with validation, masking, and a PCI vault placeholder service
-- Manual bank-account capture
-- Optional Pay By Bank / BankLink launcher using the integration values from `docs/PayByBank_SDK_Ingration.md`
-- PrimeNG 20 themed with PrimeUIX tokens and Tailwind v4 global styling
+- OTP-based interaction flow over the Commerce Hub APIs
+- Card capture with validation, masking, and PCI-vault integration hooks
+- Optional bank account capture and Pay By Bank support
+- White-label theming through shared SDK configuration
+- Framework-agnostic web bundle with `mount(target, options, environment?)`
 
 ## Run Locally
 
@@ -21,7 +22,7 @@ Install dependencies:
 npm install
 ```
 
-Start the demo app with the local proxy to `http://localhost:8080`:
+Start the Angular demo application with the local `/api` proxy:
 
 ```bash
 npm start
@@ -29,47 +30,65 @@ npm start
 
 ## Build
 
-Build the demo application:
+Build the Angular demo application:
 
 ```bash
 npm run build
 ```
 
-Build the SDK library package:
+Build the Angular SDK library:
 
 ```bash
 npm run build:sdk
 ```
 
-Build the embeddable website widget bundle:
+Build the embeddable web SDK bundle:
 
 ```bash
 npm run build:web-sdk-widget
 ```
 
-That command generates `projects/commerce-hub-connect-web-sdk/dist/CommerceHubConnectSDK.js`.
+That command writes:
 
-## Generate Consumers
+- `projects/commerce-hub-connect-web-sdk/dist/CommerceHubConnectSDK.js`
+- `projects/commerce-hub-connect-web-sdk/dist/CommerceHubConnectSDK.d.ts`
 
-Generate a pure browser JavaScript SDK scaffold under `projects/commerce-hub-connect-web-sdk`:
+## Optional Generator
 
-```bash
-npm run generate:web-sdk
-```
-
-Generate a React + TypeScript starter app under `projects/commerce-hub-connect-react-app`:
+Generate a low-level browser API client scaffold without the widget wrapper:
 
 ```bash
-npm run generate:react-app
+npm run generate:web-sdk-client
 ```
 
-## Example Usage
+## Browser Integration
 
 ```html
-<commerce-hub-connect-capture
-  [configuration]="sdkConfiguration"
-  [whiteLabel]="whiteLabel"
-/>
+<script src="/path/to/CommerceHubConnectSDK.js"></script>
+<div id="wallet-sdk"></div>
+<script>
+  window.CommerceHubConnectWebSdk.mount(
+    '#wallet-sdk',
+    {
+      configuration: {
+        sessionReferenceId: 'merchant-session-001',
+        authType: 'FINAL_SALE',
+        email: 'merchant@example.com',
+        onSuccess(result) {
+          console.log(result);
+        },
+        onError(error) {
+          console.error(error);
+        },
+      },
+      whiteLabel: {
+        primaryColor: '#0a5dff',
+        secondaryColor: '#627d98',
+      },
+    },
+    'prod',
+  );
+</script>
 ```
 
-The full demo usage lives in `src/app/app.component.ts`.
+`environment` accepts `dev`, `qa`, `cat`, or `prod` and defaults to `prod` when omitted.

@@ -12,7 +12,10 @@ import {
 } from './generator-utils.mjs';
 
 const options = parseArgs(process.argv.slice(2));
-const projectName = normalizeProjectName(options.project ?? options.name, 'commerce-hub-connect-web-sdk');
+const projectName = normalizeProjectName(
+  options.project ?? options.name,
+  'commerce-hub-connect-web-sdk-client',
+);
 const targetDir = projectDir(projectName);
 const sourceRoot = path.join(workspaceRoot, 'projects', 'commerce-hub-connect-sdk', 'src', 'lib');
 

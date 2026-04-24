@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CommerceHub Connect Web SDK Smoke Test</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        --ink: #122033;
+        --muted: #5c6b7a;
+        --border: rgba(18, 32, 51, 0.12);
+        --surface: #ffffff;
+        --accent: #0a5dff;
+        --success: #047857;
+        --danger: #b42318;
+        --success-soft: rgba(4, 120, 87, 0.12);
+        --danger-soft: rgba(180, 35, 24, 0.12);
+        --shadow: 0 18px 48px rgba(18, 32, 51, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(10, 93, 255, 0.12), transparent 28%),
+          linear-gradient(180deg, #f4f7fb 0%, #edf2f7 100%);
+      }
+
+      main {
+        width: min(1280px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 24px 0 32px;
+        display: grid;
+        gap: 20px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        padding: 20px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      .summary {
+        display: grid;
+        gap: 10px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 38px;
+        width: fit-content;
+        padding: 0 14px;
+        border-radius: 999px;
+        font-weight: 700;
+        background: rgba(18, 32, 51, 0.08);
+      }
+
+      .status-pill[data-tone="success"] {
+        background: var(--success-soft);
+        color: var(--success);
+      }
+
+      .status-pill[data-tone="error"] {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .results {
+        display: grid;
+        gap: 12px;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+
+      .results li {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: #fff;
+      }
+
+      .results li[data-result="pass"] {
+        border-color: rgba(4, 120, 87, 0.22);
+        background: var(--success-soft);
+      }
+
+      .results li[data-result="fail"] {
+        border-color: rgba(180, 35, 24, 0.22);
+        background: var(--danger-soft);
+      }
+
+      .result-title {
+        font-weight: 700;
+      }
+
+      .result-detail {
+        margin-top: 6px;
+        color: var(--muted);
+        font-family: "SFMono-Regular", Menlo, monospace;
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+      }
+
+      #details {
+        min-height: 48px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        padding: 14px 16px;
+        background: #09111e;
+        color: #d7e4ff;
+        font-family: "SFMono-Regular", Menlo, monospace;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+
+      iframe {
+        width: 100%;
+        height: 980px;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel summary">
+        <h1>CommerceHub Connect Web SDK Smoke Test</h1>
+        <p>
+          This harness loads the standalone sandbox page, drives the real mount controls, and
+          validates the widget lifecycle against stubbed API responses.
+        </p>
+        <div class="status-pill" id="smoke-status" data-tone="idle">Running smoke test...</div>
+      </section>
+
+      <section class="panel">
+        <h2>Checks</h2>
+        <ol class="results" id="results"></ol>
+      </section>
+
+      <section class="panel">
+        <h2>Details</h2>
+        <pre id="details">Waiting for browser activity...</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Sandbox Frame</h2>
+        <iframe
+          id="sandbox-frame"
+          src="/example/index.html"
+          title="CommerceHub Connect Web SDK Sandbox"
+        ></iframe>
+      </section>
+    </main>
+
+    <script>
+      const resultsElement = document.getElementById('results');
+      const detailsElement = document.getElementById('details');
+      const smokeStatusElement = document.getElementById('smoke-status');
+      const frameElement = document.getElementById('sandbox-frame');
+      const frameErrors = [];
+
+      function setStatus(text, tone) {
+        smokeStatusElement.textContent = text;
+        smokeStatusElement.dataset.tone = tone;
+      }
+
+      function addResult(title, result, detail) {
+        const item = document.createElement('li');
+        item.dataset.result = result;
+
+        const titleElement = document.createElement('div');
+        titleElement.className = 'result-title';
+        titleElement.textContent = title;
+        item.appendChild(titleElement);
+
+        if (detail) {
+          const detailElement = document.createElement('pre');
+          detailElement.className = 'result-detail';
+          detailElement.textContent = detail;
+          item.appendChild(detailElement);
+        }
+
+        resultsElement.appendChild(item);
+      }
+
+      function setDetails(detail) {
+        detailsElement.textContent = detail;
+      }
+
+      function dispatchFieldChange(frameWindow, field, value) {
+        field.focus();
+        if (field.type === 'checkbox') {
+          field.checked = Boolean(value);
+        } else {
+          field.value = value;
+        }
+
+        field.dispatchEvent(new frameWindow.Event('input', { bubbles: true }));
+        field.dispatchEvent(new frameWindow.Event('change', { bubbles: true }));
+      }
+
+      async function waitFor(description, predicate, timeoutMs) {
+        const timeout = timeoutMs ?? 10000;
+        const startedAt = Date.now();
+
+        while (Date.now() - startedAt < timeout) {
+          const value = await predicate();
+          if (value) {
+            addResult(description, 'pass');
+            return value;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        throw new Error(`Timed out waiting for: ${description}`);
+      }
+
+      async function fetchState() {
+        const response = await fetch('/__smoke__/state', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Unable to fetch smoke state: ${response.status}`);
+        }
+
+        return response.json();
+      }
+
+      function assertEqual(label, actual, expected) {
+        if (actual !== expected) {
+          throw new Error(`${label} expected ${expected} but received ${actual}`);
+        }
+
+        addResult(label, 'pass', `Expected ${expected} and received ${actual}.`);
+      }
+
+      function attachFrameErrorListeners(frameWindow) {
+        frameWindow.addEventListener('error', (event) => {
+          frameErrors.push(event.message || 'Unknown frame error');
+        });
+
+        frameWindow.addEventListener('unhandledrejection', (event) => {
+          const reason =
+            event.reason instanceof Error
+              ? `${event.reason.name}: ${event.reason.message}`
+              : String(event.reason);
+          frameErrors.push(`Unhandled rejection: ${reason}`);
+        });
+      }
+
+      async function runSmokeTest() {
+        setDetails('Waiting for the sandbox frame to load...');
+
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('Sandbox frame did not load.')), 10000);
+          frameElement.addEventListener(
+            'load',
+            () => {
+              clearTimeout(timer);
+              resolve();
+            },
+            { once: true },
+          );
+        });
+
+        const frameWindow = frameElement.contentWindow;
+        const frameDocument = frameElement.contentDocument;
+
+        if (!frameWindow || !frameDocument) {
+          throw new Error('Unable to access the sandbox frame.');
+        }
+
+        attachFrameErrorListeners(frameWindow);
+
+        await waitFor('sandbox bundle reports ready', () => {
+          return frameDocument.getElementById('bundle-status')?.textContent?.trim() === 'Ready';
+        });
+
+        setDetails('Clearing sandbox email to keep the smoke flow on the initial email step.');
+        dispatchFieldChange(frameWindow, frameDocument.getElementById('email'), '');
+
+        setDetails('Mounting the widget through the sandbox control surface.');
+        frameDocument.getElementById('mount-button').click();
+
+        await waitFor('sandbox instance reports mounted', () => {
+          return frameDocument.getElementById('instance-status')?.textContent?.trim() === 'Mounted';
+        });
+
+        await waitFor('mounted widget renders inside the payment container', () => {
+          return frameDocument.querySelector('#payment-container #sdk-email');
+        });
+
+        const mountState = await fetchState();
+        assertEqual(
+          'mount triggers one interaction-create request',
+          mountState.counters['POST /merchant/interaction/create'] ?? 0,
+          1,
+        );
+
+        setDetails('Updating the session reference id and pushing the new config through update().');
+        dispatchFieldChange(
+          frameWindow,
+          frameDocument.getElementById('session-reference-id'),
+          'merchant-session-demo-002',
+        );
+        frameDocument.getElementById('update-button').click();
+
+        await waitFor('sandbox logs the update action', () => {
+          return Array.from(frameDocument.querySelectorAll('.log-tag')).some(
+            (element) => element.textContent?.trim() === 'update',
+          );
+        });
+
+        const updateState = await waitFor(
+          'update triggers a second interaction-create request',
+          async () => {
+            const nextState = await fetchState();
+            return (nextState.counters['POST /merchant/interaction/create'] ?? 0) === 2
+              ? nextState
+              : false;
+          },
+          10000,
+        );
+
+        const latestCreateRequest = updateState.requests.createInteraction.at(-1);
+        if (latestCreateRequest?.sessionReferenceId !== 'merchant-session-demo-002') {
+          throw new Error(
+            `Expected updated sessionReferenceId to be merchant-session-demo-002 but received ${latestCreateRequest?.sessionReferenceId ?? 'undefined'}`,
+          );
+        }
+
+        addResult(
+          'update forwards the new sessionReferenceId',
+          'pass',
+          JSON.stringify(latestCreateRequest, null, 2),
+        );
+
+        setDetails('Destroying the mounted widget through the sandbox control surface.');
+        frameDocument.getElementById('destroy-button').click();
+
+        await waitFor('sandbox instance returns to idle after destroy', () => {
+          return frameDocument.getElementById('instance-status')?.textContent?.trim() === 'Idle';
+        });
+
+        await waitFor('widget DOM is removed after destroy', () => {
+          return !frameDocument.querySelector('#payment-container .commerce-hub-connect-web-sdk-mount');
+        });
+
+        if (frameErrors.length) {
+          throw new Error(frameErrors.join('\n'));
+        }
+
+        setStatus('Smoke test passed', 'success');
+        setDetails('Mount, update, and destroy completed against the built bundle with stubbed API responses.');
+        document.documentElement.dataset.smokeStatus = 'passed';
+      }
+
+      runSmokeTest().catch((error) => {
+        addResult('smoke test failed', 'fail', error instanceof Error ? error.stack || error.message : String(error));
+        setStatus('Smoke test failed', 'error');
+        setDetails(error instanceof Error ? error.stack || error.message : String(error));
+        document.documentElement.dataset.smokeStatus = 'failed';
+      });
+    </script>
+  </body>
+</html>

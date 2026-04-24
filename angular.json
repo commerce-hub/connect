@@ -158,6 +158,17 @@
             }
           },
           "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:karma",
+          "options": {
+            "tsConfig": "projects/commerce-hub-connect-web-sdk/tsconfig.spec.json",
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ],
+            "inlineStyleLanguage": "css"
+          }
         }
       }
     }

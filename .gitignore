@@ -1,5 +1,7 @@
 # See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
+/projects/ORIG-commerce-hub-connect-web-sdk
+
 # Compiled output
 /dist
 /tmp
@@ -41,3 +43,5 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+/projects/commerce-hub-connect-react-app/node_modules/
+/projects/commerce-hub-connect-react-app/package-lock.json
