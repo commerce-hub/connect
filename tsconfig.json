@@ -40,6 +40,9 @@
     },
     {
       "path": "./projects/commerce-hub-connect-sdk/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/commerce-hub-connect-web-sdk/tsconfig.app.json"
     }
   ]
 }

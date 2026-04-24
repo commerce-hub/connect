@@ -1,0 +1,6 @@
+{
+  "generator": "generate-web-sdk",
+  "projectName": "commerce-hub-connect-web-sdk",
+  "sourceProject": "projects/commerce-hub-connect-sdk/src/lib",
+  "generatedAt": "2026-04-21T20:59:16.798Z"
+}

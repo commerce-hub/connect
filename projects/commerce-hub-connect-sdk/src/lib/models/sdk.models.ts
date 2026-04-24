@@ -68,6 +68,7 @@ export interface CommerceHubSdkConfiguration {
   allowedTenderTypes?: CommerceHubTenderType[];
   allowEmailChange?: boolean;
   payByBank?: CommerceHubPayByBankOptions;
+  wallet?: boolean;
 }
 
 export interface ResolvedCommerceHubWhiteLabelOptions {
