@@ -1,71 +1,37 @@
 # CommerceHubConnectSdk
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.0.
+Reusable Angular SDK library for the Commerce Hub wallet capture flow.
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the library, run:
+## Build
 
 ```bash
 ng build commerce-hub-connect-sdk
 ```
 
-This command will compile your project, and the build artifacts will be placed in the `dist/` directory.
+## Styling
 
-## Stylesheet
+The library ships:
 
-The SDK ships its own stylesheet and PrimeNG preset.
+- `commerce-hub-connect-sdk/theme/commerce-hub-sdk.css`
+- `provideCommerceHubSdkTheme()`
+- `commerceHubSdkThemePreset`
 
-- Import the SDK stylesheet from `commerce-hub-connect-sdk/theme/commerce-hub-sdk.css`.
-- Use the exported `provideCommerceHubSdkTheme()` helper to configure PrimeNG.
-- If needed, you can still access the raw `commerceHubSdkThemePreset`.
+Angular hosts should import the stylesheet and register the theme provider. Browser hosts should use the packaged web bundle in `projects/commerce-hub-connect-web-sdk`, which mounts the same capture component behind `window.CommerceHubConnectWebSdk`.
 
-### Publishing the Library
+## Shared Environment Helpers
 
-Once the project is built, you can publish your library by following these steps:
+The library exports:
 
-1. Navigate to the `dist` directory:
-   ```bash
-   cd dist/commerce-hub-connect-sdk
-   ```
+- `CommerceHubConnectEnvironment`
+- `COMMERCE_HUB_CONNECT_ENVIRONMENTS`
+- `COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT`
+- `normalizeCommerceHubConnectEnvironment()`
+- `resolveCommerceHubConnectApiBaseUrl()`
 
-2. Run the `npm publish` command to publish your library to the npm registry:
-   ```bash
-   npm publish
-   ```
+These helpers keep Angular hosts and the browser bundle aligned on `dev | qa | cat | prod`, with `prod` as the default.
 
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Tests
 
 ```bash
-ng test
+ng test commerce-hub-connect-sdk
 ```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

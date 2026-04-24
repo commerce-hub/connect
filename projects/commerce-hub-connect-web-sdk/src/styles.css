@@ -4,8 +4,6 @@
   color-scheme: light;
 }
 
-commerce-hub-connect-widget,
 .commerce-hub-connect-web-sdk-mount {
   display: block;
-  width: 100%;
 }

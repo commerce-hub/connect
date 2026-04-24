@@ -1,53 +1,49 @@
 import type {
+  CommerceHubConnectEnvironment,
   CommerceHubSdkConfiguration,
-  CommerceHubSdkError,
-  CommerceHubSuccessResult,
   CommerceHubWhiteLabelOptions,
 } from 'commerce-hub-connect-sdk';
 
-export type CommerceHubConnectWebSdkConfiguration = Omit<
-  CommerceHubSdkConfiguration,
-  'onSuccess' | 'onError'
-> & {
-  onSuccess?: CommerceHubSdkConfiguration['onSuccess'];
-  onError?: CommerceHubSdkConfiguration['onError'];
-};
-
-export interface CommerceHubConnectWebSdkElementOptions {
-  configuration?: CommerceHubConnectWebSdkConfiguration | null;
-  configurationJson?: string;
-  whiteLabel?: CommerceHubWhiteLabelOptions | null;
-  whiteLabelJson?: string;
-  apiBaseUrl?: string;
+export interface CommerceHubConnectWebSdkMountOptions {
+  configuration: CommerceHubSdkConfiguration;
+  whiteLabel?: CommerceHubWhiteLabelOptions;
+  replaceContents?: boolean;
 }
 
-export interface CommerceHubConnectWebSdkMountOptions extends CommerceHubConnectWebSdkElementOptions {
-  replaceContents?: boolean;
+export interface CommerceHubConnectWebSdkElementOptions
+  extends Omit<CommerceHubConnectWebSdkMountOptions, 'replaceContents'> {
+  environment?: CommerceHubConnectEnvironment;
+}
+
+export interface CommerceHubConnectWebSdkInstance {
+  readonly containerElement: Element;
+  readonly hostElement: HTMLElement;
+  update(
+    options: CommerceHubConnectWebSdkMountOptions,
+    environment?: CommerceHubConnectEnvironment,
+  ): void;
+  destroy(): void;
 }
 
 export interface CommerceHubConnectWebSdkNamespace {
   readonly version: string;
   readonly tagName: string;
-  define(): Promise<void>;
-  createElement(
-    options?: CommerceHubConnectWebSdkElementOptions,
-  ): Promise<CommerceHubConnectWidgetElement>;
   mount(
     target: string | Element,
-    options?: CommerceHubConnectWebSdkMountOptions,
-  ): Promise<CommerceHubConnectWidgetElement>;
+    options: CommerceHubConnectWebSdkMountOptions,
+    environment?: CommerceHubConnectEnvironment,
+  ): Promise<CommerceHubConnectWebSdkInstance>;
+  createElement(
+    options?: CommerceHubConnectWebSdkElementOptions,
+    environment?: CommerceHubConnectEnvironment,
+  ): CommerceHubConnectWidgetElement;
 }
 
 export class CommerceHubConnectWidgetElement extends HTMLElement {
-  configuration: CommerceHubConnectWebSdkConfiguration | null;
-  configurationJson?: string;
-  whiteLabel?: CommerceHubWhiteLabelOptions | null;
-  whiteLabelJson?: string;
-  apiBaseUrl?: string;
+  configuration: CommerceHubSdkConfiguration | null;
+  whiteLabel?: CommerceHubWhiteLabelOptions;
+  environment?: CommerceHubConnectEnvironment;
 }
-
-export interface CommerceHubConnectSuccessEvent extends CustomEvent<CommerceHubSuccessResult> {}
-export interface CommerceHubConnectErrorEvent extends CustomEvent<CommerceHubSdkError> {}
 
 declare global {
   interface Window {

@@ -242,8 +242,10 @@ export class CommerceHubConnectCaptureComponent {
   private readonly selectedSourceId = signal<string | null>(null);
   private readonly completedSourceResult = signal<CommerceHubSuccessResult | null>(null);
   private readonly paymentStepOverride = signal<'list' | 'add' | null>(null);
+  protected readonly configuredWhiteLabel = computed(() => this.configuration().whiteLabel);
   protected readonly brand = computed<ResolvedCommerceHubWhiteLabelOptions>(() => ({
     ...DEFAULT_WHITE_LABEL,
+    ...this.configuredWhiteLabel(),
     ...this.whiteLabel(),
   }));
   protected readonly primaryContrastColor = computed(() => resolveAccessibleTextColor(this.brand().primaryColor));

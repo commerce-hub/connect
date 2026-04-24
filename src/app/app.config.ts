@@ -6,7 +6,10 @@ import {
 import { provideHttpClient } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter } from '@angular/router';
-import { provideCommerceHubSdkTheme } from 'commerce-hub-connect-sdk';
+import {
+  COMMERCE_HUB_CONNECT_API_BASE_URL,
+  provideCommerceHubSdkTheme,
+} from 'commerce-hub-connect-sdk';
 
 import { routes } from './app.routes';
 
@@ -18,5 +21,9 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
     provideRouter(routes),
     provideCommerceHubSdkTheme(),
+    {
+      provide: COMMERCE_HUB_CONNECT_API_BASE_URL,
+      useValue: () => '/api',
+    },
   ],
 };

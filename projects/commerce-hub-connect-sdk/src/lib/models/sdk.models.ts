@@ -8,6 +8,7 @@ import {
 export type CommerceHubSdkFlowStep = 'email' | 'otp' | 'payment' | 'success';
 
 export type CommerceHubErrorStage =
+  | 'mount'
   | 'session'
   | 'otp_send'
   | 'otp_validate'
@@ -54,6 +55,7 @@ export interface CommerceHubSuccessResult {
 export interface CommerceHubSdkConfiguration {
   onSuccess: (result: CommerceHubSuccessResult) => void;
   onError: (error: CommerceHubSdkError) => void;
+  mountElementId?: string;
   sessionReferenceId: string;
   email?: string;
   paymentSelectionTitle?: string;
@@ -67,6 +69,7 @@ export interface CommerceHubSdkConfiguration {
   expiryMinutes?: number;
   allowedTenderTypes?: CommerceHubTenderType[];
   allowEmailChange?: boolean;
+  whiteLabel?: CommerceHubWhiteLabelOptions;
   payByBank?: CommerceHubPayByBankOptions;
   wallet?: boolean;
 }

@@ -9,7 +9,8 @@
     "build:web-sdk-widget": "node scripts/build-web-sdk-widget.mjs",
     "build:web-sdk-widget:angular": "ng build commerce-hub-connect-web-sdk-widget",
     "generate:react-app": "node scripts/generate-react-ts-app.mjs",
-    "generate:web-sdk": "node scripts/generate-web-sdk.mjs",
+    "generate:web-sdk-client": "node scripts/generate-web-sdk.mjs",
+    "test:web-sdk-smoke": "node scripts/run-web-sdk-browser-smoke-test.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
