@@ -645,6 +645,9 @@ export class CommerceHubConnectSdkService {
   private toInteractionRequest(configuration: ResolvedCommerceHubSdkConfiguration): InteractionRequest {
     return {
       sessionReferenceId: configuration.sessionReferenceId,
+      merchantId: configuration.merchantId,
+      terminalId: configuration.terminalId,
+      clientId: configuration.clientId,
       merchantTransactionId: configuration.merchantTransactionId,
       merchantOrderId: configuration.merchantOrderId,
       merchantInvoiceNumber: configuration.merchantInvoiceNumber,

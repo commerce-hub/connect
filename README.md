@@ -72,6 +72,9 @@ npm run generate:web-sdk-client
     {
       configuration: {
         sessionReferenceId: 'merchant-session-001',
+        merchantId: '100014000315473',
+        terminalId: '10000001',
+        clientId: 'laika',
         authType: 'FINAL_SALE',
         email: 'merchant@example.com',
         onSuccess(result) {

@@ -57,6 +57,9 @@ export interface CommerceHubSdkConfiguration {
   onError: (error: CommerceHubSdkError) => void;
   mountElementId?: string;
   sessionReferenceId: string;
+  merchantId?: string;
+  terminalId?: string;
+  clientId?: string;
   email?: string;
   paymentSelectionTitle?: string;
   paymentSelectionConfirmLabel?: string;

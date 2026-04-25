@@ -52,6 +52,9 @@ export class AppComponent {
 
   protected readonly demoForm = this.formBuilder.nonNullable.group({
     sessionReferenceId: ['sdk-demo-session-20260421'],
+    merchantId: ['100014000315473'],
+    terminalId: ['10000001'],
+    clientId: ['laika'],
     email: ['gregory.jablonski@fiserv.com'],
     paymentSelectionTitle: [''],
     paymentSelectionConfirmLabel: [''],
@@ -112,6 +115,9 @@ export class AppComponent {
     const payByBank = this.buildPayByBankOptions(value);
     const configuration: CommerceHubSdkConfiguration = {
       sessionReferenceId: this.requiredValue(value.sessionReferenceId, 'sdk-demo-session'),
+      merchantId: this.optionalValue(value.merchantId),
+      terminalId: this.optionalValue(value.terminalId),
+      clientId: this.optionalValue(value.clientId),
       email: this.optionalValue(value.email),
       paymentSelectionTitle: this.optionalValue(value.paymentSelectionTitle),
       paymentSelectionConfirmLabel: this.optionalValue(value.paymentSelectionConfirmLabel),

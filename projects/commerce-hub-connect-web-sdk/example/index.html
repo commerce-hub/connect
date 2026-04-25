@@ -503,6 +503,21 @@
                   <input id="session-reference-id" name="sessionReferenceId" type="text" />
                 </div>
 
+                <div class="field">
+                  <label for="merchant-id">Merchant ID</label>
+                  <input id="merchant-id" name="merchantId" type="text" />
+                </div>
+
+                <div class="field">
+                  <label for="terminal-id">Terminal ID</label>
+                  <input id="terminal-id" name="terminalId" type="text" />
+                </div>
+
+                <div class="field field--full">
+                  <label for="client-id">Client ID</label>
+                  <input id="client-id" name="clientId" type="text" />
+                </div>
+
                 <div class="field field--full">
                   <label for="email">Email</label>
                   <input id="email" name="email" type="email" />
@@ -675,6 +690,9 @@
     <script>
       const DEFAULTS = {
         sessionReferenceId: 'merchant-session-demo-001',
+        merchantId: '100014000315473',
+        terminalId: '10000001',
+        clientId: 'laika',
         email: 'merchant@example.com',
         paymentSelectionTitle: 'Choose a payment method',
         paymentSelectionConfirmLabel: 'Continue',
@@ -707,6 +725,9 @@
 
       function initializeForm() {
         form.sessionReferenceId.value = DEFAULTS.sessionReferenceId;
+        form.merchantId.value = DEFAULTS.merchantId;
+        form.terminalId.value = DEFAULTS.terminalId;
+        form.clientId.value = DEFAULTS.clientId;
         form.email.value = DEFAULTS.email;
         form.paymentSelectionTitle.value = DEFAULTS.paymentSelectionTitle;
         form.paymentSelectionConfirmLabel.value = DEFAULTS.paymentSelectionConfirmLabel;
@@ -796,10 +817,25 @@
           },
         };
 
+        const merchantId = getTrimmedValue(form.merchantId.value);
+        const terminalId = getTrimmedValue(form.terminalId.value);
+        const clientId = getTrimmedValue(form.clientId.value);
         const email = getTrimmedValue(form.email.value);
         const paymentSelectionTitle = getTrimmedValue(form.paymentSelectionTitle.value);
         const paymentSelectionConfirmLabel = getTrimmedValue(form.paymentSelectionConfirmLabel.value);
         const allowedTenderTypes = buildAllowedTenderTypes();
+
+        if (merchantId) {
+          configuration.merchantId = merchantId;
+        }
+
+        if (terminalId) {
+          configuration.terminalId = terminalId;
+        }
+
+        if (clientId) {
+          configuration.clientId = clientId;
+        }
 
         if (email) {
           configuration.email = email;

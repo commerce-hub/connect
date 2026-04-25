@@ -114,6 +114,9 @@ for mount, update, destroy, reset, callback logging, and copying a ready-to-past
           {
             configuration: {
               sessionReferenceId: 'merchant-session-001',
+              merchantId: '100014000315473',
+              terminalId: '10000001',
+              clientId: 'laika',
               authType: 'FINAL_SALE',
               email: 'merchant@example.com',
               wallet: true,
@@ -151,6 +154,9 @@ for mount, update, destroy, reset, callback logging, and copying a ready-to-past
 
   widget.configuration = {
     sessionReferenceId: 'merchant-session-001',
+    merchantId: '100014000315473',
+    terminalId: '10000001',
+    clientId: 'laika',
     authType: 'FINAL_SALE',
     email: 'merchant@example.com',
     onSuccess(result) {
@@ -177,6 +183,9 @@ for mount, update, destroy, reset, callback logging, and copying a ready-to-past
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `sessionReferenceId` | `string` | Yes | Unique session identifier from the backend |
+| `merchantId` | `string` | No | Merchant identifier forwarded to `merchant/interaction/create` |
+| `terminalId` | `string` | No | Terminal identifier forwarded to `merchant/interaction/create` |
+| `clientId` | `string` | No | Client identifier forwarded to `merchant/interaction/create` |
 | `authType` | `"FINAL_SALE" \| "AUTH_ONLY"` | Yes | Payment authorization mode |
 | `onSuccess` | `(result) => void` | Yes | Success callback |
 | `onError` | `(error) => void` | Yes | Error callback |

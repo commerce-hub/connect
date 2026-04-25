@@ -315,6 +315,23 @@
           1,
         );
 
+        const mountedCreateRequest = mountState.requests.createInteraction.at(-1);
+        if (
+          mountedCreateRequest?.merchantId !== '100014000315473' ||
+          mountedCreateRequest?.terminalId !== '10000001' ||
+          mountedCreateRequest?.clientId !== 'laika'
+        ) {
+          throw new Error(
+            `Expected merchant defaults in createInteraction payload but received ${JSON.stringify(mountedCreateRequest, null, 2)}`,
+          );
+        }
+
+        addResult(
+          'mount forwards merchantId, terminalId, and clientId',
+          'pass',
+          JSON.stringify(mountedCreateRequest, null, 2),
+        );
+
         setDetails('Updating the session reference id and pushing the new config through update().');
         dispatchFieldChange(
           frameWindow,

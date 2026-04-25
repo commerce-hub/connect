@@ -27,6 +27,9 @@ export type PaymentStatus = 'PENDING' | 'APPROVED' | 'DECLINED';
 
 export interface InteractionRequest {
   sessionReferenceId: string;
+  merchantId?: string;
+  terminalId?: string;
+  clientId?: string;
   merchantTransactionId?: string;
   merchantOrderId?: string;
   merchantInvoiceNumber?: string;
