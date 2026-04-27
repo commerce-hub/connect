@@ -256,6 +256,7 @@ export class CommerceHubConnectApiService {
     }
 
     private url(path: string): string {
+      console.log(`Resolving URL for path: ${path} with base URL: ${this.resolveBaseUrl()}`);
         return `${this.resolveBaseUrl()}${path}`;
     }
 

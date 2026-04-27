@@ -13,6 +13,9 @@ export const COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT: Record<
   prod: 'https://dev.openfx-nonprod.aws.fisv.cloud',
 };
 
+const LOCAL_RUNTIME_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+const LOCAL_PROXY_BASE_PATH = '/commerce-hub-proxy';
+
 export function isCommerceHubConnectEnvironment(
   value: unknown,
 ): value is CommerceHubConnectEnvironment {
@@ -54,8 +57,17 @@ export function resolveCommerceHubConnectApiBaseUrl(
   environment?: CommerceHubConnectEnvironment,
   runtimeOrigin?: string,
 ): string {
-  void runtimeOrigin;
-
   const normalizedEnvironment = normalizeCommerceHubConnectEnvironment(environment);
+
+  const normalizedRuntimeOrigin = normalizeCommerceHubConnectRuntimeOrigin(runtimeOrigin);
+
+  if (normalizedRuntimeOrigin) {
+    const parsedRuntimeOrigin = new URL(normalizedRuntimeOrigin);
+
+    if (LOCAL_RUNTIME_HOSTNAMES.has(parsedRuntimeOrigin.hostname)) {
+      return `${parsedRuntimeOrigin.origin}${LOCAL_PROXY_BASE_PATH}/${normalizedEnvironment}`;
+    }
+  }
+
   return COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT[normalizedEnvironment];
 }

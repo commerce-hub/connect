@@ -35,7 +35,15 @@ describe('AppComponent', () => {
 
   it('creates interactions with nested merchantData', async () => {
     const fixture = TestBed.createComponent(AppComponent);
-    const component = fixture.componentInstance as AppComponent & { initializeSdk(): Promise<void> };
+    const component = fixture.componentInstance as AppComponent & {
+      demoForm: { getRawValue(): { allowBankAccount: boolean; allowCard: boolean; allowEmailChange: boolean } };
+      initializeSdk(): Promise<void>;
+    };
+    const formValue = component.demoForm.getRawValue();
+    const allowedTenderTypes = [
+      ...(formValue.allowCard ? ['CARD'] : []),
+      ...(formValue.allowBankAccount ? ['BANK_ACCOUNT'] : []),
+    ];
 
     const initializePromise = component.initializeSdk();
 
@@ -51,8 +59,8 @@ describe('AppComponent', () => {
         authType: 'FINAL_SALE',
         expiryMinutes: 10,
         email: 'gregory.jablonski@fiserv.com',
-        allowedTenderTypes: ['CARD'],
-        allowEmailChange: false,
+        allowedTenderTypes,
+        allowEmailChange: formValue.allowEmailChange,
         wallet: true,
         merchantData: {
           clientId: 'laika',
@@ -66,8 +74,8 @@ describe('AppComponent', () => {
       interactionId: 'interaction-1',
       status: 'EMAIL_REQUESTED',
       email: 'gregory.jablonski@fiserv.com',
-      allowEmailChange: false,
-      allowedTenderTypes: ['CARD'],
+      allowEmailChange: formValue.allowEmailChange,
+      allowedTenderTypes,
       paymentSources: [],
     });
 

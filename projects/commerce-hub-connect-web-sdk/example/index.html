@@ -708,7 +708,6 @@
 
     <script src="../dist/CommerceHubConnectSDK.js"></script>
     <script>
-      const INTERACTION_CREATE_URL = '/api/merchant/interaction/create';
       const DEFAULTS = {
         sessionReferenceId: 'merchant-session-demo-001',
         merchantId: '100014000315473',
@@ -724,9 +723,9 @@
         expiryMinutes: 10,
         environment: 'prod',
         wallet: true,
-        allowEmailChange: false,
+        allowEmailChange: true,
         allowCard: true,
-        allowBankAccount: false,
+        allowBankAccount: true,
         primaryColor: '#0a5dff',
         secondaryColor: '#627d98',
         textColor: '#101828',
@@ -938,7 +937,7 @@
 
       async function createInteraction() {
         const request = buildInteractionRequest();
-        const response = await fetch(INTERACTION_CREATE_URL, {
+        const response = await fetch(getInteractionCreateUrl(), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -989,6 +988,8 @@
         const createRequest = buildInteractionRequest();
         const runtimeConfiguration = buildRuntimeConfiguration();
         const whiteLabel = buildWhiteLabel();
+        const environment = getSelectedEnvironment();
+        const apiBaseUrl = getApiBaseUrl();
         const mountOptions = {
           interaction: '[interaction response]',
           configuration: {
@@ -1000,7 +1001,9 @@
         };
 
         let snippet =
-          `const interaction = await fetch(${JSON.stringify(INTERACTION_CREATE_URL)}, {\n` +
+          `const environment = ${JSON.stringify(environment)};\n` +
+          `const apiBaseUrl = ${JSON.stringify(apiBaseUrl)};\n` +
+          `const interaction = await fetch(\`${'${apiBaseUrl}'}/merchant/interaction/create\`, {\n` +
           `  method: 'POST',\n` +
           `  headers: {\n` +
           `    'Content-Type': 'application/json',\n` +
@@ -1092,6 +1095,18 @@
         }
 
         return window.CommerceHubConnectWebSdk;
+      }
+
+      function getSelectedEnvironment() {
+        return form.environment.value || DEFAULTS.environment;
+      }
+
+      function getApiBaseUrl() {
+        return getSdkNamespace().resolveApiBaseUrl(getSelectedEnvironment());
+      }
+
+      function getInteractionCreateUrl() {
+        return `${getApiBaseUrl()}/merchant/interaction/create`;
       }
 
       async function mountSdk() {

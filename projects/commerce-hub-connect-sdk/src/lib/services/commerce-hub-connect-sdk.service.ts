@@ -34,6 +34,7 @@ import {
   CommerceHubSuccessResult,
 } from '../models/sdk.models';
 import { CommerceHubConnectApiService } from './commerce-hub-connect-api.service';
+import { COMMERCE_HUB_CONNECT_ENVIRONMENT } from './commerce-hub-connect-environment.token';
 
 type PaymentSdkEventType = 'success' | 'failure' | 'cancel' | 'error' | string;
 
@@ -89,6 +90,7 @@ type CreateSourceResponse = PaymentSource | { id?: string; sourceId?: string; pa
 @Injectable()
 export class CommerceHubConnectSdkService {
   private readonly api = inject(CommerceHubConnectApiService);
+  private readonly resolveEnvironment = inject(COMMERCE_HUB_CONNECT_ENVIRONMENT);
 
   private readonly sdkConfiguration = signal<CommerceHubSdkConfiguration | null>(null);
   private readonly interactionState = signal<InteractionResponse | null>(null);
@@ -648,10 +650,15 @@ export class CommerceHubConnectSdkService {
     >
   > &
     CommerceHubPayByBankOptions {
-    void options;
+    const definedOverrides = Object.fromEntries(
+      Object.entries(options ?? {}).filter(([, value]) => value !== undefined),
+    ) as Partial<CommerceHubPayByBankOptions>;
+    const runtimeEnvironment = this.resolveEnvironment();
 
     return {
       ...DEFAULT_BANK_LINK_OPTIONS,
+      environment: runtimeEnvironment,
+      ...definedOverrides,
     };
   }
 

@@ -4,12 +4,14 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4500 --proxy-config proxy.conf.json",
+    "start:web-sdk-example": "node scripts/serve-web-sdk-example.mjs",
     "build": "ng build",
     "build:sdk": "ng build commerce-hub-connect-sdk",
     "build:web-sdk-widget": "node scripts/build-web-sdk-widget.mjs",
     "build:web-sdk-widget:angular": "ng build commerce-hub-connect-web-sdk-widget",
     "generate:react-app": "node scripts/generate-react-ts-app.mjs",
     "generate:web-sdk-client": "node scripts/generate-web-sdk.mjs",
+    "test:web-sdk-example-server": "node --test scripts/serve-web-sdk-example.spec.mjs",
     "test:web-sdk-smoke": "node scripts/run-web-sdk-browser-smoke-test.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"

@@ -1,10 +1,12 @@
 import type {
   CommerceHubConnectEnvironment,
   CommerceHubSdkConfiguration,
+  InteractionResponse,
   CommerceHubWhiteLabelOptions,
 } from 'commerce-hub-connect-sdk';
 
 export interface CommerceHubConnectWebSdkMountOptions {
+  interaction: InteractionResponse;
   configuration: CommerceHubSdkConfiguration;
   whiteLabel?: CommerceHubWhiteLabelOptions;
   replaceContents?: boolean;
@@ -28,6 +30,7 @@ export interface CommerceHubConnectWebSdkInstance {
 export interface CommerceHubConnectWebSdkNamespace {
   readonly version: string;
   readonly tagName: string;
+  resolveApiBaseUrl(environment?: CommerceHubConnectEnvironment): string;
   mount(
     target: string | Element,
     options: CommerceHubConnectWebSdkMountOptions,
@@ -40,6 +43,7 @@ export interface CommerceHubConnectWebSdkNamespace {
 }
 
 export class CommerceHubConnectWidgetElement extends HTMLElement {
+  interaction: InteractionResponse | null;
   configuration: CommerceHubSdkConfiguration | null;
   whiteLabel?: CommerceHubWhiteLabelOptions;
   environment?: CommerceHubConnectEnvironment;
