@@ -1,5 +1,4 @@
 import {
-  CommerceHubAuthType,
   CommerceHubTenderType,
   InteractionResponse,
   PaymentSource,
@@ -55,23 +54,9 @@ export interface CommerceHubSuccessResult {
 export interface CommerceHubSdkConfiguration {
   onSuccess: (result: CommerceHubSuccessResult) => void;
   onError: (error: CommerceHubSdkError) => void;
-  mountElementId?: string;
-  sessionReferenceId: string;
-  merchantId?: string;
-  terminalId?: string;
-  clientId?: string;
   email?: string;
   paymentSelectionTitle?: string;
   paymentSelectionConfirmLabel?: string;
-  region?: string;
-  language?: string;
-  merchantTransactionId?: string;
-  merchantOrderId?: string;
-  merchantInvoiceNumber?: string;
-  authType: CommerceHubAuthType;
-  expiryMinutes?: number;
-  allowedTenderTypes?: CommerceHubTenderType[];
-  allowEmailChange?: boolean;
   whiteLabel?: CommerceHubWhiteLabelOptions;
   payByBank?: CommerceHubPayByBankOptions;
   wallet?: boolean;
@@ -83,11 +68,4 @@ export interface ResolvedCommerceHubWhiteLabelOptions {
   textColor: string;
   logoUrl?: string;
   fontFamily: string;
-}
-
-export interface ResolvedCommerceHubSdkConfiguration extends CommerceHubSdkConfiguration {
-  region: string;
-  language: string;
-  allowedTenderTypes: CommerceHubTenderType[];
-  payByBank?: CommerceHubPayByBankOptions;
 }

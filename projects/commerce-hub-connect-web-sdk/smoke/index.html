@@ -317,17 +317,25 @@
 
         const mountedCreateRequest = mountState.requests.createInteraction.at(-1);
         if (
-          mountedCreateRequest?.merchantId !== '100014000315473' ||
-          mountedCreateRequest?.terminalId !== '10000001' ||
-          mountedCreateRequest?.clientId !== 'laika'
+          mountedCreateRequest?.merchantTransactionId !== 'txn-10001' ||
+          mountedCreateRequest?.merchantOrderId !== 'order-20002' ||
+          mountedCreateRequest?.merchantInvoiceNumber !== 'invoice-30003' ||
+          mountedCreateRequest?.authType !== 'FINAL_SALE' ||
+          mountedCreateRequest?.expiryMinutes !== 10 ||
+          mountedCreateRequest?.allowEmailChange !== false ||
+          JSON.stringify(mountedCreateRequest?.allowedTenderTypes ?? []) !== JSON.stringify(['CARD']) ||
+          mountedCreateRequest?.wallet !== true ||
+          mountedCreateRequest?.merchantData?.merchantId !== '100014000315473' ||
+          mountedCreateRequest?.merchantData?.terminalId !== '10000001' ||
+          mountedCreateRequest?.merchantData?.clientId !== 'laika'
         ) {
           throw new Error(
-            `Expected merchant defaults in createInteraction payload but received ${JSON.stringify(mountedCreateRequest, null, 2)}`,
+            `Expected the sandbox createInteraction payload to match the contract defaults but received ${JSON.stringify(mountedCreateRequest, null, 2)}`,
           );
         }
 
         addResult(
-          'mount forwards merchantId, terminalId, and clientId',
+          'mount forwards the createInteraction contract',
           'pass',
           JSON.stringify(mountedCreateRequest, null, 2),
         );

@@ -45,25 +45,29 @@ describe('web sdk utils', () => {
     expect(() =>
       validateMountRequest(
         {
+          interaction: {
+            interactionId: '',
+            status: 'EMAIL_REQUESTED',
+          },
           configuration: {
-            sessionReferenceId: '',
-            authType: 'FINAL_SALE',
             onSuccess: () => undefined,
             onError: () => undefined,
           },
         } as never,
         'qa',
       ),
-    ).toThrowError('configuration.sessionReferenceId is required.');
+    ).toThrowError('interaction.interactionId is required.');
   });
 
   it('throws for unsupported environments', () => {
     expect(() =>
       validateMountRequest(
         {
+          interaction: {
+            interactionId: 'interaction-1',
+            status: 'EMAIL_REQUESTED',
+          },
           configuration: {
-            sessionReferenceId: 'session-1',
-            authType: 'FINAL_SALE',
             onSuccess: () => undefined,
             onError: () => undefined,
           },

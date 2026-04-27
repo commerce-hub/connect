@@ -25,6 +25,12 @@ export type PaymentChannel = 'ONLINE' | 'MACHINE';
 
 export type PaymentStatus = 'PENDING' | 'APPROVED' | 'DECLINED';
 
+export interface InteractionMerchantData {
+  clientId?: string;
+  merchantId?: string;
+  terminalId?: string;
+}
+
 export interface InteractionRequest {
   sessionReferenceId: string;
   merchantTransactionId?: string;
@@ -35,6 +41,8 @@ export interface InteractionRequest {
   email?: string;
   allowedTenderTypes?: CommerceHubTenderType[];
   allowEmailChange?: boolean;
+  merchantData?: InteractionMerchantData;
+  wallet?: boolean;
 }
 
 export interface StringHolder {

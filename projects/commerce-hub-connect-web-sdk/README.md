@@ -2,6 +2,10 @@
 
 Embeddable web widget bundle built on top of `commerce-hub-connect-sdk`.
 
+The widget no longer creates interactions internally. Host applications are expected to call
+`interaction/create` themselves and pass the returned `InteractionResponse` into
+`window.CommerceHubConnectWebSdk.mount(..., { interaction, configuration, ... })`.
+
 ## Build
 
 From the workspace root:

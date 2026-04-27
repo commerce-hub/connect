@@ -39,6 +39,7 @@ import {
   CardNetwork,
   CardSource,
   CommerceHubTenderType,
+  InteractionResponse,
   PaymentSource,
 } from '../models/api.models';
 import {
@@ -158,6 +159,7 @@ export class CommerceHubConnectCaptureComponent {
   protected readonly sdk = inject(CommerceHubConnectSdkService);
   private readonly pciVault = inject(CommerceHubPciVaultService);
 
+  readonly interaction = input.required<InteractionResponse>();
   readonly configuration = input.required<CommerceHubSdkConfiguration>();
   readonly whiteLabel = input<CommerceHubWhiteLabelOptions>();
   private readonly maskedCardNumber = signal<MaskedFieldState | null>(null);
@@ -238,7 +240,7 @@ export class CommerceHubConnectCaptureComponent {
   private readonly authStepOverride = signal<'email' | 'otp' | null>(null);
   protected readonly paymentEntryMode = signal<'list' | 'add'>('list');
   private readonly initializedPaymentInteractionId = signal<string | null>(null);
-  private readonly autoContinueSessionReferenceId = signal<string | null>(null);
+  private readonly autoContinueInteractionId = signal<string | null>(null);
   private readonly selectedSourceId = signal<string | null>(null);
   private readonly completedSourceResult = signal<CommerceHubSuccessResult | null>(null);
   private readonly paymentStepOverride = signal<'list' | 'add' | null>(null);
@@ -332,9 +334,7 @@ export class CommerceHubConnectCaptureComponent {
       return formatOtpPhone(this.sdk.interaction()?.phone);
     }
 
-    return maskEmailAddress(
-      this.emailForm.getRawValue().email ?? this.configuration().email,
-    );
+    return maskEmailAddress(this.emailForm.getRawValue().email ?? this.configuration().email ?? this.interaction().email);
   });
   protected readonly otpAlternateActionLabel = computed(() =>
     this.otpChannel() === 'PHONE' ? 'Send code to email instead' : 'Use another email',
@@ -343,7 +343,6 @@ export class CommerceHubConnectCaptureComponent {
     switch (this.displayStep()) {
       case 'otp':
         if (this.otpDestination()) {
-          return `We send a one-time code to ${this.otpDestination()}.`;
           return `We send a one-time code to ${this.otpDestination()}.`;
         }
 
@@ -363,31 +362,51 @@ export class CommerceHubConnectCaptureComponent {
         return 'Enter your email address to access your payment dashboard.';
     }
   });
-  private readonly initializedSessionReferenceId = signal<string | null>(null);
+  private readonly initializedInteractionId = signal<string | null>(null);
+  private readonly preparedEmailSeedKey = signal<string | null>(null);
 
   constructor() {
     effect(() => {
+      this.sdk.setConfiguration(this.configuration());
+    });
+
+    effect(() => {
+      const interaction = this.interaction();
       const configuration = this.configuration();
       const configuredEmail = configuration.email?.trim();
+      const interactionEmail = interaction.email?.trim();
+      const seedEmail = configuredEmail || interactionEmail || '';
+      const seedKey = `${interaction.interactionId}::${seedEmail}::${interaction.allowEmailChange ?? ''}`;
 
-      this.emailForm.controls.email.setValue(configuration.email || "");
-      if (configuration.allowEmailChange === false && configuredEmail) {
+      if (this.preparedEmailSeedKey() === seedKey) {
+        return;
+      }
+
+      this.preparedEmailSeedKey.set(seedKey);
+
+      this.emailForm.controls.email.setValue(seedEmail, { emitEvent: false });
+      if (interaction.allowEmailChange === false && seedEmail) {
         this.emailForm.controls.email.disable({ emitEvent: false });
       } else {
         this.emailForm.controls.email.enable({ emitEvent: false });
       }
+    });
 
-      if (this.initializedSessionReferenceId() !== configuration.sessionReferenceId) {
-        this.initializedSessionReferenceId.set(configuration.sessionReferenceId);
-        void this.sdk.initialize(configuration);
+    effect(() => {
+      const interaction = this.interaction();
+      const configuration = this.configuration();
+
+      if (this.initializedInteractionId() !== interaction.interactionId) {
+        this.initializedInteractionId.set(interaction.interactionId);
+        void this.sdk.initialize(interaction, configuration);
       }
     });
 
     effect(() => {
-      const configuration = this.configuration();
-      const email = configuration.email?.trim();
+      const interaction = this.interaction();
+      const email = this.configuration().email?.trim() || interaction.email?.trim();
 
-      if (!email || this.autoContinueSessionReferenceId() === configuration.sessionReferenceId) {
+      if (!email || this.autoContinueInteractionId() === interaction.interactionId) {
         return;
       }
 
@@ -395,7 +414,7 @@ export class CommerceHubConnectCaptureComponent {
         return;
       }
 
-      this.autoContinueSessionReferenceId.set(configuration.sessionReferenceId);
+      this.autoContinueInteractionId.set(interaction.interactionId);
       queueMicrotask(() => {
         void this.submitEmail();
       });

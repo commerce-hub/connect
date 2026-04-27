@@ -65,13 +65,14 @@ function createSmokeServer(rootDir, state) {
   return createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || '/', 'http://127.0.0.1');
+      const normalizedPath = requestUrl.pathname.replace(/^\/api(?=\/)/, '');
 
       if (requestUrl.pathname === '/__smoke__/state') {
         writeJson(response, 200, state);
         return;
       }
 
-      if (requestUrl.pathname === '/merchant/interaction/create' && request.method === 'POST') {
+      if (normalizedPath === '/merchant/interaction/create' && request.method === 'POST') {
         incrementCounter(state, 'POST /merchant/interaction/create');
         const requestBody = await readJsonBody(request);
 
@@ -81,41 +82,41 @@ function createSmokeServer(rootDir, state) {
           interactionId: `interaction-${state.requests.createInteraction.length}`,
           status: 'EMAIL_REQUESTED',
           email: requestBody?.email || '',
-          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          allowedTenderTypes: requestBody?.allowedTenderTypes || ['CARD'],
           paymentSources: [],
-          allowEmailChange: true,
+          allowEmailChange: requestBody?.allowEmailChange ?? false,
         });
         return;
       }
 
-      if (requestUrl.pathname === '/interaction/otp/send' && request.method === 'POST') {
+      if (normalizedPath === '/interaction/otp/send' && request.method === 'POST') {
         incrementCounter(state, 'POST /interaction/otp/send');
         writeJson(response, 200, {
           interactionId: `interaction-${state.requests.createInteraction.length || 1}`,
           status: 'OTP_VALIDATION_PENDING',
-          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          allowedTenderTypes: state.requests.createInteraction.at(-1)?.allowedTenderTypes || ['CARD'],
           paymentSources: [],
-          allowEmailChange: true,
+          allowEmailChange: state.requests.createInteraction.at(-1)?.allowEmailChange ?? false,
         });
         return;
       }
 
-      if (requestUrl.pathname === '/interaction/otp/send/email' && request.method === 'POST') {
+      if (normalizedPath === '/interaction/otp/send/email' && request.method === 'POST') {
         incrementCounter(state, 'POST /interaction/otp/send/email');
         writeJson(response, 200, {
           interactionId: `interaction-${state.requests.createInteraction.length || 1}`,
           status: 'OTP_VALIDATION_PENDING',
-          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          allowedTenderTypes: state.requests.createInteraction.at(-1)?.allowedTenderTypes || ['CARD'],
           paymentSources: [],
-          allowEmailChange: true,
+          allowEmailChange: state.requests.createInteraction.at(-1)?.allowEmailChange ?? false,
         });
         return;
       }
 
-      if (requestUrl.pathname.startsWith('/merchant/') || requestUrl.pathname.startsWith('/interaction/')) {
-        incrementCounter(state, `${request.method || 'GET'} ${requestUrl.pathname}`);
+      if (normalizedPath.startsWith('/merchant/') || normalizedPath.startsWith('/interaction/')) {
+        incrementCounter(state, `${request.method || 'GET'} ${normalizedPath}`);
         writeJson(response, 404, {
-          message: `No smoke stub is defined for ${request.method || 'GET'} ${requestUrl.pathname}.`,
+          message: `No smoke stub is defined for ${request.method || 'GET'} ${normalizedPath}.`,
         });
         return;
       }

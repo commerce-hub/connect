@@ -1,15 +1,15 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
-import { concat, of, Subject, switchMap, tap, timer } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 
 import {
   CommerceHubAuthType,
+  CommerceHubConnectApiService,
   CommerceHubConnectCaptureComponent,
   CommerceHubPayByBankOptions,
   CommerceHubSdkConfiguration,
@@ -17,6 +17,8 @@ import {
   CommerceHubSuccessResult,
   CommerceHubTenderType,
   CommerceHubWhiteLabelOptions,
+  InteractionRequest,
+  InteractionResponse,
 } from 'commerce-hub-connect-sdk';
 
 @Component({
@@ -35,14 +37,11 @@ import {
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
-  private readonly destroyRef = inject(DestroyRef);
+  private readonly api = inject(CommerceHubConnectApiService);
   private readonly formBuilder = inject(FormBuilder);
-  private readonly initializeRequests = new Subject<{
-    configuration: CommerceHubSdkConfiguration;
-    whiteLabel: CommerceHubWhiteLabelOptions;
-  }>();
 
   protected readonly events = signal<string[]>([]);
+  protected readonly activeInteraction = signal<InteractionResponse | null>(null);
   protected readonly activeConfiguration = signal<CommerceHubSdkConfiguration | null>(null);
   protected readonly activeWhiteLabel = signal<CommerceHubWhiteLabelOptions | null>(null);
   protected readonly authTypeOptions = [
@@ -58,17 +57,15 @@ export class AppComponent {
     email: ['gregory.jablonski@fiserv.com'],
     paymentSelectionTitle: [''],
     paymentSelectionConfirmLabel: [''],
-    region: ['US'],
-    language: ['en_US'],
     merchantTransactionId: ['txn-10001'],
     merchantOrderId: ['order-20002'],
     merchantInvoiceNumber: ['invoice-30003'],
     authType: ['FINAL_SALE' as CommerceHubAuthType],
-    expiryMinutes: [30],
-    allowEmailChange: [true],
+    expiryMinutes: [10],
+    allowEmailChange: [false],
     wallet: [true],
     allowCard: [true],
-    allowBankAccount: [true],
+    allowBankAccount: [false],
     primaryColor: ['#0a5dff'],
     secondaryColor: ['#627d98'],
     textColor: ['#0f172a'],
@@ -85,52 +82,28 @@ export class AppComponent {
     payByBankUseSandbox: [false],
   });
 
-  constructor() {
-    this.initializeRequests
-      .pipe(
-        switchMap(({ configuration, whiteLabel }) =>
-          concat(
-            of(null).pipe(
-              tap(() => {
-                this.activeConfiguration.set(null);
-                this.activeWhiteLabel.set(null);
-              }),
-            ),
-            timer(0).pipe(
-              tap(() => {
-                this.activeWhiteLabel.set(whiteLabel);
-                this.activeConfiguration.set(configuration);
-              }),
-            ),
-          ),
-        ),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe();
-  }
-
-  protected initializeSdk(): void {
+  protected async initializeSdk(): Promise<void> {
     const value = this.demoForm.getRawValue();
     const allowedTenderTypes = this.resolveAllowedTenderTypes(value.allowCard, value.allowBankAccount);
     const payByBank = this.buildPayByBankOptions(value);
-    const configuration: CommerceHubSdkConfiguration = {
+    const request: InteractionRequest = {
       sessionReferenceId: this.requiredValue(value.sessionReferenceId, 'sdk-demo-session'),
-      merchantId: this.optionalValue(value.merchantId),
-      terminalId: this.optionalValue(value.terminalId),
-      clientId: this.optionalValue(value.clientId),
       email: this.optionalValue(value.email),
-      paymentSelectionTitle: this.optionalValue(value.paymentSelectionTitle),
-      paymentSelectionConfirmLabel: this.optionalValue(value.paymentSelectionConfirmLabel),
-      region: this.optionalValue(value.region),
-      language: this.optionalValue(value.language),
       merchantTransactionId: this.optionalValue(value.merchantTransactionId),
       merchantOrderId: this.optionalValue(value.merchantOrderId),
       merchantInvoiceNumber: this.optionalValue(value.merchantInvoiceNumber),
       authType: value.authType,
       expiryMinutes: this.optionalNumber(value.expiryMinutes),
       allowEmailChange: value.allowEmailChange,
-      wallet: value.wallet,
       allowedTenderTypes,
+      merchantData: this.buildMerchantData(value),
+      wallet: value.wallet,
+    };
+    const configuration: CommerceHubSdkConfiguration = {
+      email: this.optionalValue(value.email),
+      paymentSelectionTitle: this.optionalValue(value.paymentSelectionTitle),
+      paymentSelectionConfirmLabel: this.optionalValue(value.paymentSelectionConfirmLabel),
+      wallet: value.wallet,
       payByBank,
       onSuccess: (result: CommerceHubSuccessResult) => this.handleSuccess(result),
       onError: (error: CommerceHubSdkError) => this.handleError(error),
@@ -144,10 +117,23 @@ export class AppComponent {
     };
 
     this.events.update((current) => [
-      `[INIT] session=${configuration.sessionReferenceId} tenders=${allowedTenderTypes.join(',')}`,
+      `[CREATE] session=${request.sessionReferenceId} tenders=${allowedTenderTypes.join(',')}`,
       ...current,
     ]);
-    this.initializeRequests.next({ configuration, whiteLabel });
+
+    try {
+      const interaction = await firstValueFrom(this.api.createInteraction(request));
+
+      this.activeWhiteLabel.set(whiteLabel);
+      this.activeInteraction.set(interaction);
+      this.activeConfiguration.set(configuration);
+      this.events.update((current) => [
+        `[INITIALIZE] interaction=${interaction.interactionId} status=${interaction.status}`,
+        ...current,
+      ]);
+    } catch (error) {
+      this.handleError(this.toCreateInteractionError(error));
+    }
   }
 
   private handleSuccess(result: CommerceHubSuccessResult): void {
@@ -199,6 +185,16 @@ export class AppComponent {
       : undefined;
   }
 
+  private buildMerchantData(value: ReturnType<typeof this.demoForm.getRawValue>): InteractionRequest['merchantData'] {
+    const merchantData = {
+      clientId: this.optionalValue(value.clientId),
+      merchantId: this.optionalValue(value.merchantId),
+      terminalId: this.optionalValue(value.terminalId),
+    };
+
+    return Object.values(merchantData).some((option) => option !== undefined) ? merchantData : undefined;
+  }
+
   private optionalValue(value: string): string | undefined {
     const trimmed = value.trim();
 
@@ -213,5 +209,26 @@ export class AppComponent {
 
   private optionalNumber(value: number): number | undefined {
     return Number.isFinite(value) && value > 0 ? value : undefined;
+  }
+
+  private toCreateInteractionError(error: unknown): CommerceHubSdkError {
+    const errorRecord = typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : null;
+    const errorPayload =
+      errorRecord && typeof errorRecord['error'] === 'object' && errorRecord['error'] !== null
+        ? (errorRecord['error'] as Record<string, unknown>)
+        : null;
+
+    const message =
+      (typeof errorPayload?.['message'] === 'string' && errorPayload['message']) ||
+      (typeof errorRecord?.['message'] === 'string' && errorRecord['message']) ||
+      'Unable to create interaction before SDK initialization.';
+    const status = typeof errorRecord?.['status'] === 'number' ? errorRecord['status'] : undefined;
+
+    return {
+      stage: 'session',
+      message,
+      status,
+      cause: error,
+    };
   }
 }

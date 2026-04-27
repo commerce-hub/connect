@@ -301,8 +301,20 @@ import type { CommerceHubConnectWebSdkClient } from './sdk-loader';
 
 const initialRequest: InteractionRequest = {
   sessionReferenceId: 'react-demo-session',
+  merchantTransactionId: 'txn-10001',
+  merchantOrderId: 'order-20002',
+  merchantInvoiceNumber: 'invoice-30003',
   email: 'merchant@example.com',
   authType: 'FINAL_SALE',
+  expiryMinutes: 10,
+  allowedTenderTypes: ['CARD'],
+  allowEmailChange: false,
+  merchantData: {
+    clientId: 'laika',
+    merchantId: '100014000315473',
+    terminalId: '10000001',
+  },
+  wallet: true,
 };
 
 export default function App() {

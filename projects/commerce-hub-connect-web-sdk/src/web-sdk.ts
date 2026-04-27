@@ -16,6 +16,7 @@ import {
   type CommerceHubConnectEnvironment,
   CommerceHubConnectCaptureComponent,
   type CommerceHubSdkConfiguration,
+  type InteractionResponse,
   type CommerceHubWhiteLabelOptions,
   normalizeCommerceHubConnectEnvironment,
   provideCommerceHubSdkTheme,
@@ -107,6 +108,7 @@ class MountedWidget implements CommerceHubConnectWebSdkInstance {
       );
     }
 
+    this.componentRef.setInput('interaction', options.interaction);
     this.componentRef.setInput('configuration', options.configuration);
     this.componentRef.setInput('whiteLabel', options.whiteLabel);
     this.componentRef.changeDetectorRef.detectChanges();
@@ -126,6 +128,7 @@ class MountedWidget implements CommerceHubConnectWebSdkInstance {
 export class CommerceHubConnectWidgetElement extends HTMLElement {
   private readonly mountRoot = document.createElement('div');
   private instance: CommerceHubConnectWebSdkInstance | null = null;
+  private interactionValue: InteractionResponse | null = null;
   private configurationValue: CommerceHubSdkConfiguration | null = null;
   private whiteLabelValue?: CommerceHubWhiteLabelOptions;
   private environmentValue?: CommerceHubConnectEnvironment;
@@ -153,6 +156,15 @@ export class CommerceHubConnectWidgetElement extends HTMLElement {
     void this.renderWidget();
   }
 
+  get interaction(): InteractionResponse | null {
+    return this.interactionValue;
+  }
+
+  set interaction(value: InteractionResponse | null) {
+    this.interactionValue = value;
+    void this.renderWidget();
+  }
+
   get whiteLabel(): CommerceHubWhiteLabelOptions | undefined {
     return this.whiteLabelValue;
   }
@@ -172,11 +184,12 @@ export class CommerceHubConnectWidgetElement extends HTMLElement {
   }
 
   private async renderWidget(): Promise<void> {
-    if (!this.isConnected || !this.configurationValue) {
+    if (!this.isConnected || !this.configurationValue || !this.interactionValue) {
       return;
     }
 
     const options: CommerceHubConnectWebSdkMountOptions = {
+      interaction: this.interactionValue,
       configuration: this.configurationValue,
       whiteLabel: this.whiteLabelValue,
       replaceContents: true,
@@ -200,6 +213,10 @@ export async function registerCommerceHubConnectWebSdk(): Promise<CommerceHubCon
     mount,
     createElement: (options?: CommerceHubConnectWebSdkElementOptions, environment?) => {
       const element = document.createElement(SDK_TAG_NAME) as CommerceHubConnectWidgetElement;
+
+      if (options?.interaction) {
+        element.interaction = options.interaction;
+      }
 
       if (options?.configuration) {
         element.configuration = options.configuration;

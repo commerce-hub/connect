@@ -32,7 +32,6 @@ import {
   CommerceHubSdkError,
   CommerceHubSdkFlowStep,
   CommerceHubSuccessResult,
-  ResolvedCommerceHubSdkConfiguration,
 } from '../models/sdk.models';
 import { CommerceHubConnectApiService } from './commerce-hub-connect-api.service';
 
@@ -91,7 +90,7 @@ type CreateSourceResponse = PaymentSource | { id?: string; sourceId?: string; pa
 export class CommerceHubConnectSdkService {
   private readonly api = inject(CommerceHubConnectApiService);
 
-  private readonly sdkConfiguration = signal<ResolvedCommerceHubSdkConfiguration | null>(null);
+  private readonly sdkConfiguration = signal<CommerceHubSdkConfiguration | null>(null);
   private readonly interactionState = signal<InteractionResponse | null>(null);
   private readonly otpDeliveryResponseState = signal<OTPResponse | null>(null);
   private readonly selectedTender = signal<CommerceHubTenderType>('CARD');
@@ -108,11 +107,10 @@ export class CommerceHubConnectSdkService {
   readonly lastError = this.lastErrorState.asReadonly();
   readonly selectedTenderType = this.selectedTender.asReadonly();
   readonly supportedTenderTypes = computed(() => {
-    const configured = this.sdkConfiguration()?.allowedTenderTypes ?? DEFAULT_ALLOWED_TENDERS;
-    const interactionAllowed = this.interactionState()?.allowedTenderTypes ?? configured;
+    const interactionAllowed = this.interactionState()?.allowedTenderTypes ?? DEFAULT_ALLOWED_TENDERS;
     const filtered = interactionAllowed.filter(isSupportedTenderType);
 
-    return filtered.length ? filtered : configured;
+    return filtered.length ? filtered : DEFAULT_ALLOWED_TENDERS;
   });
   readonly currentStep = computed<CommerceHubSdkFlowStep>(() => {
     const status = this.interactionState()?.status;
@@ -133,26 +131,25 @@ export class CommerceHubConnectSdkService {
     }
   });
 
-  initialize(configuration: CommerceHubSdkConfiguration): Promise<InteractionResponse> {
-    const resolved = this.resolveConfiguration(configuration);
+  setConfiguration(configuration: CommerceHubSdkConfiguration): void {
+    this.sdkConfiguration.set(configuration);
+  }
 
-    this.sdkConfiguration.set(resolved);
+  initialize(
+    interaction: InteractionResponse,
+    configuration: CommerceHubSdkConfiguration,
+  ): Promise<InteractionResponse> {
+    this.sdkConfiguration.set(configuration);
     this.lastErrorState.set(null);
     this.interactionState.set(null);
     this.otpDeliveryResponseState.set(null);
-    this.loadingState.set(true);
-    this.selectedTender.set(resolved.allowedTenderTypes[0] ?? 'CARD');
+    this.loadingState.set(false);
+    this.submittingState.set(false);
+    this.bankLinkLoadingState.set(false);
     this.api.setInteractionId(null);
+    this.commitInteraction(interaction);
 
-    return firstValueFrom(
-      this.api
-        .createInteraction(this.toInteractionRequest(resolved))
-        .pipe(
-          tap((interaction) => this.commitInteraction(interaction)),
-          finalize(() => this.loadingState.set(false)),
-          catchError((error) => this.failWith('session', error)),
-        ),
-    );
+    return Promise.resolve(interaction);
   }
 
   sendOtp(email: string, mode: 'default' | 'email' = 'default'): Promise<InteractionResponse> {
@@ -640,38 +637,6 @@ export class CommerceHubConnectSdkService {
     } catch {
       // Ignore destroy failures so the next init can still proceed.
     }
-  }
-
-  private toInteractionRequest(configuration: ResolvedCommerceHubSdkConfiguration): InteractionRequest {
-    return {
-      sessionReferenceId: configuration.sessionReferenceId,
-      merchantId: configuration.merchantId,
-      terminalId: configuration.terminalId,
-      clientId: configuration.clientId,
-      merchantTransactionId: configuration.merchantTransactionId,
-      merchantOrderId: configuration.merchantOrderId,
-      merchantInvoiceNumber: configuration.merchantInvoiceNumber,
-      authType: configuration.authType,
-      expiryMinutes: configuration.expiryMinutes,
-      ...(configuration.email?.trim() ? { email: configuration.email.trim() } : {}),
-      allowedTenderTypes: configuration.allowedTenderTypes,
-      allowEmailChange: configuration.allowEmailChange,
-      wallet: configuration.wallet
-    };
-  }
-
-  private resolveConfiguration(
-    configuration: CommerceHubSdkConfiguration,
-  ): ResolvedCommerceHubSdkConfiguration {
-    return {
-      ...configuration,
-      region: configuration.region ?? 'US',
-      language: configuration.language ?? 'en_US',
-      allowedTenderTypes:
-        configuration.allowedTenderTypes?.filter(isSupportedTenderType).length
-          ? configuration.allowedTenderTypes.filter(isSupportedTenderType)
-          : DEFAULT_ALLOWED_TENDERS,
-    };
   }
 
   private resolvePayByBankOptions(

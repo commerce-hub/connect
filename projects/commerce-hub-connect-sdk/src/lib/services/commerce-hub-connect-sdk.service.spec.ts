@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import type { InteractionResponse } from '../models/api.models';
 import type { CommerceHubSdkConfiguration } from '../models/sdk.models';
 import { COMMERCE_HUB_CONNECT_API_BASE_URL } from './commerce-hub-connect-api-base-url.token';
 import { CommerceHubConnectSdkService } from './commerce-hub-connect-sdk.service';
@@ -31,40 +32,27 @@ describe('CommerceHubConnectSdkService', () => {
     httpMock.verify();
   });
 
-  it('passes merchantId, terminalId, and clientId when creating an interaction', async () => {
-    const configuration: CommerceHubSdkConfiguration = {
-      sessionReferenceId: 'session-1',
-      authType: 'FINAL_SALE',
-      merchantId: '100014000315473',
-      terminalId: '10000001',
-      clientId: 'laika',
-      onSuccess: () => undefined,
-      onError: () => undefined,
-    };
-
-    const initializePromise = service.initialize(configuration);
-
-    const request = httpMock.expectOne('http://localhost:8080/merchant/interaction/create');
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(
-      jasmine.objectContaining({
-        sessionReferenceId: 'session-1',
-        authType: 'FINAL_SALE',
-        merchantId: '100014000315473',
-        terminalId: '10000001',
-        clientId: 'laika',
-      }),
-    );
-
-    request.flush({
+  it('initializes from a pre-created interaction without creating a new one', async () => {
+    const interaction: InteractionResponse = {
       interactionId: 'interaction-1',
       status: 'EMAIL_REQUESTED',
+      email: 'merchant@example.com',
       paymentSources: [],
       allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
       allowEmailChange: true,
-    });
+    };
 
-    await expectAsync(initializePromise).toBeResolved();
+    const configuration: CommerceHubSdkConfiguration = {
+      onSuccess: () => undefined,
+      onError: () => undefined,
+      wallet: true,
+    };
+
+    const initializePromise = service.initialize(interaction, configuration);
+
+    await expectAsync(initializePromise).toBeResolvedTo(interaction);
+    httpMock.expectNone('http://localhost:8080/merchant/interaction/create');
+    expect(service.interaction()).toEqual(interaction);
+    expect(service.selectedTenderType()).toBe('CARD');
   });
 });
