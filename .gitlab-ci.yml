@@ -8,7 +8,7 @@ stages:
   - build
   - dockerize
 
-build_web_sdk:
+build:
   image: $js_image
   stage: build
   variables:
