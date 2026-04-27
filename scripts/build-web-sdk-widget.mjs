@@ -18,6 +18,7 @@ const outputBundleFile = path.join(outputDir, 'CommerceHubConnectSDK.js');
 const outputTypesFile = path.join(outputDir, 'CommerceHubConnectSDK.d.ts');
 const outputLicenseFile = path.join(outputDir, '3rdpartylicenses.txt');
 
+await fs.rm(outputDir, { recursive: true, force: true });
 await runAngularBuild();
 await resetDirectory(outputDir);
 
