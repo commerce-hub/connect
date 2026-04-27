@@ -45,7 +45,10 @@ dockerize:
   services:
     - name: $DOCKER_DIND_BASE
       alias: "docker"
-  needs: ["build_web_sdk"]
+  needs:
+    - job: build_web_sdk
+      artifacts: true
+      optional: true
   before_script:
     - if ! command -v docker >/dev/null 2>&1; then echo "Docker CLI not found"; exit 1; fi
     - |
