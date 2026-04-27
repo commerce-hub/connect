@@ -7,10 +7,10 @@ export const COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT: Record<
   CommerceHubConnectEnvironment,
   string
 > = {
-  dev: 'http://localhost:8080',
-  qa: 'http://localhost:8080',
-  cat: 'http://localhost:8080',
-  prod: 'http://localhost:8080',
+  dev: 'https://dev.openfx-nonprod.aws.fisv.cloud',
+  qa: 'https://dev.openfx-nonprod.aws.fisv.cloud',
+  cat: 'https://dev.openfx-nonprod.aws.fisv.cloud',
+  prod: 'https://dev.openfx-nonprod.aws.fisv.cloud',
 };
 
 export function isCommerceHubConnectEnvironment(
