@@ -42,8 +42,12 @@ export function validateMountRequest(
     throw new Error('A CommerceHubSdkConfiguration object is required.');
   }
 
-  if (!options.configuration.sessionReferenceId?.trim()) {
-    throw new Error('configuration.sessionReferenceId is required.');
+  if (!options.interaction || typeof options.interaction !== 'object') {
+    throw new Error('An InteractionResponse object is required.');
+  }
+
+  if (!options.interaction.interactionId?.trim()) {
+    throw new Error('interaction.interactionId is required.');
   }
 
   if (typeof options.configuration.onSuccess !== 'function') {
@@ -52,13 +56,6 @@ export function validateMountRequest(
 
   if (typeof options.configuration.onError !== 'function') {
     throw new Error('configuration.onError must be a function.');
-  }
-
-  if (
-    options.configuration.authType !== 'FINAL_SALE' &&
-    options.configuration.authType !== 'AUTH_ONLY'
-  ) {
-    throw new Error('configuration.authType must be FINAL_SALE or AUTH_ONLY.');
   }
 
   if (environment !== undefined && !isCommerceHubConnectEnvironment(environment)) {

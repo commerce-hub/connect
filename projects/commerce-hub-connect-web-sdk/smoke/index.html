@@ -315,6 +315,31 @@
           1,
         );
 
+        const mountedCreateRequest = mountState.requests.createInteraction.at(-1);
+        if (
+          mountedCreateRequest?.merchantTransactionId !== 'txn-10001' ||
+          mountedCreateRequest?.merchantOrderId !== 'order-20002' ||
+          mountedCreateRequest?.merchantInvoiceNumber !== 'invoice-30003' ||
+          mountedCreateRequest?.authType !== 'FINAL_SALE' ||
+          mountedCreateRequest?.expiryMinutes !== 10 ||
+          mountedCreateRequest?.allowEmailChange !== false ||
+          JSON.stringify(mountedCreateRequest?.allowedTenderTypes ?? []) !== JSON.stringify(['CARD']) ||
+          mountedCreateRequest?.wallet !== true ||
+          mountedCreateRequest?.merchantData?.merchantId !== '100014000315473' ||
+          mountedCreateRequest?.merchantData?.terminalId !== '10000001' ||
+          mountedCreateRequest?.merchantData?.clientId !== 'laika'
+        ) {
+          throw new Error(
+            `Expected the sandbox createInteraction payload to match the contract defaults but received ${JSON.stringify(mountedCreateRequest, null, 2)}`,
+          );
+        }
+
+        addResult(
+          'mount forwards the createInteraction contract',
+          'pass',
+          JSON.stringify(mountedCreateRequest, null, 2),
+        );
+
         setDetails('Updating the session reference id and pushing the new config through update().');
         dispatchFieldChange(
           frameWindow,

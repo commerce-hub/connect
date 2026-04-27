@@ -484,8 +484,8 @@
           <div class="panel-header">
             <h2>Control Surface</h2>
             <p>
-              Configure the mount request, then test the lifecycle methods the same way a merchant
-              host page would.
+              Configure the external interaction create request and the runtime SDK options, then
+              test the lifecycle methods the same way a merchant host page would.
             </p>
           </div>
 
@@ -503,9 +503,39 @@
                   <input id="session-reference-id" name="sessionReferenceId" type="text" />
                 </div>
 
+                <div class="field">
+                  <label for="merchant-id">Merchant ID</label>
+                  <input id="merchant-id" name="merchantId" type="text" />
+                </div>
+
+                <div class="field">
+                  <label for="terminal-id">Terminal ID</label>
+                  <input id="terminal-id" name="terminalId" type="text" />
+                </div>
+
+                <div class="field field--full">
+                  <label for="client-id">Client ID</label>
+                  <input id="client-id" name="clientId" type="text" />
+                </div>
+
                 <div class="field field--full">
                   <label for="email">Email</label>
                   <input id="email" name="email" type="email" />
+                </div>
+
+                <div class="field">
+                  <label for="merchant-transaction-id">Merchant Transaction ID</label>
+                  <input id="merchant-transaction-id" name="merchantTransactionId" type="text" />
+                </div>
+
+                <div class="field">
+                  <label for="merchant-order-id">Merchant Order ID</label>
+                  <input id="merchant-order-id" name="merchantOrderId" type="text" />
+                </div>
+
+                <div class="field field--full">
+                  <label for="merchant-invoice-number">Merchant Invoice Number</label>
+                  <input id="merchant-invoice-number" name="merchantInvoiceNumber" type="text" />
                 </div>
 
                 <div class="field">
@@ -514,6 +544,11 @@
                     <option value="FINAL_SALE">FINAL_SALE</option>
                     <option value="AUTH_ONLY">AUTH_ONLY</option>
                   </select>
+                </div>
+
+                <div class="field">
+                  <label for="expiry-minutes">Expiry Minutes</label>
+                  <input id="expiry-minutes" name="expiryMinutes" type="number" min="1" />
                 </div>
 
                 <div class="field">
@@ -673,17 +708,25 @@
 
     <script src="../dist/CommerceHubConnectSDK.js"></script>
     <script>
+      const INTERACTION_CREATE_URL = '/api/merchant/interaction/create';
       const DEFAULTS = {
         sessionReferenceId: 'merchant-session-demo-001',
+        merchantId: '100014000315473',
+        terminalId: '10000001',
+        clientId: 'laika',
         email: 'merchant@example.com',
+        merchantTransactionId: 'txn-10001',
+        merchantOrderId: 'order-20002',
+        merchantInvoiceNumber: 'invoice-30003',
         paymentSelectionTitle: 'Choose a payment method',
         paymentSelectionConfirmLabel: 'Continue',
         authType: 'FINAL_SALE',
+        expiryMinutes: 10,
         environment: 'prod',
         wallet: true,
-        allowEmailChange: true,
+        allowEmailChange: false,
         allowCard: true,
-        allowBankAccount: true,
+        allowBankAccount: false,
         primaryColor: '#0a5dff',
         secondaryColor: '#627d98',
         textColor: '#101828',
@@ -704,13 +747,21 @@
       const currentEnvironment = document.getElementById('current-environment');
 
       let activeInstance = null;
+      let activeInteraction = null;
 
       function initializeForm() {
         form.sessionReferenceId.value = DEFAULTS.sessionReferenceId;
+        form.merchantId.value = DEFAULTS.merchantId;
+        form.terminalId.value = DEFAULTS.terminalId;
+        form.clientId.value = DEFAULTS.clientId;
         form.email.value = DEFAULTS.email;
+        form.merchantTransactionId.value = DEFAULTS.merchantTransactionId;
+        form.merchantOrderId.value = DEFAULTS.merchantOrderId;
+        form.merchantInvoiceNumber.value = DEFAULTS.merchantInvoiceNumber;
         form.paymentSelectionTitle.value = DEFAULTS.paymentSelectionTitle;
         form.paymentSelectionConfirmLabel.value = DEFAULTS.paymentSelectionConfirmLabel;
         form.authType.value = DEFAULTS.authType;
+        form.expiryMinutes.value = DEFAULTS.expiryMinutes;
         form.environment.value = DEFAULTS.environment;
         form.wallet.checked = DEFAULTS.wallet;
         form.allowEmailChange.checked = DEFAULTS.allowEmailChange;
@@ -778,16 +829,72 @@
           allowedTenderTypes.push('BANK_ACCOUNT');
         }
 
-        return allowedTenderTypes.length ? allowedTenderTypes : undefined;
+        return allowedTenderTypes.length ? allowedTenderTypes : ['CARD'];
       }
 
-      function buildMountPayload() {
-        const environment = form.environment.value;
-        const configuration = {
+      function buildInteractionRequest() {
+        const request = {
           sessionReferenceId: getTrimmedValue(form.sessionReferenceId.value),
           authType: form.authType.value,
           wallet: form.wallet.checked,
           allowEmailChange: form.allowEmailChange.checked,
+        };
+
+        const merchantId = getTrimmedValue(form.merchantId.value);
+        const terminalId = getTrimmedValue(form.terminalId.value);
+        const clientId = getTrimmedValue(form.clientId.value);
+        const email = getTrimmedValue(form.email.value);
+        const merchantTransactionId = getTrimmedValue(form.merchantTransactionId.value);
+        const merchantOrderId = getTrimmedValue(form.merchantOrderId.value);
+        const merchantInvoiceNumber = getTrimmedValue(form.merchantInvoiceNumber.value);
+        const expiryMinutes = Number(form.expiryMinutes.value);
+        const allowedTenderTypes = buildAllowedTenderTypes();
+        const merchantData = {};
+
+        if (merchantId) {
+          merchantData.merchantId = merchantId;
+        }
+
+        if (terminalId) {
+          merchantData.terminalId = terminalId;
+        }
+
+        if (clientId) {
+          merchantData.clientId = clientId;
+        }
+
+        if (email) {
+          request.email = email;
+        }
+
+        if (merchantTransactionId) {
+          request.merchantTransactionId = merchantTransactionId;
+        }
+
+        if (merchantOrderId) {
+          request.merchantOrderId = merchantOrderId;
+        }
+
+        if (merchantInvoiceNumber) {
+          request.merchantInvoiceNumber = merchantInvoiceNumber;
+        }
+
+        if (Number.isFinite(expiryMinutes) && expiryMinutes > 0) {
+          request.expiryMinutes = expiryMinutes;
+        }
+
+        request.allowedTenderTypes = allowedTenderTypes;
+
+        if (Object.keys(merchantData).length) {
+          request.merchantData = merchantData;
+        }
+
+        return request;
+      }
+
+      function buildRuntimeConfiguration() {
+        const configuration = {
+          wallet: form.wallet.checked,
           onSuccess(result) {
             logEvent('onSuccess', result, 'success');
           },
@@ -799,7 +906,6 @@
         const email = getTrimmedValue(form.email.value);
         const paymentSelectionTitle = getTrimmedValue(form.paymentSelectionTitle.value);
         const paymentSelectionConfirmLabel = getTrimmedValue(form.paymentSelectionConfirmLabel.value);
-        const allowedTenderTypes = buildAllowedTenderTypes();
 
         if (email) {
           configuration.email = email;
@@ -813,20 +919,40 @@
           configuration.paymentSelectionConfirmLabel = paymentSelectionConfirmLabel;
         }
 
-        if (allowedTenderTypes) {
-          configuration.allowedTenderTypes = allowedTenderTypes;
-        }
+        return configuration;
+      }
 
+      function buildWidgetOptions(interaction) {
         const whiteLabel = buildWhiteLabel();
         const options = {
-          configuration,
+          interaction,
+          configuration: buildRuntimeConfiguration(),
         };
 
         if (whiteLabel) {
           options.whiteLabel = whiteLabel;
         }
 
-        return { environment, options };
+        return options;
+      }
+
+      async function createInteraction() {
+        const request = buildInteractionRequest();
+        const response = await fetch(INTERACTION_CREATE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(request),
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(`Interaction create failed (${response.status}): ${body || response.statusText}`);
+        }
+
+        return response.json();
       }
 
       function serializeValue(value, indentLevel) {
@@ -860,18 +986,38 @@
       }
 
       function buildSnippet() {
-        const payload = buildMountPayload();
-        const optionsClone = JSON.parse(JSON.stringify(payload.options));
+        const createRequest = buildInteractionRequest();
+        const runtimeConfiguration = buildRuntimeConfiguration();
+        const whiteLabel = buildWhiteLabel();
+        const mountOptions = {
+          interaction: '[interaction response]',
+          configuration: {
+            ...runtimeConfiguration,
+            onSuccess: '[callback]',
+            onError: '[callback]',
+          },
+          ...(whiteLabel ? { whiteLabel } : {}),
+        };
 
-        optionsClone.configuration.onSuccess = '[callback]';
-        optionsClone.configuration.onError = '[callback]';
-
-        let snippet = `window.CommerceHubConnectWebSdk.mount(\n  '#payment-container',\n  ${serializeObject(
-          optionsClone,
-          1,
-        )},\n  ${JSON.stringify(payload.environment)}\n);`;
+        let snippet =
+          `const interaction = await fetch(${JSON.stringify(INTERACTION_CREATE_URL)}, {\n` +
+          `  method: 'POST',\n` +
+          `  headers: {\n` +
+          `    'Content-Type': 'application/json',\n` +
+          `    Accept: 'application/json',\n` +
+          `  },\n` +
+          `  body: JSON.stringify(${serializeObject(createRequest, 1)}),\n` +
+          `}).then((response) => response.json());\n\n` +
+          `window.CommerceHubConnectWebSdk.mount(\n  '#payment-container',\n  ${serializeObject(
+            mountOptions,
+            1,
+          )},\n  ${JSON.stringify(form.environment.value)}\n);`;
 
         snippet = snippet
+          .replace(
+            '"[interaction response]"',
+            'interaction',
+          )
           .replace('"[callback]"', "function onSuccess(result) {\n      console.log('Payment source linked:', result);\n    }")
           .replace('"[callback]"', "function onError(error) {\n      console.error('SDK error:', error);\n    }");
 
@@ -953,11 +1099,17 @@
           if (activeInstance) {
             activeInstance.destroy();
             activeInstance = null;
+            activeInteraction = null;
             logEvent('destroy', 'Replaced previous instance before mount.');
           }
 
           const sdk = getSdkNamespace();
-          const payload = buildMountPayload();
+          const interaction = await createInteraction();
+          const payload = {
+            environment: form.environment.value,
+            options: buildWidgetOptions(interaction),
+          };
+          activeInteraction = interaction;
           activeInstance = await sdk.mount('#payment-container', payload.options, payload.environment);
           updateButtonState();
           renderSnippet();
@@ -969,14 +1121,19 @@
         }
       }
 
-      function updateSdk() {
-        if (!activeInstance) {
+      async function updateSdk() {
+        if (!activeInstance || !activeInteraction) {
           logEvent('update', 'No active instance to update.', 'error');
           return;
         }
 
         try {
-          const payload = buildMountPayload();
+          const interaction = await createInteraction();
+          const payload = {
+            environment: form.environment.value,
+            options: buildWidgetOptions(interaction),
+          };
+          activeInteraction = interaction;
           activeInstance.update(payload.options, payload.environment);
           renderSnippet();
           logEvent('update', payload, 'success');
@@ -995,6 +1152,7 @@
 
         activeInstance.destroy();
         activeInstance = null;
+        activeInteraction = null;
         updateButtonState();
         logEvent('destroy', 'Removed the active widget instance.');
       }

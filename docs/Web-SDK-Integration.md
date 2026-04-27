@@ -33,6 +33,7 @@ The final JavaScript bundle inlines the SDK stylesheet, including any font asset
 type CommerceHubConnectEnvironment = 'dev' | 'qa' | 'cat' | 'prod';
 
 interface CommerceHubConnectWebSdkMountOptions {
+  interaction: InteractionResponse;
   configuration: CommerceHubSdkConfiguration;
   whiteLabel?: CommerceHubWhiteLabelOptions;
   replaceContents?: boolean;
@@ -109,12 +110,36 @@ for mount, update, destroy, reset, callback logging, and copying a ready-to-past
       let sdkInstance;
 
       async function mountSdk() {
+        const interaction = await fetch('/api/merchant/interaction/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            sessionReferenceId: 'merchant-session-001',
+            merchantTransactionId: 'txn-10001',
+            merchantOrderId: 'order-20002',
+            merchantInvoiceNumber: 'invoice-30003',
+            authType: 'FINAL_SALE',
+            expiryMinutes: 10,
+            email: 'merchant@example.com',
+            allowedTenderTypes: ['CARD'],
+            allowEmailChange: false,
+            merchantData: {
+              clientId: 'laika',
+              merchantId: '100014000315473',
+              terminalId: '10000001',
+            },
+            wallet: true,
+          }),
+        }).then((response) => response.json());
+
         sdkInstance = await window.CommerceHubConnectWebSdk.mount(
           '#payment-container',
           {
+            interaction,
             configuration: {
-              sessionReferenceId: 'merchant-session-001',
-              authType: 'FINAL_SALE',
               email: 'merchant@example.com',
               wallet: true,
               onSuccess(result) {
@@ -149,10 +174,18 @@ for mount, update, destroy, reset, callback logging, and copying a ready-to-past
 <script>
   const widget = document.getElementById('wallet-sdk');
 
-  widget.configuration = {
-    sessionReferenceId: 'merchant-session-001',
-    authType: 'FINAL_SALE',
+  widget.interaction = {
+    interactionId: 'interaction-1',
+    status: 'EMAIL_REQUESTED',
     email: 'merchant@example.com',
+    allowEmailChange: false,
+    allowedTenderTypes: ['CARD'],
+    paymentSources: [],
+  };
+
+  widget.configuration = {
+    email: 'merchant@example.com',
+    wallet: true,
     onSuccess(result) {
       console.log(result);
     },
@@ -172,28 +205,49 @@ for mount, update, destroy, reset, callback logging, and copying a ready-to-past
 
 ## Configuration Reference
 
+### `CommerceHubConnectWebSdkMountOptions`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `interaction` | `InteractionResponse` | Yes | Pre-created interaction returned from `interaction/create` |
+| `configuration` | `CommerceHubSdkConfiguration` | Yes | Runtime SDK configuration used after interaction creation |
+| `whiteLabel` | `CommerceHubWhiteLabelOptions` | No | White-label overrides applied on mount |
+| `replaceContents` | `boolean` | No | Replace the target container contents before mount |
+
 ### `CommerceHubSdkConfiguration`
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `sessionReferenceId` | `string` | Yes | Unique session identifier from the backend |
-| `authType` | `"FINAL_SALE" \| "AUTH_ONLY"` | Yes | Payment authorization mode |
 | `onSuccess` | `(result) => void` | Yes | Success callback |
 | `onError` | `(error) => void` | Yes | Error callback |
-| `email` | `string` | No | Pre-filled customer email |
+| `email` | `string` | No | Unencrypted email used for `otp/send` when the interaction response email is masked |
 | `paymentSelectionTitle` | `string` | No | Override payment-selection heading |
 | `paymentSelectionConfirmLabel` | `string` | No | Override payment-selection CTA label |
-| `region` | `string` | No | Region code |
-| `language` | `string` | No | Language code |
-| `merchantTransactionId` | `string` | No | Merchant transaction reference |
-| `merchantOrderId` | `string` | No | Merchant order reference |
-| `merchantInvoiceNumber` | `string` | No | Merchant invoice reference |
-| `expiryMinutes` | `number` | No | Session expiry window |
-| `allowedTenderTypes` | `("CARD" \| "BANK_ACCOUNT")[]` | No | Allowed tender types |
-| `allowEmailChange` | `boolean` | No | Allow the user to change email |
 | `wallet` | `boolean` | No | Enable wallet flow |
 | `whiteLabel` | `CommerceHubWhiteLabelOptions` | No | Inline white-label defaults |
 | `payByBank` | `CommerceHubPayByBankOptions` | No | Pay By Bank configuration |
+
+Values that now belong to the external `interaction/create` request instead of
+`CommerceHubSdkConfiguration`:
+
+- `sessionReferenceId`
+- `merchantTransactionId`
+- `merchantOrderId`
+- `merchantInvoiceNumber`
+- `authType`
+- `expiryMinutes`
+- `allowEmailChange`
+- `allowedTenderTypes`
+- `merchantData.clientId`
+- `merchantData.merchantId`
+- `merchantData.terminalId`
+
+`email` is still usually sent in the external `interaction/create` request, but the SDK also accepts
+`configuration.email` so `otp/send` can use the unencrypted address when the interaction response
+contains only a masked value.
+
+`region`, `language`, and `mountElementId` are not used by the current SDK runtime and are no
+longer part of the initialization contract.
 
 ### `CommerceHubWhiteLabelOptions`
 
@@ -252,16 +306,17 @@ White-label precedence is:
 ## Internal Flow
 
 1. `registerCommerceHubConnectWebSdk()` registers the custom element and exposes `window.CommerceHubConnectWebSdk`.
-2. `mount()` validates the request, resolves the environment, and injects the resolved API base URL into the Angular component tree.
-3. `createApplication()` creates the shared Angular runtime once.
-4. `createComponent(CommerceHubConnectCaptureComponent, ...)` mounts the capture component into the requested container.
-5. The build script compiles the Angular application and bundles it into a single IIFE with inline CSS.
+2. The host page creates the interaction outside the SDK and passes the resulting `InteractionResponse` into `mount()`.
+3. `mount()` validates the request, resolves the environment, and injects the resolved API base URL into the Angular component tree.
+4. `createApplication()` creates the shared Angular runtime once.
+5. `createComponent(CommerceHubConnectCaptureComponent, ...)` mounts the capture component into the requested container.
+6. The build script compiles the Angular application and bundles it into a single IIFE with inline CSS.
 
 ## Troubleshooting
 
 | Issue | Resolution |
 |-------|------------|
 | Widget does not render | Confirm the script is loaded before calling `mount()` and that the target selector resolves to an element |
-| `configuration.sessionReferenceId is required.` | Provide a non-empty session reference id in `options.configuration` |
+| `interaction.interactionId is required.` | Pass the `InteractionResponse` returned by the external `interaction/create` call |
 | `environment must be one of dev, qa, cat, or prod.` | Pass only supported environment values |
 | Missing styles | Use the packaged `CommerceHubConnectSDK.js` bundle produced by `build:web-sdk-widget`, which inlines the stylesheet |
