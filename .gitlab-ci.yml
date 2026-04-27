@@ -27,15 +27,6 @@ build_web_sdk:
       - projects/commerce-hub-connect-web-sdk/dist/3rdpartylicenses.txt
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      changes:
-        - angular.json
-        - package.json
-        - package-lock.json
-        - tsconfig*.json
-        - scripts/build-web-sdk-widget.mjs
-        - scripts/run-web-sdk-browser-smoke-test.mjs
-        - projects/commerce-hub-connect-web-sdk/**/*
-        - projects/commerce-hub-connect-sdk/**/*
 
 dockerize:
   stage: dockerize
@@ -45,9 +36,7 @@ dockerize:
   services:
     - name: $DOCKER_DIND_BASE
       alias: "docker"
-  needs:
-    - job: build_web_sdk
-      artifacts: true
+  needs: ["build"]
   before_script:
     - if ! command -v docker >/dev/null 2>&1; then echo "Docker CLI not found"; exit 1; fi
     - |
