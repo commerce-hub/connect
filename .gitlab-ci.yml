@@ -13,9 +13,13 @@ build:
   stage: build
   variables:
     npm_config_cache: "$CI_PROJECT_DIR/.npm"
+    CHROME_BIN: "/usr/bin/chromium-browser"
   cache:
     paths:
       - .npm/
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq chromium >/dev/null 2>&1 || apk add --no-cache chromium >/dev/null 2>&1 || true
+    - export CHROME_BIN=$(which chromium-browser || which chromium)
   script:
     - npm ci
     - npm run build:web-sdk-widget
