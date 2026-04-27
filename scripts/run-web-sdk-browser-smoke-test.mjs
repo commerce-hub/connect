@@ -65,7 +65,7 @@ function createSmokeServer(rootDir, state) {
   return createServer(async (request, response) => {
     try {
       const requestUrl = new URL(request.url || '/', 'http://127.0.0.1');
-      const normalizedPath = requestUrl.pathname.replace(/^\/api(?=\/)/, '');
+      const normalizedPath = normalizeApiPath(requestUrl.pathname);
 
       if (requestUrl.pathname === '/__smoke__/state') {
         writeJson(response, 200, state);
@@ -128,6 +128,12 @@ function createSmokeServer(rootDir, state) {
       });
     }
   });
+}
+
+function normalizeApiPath(pathname) {
+  return pathname
+    .replace(/^\/api(?=\/)/, '')
+    .replace(/^\/commerce-hub-proxy\/[^/]+(?=\/)/, '');
 }
 
 async function serveStaticFile(rootDir, requestPathname, response) {

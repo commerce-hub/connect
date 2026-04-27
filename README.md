@@ -15,6 +15,12 @@ Angular 20 workspace containing:
 - White-label theming through shared SDK configuration
 - Framework-agnostic web bundle with `mount(target, options, environment?)`
 
+## Run Demo
+```bash
+npm run build:web-sdk-widget #if the bundle is stale
+npm run start:web-sdk-example
+```
+
 ## Run Locally
 
 Install dependencies:
@@ -69,7 +75,10 @@ npm run generate:web-sdk-client
 <div id="wallet-sdk"></div>
 <script>
   async function startWallet() {
-    const createResponse = await fetch('/api/merchant/interaction/create', {
+    const environment = 'prod';
+    const apiBaseUrl = window.CommerceHubConnectWebSdk.resolveApiBaseUrl(environment);
+
+    const createResponse = await fetch(`${apiBaseUrl}/merchant/interaction/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,7 +122,7 @@ npm run generate:web-sdk-client
           secondaryColor: '#627d98',
         },
       },
-      'prod',
+      environment,
     );
   }
 
@@ -122,6 +131,13 @@ npm run generate:web-sdk-client
 ```
 
 `environment` accepts `dev`, `qa`, `cat`, or `prod` and defaults to `prod` when omitted.
+
+The SDK resolves its backend URL internally from `environment`. Use
+`window.CommerceHubConnectWebSdk.resolveApiBaseUrl(environment)` for the external
+`interaction/create` request so the host page matches the same environment mapping. On local browser
+origins such as `localhost` and `127.0.0.1`, that resolver returns a same-origin
+`/commerce-hub-proxy/<environment>` path; otherwise it returns the configured Commerce Hub origin
+for that environment.
 
 ## Initialize Boundary
 

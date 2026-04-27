@@ -77,6 +77,25 @@ describe('web sdk utils', () => {
     ).toThrowError('environment must be one of dev, qa, cat, or prod.');
   });
 
+  it('ignores legacy apiBaseUrl values because backend selection is environment-driven', () => {
+    expect(() =>
+      validateMountRequest(
+        {
+          interaction: {
+            interactionId: 'interaction-1',
+            status: 'EMAIL_REQUESTED',
+          },
+          configuration: {
+            onSuccess: () => undefined,
+            onError: () => undefined,
+          },
+          apiBaseUrl: 'ftp://merchant.example/commerce-hub',
+        } as never,
+        'qa',
+      ),
+    ).not.toThrow();
+  });
+
   it('resolves selector targets from the document', () => {
     const element = document.createElement('div');
     element.id = 'mount-root';

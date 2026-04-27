@@ -13,6 +13,7 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 
 import {
   COMMERCE_HUB_CONNECT_API_BASE_URL,
+  COMMERCE_HUB_CONNECT_ENVIRONMENT,
   type CommerceHubConnectEnvironment,
   CommerceHubConnectCaptureComponent,
   type CommerceHubSdkConfiguration,
@@ -57,6 +58,7 @@ export interface CommerceHubConnectWebSdkInstance {
 export interface CommerceHubConnectWebSdkNamespace {
   readonly version: string;
   readonly tagName: string;
+  resolveApiBaseUrl(environment?: CommerceHubConnectEnvironment): string;
   mount(
     target: string | Element,
     options: CommerceHubConnectWebSdkMountOptions,
@@ -83,6 +85,11 @@ const mountedWidgets = new WeakMap<Element, MountedWidget>();
 let applicationRefPromise: Promise<ApplicationRef> | null = null;
 let stylesheetPromise: Promise<void> | null = null;
 
+type MountedWidgetRuntimeConfig = {
+  apiBaseUrl: string;
+  environment: CommerceHubConnectEnvironment;
+};
+
 class MountedWidget implements CommerceHubConnectWebSdkInstance {
   constructor(
     private readonly applicationRef: ApplicationRef,
@@ -90,7 +97,7 @@ class MountedWidget implements CommerceHubConnectWebSdkInstance {
     readonly containerElement: Element,
     readonly hostElement: HTMLElement,
     private readonly runtimeOrigin: string | undefined,
-    private readonly apiBaseUrl: string,
+    private readonly runtimeConfig: MountedWidgetRuntimeConfig,
   ) {}
 
   update(
@@ -100,14 +107,16 @@ class MountedWidget implements CommerceHubConnectWebSdkInstance {
     validateMountRequest(options, environment);
 
     const nextEnvironment = normalizeCommerceHubConnectEnvironment(environment);
-    const nextApiBaseUrl = resolveCommerceHubConnectApiBaseUrl(nextEnvironment, this.runtimeOrigin);
+    const nextApiBaseUrl = resolveMountedWidgetApiBaseUrl(nextEnvironment, this.runtimeOrigin);
 
-    if (nextApiBaseUrl !== this.apiBaseUrl) {
+    if (nextApiBaseUrl !== this.runtimeConfig.apiBaseUrl) {
       throw new Error(
         'Changing environment after mount is not supported when it resolves to a different API URL.',
       );
     }
 
+    this.runtimeConfig.apiBaseUrl = nextApiBaseUrl;
+    this.runtimeConfig.environment = nextEnvironment;
     this.componentRef.setInput('interaction', options.interaction);
     this.componentRef.setInput('configuration', options.configuration);
     this.componentRef.setInput('whiteLabel', options.whiteLabel);
@@ -210,6 +219,7 @@ export async function registerCommerceHubConnectWebSdk(): Promise<CommerceHubCon
   const namespace: CommerceHubConnectWebSdkNamespace = {
     version: SDK_VERSION,
     tagName: SDK_TAG_NAME,
+    resolveApiBaseUrl,
     mount,
     createElement: (options?: CommerceHubConnectWebSdkElementOptions, environment?) => {
       const element = document.createElement(SDK_TAG_NAME) as CommerceHubConnectWidgetElement;
@@ -233,6 +243,23 @@ export async function registerCommerceHubConnectWebSdk(): Promise<CommerceHubCon
 
   window.CommerceHubConnectWebSdk = namespace;
   return namespace;
+}
+
+export function resolveApiBaseUrl(
+  environment?: CommerceHubConnectEnvironment,
+  doc: Document = document,
+): string {
+  const runtimeOrigin = resolveSdkRuntimeOrigin(doc);
+  const normalizedEnvironment = normalizeCommerceHubConnectEnvironment(environment);
+
+  return resolveCommerceHubConnectApiBaseUrl(normalizedEnvironment, runtimeOrigin);
+}
+
+function resolveMountedWidgetApiBaseUrl(
+  environment: CommerceHubConnectEnvironment,
+  runtimeOrigin: string | undefined,
+): string {
+  return resolveCommerceHubConnectApiBaseUrl(environment, runtimeOrigin);
 }
 
 export async function mount(
@@ -259,9 +286,13 @@ export async function mount(
   hostElement.className = 'commerce-hub-connect-web-sdk-mount';
   containerElement.appendChild(hostElement);
 
-  const runtimeOrigin = resolveSdkRuntimeOrigin(document);
   const normalizedEnvironment = normalizeCommerceHubConnectEnvironment(environment);
-  const apiBaseUrl = resolveCommerceHubConnectApiBaseUrl(normalizedEnvironment, runtimeOrigin);
+  const runtimeOrigin = resolveSdkRuntimeOrigin(document);
+  const apiBaseUrl = resolveMountedWidgetApiBaseUrl(normalizedEnvironment, runtimeOrigin);
+  const runtimeConfig: MountedWidgetRuntimeConfig = {
+    apiBaseUrl,
+    environment: normalizedEnvironment,
+  };
 
   const componentRef = createComponent(CommerceHubConnectCaptureComponent, {
     environmentInjector: applicationRef.injector,
@@ -269,7 +300,11 @@ export async function mount(
       providers: [
         {
           provide: COMMERCE_HUB_CONNECT_API_BASE_URL,
-          useValue: () => apiBaseUrl,
+          useValue: () => runtimeConfig.apiBaseUrl,
+        },
+        {
+          provide: COMMERCE_HUB_CONNECT_ENVIRONMENT,
+          useValue: () => runtimeConfig.environment,
         },
       ],
       parent: applicationRef.injector,
@@ -286,7 +321,7 @@ export async function mount(
       containerElement,
       hostElement,
       runtimeOrigin,
-      apiBaseUrl,
+      runtimeConfig,
     );
 
     instance.update(options, normalizedEnvironment);

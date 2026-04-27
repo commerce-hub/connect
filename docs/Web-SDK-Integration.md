@@ -52,6 +52,7 @@ interface CommerceHubConnectWebSdkInstance {
 interface CommerceHubConnectWebSdkNamespace {
   version: string;
   tagName: string;
+  resolveApiBaseUrl(environment?: CommerceHubConnectEnvironment): string;
   mount(
     target: string | Element,
     options: CommerceHubConnectWebSdkMountOptions,
@@ -77,11 +78,11 @@ Supported environments:
 
 Current behavior:
 
-- all four environments resolve to the same explicit API base URL for now
-- the current shared value is `http://localhost:8080`
-- the resolved API URL is derived from the selected environment, not from the host page origin
-- this keeps the bundle self-contained when it is loaded from static hosts such as IDE preview
-  servers
+- `window.CommerceHubConnectWebSdk.resolveApiBaseUrl(environment)` resolves the SDK's built-in
+  environment mapping for both the SDK and host-managed `interaction/create` requests
+- local browser origins such as `localhost` and `127.0.0.1` resolve to
+  `/commerce-hub-proxy/<environment>` so a same-origin proxy can handle CORS-sensitive traffic
+- non-local origins resolve to the configured Commerce Hub origin for the selected environment
 
 ## Sandbox Example
 
@@ -110,7 +111,9 @@ for mount, update, destroy, reset, callback logging, and copying a ready-to-past
       let sdkInstance;
 
       async function mountSdk() {
-        const interaction = await fetch('/api/merchant/interaction/create', {
+        const environment = 'prod';
+        const apiBaseUrl = window.CommerceHubConnectWebSdk.resolveApiBaseUrl(environment);
+        const interaction = await fetch(`${apiBaseUrl}/merchant/interaction/create`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -156,7 +159,7 @@ for mount, update, destroy, reset, callback logging, and copying a ready-to-past
               fontFamily: '"Open Sans", sans-serif',
             },
           },
-          'prod',
+          environment,
         );
       }
 

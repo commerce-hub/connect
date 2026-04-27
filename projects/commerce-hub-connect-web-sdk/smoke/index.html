@@ -252,6 +252,44 @@
         addResult(label, 'pass', `Expected ${expected} and received ${actual}.`);
       }
 
+      function getRequiredElement(doc, id) {
+        const element = doc.getElementById(id);
+
+        if (!element) {
+          throw new Error(`Unable to find sandbox field: ${id}`);
+        }
+
+        return element;
+      }
+
+      function buildExpectedCreateRequest(doc) {
+        const allowedTenderTypes = [];
+
+        if (getRequiredElement(doc, 'allow-card').checked) {
+          allowedTenderTypes.push('CARD');
+        }
+
+        if (getRequiredElement(doc, 'allow-bank-account').checked) {
+          allowedTenderTypes.push('BANK_ACCOUNT');
+        }
+
+        return {
+          authType: getRequiredElement(doc, 'auth-type').value,
+          expiryMinutes: Number.parseInt(getRequiredElement(doc, 'expiry-minutes').value, 10),
+          allowEmailChange: getRequiredElement(doc, 'allow-email-change').checked,
+          allowedTenderTypes,
+          wallet: getRequiredElement(doc, 'wallet').checked,
+          merchantTransactionId: getRequiredElement(doc, 'merchant-transaction-id').value,
+          merchantOrderId: getRequiredElement(doc, 'merchant-order-id').value,
+          merchantInvoiceNumber: getRequiredElement(doc, 'merchant-invoice-number').value,
+          merchantData: {
+            merchantId: getRequiredElement(doc, 'merchant-id').value,
+            terminalId: getRequiredElement(doc, 'terminal-id').value,
+            clientId: getRequiredElement(doc, 'client-id').value,
+          },
+        };
+      }
+
       function attachFrameErrorListeners(frameWindow) {
         frameWindow.addEventListener('error', (event) => {
           frameErrors.push(event.message || 'Unknown frame error');
@@ -316,18 +354,20 @@
         );
 
         const mountedCreateRequest = mountState.requests.createInteraction.at(-1);
+        const expectedCreateRequest = buildExpectedCreateRequest(frameDocument);
         if (
-          mountedCreateRequest?.merchantTransactionId !== 'txn-10001' ||
-          mountedCreateRequest?.merchantOrderId !== 'order-20002' ||
-          mountedCreateRequest?.merchantInvoiceNumber !== 'invoice-30003' ||
-          mountedCreateRequest?.authType !== 'FINAL_SALE' ||
-          mountedCreateRequest?.expiryMinutes !== 10 ||
-          mountedCreateRequest?.allowEmailChange !== false ||
-          JSON.stringify(mountedCreateRequest?.allowedTenderTypes ?? []) !== JSON.stringify(['CARD']) ||
-          mountedCreateRequest?.wallet !== true ||
-          mountedCreateRequest?.merchantData?.merchantId !== '100014000315473' ||
-          mountedCreateRequest?.merchantData?.terminalId !== '10000001' ||
-          mountedCreateRequest?.merchantData?.clientId !== 'laika'
+          mountedCreateRequest?.merchantTransactionId !== expectedCreateRequest.merchantTransactionId ||
+          mountedCreateRequest?.merchantOrderId !== expectedCreateRequest.merchantOrderId ||
+          mountedCreateRequest?.merchantInvoiceNumber !== expectedCreateRequest.merchantInvoiceNumber ||
+          mountedCreateRequest?.authType !== expectedCreateRequest.authType ||
+          mountedCreateRequest?.expiryMinutes !== expectedCreateRequest.expiryMinutes ||
+          mountedCreateRequest?.allowEmailChange !== expectedCreateRequest.allowEmailChange ||
+          JSON.stringify(mountedCreateRequest?.allowedTenderTypes ?? []) !==
+            JSON.stringify(expectedCreateRequest.allowedTenderTypes) ||
+          mountedCreateRequest?.wallet !== expectedCreateRequest.wallet ||
+          mountedCreateRequest?.merchantData?.merchantId !== expectedCreateRequest.merchantData.merchantId ||
+          mountedCreateRequest?.merchantData?.terminalId !== expectedCreateRequest.merchantData.terminalId ||
+          mountedCreateRequest?.merchantData?.clientId !== expectedCreateRequest.merchantData.clientId
         ) {
           throw new Error(
             `Expected the sandbox createInteraction payload to match the contract defaults but received ${JSON.stringify(mountedCreateRequest, null, 2)}`,

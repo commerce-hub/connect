@@ -20,7 +20,7 @@ const outputLicenseFile = path.join(outputDir, '3rdpartylicenses.txt');
 
 await fs.rm(outputDir, { recursive: true, force: true });
 await runAngularBuild();
-await fs.mkdir(outputDir, { recursive: true });
+await resetDirectory(outputDir);
 
 const inlinedCss = await inlineCssAssets(rawStylesFile, widgetBrowserDir);
 
@@ -41,7 +41,7 @@ await esbuild({
 });
 
 await Promise.all([
-  fs.copyFile(typeDefinitionFile, outputTypesFile),
+  replaceFile(typeDefinitionFile, outputTypesFile),
   copyIfPresent(licenseFile, outputLicenseFile),
 ]);
 
@@ -75,6 +75,11 @@ async function runCommand(command, args) {
       reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'unknown'}.`));
     });
   });
+}
+
+async function resetDirectory(directoryPath) {
+  await fs.rm(directoryPath, { recursive: true, force: true });
+  await fs.mkdir(directoryPath, { recursive: true });
 }
 
 async function inlineCssAssets(stylesheetFile, assetRootDir) {
@@ -149,7 +154,7 @@ function resolveMimeType(extension) {
 
 async function copyIfPresent(source, destination) {
   try {
-    await fs.copyFile(source, destination);
+    await replaceFile(source, destination);
   } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
       return;
@@ -157,4 +162,10 @@ async function copyIfPresent(source, destination) {
 
     throw error;
   }
+}
+
+async function replaceFile(source, destination) {
+  const fileBuffer = await fs.readFile(source);
+  await fs.rm(destination, { force: true });
+  await fs.writeFile(destination, fileBuffer);
 }
