@@ -1,234 +1,204 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { CheckboxModule } from 'primeng/checkbox';
-import { InputTextModule } from 'primeng/inputtext';
-import { SelectModule } from 'primeng/select';
 import { firstValueFrom } from 'rxjs';
 
 import {
-  CommerceHubAuthType,
-  CommerceHubConnectApiService,
-  CommerceHubConnectCaptureComponent,
-  CommerceHubPayByBankOptions,
-  CommerceHubSdkConfiguration,
-  CommerceHubSdkError,
-  CommerceHubSuccessResult,
-  CommerceHubTenderType,
-  CommerceHubWhiteLabelOptions,
-  InteractionRequest,
-  InteractionResponse,
+  CommerceHubConnectWebSdkComponent,
+  type CommerceHubConnectEnvironment,
+  type CommerceHubSdkConfiguration,
+  type CommerceHubSdkError,
+  type CommerceHubSuccessResult,
+  type CommerceHubTenderType,
+  type CommerceHubWhiteLabelOptions,
+  type InteractionResponse,
 } from 'commerce-hub-connect-sdk';
+import { resolveApiBaseUrl } from 'commerce-hub-connect-web-sdk';
+
+type ExampleStatusTone = 'neutral' | 'success' | 'error';
+
+type ExampleFormValue = {
+  environment: CommerceHubConnectEnvironment;
+  email: string;
+  paymentSelectionTitle: string;
+  paymentSelectionConfirmLabel: string;
+  primaryColor: string;
+  secondaryColor: string;
+  textColor: string;
+  logoUrl: string;
+  wallet: boolean;
+  allowCard: boolean;
+  allowBankAccount: boolean;
+};
 
 @Component({
   selector: 'app-root',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    ButtonModule,
-    CheckboxModule,
-    InputTextModule,
-    SelectModule,
-    CommerceHubConnectCaptureComponent,
-  ],
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule, CommerceHubConnectWebSdkComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
-  private readonly api = inject(CommerceHubConnectApiService);
+  private readonly http = inject(HttpClient);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly events = signal<string[]>([]);
+  protected readonly form = this.formBuilder.nonNullable.group({
+    environment: 'qa' as CommerceHubConnectEnvironment,
+    email: 'gregory.jablonski@fiserv.com',
+    paymentSelectionTitle: 'Pay with',
+    paymentSelectionConfirmLabel: 'Confirm',
+    primaryColor: '#0a5dff',
+    secondaryColor: '#627d98',
+    textColor: '#0f172a',
+    logoUrl: '',
+    wallet: true,
+    allowCard: true,
+    allowBankAccount: true,
+  });
+
   protected readonly activeInteraction = signal<InteractionResponse | null>(null);
   protected readonly activeConfiguration = signal<CommerceHubSdkConfiguration | null>(null);
   protected readonly activeWhiteLabel = signal<CommerceHubWhiteLabelOptions | null>(null);
-  protected readonly authTypeOptions = [
-    { label: 'Final sale', value: 'FINAL_SALE' as CommerceHubAuthType },
-    { label: 'Authorize only', value: 'AUTH_ONLY' as CommerceHubAuthType },
+  protected readonly activeEnvironment = signal<CommerceHubConnectEnvironment>('qa');
+  protected readonly eventLog = signal<string[]>([]);
+  protected readonly statusTone = signal<ExampleStatusTone>('neutral');
+  protected readonly statusMessage = signal(
+    'Create an interaction to mount the Angular binding example.',
+  );
+  protected readonly isBusy = signal(false);
+  protected readonly environmentOptions: CommerceHubConnectEnvironment[] = [
+    'dev',
+    'qa',
+    'cat',
+    'prod',
   ];
+  protected readonly resolvedApiBaseUrl = computed(() =>
+    resolveApiBaseUrl(this.form.controls.environment.getRawValue()),
+  );
 
-  protected readonly demoForm = this.formBuilder.nonNullable.group({
-    sessionReferenceId: ['sdk-demo-session-20260421'],
-    merchantId: ['100014000315473'],
-    terminalId: ['10000001'],
-    clientId: ['laika'],
-    email: ['gregory.jablonski@fiserv.com'],
-    paymentSelectionTitle: [''],
-    paymentSelectionConfirmLabel: [''],
-    merchantTransactionId: ['txn-10001'],
-    merchantOrderId: ['order-20002'],
-    merchantInvoiceNumber: ['invoice-30003'],
-    authType: ['FINAL_SALE' as CommerceHubAuthType],
-    expiryMinutes: [10],
-    allowEmailChange: [true],
-    wallet: [true],
-    allowCard: [true],
-    allowBankAccount: [true],
-    primaryColor: ['#0a5dff'],
-    secondaryColor: ['#627d98'],
-    textColor: ['#0f172a'],
-    fontFamily: ['"Open Sans", "Segoe UI", sans-serif'],
-    logoUrl: [''],
-    payByBankApiKey: [''],
-    payByBankConfigId: [''],
-    payByBankPaymentSdkUrl: [''],
-    payByBankEnvironment: [''],
-    payByBankLocale: [''],
-    payByBankAccessToken: [''],
-    payByBankEncryptionKey: [''],
-    payByBankAggregatorKey: [''],
-    payByBankUseSandbox: [false],
-  });
+  protected async createAndMount(): Promise<void> {
+    const formValue = this.form.getRawValue();
 
-  protected async initializeSdk(): Promise<void> {
-    const value = this.demoForm.getRawValue();
-    const allowedTenderTypes = this.resolveAllowedTenderTypes(value.allowCard, value.allowBankAccount);
-    const payByBank = this.buildPayByBankOptions(value);
-    const request: InteractionRequest = {
-      sessionReferenceId: this.requiredValue(value.sessionReferenceId, 'sdk-demo-session'),
-      email: this.optionalValue(value.email),
-      merchantTransactionId: this.optionalValue(value.merchantTransactionId),
-      merchantOrderId: this.optionalValue(value.merchantOrderId),
-      merchantInvoiceNumber: this.optionalValue(value.merchantInvoiceNumber),
-      authType: value.authType,
-      expiryMinutes: this.optionalNumber(value.expiryMinutes),
-      allowEmailChange: value.allowEmailChange,
-      allowedTenderTypes,
-      merchantData: this.buildMerchantData(value),
-      wallet: value.wallet,
-    };
-    const configuration: CommerceHubSdkConfiguration = {
-      email: this.optionalValue(value.email),
-      paymentSelectionTitle: this.optionalValue(value.paymentSelectionTitle),
-      paymentSelectionConfirmLabel: this.optionalValue(value.paymentSelectionConfirmLabel),
-      wallet: value.wallet,
-      payByBank,
-      onSuccess: (result: CommerceHubSuccessResult) => this.handleSuccess(result),
-      onError: (error: CommerceHubSdkError) => this.handleError(error),
-    };
-    const whiteLabel: CommerceHubWhiteLabelOptions = {
-      primaryColor: this.optionalValue(value.primaryColor),
-      secondaryColor: this.optionalValue(value.secondaryColor),
-      textColor: this.optionalValue(value.textColor),
-      fontFamily: this.optionalValue(value.fontFamily),
-      logoUrl: this.optionalValue(value.logoUrl),
-    };
-
-    this.events.update((current) => [
-      `[CREATE] session=${request.sessionReferenceId} tenders=${allowedTenderTypes.join(',')}`,
-      ...current,
-    ]);
+    this.isBusy.set(true);
+    this.statusTone.set('neutral');
+    this.statusMessage.set('Creating a Commerce Hub interaction...');
 
     try {
-      const interaction = await firstValueFrom(this.api.createInteraction(request));
+      const interaction = await firstValueFrom(
+        this.http.post<InteractionResponse>(
+          `${resolveApiBaseUrl(formValue.environment)}/merchant/interaction/create`,
+          {
+            sessionReferenceId: `angular-binding-example-${Date.now()}`,
+            authType: 'FINAL_SALE',
+            email: formValue.email,
+            allowedTenderTypes: this.resolveAllowedTenderTypes(formValue),
+            wallet: formValue.wallet,
+            allowEmailChange: true,
+          },
+        ),
+      );
 
-      this.activeWhiteLabel.set(whiteLabel);
       this.activeInteraction.set(interaction);
-      this.activeConfiguration.set(configuration);
-      this.events.update((current) => [
-        `[INITIALIZE] interaction=${interaction.interactionId} status=${interaction.status}`,
-        ...current,
-      ]);
+      this.activeConfiguration.set(this.buildConfiguration(formValue));
+      this.activeWhiteLabel.set(this.buildWhiteLabel(formValue));
+      this.activeEnvironment.set(formValue.environment);
+      this.statusTone.set('success');
+      this.statusMessage.set(`Mounted interaction ${interaction.interactionId}.`);
+      this.appendLog('mount', interaction);
     } catch (error) {
-      this.handleError(this.toCreateInteractionError(error));
+      const message = error instanceof Error ? error.message : String(error);
+      this.statusTone.set('error');
+      this.statusMessage.set(message);
+      this.appendLog('mount error', message);
+    } finally {
+      this.isBusy.set(false);
     }
   }
 
-  private handleSuccess(result: CommerceHubSuccessResult): void {
-    this.events.update((current) => [
-      `[SUCCESS] tender=${result.tenderType ?? 'unknown'} source=${result.paymentSourceId ?? 'n/a'}`,
-      ...current,
-    ]);
-  }
-
-  private handleError(error: CommerceHubSdkError): void {
-    this.events.update((current) => [
-      `[ERROR] stage=${error.stage} message=${error.message}`,
-      ...current,
-    ]);
-  }
-
-  private resolveAllowedTenderTypes(
-    allowCard: boolean,
-    allowBankAccount: boolean,
-  ): CommerceHubTenderType[] {
-    const allowedTenderTypes: CommerceHubTenderType[] = [];
-
-    if (allowCard) {
-      allowedTenderTypes.push('CARD');
+  protected applyUpdate(): void {
+    const interaction = this.activeInteraction();
+    if (!interaction) {
+      const message = 'Mount the widget before applying updates.';
+      this.statusTone.set('error');
+      this.statusMessage.set(message);
+      this.appendLog('update', message);
+      return;
     }
 
-    if (allowBankAccount) {
-      allowedTenderTypes.push('BANK_ACCOUNT');
+    const formValue = this.form.getRawValue();
+    this.activeConfiguration.set(this.buildConfiguration(formValue));
+    this.activeWhiteLabel.set(this.buildWhiteLabel(formValue));
+    this.activeEnvironment.set(formValue.environment);
+    this.statusTone.set('success');
+    this.statusMessage.set('Applied the latest host controls to the Angular binding.');
+    this.appendLog('update', {
+      environment: formValue.environment,
+      paymentSelectionTitle: formValue.paymentSelectionTitle,
+      allowedTenderTypes: this.resolveAllowedTenderTypes(formValue),
+    });
+  }
+
+  protected destroyBinding(): void {
+    const interaction = this.activeInteraction();
+    if (!interaction) {
+      const message = 'Nothing is mounted yet.';
+      this.statusTone.set('neutral');
+      this.statusMessage.set(message);
+      this.appendLog('destroy', message);
+      return;
     }
 
-    return allowedTenderTypes.length ? allowedTenderTypes : ['CARD'];
+    this.activeInteraction.set(null);
+    this.activeConfiguration.set(null);
+    this.activeWhiteLabel.set(null);
+    this.statusTone.set('neutral');
+    this.statusMessage.set('Destroyed the mounted Angular binding instance.');
+    this.appendLog('destroy', `Destroyed interaction ${interaction.interactionId}.`);
   }
 
-  private buildPayByBankOptions(value: ReturnType<typeof this.demoForm.getRawValue>): CommerceHubPayByBankOptions | undefined {
-    const payByBank: CommerceHubPayByBankOptions = {
-      apiKey: this.optionalValue(value.payByBankApiKey),
-      configId: this.optionalValue(value.payByBankConfigId),
-      paymentSdkUrl: this.optionalValue(value.payByBankPaymentSdkUrl),
-      environment: this.optionalValue(value.payByBankEnvironment),
-      locale: this.optionalValue(value.payByBankLocale),
-      accessToken: this.optionalValue(value.payByBankAccessToken),
-      encryptionKey: this.optionalValue(value.payByBankEncryptionKey),
-      aggregatorKey: this.optionalValue(value.payByBankAggregatorKey),
-      useSandbox: value.payByBankUseSandbox,
-    };
-
-    return Object.values(payByBank).some((option) => option !== undefined && option !== false)
-      ? payByBank
-      : undefined;
-  }
-
-  private buildMerchantData(value: ReturnType<typeof this.demoForm.getRawValue>): InteractionRequest['merchantData'] {
-    const merchantData = {
-      clientId: this.optionalValue(value.clientId),
-      merchantId: this.optionalValue(value.merchantId),
-      terminalId: this.optionalValue(value.terminalId),
-    };
-
-    return Object.values(merchantData).some((option) => option !== undefined) ? merchantData : undefined;
-  }
-
-  private optionalValue(value: string): string | undefined {
-    const trimmed = value.trim();
-
-    return trimmed || undefined;
-  }
-
-  private requiredValue(value: string, fallbackPrefix: string): string {
-    const trimmed = value.trim();
-
-    return trimmed || `${fallbackPrefix}-${Date.now()}`;
-  }
-
-  private optionalNumber(value: number): number | undefined {
-    return Number.isFinite(value) && value > 0 ? value : undefined;
-  }
-
-  private toCreateInteractionError(error: unknown): CommerceHubSdkError {
-    const errorRecord = typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : null;
-    const errorPayload =
-      errorRecord && typeof errorRecord['error'] === 'object' && errorRecord['error'] !== null
-        ? (errorRecord['error'] as Record<string, unknown>)
-        : null;
-
-    const message =
-      (typeof errorPayload?.['message'] === 'string' && errorPayload['message']) ||
-      (typeof errorRecord?.['message'] === 'string' && errorRecord['message']) ||
-      'Unable to create interaction before SDK initialization.';
-    const status = typeof errorRecord?.['status'] === 'number' ? errorRecord['status'] : undefined;
-
+  private buildConfiguration(formValue: ExampleFormValue): CommerceHubSdkConfiguration {
     return {
-      stage: 'session',
-      message,
-      status,
-      cause: error,
+      email: formValue.email,
+      wallet: formValue.wallet,
+      paymentSelectionTitle: formValue.paymentSelectionTitle,
+      paymentSelectionConfirmLabel: formValue.paymentSelectionConfirmLabel,
+      onSuccess: (result: CommerceHubSuccessResult) => this.appendLog('onSuccess', result),
+      onError: (error: CommerceHubSdkError) => this.appendLog('onError', error),
     };
+  }
+
+  private buildWhiteLabel(formValue: ExampleFormValue): CommerceHubWhiteLabelOptions {
+    return {
+      primaryColor: formValue.primaryColor,
+      secondaryColor: formValue.secondaryColor,
+      textColor: formValue.textColor,
+      logoUrl: formValue.logoUrl || undefined,
+    };
+  }
+
+  private resolveAllowedTenderTypes(formValue: ExampleFormValue): CommerceHubTenderType[] {
+    const allowed: CommerceHubTenderType[] = [];
+
+    if (formValue.allowCard) {
+      allowed.push('CARD');
+    }
+
+    if (formValue.allowBankAccount) {
+      allowed.push('BANK_ACCOUNT');
+    }
+
+    return allowed.length ? allowed : ['CARD'];
+  }
+
+  private appendLog(label: string, payload?: unknown): void {
+    const lines = [`[${new Date().toLocaleTimeString()}] ${label}`];
+
+    if (payload !== undefined) {
+      lines.push(typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2));
+    }
+
+    this.eventLog.update((current) => [lines.join('\n'), ...current]);
   }
 }

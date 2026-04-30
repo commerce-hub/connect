@@ -1,11 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-import FixtureApp from './fixture-app';
+import ExampleApp from './example-app';
 import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <FixtureApp />
+    <ExampleApp />
   </React.StrictMode>,
 );

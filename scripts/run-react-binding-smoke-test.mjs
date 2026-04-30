@@ -11,7 +11,7 @@ const chromeExecutable =
   process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const serverHost = 'localhost';
 const serverPort = 4174;
-const indexUrl = `http://${serverHost}:${serverPort}/`;
+const indexUrl = `http://${serverHost}:${serverPort}/fixture.html`;
 
 await assertFileExists(chromeExecutable, 'Chrome executable');
 await ensureReactDependencies(projectRoot);

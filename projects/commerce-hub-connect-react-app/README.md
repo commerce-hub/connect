@@ -5,7 +5,24 @@ Thin React binding over `commerce-hub-connect-web-sdk`.
 ## What ships
 
 - `CommerceHubConnectReactBinding` — a React wrapper that delegates mount/update/unmount to the framework-agnostic web SDK
-- a small internal Vite fixture app used only to verify the wrapper lifecycle in a browser
+- `src/example-app.tsx` — a local example host mirroring the web SDK create/mount/update/destroy flow
+- `src/fixture-app.tsx` + `fixture.html` — a smoke-test fixture that verifies the wrapper lifecycle in a browser
+
+## Run the React example
+
+From the workspace root:
+
+```bash
+npm run start:react-binding-example
+```
+
+Or from this directory:
+
+```bash
+npm run dev -- --host 127.0.0.1 --port 4173
+```
+
+The Vite dev server proxies localhost Commerce Hub traffic through `/commerce-hub-proxy/<environment>` so the binding example can create live interactions just like the plain web SDK host.
 
 ## Build
 
@@ -45,3 +62,11 @@ export function Checkout() {
 ```
 
 The binding re-exports the shared web SDK types so React hosts can stay aligned with plain browser and Angular integrations.
+
+## Verification
+
+```bash
+npm run typecheck
+npm run build
+node ../../scripts/run-react-binding-smoke-test.mjs
+```

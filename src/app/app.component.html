@@ -1,193 +1,161 @@
-<main class="app-shell">
-  <section class="app-copy">
-    <p class="app-kicker">Angular 20 SDK Demo</p>
-    <h1>Commerce Hub Connect Wallet SDK</h1>
-    <p class="app-description">
-      Create an interaction outside the SDK, then pass the response into the widget with the
-      runtime options that still matter after creation.
+<main class="example-shell">
+  <section class="hero">
+    <h1>Commerce Hub Angular Binding</h1>
+    <p>
+      This example mirrors the web SDK host flow with the Angular wrapper. Create an interaction,
+      mount the widget, apply input updates, or destroy the binding without leaving Angular.
     </p>
-
-    <form [formGroup]="demoForm" class="app-form" (ngSubmit)="initializeSdk()">
-      <section class="app-panel">
-        <div class="app-panel__header">
-          <h2>Interaction Create Request</h2>
-          <p>These values are sent to `interaction/create` before the SDK is initialized.</p>
-        </div>
-
-        <div class="app-fields">
-          <label class="app-field">
-            <span>Session Reference ID</span>
-            <input pInputText type="text" formControlName="sessionReferenceId" />
-          </label>
-
-          <label class="app-field">
-            <span>Merchant ID</span>
-            <input pInputText type="text" formControlName="merchantId" />
-          </label>
-
-          <label class="app-field">
-            <span>Terminal ID</span>
-            <input pInputText type="text" formControlName="terminalId" />
-          </label>
-
-          <label class="app-field">
-            <span>Client ID</span>
-            <input pInputText type="text" formControlName="clientId" />
-          </label>
-
-          <label class="app-field">
-            <span>Email</span>
-            <input pInputText type="email" formControlName="email" />
-          </label>
-
-          <label class="app-field">
-            <span>Merchant Transaction ID</span>
-            <input pInputText type="text" formControlName="merchantTransactionId" />
-          </label>
-
-          <label class="app-field">
-            <span>Merchant Order ID</span>
-            <input pInputText type="text" formControlName="merchantOrderId" />
-          </label>
-
-          <label class="app-field">
-            <span>Merchant Invoice Number</span>
-            <input pInputText type="text" formControlName="merchantInvoiceNumber" />
-          </label>
-
-          <label class="app-field">
-            <span>Auth Type</span>
-            <p-select
-              formControlName="authType"
-              [options]="authTypeOptions"
-              optionLabel="label"
-              optionValue="value"
-              appendTo="body"
-            />
-          </label>
-
-          <label class="app-field">
-            <span>Expiry Minutes</span>
-            <input pInputText type="number" min="1" formControlName="expiryMinutes" />
-          </label>
-        </div>
-
-        <div class="app-toggles">
-          <label class="app-toggle" for="allow-email-change">
-            <p-checkbox inputId="allow-email-change" formControlName="allowEmailChange" [binary]="true" />
-            <span>Allow email change</span>
-          </label>
-
-          <label class="app-toggle" for="allow-card">
-            <p-checkbox inputId="allow-card" formControlName="allowCard" [binary]="true" />
-            <span>Allow card</span>
-          </label>
-
-          <label class="app-toggle" for="allow-bank-account">
-            <p-checkbox inputId="allow-bank-account" formControlName="allowBankAccount" [binary]="true" />
-            <span>Allow bank account</span>
-          </label>
-        </div>
-      </section>
-
-      <section class="app-panel">
-        <div class="app-panel__header">
-          <h2>SDK Initialization</h2>
-          <p>These values stay inside `CommerceHubSdkConfiguration` after interaction creation.</p>
-        </div>
-
-        <div class="app-fields">
-          <label class="app-field">
-            <span>Payment Selection Title</span>
-            <input pInputText type="text" formControlName="paymentSelectionTitle" />
-          </label>
-
-          <label class="app-field">
-            <span>Continue/Confirm Button Label</span>
-            <input pInputText type="text" formControlName="paymentSelectionConfirmLabel" />
-          </label>
-        </div>
-
-        <div class="app-toggles">
-          <label class="app-toggle" for="use-wallet">
-            <p-checkbox inputId="use-wallet" formControlName="wallet" [binary]="true" />
-            <span>Use wallet features</span>
-          </label>
-        </div>
-      </section>
-
-      <section class="app-panel">
-        <div class="app-panel__header">
-          <h2>White Label</h2>
-          <p>These values are passed into `CommerceHubWhiteLabelOptions` on initialize.</p>
-        </div>
-
-        <div class="app-fields">
-          <label class="app-field">
-            <span>Primary Color</span>
-            <input pInputText type="text" formControlName="primaryColor" />
-          </label>
-
-          <label class="app-field">
-            <span>Secondary Color</span>
-            <input pInputText type="text" formControlName="secondaryColor" />
-          </label>
-
-          <label class="app-field">
-            <span>Text Color</span>
-            <input pInputText type="text" formControlName="textColor" />
-          </label>
-
-          <label class="app-field">
-            <span>Font Family</span>
-            <input pInputText type="text" formControlName="fontFamily" />
-          </label>
-
-          <label class="app-field app-field--full">
-            <span>Logo URL</span>
-            <input pInputText type="text" formControlName="logoUrl" />
-          </label>
-        </div>
-      </section>
-
-      <div class="app-actions">
-        <p-button
-          type="submit"
-          [label]="activeInteraction() ? 'Create New Interaction' : 'Create And Initialize SDK'"
-          icon="pi pi-play"
-        />
-      </div>
-    </form>
-
-    <div class="app-events">
-      <h2>Callback log</h2>
-
-      @if (events().length) {
-        <ul>
-          @for (event of events(); track event) {
-            <li>{{ event }}</li>
-          }
-        </ul>
-      } @else {
-        <p>Callbacks will appear here as the SDK flow completes.</p>
-      }
-    </div>
   </section>
 
-  <section class="app-widget">
-    @if (activeConfiguration(); as configuration) {
-      @if (activeInteraction(); as interaction) {
-        <commerce-hub-connect-capture
-          [interaction]="interaction"
-          [configuration]="configuration"
-          [whiteLabel]="activeWhiteLabel() ?? undefined"
-        />
-      }
-    } @else {
-      <div class="app-widget-placeholder">
-        <h2>SDK Preview</h2>
-        <p>Create an interaction and initialize the SDK to mount the widget.</p>
-      </div>
-    }
+  <section class="layout">
+    <aside class="panel panel--sticky">
+      <form class="stack" [formGroup]="form">
+        <div>
+          <h2>Host controls</h2>
+          <p>These values shape the interaction request and binding inputs.</p>
+        </div>
+
+        <div class="status" [attr.data-tone]="statusTone()">
+          {{ statusMessage() }}
+        </div>
+
+        <div class="chip-row">
+          <span class="chip">Env: {{ activeEnvironment() }}</span>
+          <span class="chip">API: {{ resolvedApiBaseUrl() }}</span>
+          <span class="chip">
+            {{ activeInteraction() ? 'Interaction: ' + activeInteraction()!.interactionId : 'Widget idle' }}
+          </span>
+        </div>
+
+        <div class="grid grid--two">
+          <label>
+            <span>Environment</span>
+            <select formControlName="environment">
+              @for (environment of environmentOptions; track environment) {
+                <option [value]="environment">{{ environment.toUpperCase() }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span>Email</span>
+            <input type="email" formControlName="email" />
+          </label>
+        </div>
+
+        <div class="grid grid--two">
+          <label>
+            <span>Payment Selection Title</span>
+            <input type="text" formControlName="paymentSelectionTitle" />
+          </label>
+
+          <label>
+            <span>Confirm Label</span>
+            <input type="text" formControlName="paymentSelectionConfirmLabel" />
+          </label>
+        </div>
+
+        <div class="grid grid--two">
+          <label>
+            <span>Primary Color</span>
+            <input type="text" formControlName="primaryColor" />
+          </label>
+
+          <label>
+            <span>Secondary Color</span>
+            <input type="text" formControlName="secondaryColor" />
+          </label>
+        </div>
+
+        <div class="grid grid--two">
+          <label>
+            <span>Text Color</span>
+            <input type="text" formControlName="textColor" />
+          </label>
+
+          <label>
+            <span>Logo URL</span>
+            <input type="text" formControlName="logoUrl" />
+          </label>
+        </div>
+
+        <div class="toggle-grid">
+          <label class="toggle">
+            <input type="checkbox" formControlName="wallet" />
+            <span>Enable wallet flow</span>
+          </label>
+
+          <label class="toggle">
+            <input type="checkbox" formControlName="allowCard" />
+            <span>Allow cards</span>
+          </label>
+
+          <label class="toggle">
+            <input type="checkbox" formControlName="allowBankAccount" />
+            <span>Allow bank accounts</span>
+          </label>
+        </div>
+
+        <div class="button-row">
+          <button type="button" (click)="createAndMount()" [disabled]="isBusy()">
+            {{ isBusy() ? 'Creating interaction…' : activeInteraction() ? 'Create new interaction' : 'Create + mount' }}
+          </button>
+          <button
+            type="button"
+            class="secondary"
+            (click)="applyUpdate()"
+            [disabled]="isBusy() || !activeInteraction()"
+          >
+            Apply update
+          </button>
+          <button
+            type="button"
+            class="secondary"
+            (click)="destroyBinding()"
+            [disabled]="isBusy() || !activeInteraction()"
+          >
+            Destroy
+          </button>
+        </div>
+      </form>
+    </aside>
+
+    <section class="stack">
+      <article class="panel">
+        <div>
+          <h2>Angular binding preview</h2>
+          <p>
+            The binding renders below when an interaction exists. Use the update button to push the
+            latest host values into the wrapper inputs.
+          </p>
+        </div>
+
+        <div class="mount-target">
+          @if (activeInteraction(); as interaction) {
+            @if (activeConfiguration(); as configuration) {
+              <commerce-hub-connect-web-sdk
+                [interaction]="interaction"
+                [configuration]="configuration"
+                [whiteLabel]="activeWhiteLabel() ?? undefined"
+                [environment]="activeEnvironment()"
+              />
+            }
+          } @else {
+            <div class="empty-state">
+              Create and mount the Angular binding example to render the Commerce Hub widget.
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="panel">
+        <div>
+          <h2>Event log</h2>
+          <p>Callback payloads and host actions are recorded here.</p>
+        </div>
+
+        <pre>{{ eventLog().length ? eventLog().join('\n\n') : 'No events yet.' }}</pre>
+      </article>
+    </section>
   </section>
 </main>

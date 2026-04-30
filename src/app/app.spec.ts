@@ -1,24 +1,35 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { COMMERCE_HUB_CONNECT_API_BASE_URL } from 'commerce-hub-connect-sdk';
 
+import type { CommerceHubConnectWebSdkInstance } from 'commerce-hub-connect-sdk';
+
+import { commerceHubConnectWebSdkAdapter } from '../../projects/commerce-hub-connect-sdk/src/lib/commerce-hub-connect-web-sdk-adapter';
 import { AppComponent } from './app.component';
 
 describe('AppComponent', () => {
   let httpMock: HttpTestingController;
+  let widgetInstance: CommerceHubConnectWebSdkInstance & {
+    update: jasmine.Spy;
+    destroy: jasmine.Spy;
+  };
 
   beforeEach(async () => {
+    widgetInstance = {
+      containerElement: document.createElement('div'),
+      hostElement: document.createElement('div'),
+      update: jasmine.createSpy('update').and.resolveTo(),
+      destroy: jasmine.createSpy('destroy'),
+    } as CommerceHubConnectWebSdkInstance & {
+      update: jasmine.Spy;
+      destroy: jasmine.Spy;
+    };
+
+    spyOn(commerceHubConnectWebSdkAdapter, 'mount').and.resolveTo(widgetInstance);
+
     await TestBed.configureTestingModule({
       imports: [AppComponent],
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        {
-          provide: COMMERCE_HUB_CONNECT_API_BASE_URL,
-          useValue: () => '/api',
-        },
-      ],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
@@ -33,52 +44,101 @@ describe('AppComponent', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('creates interactions with nested merchantData', async () => {
+  it('creates interactions through the local proxy route and mounts the Angular binding', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     const component = fixture.componentInstance as AppComponent & {
-      demoForm: { getRawValue(): { allowBankAccount: boolean; allowCard: boolean; allowEmailChange: boolean } };
-      initializeSdk(): Promise<void>;
+      createAndMount(): Promise<void>;
+      activeInteraction: { (): { interactionId: string } | null };
+      statusMessage: { (): string };
+      resolvedApiBaseUrl: { (): string };
     };
-    const formValue = component.demoForm.getRawValue();
-    const allowedTenderTypes = [
-      ...(formValue.allowCard ? ['CARD'] : []),
-      ...(formValue.allowBankAccount ? ['BANK_ACCOUNT'] : []),
-    ];
 
-    const initializePromise = component.initializeSdk();
+    fixture.detectChanges();
 
-    const request = httpMock.expectOne('/api/merchant/interaction/create');
+    const createPromise = component.createAndMount();
+    const request = httpMock.expectOne((request) =>
+      request.url.endsWith('/commerce-hub-proxy/qa/merchant/interaction/create'),
+    );
 
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(
       jasmine.objectContaining({
-        sessionReferenceId: 'sdk-demo-session-20260421',
-        merchantTransactionId: 'txn-10001',
-        merchantOrderId: 'order-20002',
-        merchantInvoiceNumber: 'invoice-30003',
         authType: 'FINAL_SALE',
-        expiryMinutes: 10,
         email: 'gregory.jablonski@fiserv.com',
-        allowedTenderTypes,
-        allowEmailChange: formValue.allowEmailChange,
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
         wallet: true,
-        merchantData: {
-          clientId: 'laika',
-          merchantId: '100014000315473',
-          terminalId: '10000001',
-        },
+        allowEmailChange: true,
       }),
     );
 
     request.flush({
       interactionId: 'interaction-1',
       status: 'EMAIL_REQUESTED',
-      email: 'gregory.jablonski@fiserv.com',
-      allowEmailChange: formValue.allowEmailChange,
-      allowedTenderTypes,
-      paymentSources: [],
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+      allowEmailChange: true,
     });
 
-    await initializePromise;
+    await createPromise;
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.resolvedApiBaseUrl().endsWith('/commerce-hub-proxy/qa')).toBeTrue();
+    expect(component.activeInteraction()?.interactionId).toBe('interaction-1');
+    expect(component.statusMessage()).toContain('Mounted interaction interaction-1');
+    expect(commerceHubConnectWebSdkAdapter.mount).toHaveBeenCalled();
+  });
+
+  it('applies updates and destroys the mounted example state', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const component = fixture.componentInstance as AppComponent & {
+      createAndMount(): Promise<void>;
+      applyUpdate(): void;
+      destroyBinding(): void;
+      form: {
+        patchValue(value: {
+          environment?: 'dev';
+          paymentSelectionTitle?: string;
+          allowBankAccount?: boolean;
+        }): void;
+      };
+      activeEnvironment: { (): string };
+      activeConfiguration: { (): { paymentSelectionTitle?: string } | null };
+      activeInteraction: { (): unknown };
+      statusMessage: { (): string };
+    };
+
+    fixture.detectChanges();
+
+    const createPromise = component.createAndMount();
+    const request = httpMock.expectOne((request) =>
+      request.url.endsWith('/commerce-hub-proxy/qa/merchant/interaction/create'),
+    );
+    request.flush({
+      interactionId: 'interaction-2',
+      status: 'EMAIL_REQUESTED',
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+    });
+
+    await createPromise;
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.form.patchValue({
+      environment: 'dev',
+      paymentSelectionTitle: 'Updated from Angular',
+      allowBankAccount: false,
+    });
+    component.applyUpdate();
+    fixture.detectChanges();
+
+    expect(component.activeEnvironment()).toBe('dev');
+    expect(component.activeConfiguration()?.paymentSelectionTitle).toBe('Updated from Angular');
+    expect(component.statusMessage()).toContain('Applied the latest host controls');
+
+    component.destroyBinding();
+    fixture.detectChanges();
+
+    expect(component.activeInteraction()).toBeNull();
+    expect(component.statusMessage()).toContain('Destroyed the mounted Angular binding instance');
   });
 });

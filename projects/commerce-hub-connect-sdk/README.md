@@ -12,6 +12,16 @@ This package provides a standalone Angular component, `CommerceHubConnectWebSdkC
 ng build commerce-hub-connect-sdk
 ```
 
+## Angular example host
+
+The workspace root Angular app is the local example host for this binding.
+
+```bash
+npm run start:angular-binding-example
+```
+
+The example mirrors the web SDK host flow: create an interaction, mount the widget, apply updates, and destroy the binding while proxying localhost Commerce Hub calls through `/commerce-hub-proxy/<environment>`.
+
 ## Basic usage
 
 ```ts
@@ -52,5 +62,6 @@ The Angular binding re-exports the web SDK types so Angular hosts can share one 
 ## Tests
 
 ```bash
-ng test commerce-hub-connect-sdk
+ng test commerce-hub-connect-sdk --watch=false --browsers=ChromeHeadless
+npm run test:angular-binding-example
 ```

@@ -30,6 +30,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "CommerceHubConnectSDK.js",
+                "input": "projects/commerce-hub-connect-web-sdk/dist",
+                "output": "/"
               }
             ],
             "styles": [

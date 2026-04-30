@@ -7,5 +7,14 @@
       "^/api": ""
     },
     "logLevel": "debug"
+  },
+  "/commerce-hub-proxy": {
+    "target": "https://dev.openfx-nonprod.aws.fisv.cloud",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/commerce-hub-proxy/(dev|qa|cat|prod)": ""
+    },
+    "logLevel": "debug"
   }
 }

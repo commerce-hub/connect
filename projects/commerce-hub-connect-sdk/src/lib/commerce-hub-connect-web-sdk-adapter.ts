@@ -4,12 +4,6 @@ import type {
   CommerceHubConnectWebSdkNamespace,
 } from './commerce-hub-connect-web-sdk-types';
 
-declare global {
-  interface Window {
-    CommerceHubConnectWebSdk?: CommerceHubConnectWebSdkNamespace;
-  }
-}
-
 const DEFAULT_WEB_SDK_SCRIPT_URL = './CommerceHubConnectSDK.js';
 
 export const commerceHubConnectWebSdkAdapter = {
@@ -27,8 +21,10 @@ export const commerceHubConnectWebSdkAdapter = {
 async function loadCommerceHubConnectWebSdk(
   scriptUrl: string,
 ): Promise<CommerceHubConnectWebSdkNamespace> {
-  if (window.CommerceHubConnectWebSdk) {
-    return window.CommerceHubConnectWebSdk;
+  const windowWithSdk = getWindowWithSdk();
+
+  if (windowWithSdk.CommerceHubConnectWebSdk) {
+    return windowWithSdk.CommerceHubConnectWebSdk;
   }
 
   await new Promise<void>((resolve, reject) => {
@@ -55,9 +51,17 @@ async function loadCommerceHubConnectWebSdk(
     document.head.appendChild(script);
   });
 
-  if (!window.CommerceHubConnectWebSdk) {
+  if (!windowWithSdk.CommerceHubConnectWebSdk) {
     throw new Error('The web SDK script did not register window.CommerceHubConnectWebSdk.');
   }
 
-  return window.CommerceHubConnectWebSdk;
+  return windowWithSdk.CommerceHubConnectWebSdk;
+}
+
+function getWindowWithSdk(): typeof globalThis & {
+  CommerceHubConnectWebSdk?: CommerceHubConnectWebSdkNamespace;
+} {
+  return globalThis as typeof globalThis & {
+    CommerceHubConnectWebSdk?: CommerceHubConnectWebSdkNamespace;
+  };
 }
