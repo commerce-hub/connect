@@ -15,6 +15,7 @@ import type {
   CommerceHubConnectWebSdkMountOptions,
 } from './web-sdk-types';
 import { resolveMountTarget, resolveSdkRuntimeOrigin, validateMountRequest } from './web-sdk-utils';
+import { commerceHubConnectWebSdkInlineCss } from './styles-inline';
 
 const SDK_VERSION = '0.0.1';
 const SDK_TAG_NAME = 'commerce-hub-connect-widget';
@@ -307,7 +308,7 @@ async function ensureStylesheet(): Promise<void> {
     return stylesheetPromise;
   }
 
-  const inlineCss = globalThis.__commerceHubConnectWebSdkInlineCss?.trim();
+  const inlineCss = (globalThis.__commerceHubConnectWebSdkInlineCss ?? commerceHubConnectWebSdkInlineCss).trim();
   if (!inlineCss) {
     stylesheetPromise = Promise.resolve();
     return stylesheetPromise;

@@ -8,8 +8,5 @@
   "dependencies": {
     "tslib": "^2.3.0"
   },
-  "exports": {
-    "./theme/commerce-hub-sdk.css": "./theme/commerce-hub-sdk.css"
-  },
   "sideEffects": false
 }

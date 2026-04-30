@@ -1,6 +1,10 @@
-# CommerceHubConnectSdk
+# commerce-hub-connect-sdk
 
-Reusable Angular SDK library for the Commerce Hub wallet capture flow.
+Thin Angular binding over `commerce-hub-connect-web-sdk`.
+
+## What ships
+
+This package provides a standalone Angular component, `CommerceHubConnectWebSdkComponent`, that delegates wallet rendering to the framework-agnostic web SDK while keeping Angular-specific lifecycle handling in the wrapper.
 
 ## Build
 
@@ -8,27 +12,42 @@ Reusable Angular SDK library for the Commerce Hub wallet capture flow.
 ng build commerce-hub-connect-sdk
 ```
 
-## Styling
+## Basic usage
 
-The library ships:
+```ts
+import { Component } from '@angular/core';
+import {
+  CommerceHubConnectWebSdkComponent,
+  type CommerceHubSdkConfiguration,
+  type InteractionResponse,
+} from 'commerce-hub-connect-sdk';
 
-- `commerce-hub-connect-sdk/theme/commerce-hub-sdk.css`
-- `provideCommerceHubSdkTheme()`
-- `commerceHubSdkThemePreset`
+@Component({
+  standalone: true,
+  imports: [CommerceHubConnectWebSdkComponent],
+  template: `
+    <commerce-hub-connect-web-sdk
+      [interaction]="interaction"
+      [configuration]="configuration"
+      environment="qa"
+    />
+  `,
+})
+export class DemoComponent {
+  interaction: InteractionResponse = {
+    interactionId: 'interaction-1',
+    status: 'EMAIL_REQUESTED',
+    allowedTenderTypes: ['CARD'],
+  };
 
-Angular hosts should import the stylesheet and register the theme provider. Browser hosts should use the packaged web bundle in `projects/commerce-hub-connect-web-sdk`, which mounts the same capture component behind `window.CommerceHubConnectWebSdk`.
+  configuration: CommerceHubSdkConfiguration = {
+    onSuccess: (result) => console.log('success', result),
+    onError: (error) => console.error('error', error),
+  };
+}
+```
 
-## Shared Environment Helpers
-
-The library exports:
-
-- `CommerceHubConnectEnvironment`
-- `COMMERCE_HUB_CONNECT_ENVIRONMENTS`
-- `COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT`
-- `normalizeCommerceHubConnectEnvironment()`
-- `resolveCommerceHubConnectApiBaseUrl()`
-
-These helpers keep Angular hosts and the browser bundle aligned on `dev | qa | cat | prod`, with `prod` as the default.
+The Angular binding re-exports the web SDK types so Angular hosts can share one typed configuration model with browser-host integrations.
 
 ## Tests
 

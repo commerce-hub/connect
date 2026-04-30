@@ -6,6 +6,9 @@
     "paths": {
       "commerce-hub-connect-sdk": [
         "./projects/commerce-hub-connect-sdk/src/public-api.ts"
+      ],
+      "commerce-hub-connect-web-sdk": [
+        "./projects/commerce-hub-connect-web-sdk/src/public-api.ts"
       ]
     },
     "strict": true,

@@ -14,6 +14,7 @@ const outputTypesFile = path.join(outputDir, 'CommerceHubConnectSDK.d.ts');
 const tmpTypesDir = path.join(widgetProjectDir, '.tmp-types');
 const entryFile = path.join(sourceDir, 'main.ts');
 const stylesheetFile = path.join(sourceDir, 'styles.css');
+const inlineStylesFile = path.join(sourceDir, 'styles-inline.ts');
 const projectPackageJson = path.join(widgetProjectDir, 'package.json');
 const projectReadme = path.join(widgetProjectDir, 'README.md');
 
@@ -21,6 +22,10 @@ await resetDirectory(outputDir);
 await fs.rm(tmpTypesDir, { recursive: true, force: true });
 
 const inlinedCss = await fs.readFile(stylesheetFile, 'utf8');
+await fs.writeFile(
+  inlineStylesFile,
+  `export const commerceHubConnectWebSdkInlineCss = ${JSON.stringify(inlinedCss)};\n`,
+);
 
 await esbuild({
   entryPoints: [entryFile],
