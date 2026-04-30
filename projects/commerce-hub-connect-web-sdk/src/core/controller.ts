@@ -195,7 +195,7 @@ export class CommerceHubConnectWidgetController {
         channel: this.otpChannel(),
       });
       this.commitInteraction(interaction);
-      await this.loadBillingAddresses();
+      await this.loadBillingAddresses({ reportError: true });
     } catch (error) {
       this.failWith('otp_validate', error);
     } finally {
@@ -540,7 +540,7 @@ export class CommerceHubConnectWidgetController {
 
   private async initialize(): Promise<void> {
     if (this.canManagePaymentInCurrentSession()) {
-      await this.loadBillingAddresses();
+      await this.loadBillingAddresses({ reportError: true });
     }
 
     if (
@@ -559,14 +559,17 @@ export class CommerceHubConnectWidgetController {
     return this.state.currentStep === 'payment' || this.state.currentStep === 'success';
   }
 
-  private async loadBillingAddresses(): Promise<void> {
+  private async loadBillingAddresses(options?: { reportError?: boolean }): Promise<void> {
     try {
       const profile = await this.api.getCustomerProfile();
       this.updateState({
         billingAddresses: profile.billingAddress ?? [],
+        ...(options?.reportError ? { error: null } : {}),
       });
-    } catch {
-      // Keep billing address selection usable even when profile fetch fails.
+    } catch (error) {
+      if (options?.reportError) {
+        this.failWith('session', error);
+      }
     }
   }
 

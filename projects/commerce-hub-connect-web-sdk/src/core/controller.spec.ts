@@ -33,6 +33,102 @@ describe('CommerceHubConnectWidgetController', () => {
 
     controller.destroy();
   });
+
+  it('stores an otp validation error when /interaction/otp/validate fails', async () => {
+    fetchSpy.and.callFake(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/interaction/otp/validate')) {
+        return createJsonResponse({ message: 'Invalid code.' }, 400);
+      }
+
+      fail(`Unexpected fetch request: ${url}`);
+      return createJsonResponse({});
+    });
+
+    const configuration = createConfiguration();
+    const controller = new CommerceHubConnectWidgetController(
+      createInteractionResponse({
+        status: 'OTP_VALIDATION_PENDING',
+        email: 'shopper@example.com',
+      }),
+      configuration,
+      undefined,
+      'qa',
+      '/api',
+    );
+
+    await controller.validateOtp('123456');
+
+    expect(configuration.onError).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        stage: 'otp_validate',
+        message: 'Invalid code.',
+        status: 400,
+      }),
+    );
+    expect(controller.getSnapshot().error).toEqual(
+      jasmine.objectContaining({
+        stage: 'otp_validate',
+        message: 'Invalid code.',
+        status: 400,
+      }),
+    );
+
+    controller.destroy();
+  });
+
+  it('stores a widget error when /customer fails after otp validation succeeds', async () => {
+    fetchSpy.and.callFake(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/interaction/otp/validate')) {
+        return createJsonResponse(
+          createInteractionResponse({
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            email: 'shopper@example.com',
+          }),
+        );
+      }
+
+      if (url.endsWith('/customer')) {
+        return createJsonResponse({ message: 'Customer lookup failed.' }, 500);
+      }
+
+      fail(`Unexpected fetch request: ${url}`);
+      return createJsonResponse({});
+    });
+
+    const configuration = createConfiguration();
+    const controller = new CommerceHubConnectWidgetController(
+      createInteractionResponse({
+        status: 'OTP_VALIDATION_PENDING',
+        email: 'shopper@example.com',
+      }),
+      configuration,
+      undefined,
+      'qa',
+      '/api',
+    );
+
+    await controller.validateOtp('123456');
+
+    expect(controller.getSnapshot().displayStep).toBe('payment');
+    expect(configuration.onError).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        stage: 'session',
+        message: 'Customer lookup failed.',
+        status: 500,
+      }),
+    );
+    expect(controller.getSnapshot().error).toEqual(
+      jasmine.objectContaining({
+        stage: 'session',
+        message: 'Customer lookup failed.',
+        status: 500,
+      }),
+    );
+
+    controller.destroy();
+  });
 });
 
 function requestHeadersFrom(fetchSpy: jasmine.Spy<typeof fetch>): Record<string, string> {
@@ -41,9 +137,9 @@ function requestHeadersFrom(fetchSpy: jasmine.Spy<typeof fetch>): Record<string,
   return Object.fromEntries(headers.entries());
 }
 
-function createJsonResponse(body: unknown): Response {
+function createJsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { 'Content-Type': 'application/json' },
   });
 }

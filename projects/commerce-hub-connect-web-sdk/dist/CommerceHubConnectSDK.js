@@ -464,7 +464,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
           channel: this.otpChannel()
         });
         this.commitInteraction(interaction);
-        await this.loadBillingAddresses();
+        await this.loadBillingAddresses({ reportError: true });
       } catch (error) {
         this.failWith("otp_validate", error);
       } finally {
@@ -754,7 +754,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     }
     async initialize() {
       if (this.canManagePaymentInCurrentSession()) {
-        await this.loadBillingAddresses();
+        await this.loadBillingAddresses({ reportError: true });
       }
       if (this.state.email && this.state.currentStep === "email" && this.autoSubmittedInteractionId !== this.state.interaction.interactionId) {
         this.autoSubmittedInteractionId = this.state.interaction.interactionId;
@@ -766,13 +766,17 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     canManagePaymentInCurrentSession() {
       return this.state.currentStep === "payment" || this.state.currentStep === "success";
     }
-    async loadBillingAddresses() {
+    async loadBillingAddresses(options) {
       try {
         const profile = await this.api.getCustomerProfile();
         this.updateState({
-          billingAddresses: profile.billingAddress ?? []
+          billingAddresses: profile.billingAddress ?? [],
+          ...options?.reportError ? { error: null } : {}
         });
-      } catch {
+      } catch (error) {
+        if (options?.reportError) {
+          this.failWith("session", error);
+        }
       }
     }
     otpChannel() {
