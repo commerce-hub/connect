@@ -6,7 +6,9 @@ export declare class CommerceHubConnectApiError extends Error {
 }
 export declare class CommerceHubConnectApiClient {
     private readonly baseUrl;
-    constructor(baseUrl: string);
+    private interactionId;
+    constructor(baseUrl: string, interactionId?: string | null);
+    setInteractionId(interactionId: string | null | undefined): void;
     getInteractionStatus(): Promise<InteractionResponse>;
     sendInteractionOtp(request: StringHolder): Promise<InteractionResponse>;
     sendInteractionOtpToEmail(request: StringHolder): Promise<InteractionResponse>;
@@ -23,4 +25,7 @@ export declare class CommerceHubConnectApiClient {
     createPayByBankSession(): Promise<PayByBankSessionResponse>;
     finalizePayByBankSession(aldSessionId: string, pToken: string): Promise<void>;
     private request;
+    private buildHeaders;
+    private isInteractionPath;
+    private normalizeInteractionId;
 }

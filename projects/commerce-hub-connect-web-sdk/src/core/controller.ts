@@ -104,7 +104,7 @@ export class CommerceHubConnectWidgetController {
     environment: CommerceHubConnectEnvironment,
     apiBaseUrl: string,
   ) {
-    this.api = new CommerceHubConnectApiClient(apiBaseUrl);
+    this.api = new CommerceHubConnectApiClient(apiBaseUrl, interaction.interactionId);
     this.state = this.createSnapshot(interaction, configuration, whiteLabel, environment, apiBaseUrl);
     void this.initialize();
   }
@@ -127,7 +127,7 @@ export class CommerceHubConnectWidgetController {
     environment: CommerceHubConnectEnvironment,
     apiBaseUrl: string,
   ): Promise<void> {
-    this.api = new CommerceHubConnectApiClient(apiBaseUrl);
+    this.api = new CommerceHubConnectApiClient(apiBaseUrl, interaction.interactionId);
     this.state = this.createSnapshot(interaction, configuration, whiteLabel, environment, apiBaseUrl, this.state);
     this.notify();
     await this.initialize();
@@ -622,6 +622,7 @@ export class CommerceHubConnectWidgetController {
   }
 
   private commitInteraction(interaction: InteractionResponse): void {
+    this.api.setInteractionId(interaction.interactionId ?? null);
     const nextAvailableSources = resolveAvailableSources(interaction);
     const nextSelectedSource = resolveSelectedSource(interaction, this.state.selectedSourceId);
     const nextCurrentStep = deriveCurrentStep(interaction);

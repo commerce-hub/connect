@@ -58,8 +58,13 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     }
   };
   var CommerceHubConnectApiClient = class {
-    constructor(baseUrl) {
+    constructor(baseUrl, interactionId) {
       __publicField(this, "baseUrl", baseUrl);
+      __publicField(this, "interactionId");
+      this.interactionId = this.normalizeInteractionId(interactionId);
+    }
+    setInteractionId(interactionId) {
+      this.interactionId = this.normalizeInteractionId(interactionId);
     }
     async getInteractionStatus() {
       return this.request("/interaction", { method: "GET" });
@@ -143,10 +148,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     async request(path, init, responseMode) {
       const response = await fetch(`${this.baseUrl}${path}`, {
         ...init,
-        headers: {
-          Accept: "application/json",
-          ...init.headers ?? {}
-        }
+        headers: this.buildHeaders(path, init.headers)
       });
       const contentType = response.headers.get("content-type") ?? "";
       const shouldParseJson = responseMode === "json" || !responseMode && contentType.includes("application/json");
@@ -156,6 +158,23 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         throw new CommerceHubConnectApiError(message, response.status, body);
       }
       return body;
+    }
+    buildHeaders(path, initHeaders) {
+      const headers = new Headers(initHeaders);
+      if (!headers.has("Accept")) {
+        headers.set("Accept", "application/json");
+      }
+      if (this.interactionId && this.isInteractionPath(path)) {
+        headers.set("x-interaction-id", this.interactionId);
+      }
+      return headers;
+    }
+    isInteractionPath(path) {
+      return path === "/interaction" || path.startsWith("/interaction/");
+    }
+    normalizeInteractionId(interactionId) {
+      const normalized = interactionId?.trim();
+      return normalized ? normalized : null;
     }
   };
 
@@ -373,7 +392,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       __publicField(this, "destroyed", false);
       __publicField(this, "autoSubmittedInteractionId", null);
       __publicField(this, "state");
-      this.api = new CommerceHubConnectApiClient(apiBaseUrl);
+      this.api = new CommerceHubConnectApiClient(apiBaseUrl, interaction.interactionId);
       this.state = this.createSnapshot(interaction, configuration, whiteLabel, environment, apiBaseUrl);
       void this.initialize();
     }
@@ -387,7 +406,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       return this.state;
     }
     async update(interaction, configuration, whiteLabel, environment, apiBaseUrl) {
-      this.api = new CommerceHubConnectApiClient(apiBaseUrl);
+      this.api = new CommerceHubConnectApiClient(apiBaseUrl, interaction.interactionId);
       this.state = this.createSnapshot(interaction, configuration, whiteLabel, environment, apiBaseUrl, this.state);
       this.notify();
       await this.initialize();
@@ -798,6 +817,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       }
     }
     commitInteraction(interaction) {
+      this.api.setInteractionId(interaction.interactionId ?? null);
       const nextAvailableSources = resolveAvailableSources(interaction);
       const nextSelectedSource = resolveSelectedSource(interaction, this.state.selectedSourceId);
       const nextCurrentStep = deriveCurrentStep(interaction);

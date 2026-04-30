@@ -21,7 +21,15 @@ export class CommerceHubConnectApiError extends Error {
 }
 
 export class CommerceHubConnectApiClient {
-  constructor(private readonly baseUrl: string) {}
+  private interactionId: string | null;
+
+  constructor(private readonly baseUrl: string, interactionId?: string | null) {
+    this.interactionId = this.normalizeInteractionId(interactionId);
+  }
+
+  setInteractionId(interactionId: string | null | undefined): void {
+    this.interactionId = this.normalizeInteractionId(interactionId);
+  }
 
   async getInteractionStatus(): Promise<InteractionResponse> {
     return this.request<InteractionResponse>('/interaction', { method: 'GET' });
@@ -116,10 +124,7 @@ export class CommerceHubConnectApiClient {
   private async request<T>(path: string, init: RequestInit, responseMode?: 'json' | 'text'): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,
-      headers: {
-        Accept: 'application/json',
-        ...(init.headers ?? {}),
-      },
+      headers: this.buildHeaders(path, init.headers),
     });
 
     const contentType = response.headers.get('content-type') ?? '';
@@ -142,5 +147,27 @@ export class CommerceHubConnectApiClient {
     }
 
     return body as T;
+  }
+
+  private buildHeaders(path: string, initHeaders?: HeadersInit): Headers {
+    const headers = new Headers(initHeaders);
+    if (!headers.has('Accept')) {
+      headers.set('Accept', 'application/json');
+    }
+
+    if (this.interactionId && this.isInteractionPath(path)) {
+      headers.set('x-interaction-id', this.interactionId);
+    }
+
+    return headers;
+  }
+
+  private isInteractionPath(path: string): boolean {
+    return path === '/interaction' || path.startsWith('/interaction/');
+  }
+
+  private normalizeInteractionId(interactionId?: string | null): string | null {
+    const normalized = interactionId?.trim();
+    return normalized ? normalized : null;
   }
 }
