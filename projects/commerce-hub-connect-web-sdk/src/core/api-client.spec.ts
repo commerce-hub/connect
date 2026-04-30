@@ -2,6 +2,7 @@ import type {
   InteractionResponse,
   PayByBankSessionResponse,
   Profile,
+  StringHolder,
 } from '../contracts/api-models';
 import { CommerceHubConnectApiClient } from './api-client';
 
@@ -42,14 +43,50 @@ describe('CommerceHubConnectApiClient', () => {
     );
   });
 
-  it('does not add x-interaction-id to non-interaction requests', async () => {
+  it('adds x-interaction-id to /customer requests when an interaction id exists', async () => {
     const client = new CommerceHubConnectApiClient('/api', 'interaction-1');
 
     fetchSpy.and.callFake(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       createJsonResponse(createProfileResponse()),
     );
     await client.getCustomerProfile();
+
+    expect(requestHeadersFrom(fetchSpy)['x-interaction-id']).toBe('interaction-1');
+    expect(requestInitFrom(fetchSpy)?.credentials).toBe('include');
+  });
+
+  it('adds x-interaction-id to nested /customer requests when an interaction id exists', async () => {
+    const client = new CommerceHubConnectApiClient('/api', 'interaction-1');
+
+    fetchSpy.and.callFake(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      createJsonResponse(createStringHolderResponse()),
+    );
+    await client.mask('card', { value: '4111111111111111' });
+
+    expect(requestHeadersFrom(fetchSpy)).toEqual(
+      jasmine.objectContaining({
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'x-interaction-id': 'interaction-1',
+      }),
+    );
+    expect(requestInitFrom(fetchSpy)?.credentials).toBe('include');
+  });
+
+  it('does not add x-interaction-id to /customer requests when an interaction id is absent', async () => {
+    const client = new CommerceHubConnectApiClient('/api');
+
+    fetchSpy.and.callFake(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      createJsonResponse(createProfileResponse()),
+    );
+    await client.getCustomerProfile();
+
     expect(requestHeadersFrom(fetchSpy)['x-interaction-id']).toBeUndefined();
+    expect(requestInitFrom(fetchSpy)?.credentials).toBe('include');
+  });
+
+  it('does not add x-interaction-id to non-customer requests', async () => {
+    const client = new CommerceHubConnectApiClient('/api', 'interaction-1');
 
     fetchSpy.and.callFake(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       createJsonResponse(createPayByBankResponse()),
@@ -69,9 +106,14 @@ describe('CommerceHubConnectApiClient', () => {
 });
 
 function requestHeadersFrom(fetchSpy: jasmine.Spy<typeof fetch>): Record<string, string> {
-  const [, init] = fetchSpy.calls.mostRecent().args as [RequestInfo | URL, RequestInit | undefined];
+  const init = requestInitFrom(fetchSpy);
   const headers = new Headers(init?.headers);
   return Object.fromEntries(headers.entries());
+}
+
+function requestInitFrom(fetchSpy: jasmine.Spy<typeof fetch>): RequestInit | undefined {
+  const [, init] = fetchSpy.calls.mostRecent().args as [RequestInfo | URL, RequestInit | undefined];
+  return init;
 }
 
 function createJsonResponse(body: unknown): Response {
@@ -104,6 +146,15 @@ function createPayByBankResponse(
 ): PayByBankSessionResponse {
   return {
     pToken: 'p-token',
+    ...overrides,
+  };
+}
+
+function createStringHolderResponse(
+  overrides: Partial<StringHolder> = {},
+): StringHolder {
+  return {
+    value: 'masked-value',
     ...overrides,
   };
 }

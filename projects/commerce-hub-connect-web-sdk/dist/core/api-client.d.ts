@@ -26,6 +26,7 @@ export declare class CommerceHubConnectApiClient {
     finalizePayByBankSession(aldSessionId: string, pToken: string): Promise<void>;
     private request;
     private buildHeaders;
-    private isInteractionPath;
+    private requiresInteractionHeader;
+    private isPathSegment;
     private normalizeInteractionId;
 }

@@ -155,15 +155,19 @@ export class CommerceHubConnectApiClient {
       headers.set('Accept', 'application/json');
     }
 
-    if (this.interactionId && this.isInteractionPath(path)) {
+    if (this.interactionId && this.requiresInteractionHeader(path)) {
       headers.set('x-interaction-id', this.interactionId);
     }
 
     return headers;
   }
 
-  private isInteractionPath(path: string): boolean {
-    return path === '/interaction' || path.startsWith('/interaction/');
+  private requiresInteractionHeader(path: string): boolean {
+    return this.isPathSegment(path, '/interaction') || this.isPathSegment(path, '/customer');
+  }
+
+  private isPathSegment(path: string, prefix: string): boolean {
+    return path === prefix || path.startsWith(`${prefix}/`);
   }
 
   private normalizeInteractionId(interactionId?: string | null): string | null {

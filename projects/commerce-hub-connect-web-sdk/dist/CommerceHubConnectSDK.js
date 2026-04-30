@@ -164,13 +164,16 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       if (!headers.has("Accept")) {
         headers.set("Accept", "application/json");
       }
-      if (this.interactionId && this.isInteractionPath(path)) {
+      if (this.interactionId && this.requiresInteractionHeader(path)) {
         headers.set("x-interaction-id", this.interactionId);
       }
       return headers;
     }
-    isInteractionPath(path) {
-      return path === "/interaction" || path.startsWith("/interaction/");
+    requiresInteractionHeader(path) {
+      return this.isPathSegment(path, "/interaction") || this.isPathSegment(path, "/customer");
+    }
+    isPathSegment(path, prefix) {
+      return path === prefix || path.startsWith(`${prefix}/`);
     }
     normalizeInteractionId(interactionId) {
       const normalized = interactionId?.trim();
