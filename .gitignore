@@ -7,7 +7,8 @@
 /tmp
 /out-tsc
 /bazel-out
-
+.omx/
+.codex/
 # Node
 /node_modules
 npm-debug.log
@@ -45,3 +46,12 @@ __screenshots__/
 Thumbs.db
 /projects/commerce-hub-connect-react-app/node_modules/
 /projects/commerce-hub-connect-react-app/package-lock.json
+.omx/
+.codex/*
+!.codex/agents/
+!.codex/agents/**
+!.codex/skills/
+!.codex/skills/**
+.codex/skills/.system/**
+!.codex/prompts/
+!.codex/prompts/**
