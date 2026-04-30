@@ -157,4 +157,27 @@ describe('web sdk', () => {
     const emailInput = element.querySelector('input[name="email"]') as HTMLInputElement | null;
     expect(emailInput?.value).toBe('');
   });
+
+  it('renders segmented otp inputs while preserving the hidden submitted value', async () => {
+    const namespace = await registerCommerceHubConnectWebSdk();
+    const instance = await namespace.mount('#mount-target', {
+      interaction: createInteraction({
+        status: 'OTP_VALIDATION_PENDING',
+        email: 'gregory.jablonski@fiserv.com',
+      }),
+      configuration: createConfiguration(),
+    });
+
+    const otpDigits = instance.hostElement.querySelectorAll('.ch-sdk-otp-digit');
+    const hiddenOtpInput = instance.hostElement.querySelector(
+      'input[name="otp"][type="hidden"]',
+    ) as HTMLInputElement | null;
+
+    expect(instance.hostElement.textContent).toContain('Enter the code');
+    expect(otpDigits.length).toBe(6);
+    expect(hiddenOtpInput).not.toBeNull();
+    expect(instance.hostElement.textContent).toContain('Commerce Hub Connect');
+
+    instance.destroy();
+  });
 });

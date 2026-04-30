@@ -1,4 +1,4 @@
-globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-web-sdk-mount {\n  color: var(--ch-sdk-text, #101828);\n  font-family: var(--ch-sdk-font-family, \"Open Sans\", \"Segoe UI\", sans-serif);\n}\n\n.ch-sdk-shell {\n  --ch-sdk-primary-soft: color-mix(in srgb, var(--ch-sdk-primary, #0a5dff) 14%, white);\n  --ch-sdk-secondary-soft: color-mix(in srgb, var(--ch-sdk-secondary, #627d98) 18%, white);\n  --ch-sdk-border: color-mix(in srgb, var(--ch-sdk-text, #101828) 10%, white);\n  --ch-sdk-shadow: 0 20px 50px rgba(16, 24, 40, 0.12);\n  --ch-sdk-surface: #ffffff;\n  --ch-sdk-surface-alt: #f7f9fc;\n  --ch-sdk-danger: #b42318;\n  --ch-sdk-danger-soft: rgba(180, 35, 24, 0.08);\n  --ch-sdk-success: #047857;\n  --ch-sdk-success-soft: rgba(4, 120, 87, 0.1);\n  width: 100%;\n}\n\n.ch-sdk-header {\n  margin-bottom: 12px;\n}\n\n.ch-sdk-logo {\n  max-height: 36px;\n  max-width: 160px;\n  object-fit: contain;\n}\n\n.ch-sdk-card {\n  display: grid;\n  gap: 18px;\n  width: 100%;\n  padding: 24px;\n  border: 1px solid var(--ch-sdk-border);\n  border-radius: 24px;\n  background: var(--ch-sdk-surface);\n  box-shadow: var(--ch-sdk-shadow);\n}\n\n.ch-sdk-title-block {\n  display: grid;\n  gap: 6px;\n}\n\n.ch-sdk-title-block h2 {\n  margin: 0;\n  font-size: 1.5rem;\n  line-height: 1.1;\n  letter-spacing: -0.03em;\n}\n\n.ch-sdk-title-block p {\n  margin: 0;\n  color: color-mix(in srgb, var(--ch-sdk-text) 70%, white);\n  line-height: 1.5;\n}\n\n.ch-sdk-eyebrow {\n  font-size: 0.76rem;\n  font-weight: 700;\n  letter-spacing: 0.16em;\n  text-transform: uppercase;\n  color: var(--ch-sdk-primary);\n}\n\n.ch-sdk-form,\n.ch-sdk-stack {\n  display: grid;\n  gap: 16px;\n}\n\n.ch-sdk-grid {\n  display: grid;\n  gap: 14px;\n}\n\n.ch-sdk-grid--two {\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n}\n\n.ch-sdk-field {\n  display: grid;\n  gap: 6px;\n}\n\n.ch-sdk-field span {\n  font-size: 0.9rem;\n  font-weight: 600;\n}\n\n.ch-sdk-field input,\n.ch-sdk-field select {\n  width: 100%;\n  min-height: 46px;\n  padding: 0 14px;\n  border: 1px solid var(--ch-sdk-border);\n  border-radius: 14px;\n  background: #fff;\n  color: var(--ch-sdk-text);\n  font: inherit;\n}\n\n.ch-sdk-field input:focus,\n.ch-sdk-field select:focus {\n  outline: 0;\n  border-color: var(--ch-sdk-primary);\n  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ch-sdk-primary) 14%, white);\n}\n\n.ch-sdk-field-help,\n.ch-sdk-field-error {\n  font-size: 0.8rem;\n}\n\n.ch-sdk-field-help {\n  color: color-mix(in srgb, var(--ch-sdk-text) 65%, white);\n}\n\n.ch-sdk-field-error {\n  color: var(--ch-sdk-danger);\n}\n\n.ch-sdk-button,\n.ch-sdk-link-button,\n.ch-sdk-source-option {\n  font: inherit;\n}\n\n.ch-sdk-button {\n  min-height: 48px;\n  padding: 0 18px;\n  border: 0;\n  border-radius: 16px;\n  background: var(--ch-sdk-primary);\n  color: #fff;\n  font-weight: 700;\n  cursor: pointer;\n}\n\n.ch-sdk-button:hover:not(:disabled) {\n  filter: brightness(0.98);\n}\n\n.ch-sdk-button:disabled,\n.ch-sdk-link-button:disabled {\n  opacity: 0.6;\n  cursor: not-allowed;\n}\n\n.ch-sdk-button--secondary {\n  background: var(--ch-sdk-secondary-soft);\n  color: var(--ch-sdk-text);\n}\n\n.ch-sdk-button-row,\n.ch-sdk-inline-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 12px;\n}\n\n.ch-sdk-link-button {\n  padding: 0;\n  border: 0;\n  background: transparent;\n  color: var(--ch-sdk-primary);\n  font-weight: 700;\n  cursor: pointer;\n}\n\n.ch-sdk-alert {\n  padding: 14px 16px;\n  border-radius: 16px;\n  font-size: 0.92rem;\n  line-height: 1.45;\n}\n\n.ch-sdk-alert--error {\n  background: var(--ch-sdk-danger-soft);\n  color: var(--ch-sdk-danger);\n}\n\n.ch-sdk-alert--success {\n  background: var(--ch-sdk-success-soft);\n  color: var(--ch-sdk-success);\n}\n\n.ch-sdk-source-list {\n  display: grid;\n  gap: 12px;\n}\n\n.ch-sdk-source-option,\n.ch-sdk-success-summary {\n  display: grid;\n  grid-template-columns: auto auto minmax(0, 1fr);\n  align-items: center;\n  gap: 14px;\n  width: 100%;\n  padding: 14px 16px;\n  border: 1px solid var(--ch-sdk-border);\n  border-radius: 18px;\n  background: var(--ch-sdk-surface-alt);\n  color: inherit;\n}\n\n.ch-sdk-source-option {\n  cursor: pointer;\n  text-align: left;\n}\n\n.ch-sdk-source-option.is-selected {\n  border-color: var(--ch-sdk-primary);\n  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ch-sdk-primary) 10%, white);\n}\n\n.ch-sdk-source-radio {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 20px;\n  height: 20px;\n  border: 1px solid var(--ch-sdk-border);\n  border-radius: 999px;\n  background: #fff;\n}\n\n.ch-sdk-source-radio span {\n  width: 10px;\n  height: 10px;\n  border-radius: 999px;\n  background: var(--ch-sdk-primary);\n}\n\n.ch-sdk-source-badge {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-width: 52px;\n  min-height: 40px;\n  padding: 0 10px;\n  border-radius: 12px;\n  background: color-mix(in srgb, var(--ch-sdk-primary) 14%, white);\n  color: var(--ch-sdk-primary);\n  font-size: 0.72rem;\n  font-weight: 800;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.ch-sdk-source-copy {\n  display: grid;\n  min-width: 0;\n  gap: 4px;\n}\n\n.ch-sdk-source-copy strong,\n.ch-sdk-source-copy small {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.ch-sdk-source-copy small {\n  color: color-mix(in srgb, var(--ch-sdk-text) 70%, white);\n}\n\n.ch-sdk-empty-state {\n  padding: 16px;\n  border: 1px dashed var(--ch-sdk-border);\n  border-radius: 16px;\n  background: var(--ch-sdk-surface-alt);\n  color: color-mix(in srgb, var(--ch-sdk-text) 70%, white);\n}\n\n.ch-sdk-bank-panel {\n  display: grid;\n  gap: 14px;\n  padding: 18px;\n  border-radius: 18px;\n  border: 1px solid var(--ch-sdk-border);\n  background: var(--ch-sdk-surface-alt);\n}\n\n.ch-sdk-bank-copy {\n  display: grid;\n  gap: 6px;\n}\n\n.ch-sdk-bank-copy p {\n  margin: 0;\n  color: color-mix(in srgb, var(--ch-sdk-text) 70%, white);\n}\n\n.ch-sdk-bank-mount {\n  min-height: 160px;\n  border-radius: 16px;\n  border: 1px dashed color-mix(in srgb, var(--ch-sdk-primary) 35%, white);\n  background: #fff;\n}\n\n@media (max-width: 640px) {\n  .ch-sdk-card {\n    padding: 18px;\n  }\n\n  .ch-sdk-grid--two {\n    grid-template-columns: 1fr;\n  }\n\n  .ch-sdk-source-option,\n  .ch-sdk-success-summary {\n    grid-template-columns: auto minmax(0, 1fr);\n  }\n\n  .ch-sdk-source-radio {\n    display: none;\n  }\n}\n";
+globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-web-sdk-mount {\n  color: var(--ch-sdk-text, #101828);\n  font-family: var(--ch-sdk-font-family, \"Open Sans\", \"Segoe UI\", sans-serif);\n}\n\n.ch-sdk-shell {\n  --ch-sdk-primary-soft: color-mix(in srgb, var(--ch-sdk-primary, #0a5dff) 12%, white);\n  --ch-sdk-primary-strong: color-mix(in srgb, var(--ch-sdk-primary, #0a5dff) 86%, black);\n  --ch-sdk-secondary-soft: color-mix(in srgb, var(--ch-sdk-secondary, #627d98) 18%, white);\n  --ch-sdk-border: rgba(148, 163, 184, 0.42);\n  --ch-sdk-input-border: rgba(148, 163, 184, 0.55);\n  --ch-sdk-muted: color-mix(in srgb, var(--ch-sdk-text, #101828) 58%, white);\n  --ch-sdk-surface: #f3f5f8;\n  --ch-sdk-panel: rgba(255, 255, 255, 0.72);\n  --ch-sdk-panel-strong: #ffffff;\n  --ch-sdk-shadow: 0 28px 60px rgba(15, 23, 42, 0.10);\n  --ch-sdk-danger: #b42318;\n  --ch-sdk-danger-soft: rgba(180, 35, 24, 0.08);\n  --ch-sdk-success: #047857;\n  --ch-sdk-success-soft: rgba(4, 120, 87, 0.10);\n  width: 100%;\n}\n\n.ch-sdk-header {\n  display: flex;\n  justify-content: center;\n  margin-bottom: 10px;\n}\n\n.ch-sdk-logo {\n  max-height: 34px;\n  max-width: 168px;\n  object-fit: contain;\n}\n\n.ch-sdk-card {\n  display: grid;\n  gap: 16px;\n  width: 100%;\n  max-width: 430px;\n  margin: 0 auto;\n  padding: 14px;\n  border: 1px solid rgba(255, 255, 255, 0.65);\n  border-radius: 28px;\n  background:\n    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 246, 250, 0.98)),\n    var(--ch-sdk-surface);\n  box-shadow: var(--ch-sdk-shadow);\n}\n\n.ch-sdk-card-body {\n  display: grid;\n  gap: 18px;\n  padding: 6px;\n}\n\n.ch-sdk-footer-brand {\n  text-align: center;\n  font-size: 0.94rem;\n  font-weight: 600;\n  color: color-mix(in srgb, var(--ch-sdk-text) 18%, white);\n}\n\n.ch-sdk-title-block {\n  display: grid;\n  gap: 8px;\n}\n\n.ch-sdk-title-block--centered {\n  text-align: center;\n}\n\n.ch-sdk-title-block h2 {\n  margin: 0;\n  font-size: 2rem;\n  line-height: 1.04;\n  letter-spacing: -0.04em;\n  font-weight: 800;\n}\n\n.ch-sdk-title-block p {\n  margin: 0;\n  color: var(--ch-sdk-muted);\n  line-height: 1.55;\n  font-size: 0.97rem;\n}\n\n.ch-sdk-form,\n.ch-sdk-stack {\n  display: grid;\n  gap: 16px;\n}\n\n.ch-sdk-grid {\n  display: grid;\n  gap: 14px;\n}\n\n.ch-sdk-grid--two {\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n}\n\n.ch-sdk-form-intro {\n  display: grid;\n  gap: 4px;\n  padding: 2px 2px 0;\n}\n\n.ch-sdk-form-intro strong {\n  font-size: 0.98rem;\n}\n\n.ch-sdk-form-intro p {\n  margin: 0;\n  color: var(--ch-sdk-muted);\n  font-size: 0.92rem;\n  line-height: 1.5;\n}\n\n.ch-sdk-field {\n  display: grid;\n  gap: 7px;\n}\n\n.ch-sdk-field span {\n  font-size: 0.86rem;\n  font-weight: 600;\n  color: color-mix(in srgb, var(--ch-sdk-text) 72%, white);\n}\n\n.ch-sdk-field input,\n.ch-sdk-field select {\n  width: 100%;\n  min-height: 50px;\n  padding: 0 16px;\n  border: 1px solid var(--ch-sdk-input-border);\n  border-radius: 16px;\n  background: rgba(255, 255, 255, 0.9);\n  color: var(--ch-sdk-text);\n  font: inherit;\n  box-sizing: border-box;\n  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;\n}\n\n.ch-sdk-field input::placeholder {\n  color: color-mix(in srgb, var(--ch-sdk-text) 40%, white);\n}\n\n.ch-sdk-field input:focus,\n.ch-sdk-field select:focus,\n.ch-sdk-otp-digit:focus,\n.ch-sdk-source-option:focus-visible,\n.ch-sdk-button:focus-visible,\n.ch-sdk-link-button:focus-visible,\n.ch-sdk-pill-button:focus-visible {\n  outline: 0;\n  border-color: var(--ch-sdk-primary);\n  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ch-sdk-primary) 16%, white);\n}\n\n.ch-sdk-field-help,\n.ch-sdk-field-error,\n.ch-sdk-helper-copy {\n  font-size: 0.82rem;\n}\n\n.ch-sdk-field-help,\n.ch-sdk-helper-copy {\n  color: var(--ch-sdk-muted);\n}\n\n.ch-sdk-field-error {\n  color: var(--ch-sdk-danger);\n}\n\n.ch-sdk-button,\n.ch-sdk-link-button,\n.ch-sdk-source-option,\n.ch-sdk-pill-button {\n  font: inherit;\n}\n\n.ch-sdk-button {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 10px;\n  min-height: 48px;\n  width: 100%;\n  padding: 0 20px;\n  border: 0;\n  border-radius: 999px;\n  background: linear-gradient(180deg, var(--ch-sdk-primary), var(--ch-sdk-primary-strong));\n  color: #fff;\n  font-weight: 700;\n  cursor: pointer;\n  transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;\n}\n\n.ch-sdk-button:hover:not(:disabled) {\n  filter: brightness(1.02);\n  transform: translateY(-1px);\n}\n\n.ch-sdk-button:disabled,\n.ch-sdk-link-button:disabled,\n.ch-sdk-pill-button:disabled {\n  opacity: 0.6;\n  cursor: not-allowed;\n}\n\n.ch-sdk-button-label {\n  display: inline-flex;\n  align-items: center;\n}\n\n.ch-sdk-button-icon {\n  font-size: 1rem;\n  line-height: 1;\n}\n\n.ch-sdk-button--secondary {\n  background: rgba(255, 255, 255, 0.88);\n  color: var(--ch-sdk-text);\n  border: 1px solid var(--ch-sdk-border);\n}\n\n.ch-sdk-button-row {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 12px;\n}\n\n.ch-sdk-button-row .ch-sdk-button--secondary {\n  width: auto;\n  min-width: 140px;\n}\n\n.ch-sdk-inline-actions {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 10px;\n}\n\n.ch-sdk-inline-actions--centered {\n  justify-content: center;\n}\n\n.ch-sdk-inline-separator {\n  color: color-mix(in srgb, var(--ch-sdk-text) 28%, white);\n}\n\n.ch-sdk-link-button {\n  padding: 0;\n  border: 0;\n  background: transparent;\n  color: var(--ch-sdk-primary);\n  font-weight: 700;\n  cursor: pointer;\n}\n\n.ch-sdk-helper-copy {\n  margin: 0;\n  text-align: center;\n}\n\n.ch-sdk-pill-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 10px;\n}\n\n.ch-sdk-pill-button {\n  min-height: 40px;\n  padding: 0 16px;\n  border: 1px solid color-mix(in srgb, var(--ch-sdk-primary) 18%, white);\n  border-radius: 999px;\n  background: color-mix(in srgb, var(--ch-sdk-primary) 10%, white);\n  color: var(--ch-sdk-primary);\n  font-weight: 700;\n  cursor: pointer;\n}\n\n.ch-sdk-alert {\n  padding: 14px 16px;\n  border-radius: 18px;\n  font-size: 0.92rem;\n  line-height: 1.45;\n}\n\n.ch-sdk-alert--error {\n  background: var(--ch-sdk-danger-soft);\n  color: var(--ch-sdk-danger);\n}\n\n.ch-sdk-alert--success {\n  background: var(--ch-sdk-success-soft);\n  color: var(--ch-sdk-success);\n}\n\n.ch-sdk-alert--success-prominent {\n  text-align: center;\n  font-weight: 700;\n}\n\n.ch-sdk-source-list {\n  display: grid;\n  gap: 12px;\n}\n\n.ch-sdk-source-option,\n.ch-sdk-success-summary {\n  display: grid;\n  grid-template-columns: auto auto minmax(0, 1fr);\n  align-items: center;\n  gap: 14px;\n  width: 100%;\n  padding: 15px 16px;\n  border: 1px solid rgba(203, 213, 225, 0.9);\n  border-radius: 20px;\n  background: rgba(255, 255, 255, 0.84);\n  color: inherit;\n  box-sizing: border-box;\n}\n\n.ch-sdk-source-option {\n  cursor: pointer;\n  text-align: left;\n}\n\n.ch-sdk-source-option.is-selected {\n  border-color: color-mix(in srgb, var(--ch-sdk-primary) 48%, white);\n  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ch-sdk-primary) 10%, white);\n}\n\n.ch-sdk-source-radio {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 22px;\n  height: 22px;\n  border: 1px solid var(--ch-sdk-input-border);\n  border-radius: 999px;\n  background: #fff;\n}\n\n.ch-sdk-source-radio span {\n  width: 10px;\n  height: 10px;\n  border-radius: 999px;\n  background: var(--ch-sdk-primary);\n}\n\n.ch-sdk-source-badge {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  min-width: 54px;\n  min-height: 42px;\n  padding: 0 10px;\n  border-radius: 14px;\n  background: color-mix(in srgb, var(--ch-sdk-primary) 14%, white);\n  color: var(--ch-sdk-primary);\n  font-size: 0.72rem;\n  font-weight: 800;\n  letter-spacing: 0.08em;\n  text-transform: uppercase;\n}\n\n.ch-sdk-source-copy {\n  display: grid;\n  min-width: 0;\n  gap: 4px;\n}\n\n.ch-sdk-source-copy strong,\n.ch-sdk-source-copy small {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.ch-sdk-source-copy small {\n  color: var(--ch-sdk-muted);\n}\n\n.ch-sdk-empty-state {\n  padding: 16px;\n  border: 1px dashed rgba(148, 163, 184, 0.7);\n  border-radius: 18px;\n  background: rgba(255, 255, 255, 0.66);\n  color: var(--ch-sdk-muted);\n}\n\n.ch-sdk-bank-panel {\n  display: grid;\n  gap: 14px;\n  padding: 18px;\n  border-radius: 22px;\n  border: 1px solid rgba(203, 213, 225, 0.9);\n  background: rgba(255, 255, 255, 0.78);\n}\n\n.ch-sdk-bank-copy {\n  display: grid;\n  gap: 6px;\n}\n\n.ch-sdk-bank-copy p {\n  margin: 0;\n  color: var(--ch-sdk-muted);\n}\n\n.ch-sdk-bank-mount {\n  min-height: 180px;\n  border-radius: 18px;\n  border: 1px dashed color-mix(in srgb, var(--ch-sdk-primary) 28%, white);\n  background: #fff;\n}\n\n.ch-sdk-otp-group {\n  display: grid;\n  grid-template-columns: repeat(6, minmax(0, 1fr));\n  gap: 8px;\n}\n\n.ch-sdk-otp-digit {\n  min-width: 0;\n  height: 56px;\n  border: 1px solid var(--ch-sdk-input-border);\n  border-radius: 16px;\n  background: rgba(255, 255, 255, 0.82);\n  color: var(--ch-sdk-text);\n  text-align: center;\n  font: inherit;\n  font-size: 1.5rem;\n  font-weight: 700;\n  box-sizing: border-box;\n}\n\n@media (max-width: 640px) {\n  .ch-sdk-card {\n    padding: 12px;\n    border-radius: 24px;\n  }\n\n  .ch-sdk-card-body {\n    padding: 4px;\n  }\n\n  .ch-sdk-title-block h2 {\n    font-size: 1.7rem;\n  }\n\n  .ch-sdk-grid--two {\n    grid-template-columns: 1fr;\n  }\n\n  .ch-sdk-source-option,\n  .ch-sdk-success-summary {\n    grid-template-columns: auto minmax(0, 1fr);\n  }\n\n  .ch-sdk-source-radio {\n    display: none;\n  }\n\n  .ch-sdk-button-row {\n    flex-direction: column;\n  }\n\n  .ch-sdk-button-row .ch-sdk-button--secondary {\n    width: 100%;\n  }\n\n  .ch-sdk-otp-group {\n    gap: 6px;\n  }\n\n  .ch-sdk-otp-digit {\n    height: 52px;\n    font-size: 1.35rem;\n  }\n}\n";
 "use strict";
 (() => {
   var __defProp = Object.defineProperty;
@@ -1218,7 +1218,9 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
               cardNumber: String(formData.get("cardNumber") ?? ""),
               expiration: String(formData.get("expiration") ?? ""),
               cvc: String(formData.get("cvc") ?? ""),
-              billingAddressValue: String(formData.get("billingAddressValue") ?? getNewBillingAddressValue()),
+              billingAddressValue: String(
+                formData.get("billingAddressValue") ?? getNewBillingAddressValue()
+              ),
               country: String(formData.get("country") ?? "United States"),
               addressLine1: String(formData.get("addressLine1") ?? ""),
               addressLine2: String(formData.get("addressLine2") ?? ""),
@@ -1232,15 +1234,81 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
             break;
         }
       });
+      __publicField(this, "handleInput", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement) || target.dataset["otpDigitIndex"] === void 0) {
+          return;
+        }
+        syncOtpDigits(target);
+      });
+      __publicField(this, "handleKeydown", (event) => {
+        const keyboardEvent = event;
+        const target = keyboardEvent.target;
+        if (!(target instanceof HTMLInputElement) || target.dataset["otpDigitIndex"] === void 0) {
+          return;
+        }
+        const inputs = getOtpDigitInputs(target);
+        const index = Number(target.dataset["otpDigitIndex"] ?? -1);
+        if (index < 0) {
+          return;
+        }
+        if (keyboardEvent.key === "Backspace" && !target.value && index > 0) {
+          keyboardEvent.preventDefault();
+          const previous = inputs[index - 1];
+          previous.value = "";
+          syncOtpFormValue(previous.form, inputs);
+          focusOtpInput(previous);
+          return;
+        }
+        if (keyboardEvent.key === "ArrowLeft" && index > 0) {
+          keyboardEvent.preventDefault();
+          focusOtpInput(inputs[index - 1]);
+          return;
+        }
+        if (keyboardEvent.key === "ArrowRight" && index < inputs.length - 1) {
+          keyboardEvent.preventDefault();
+          focusOtpInput(inputs[index + 1]);
+        }
+      });
+      __publicField(this, "handlePaste", (event) => {
+        const clipboardEvent = event;
+        const target = clipboardEvent.target;
+        if (!(target instanceof HTMLInputElement) || target.dataset["otpDigitIndex"] === void 0) {
+          return;
+        }
+        const digits = normalizeOtpDigits(clipboardEvent.clipboardData?.getData("text") ?? "");
+        if (!digits) {
+          return;
+        }
+        clipboardEvent.preventDefault();
+        const inputs = getOtpDigitInputs(target);
+        const startIndex = Number(target.dataset["otpDigitIndex"] ?? 0);
+        let cursor = startIndex;
+        for (const digit of digits) {
+          if (cursor >= inputs.length) {
+            break;
+          }
+          inputs[cursor].value = digit;
+          cursor += 1;
+        }
+        syncOtpFormValue(target.form, inputs);
+        focusOtpInput(inputs[Math.min(cursor, inputs.length - 1)]);
+      });
       this.unsubscribe = this.controller.subscribe(() => this.render());
       this.hostElement.addEventListener("click", this.handleClick);
       this.hostElement.addEventListener("submit", this.handleSubmit);
+      this.hostElement.addEventListener("input", this.handleInput);
+      this.hostElement.addEventListener("keydown", this.handleKeydown);
+      this.hostElement.addEventListener("paste", this.handlePaste);
       this.render();
     }
     destroy() {
       this.unsubscribe();
       this.hostElement.removeEventListener("click", this.handleClick);
       this.hostElement.removeEventListener("submit", this.handleSubmit);
+      this.hostElement.removeEventListener("input", this.handleInput);
+      this.hostElement.removeEventListener("keydown", this.handleKeydown);
+      this.hostElement.removeEventListener("paste", this.handlePaste);
       this.hostElement.replaceChildren();
     }
     render() {
@@ -1250,9 +1318,12 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       <section class="ch-sdk-shell">
         ${snapshot.whiteLabel.logoUrl ? `<header class="ch-sdk-header"><img src="${escapeHtml(snapshot.whiteLabel.logoUrl)}" alt="Merchant logo" class="ch-sdk-logo" /></header>` : ""}
         <div class="ch-sdk-card">
-          ${renderStatus(snapshot)}
-          ${snapshot.error ? renderError(snapshot.error.message) : ""}
-          ${renderStep(snapshot)}
+          <div class="ch-sdk-card-body">
+            ${renderStatus(snapshot)}
+            ${snapshot.error ? renderError(snapshot.error.message) : ""}
+            ${renderStep(snapshot)}
+          </div>
+          <footer class="ch-sdk-footer-brand" aria-label="Commerce Hub Connect">Commerce Hub Connect</footer>
         </div>
       </section>
     `;
@@ -1280,9 +1351,9 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     const subtitle = (() => {
       switch (snapshot.displayStep) {
         case "otp":
-          return `We sent a one-time code to ${escapeHtml(formatOtpDestination(snapshot))}.`;
+          return `We send a one-time code to ${escapeHtml(formatOtpDestination(snapshot))}.`;
         case "payment":
-          return snapshot.paymentEntryMode === "add" ? snapshot.selectedTenderType === "CARD" ? "Securely save a new card to continue." : "Follow the bank-linking flow below to continue." : "Choose a saved payment method or add a new one.";
+          return snapshot.paymentEntryMode === "add" ? snapshot.selectedTenderType === "CARD" ? "Securely save a new card using the same streamlined experience." : "Follow the bank-linking flow below to continue." : "Choose a saved payment method or add a new one.";
         case "success": {
           const source = snapshot.completedResult?.paymentSource ?? snapshot.selectedSource;
           return source ? `${escapeHtml(formatSourcePrimaryLabel(source))} is ready to use.` : "Payment source linked successfully.";
@@ -1293,8 +1364,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       }
     })();
     return `
-    <div class="ch-sdk-title-block">
-      <span class="ch-sdk-eyebrow">Commerce Hub Connect</span>
+    <div class="ch-sdk-title-block${snapshot.displayStep === "email" || snapshot.displayStep === "otp" || snapshot.displayStep === "success" ? " ch-sdk-title-block--centered" : ""}">
       <h2>${escapeHtml(title)}</h2>
       <p>${subtitle}</p>
     </div>
@@ -1323,25 +1393,38 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         <span>Email address</span>
         <input name="email" type="email" value="${escapeHtml(snapshot.email)}" autocomplete="email" ${snapshot.interaction.allowEmailChange === false && snapshot.email ? "disabled" : ""} required />
       </label>
-      <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? "disabled" : ""}>
-        ${snapshot.submitting ? "Sending..." : "Continue"}
-      </button>
+      <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? "disabled" : ""}>${renderButtonLabel(snapshot.submitting ? "Sending..." : "Continue", "arrow")}</button>
     </form>
   `;
   }
   function renderOtpStep(snapshot) {
+    const otpDigits = getOtpDisplayDigits(snapshot.otpCode);
     return `
     <form class="ch-sdk-form" data-form="otp">
-      <label class="ch-sdk-field">
-        <span>One-time code</span>
-        <input name="otp" type="text" inputmode="numeric" maxlength="6" value="${escapeHtml(snapshot.otpCode)}" placeholder="123456" required />
-      </label>
-      <div class="ch-sdk-button-row">
-        <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? "disabled" : ""}>${snapshot.submitting ? "Verifying..." : "Verify"}</button>
-        <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-email" type="button" ${snapshot.submitting ? "disabled" : ""}>Back</button>
+      <input name="otp" type="hidden" value="${escapeHtml(snapshot.otpCode)}" />
+      <div class="ch-sdk-otp-group" role="group" aria-label="One-time code">
+        ${otpDigits.map(
+      (digit, index) => `
+              <input
+                class="ch-sdk-otp-digit"
+                data-otp-digit-index="${index}"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="${index === 0 ? "one-time-code" : "off"}"
+                maxlength="1"
+                value="${escapeHtml(digit)}"
+                aria-label="Digit ${index + 1}"
+                ${snapshot.submitting ? "disabled" : ""}
+              />
+            `
+    ).join("")}
       </div>
-      <div class="ch-sdk-inline-actions">
+      <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? "disabled" : ""}>${renderButtonLabel(snapshot.submitting ? "Verifying..." : "Verify", "check")}</button>
+      <p class="ch-sdk-helper-copy">Didn\u2019t receive the code?</p>
+      <div class="ch-sdk-inline-actions ch-sdk-inline-actions--centered">
         <button class="ch-sdk-link-button" data-action="otp-alternate" type="button" ${snapshot.submitting ? "disabled" : ""}>${snapshot.interaction.phone?.phoneNumber && snapshot.requestedOtpMode !== "email" ? "Send code to email instead" : "Use another email"}</button>
+        <span class="ch-sdk-inline-separator" aria-hidden="true">\u2022</span>
         <button class="ch-sdk-link-button" data-action="resend-otp" type="button" ${snapshot.submitting ? "disabled" : ""}>Resend code</button>
       </div>
     </form>
@@ -1352,12 +1435,15 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     return `
     <div class="ch-sdk-stack">
       <div class="ch-sdk-source-list">${sourcesMarkup}</div>
-      <div class="ch-sdk-inline-actions">
-        ${snapshot.supportedTenderTypes.includes("CARD") ? '<button class="ch-sdk-link-button" data-action="add-card" type="button">Add a credit or debit card</button>' : ""}
-        ${snapshot.supportedTenderTypes.includes("BANK_ACCOUNT") ? '<button class="ch-sdk-link-button" data-action="add-bank" type="button">Add bank account</button>' : ""}
+      <div class="ch-sdk-pill-actions">
+        ${snapshot.supportedTenderTypes.includes("CARD") ? '<button class="ch-sdk-pill-button" data-action="add-card" type="button">Add a credit or debit card</button>' : ""}
+        ${snapshot.supportedTenderTypes.includes("BANK_ACCOUNT") ? '<button class="ch-sdk-pill-button" data-action="add-bank" type="button">Add bank account</button>' : ""}
       </div>
       <button class="ch-sdk-button" data-action="attach-selected-source" type="button" ${snapshot.submitting || !snapshot.selectedSource ? "disabled" : ""}>
-        ${snapshot.submitting ? "Saving..." : snapshot.configuration.paymentSelectionConfirmLabel?.trim() || "Confirm"}
+        ${renderButtonLabel(
+      snapshot.submitting ? "Saving..." : snapshot.configuration.paymentSelectionConfirmLabel?.trim() || "Confirm",
+      "arrow"
+    )}
       </button>
     </div>
   `;
@@ -1378,12 +1464,19 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
   function renderCardStep(snapshot) {
     const draft = snapshot.cardDraft;
     const useNewBillingAddress = (draft.billingAddressValue || getNewBillingAddressValue()) === getNewBillingAddressValue();
-    const billingAddressOptions = renderBillingAddressOptions(snapshot.billingAddresses, draft.billingAddressValue || getNewBillingAddressValue());
+    const billingAddressOptions = renderBillingAddressOptions(
+      snapshot.billingAddresses,
+      draft.billingAddressValue || getNewBillingAddressValue()
+    );
     const cardPreview = draft.cardNumber ? `<small class="ch-sdk-field-help">Preview: ${escapeHtml(getMaskedCardPreview(draft.cardNumber))}</small>` : "";
     const cvvPreview = draft.cvc ? `<small class="ch-sdk-field-help">Preview: ${escapeHtml(getMaskedCvvPreview(draft.cvc))}</small>` : "";
     return `
     <form class="ch-sdk-form" data-form="card">
       ${snapshot.cardDraftMessage ? `<div class="ch-sdk-alert ch-sdk-alert--error">${escapeHtml(snapshot.cardDraftMessage)}</div>` : ""}
+      <div class="ch-sdk-form-intro">
+        <strong>Card details</strong>
+        <p>Enter the payment details you want to save to this profile.</p>
+      </div>
       <div class="ch-sdk-grid ch-sdk-grid--two">
         ${renderInputField("Card name", "name", draft.name, snapshot.cardDraftErrors.name)}
         ${renderInputField("Name on card", "fullName", draft.fullName, snapshot.cardDraftErrors.fullName)}
@@ -1403,7 +1496,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       ${cvvPreview}
       ${useNewBillingAddress ? renderNewBillingAddressFields(draft, snapshot.cardDraftErrors) : ""}
       <div class="ch-sdk-button-row">
-        <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? "disabled" : ""}>${snapshot.submitting ? "Saving..." : "Save payment method"}</button>
+        <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? "disabled" : ""}>${renderButtonLabel(snapshot.submitting ? "Saving..." : "Save payment method", "arrow")}</button>
         <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button" ${snapshot.submitting ? "disabled" : ""}>Back</button>
       </div>
     </form>
@@ -1450,8 +1543,10 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     const source = snapshot.completedResult?.paymentSource ?? snapshot.selectedSource;
     return `
     <div class="ch-sdk-stack">
-      <div class="ch-sdk-alert ch-sdk-alert--success">
-        ${escapeHtml(source ? `${formatSourcePrimaryLabel(source)} is ready to use.` : "Payment source linked successfully.")}
+      <div class="ch-sdk-alert ch-sdk-alert--success ch-sdk-alert--success-prominent">
+        ${escapeHtml(
+      source ? `${formatSourcePrimaryLabel(source)} is ready to use.` : "Payment source linked successfully."
+    )}
       </div>
       ${source ? renderSuccessSummary(source) : ""}
       <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button">Manage payment methods</button>
@@ -1485,6 +1580,60 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     hostElement.style.setProperty("--ch-sdk-secondary", whiteLabel.secondaryColor);
     hostElement.style.setProperty("--ch-sdk-text", whiteLabel.textColor);
     hostElement.style.setProperty("--ch-sdk-font-family", whiteLabel.fontFamily);
+  }
+  function renderButtonLabel(label, icon) {
+    const iconMarkup = icon === "arrow" ? '<span class="ch-sdk-button-icon" aria-hidden="true">\u2192</span>' : '<span class="ch-sdk-button-icon" aria-hidden="true">\u2713</span>';
+    return `<span class="ch-sdk-button-label">${escapeHtml(label)}</span>${iconMarkup}`;
+  }
+  function getOtpDisplayDigits(code) {
+    const digits = normalizeOtpDigits(code).split("");
+    return Array.from({ length: 6 }, (_, index) => digits[index] ?? "");
+  }
+  function normalizeOtpDigits(value) {
+    return value.replace(/\D/g, "").slice(0, 6);
+  }
+  function getOtpDigitInputs(input) {
+    return Array.from(input.form?.querySelectorAll("[data-otp-digit-index]") ?? []);
+  }
+  function syncOtpFormValue(form, inputs) {
+    const hiddenInput = form?.querySelector('input[name="otp"]');
+    if (!hiddenInput) {
+      return;
+    }
+    hiddenInput.value = inputs.map((otpInput) => normalizeOtpDigits(otpInput.value)).join("");
+  }
+  function focusOtpInput(input) {
+    if (!input) {
+      return;
+    }
+    input.focus();
+    input.select();
+  }
+  function syncOtpDigits(target) {
+    const inputs = getOtpDigitInputs(target);
+    const index = Number(target.dataset["otpDigitIndex"] ?? -1);
+    if (index < 0) {
+      return;
+    }
+    const digits = normalizeOtpDigits(target.value);
+    if (digits.length <= 1) {
+      target.value = digits;
+      syncOtpFormValue(target.form, inputs);
+      if (digits) {
+        focusOtpInput(inputs[index + 1]);
+      }
+      return;
+    }
+    let cursor = index;
+    for (const digit of digits) {
+      if (cursor >= inputs.length) {
+        break;
+      }
+      inputs[cursor].value = digit;
+      cursor += 1;
+    }
+    syncOtpFormValue(target.form, inputs);
+    focusOtpInput(inputs[Math.min(cursor, inputs.length - 1)]);
   }
 
   // projects/commerce-hub-connect-web-sdk/src/web-sdk.ts

@@ -23,6 +23,9 @@ export class CommerceHubConnectWidgetRenderer {
     this.unsubscribe = this.controller.subscribe(() => this.render());
     this.hostElement.addEventListener('click', this.handleClick);
     this.hostElement.addEventListener('submit', this.handleSubmit);
+    this.hostElement.addEventListener('input', this.handleInput);
+    this.hostElement.addEventListener('keydown', this.handleKeydown);
+    this.hostElement.addEventListener('paste', this.handlePaste);
     this.render();
   }
 
@@ -30,6 +33,9 @@ export class CommerceHubConnectWidgetRenderer {
     this.unsubscribe();
     this.hostElement.removeEventListener('click', this.handleClick);
     this.hostElement.removeEventListener('submit', this.handleSubmit);
+    this.hostElement.removeEventListener('input', this.handleInput);
+    this.hostElement.removeEventListener('keydown', this.handleKeydown);
+    this.hostElement.removeEventListener('paste', this.handlePaste);
     this.hostElement.replaceChildren();
   }
 
@@ -113,7 +119,9 @@ export class CommerceHubConnectWidgetRenderer {
           cardNumber: String(formData.get('cardNumber') ?? ''),
           expiration: String(formData.get('expiration') ?? ''),
           cvc: String(formData.get('cvc') ?? ''),
-          billingAddressValue: String(formData.get('billingAddressValue') ?? getNewBillingAddressValue()),
+          billingAddressValue: String(
+            formData.get('billingAddressValue') ?? getNewBillingAddressValue(),
+          ),
           country: String(formData.get('country') ?? 'United States'),
           addressLine1: String(formData.get('addressLine1') ?? ''),
           addressLine2: String(formData.get('addressLine2') ?? ''),
@@ -128,6 +136,78 @@ export class CommerceHubConnectWidgetRenderer {
     }
   };
 
+  private readonly handleInput = (event: Event): void => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset['otpDigitIndex'] === undefined) {
+      return;
+    }
+
+    syncOtpDigits(target);
+  };
+
+  private readonly handleKeydown = (event: Event): void => {
+    const keyboardEvent = event as KeyboardEvent;
+    const target = keyboardEvent.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset['otpDigitIndex'] === undefined) {
+      return;
+    }
+
+    const inputs = getOtpDigitInputs(target);
+    const index = Number(target.dataset['otpDigitIndex'] ?? -1);
+    if (index < 0) {
+      return;
+    }
+
+    if (keyboardEvent.key === 'Backspace' && !target.value && index > 0) {
+      keyboardEvent.preventDefault();
+      const previous = inputs[index - 1];
+      previous.value = '';
+      syncOtpFormValue(previous.form, inputs);
+      focusOtpInput(previous);
+      return;
+    }
+
+    if (keyboardEvent.key === 'ArrowLeft' && index > 0) {
+      keyboardEvent.preventDefault();
+      focusOtpInput(inputs[index - 1]);
+      return;
+    }
+
+    if (keyboardEvent.key === 'ArrowRight' && index < inputs.length - 1) {
+      keyboardEvent.preventDefault();
+      focusOtpInput(inputs[index + 1]);
+    }
+  };
+
+  private readonly handlePaste = (event: Event): void => {
+    const clipboardEvent = event as ClipboardEvent;
+    const target = clipboardEvent.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset['otpDigitIndex'] === undefined) {
+      return;
+    }
+
+    const digits = normalizeOtpDigits(clipboardEvent.clipboardData?.getData('text') ?? '');
+    if (!digits) {
+      return;
+    }
+
+    clipboardEvent.preventDefault();
+    const inputs = getOtpDigitInputs(target);
+    const startIndex = Number(target.dataset['otpDigitIndex'] ?? 0);
+    let cursor = startIndex;
+
+    for (const digit of digits) {
+      if (cursor >= inputs.length) {
+        break;
+      }
+      inputs[cursor].value = digit;
+      cursor += 1;
+    }
+
+    syncOtpFormValue(target.form, inputs);
+    focusOtpInput(inputs[Math.min(cursor, inputs.length - 1)]);
+  };
+
   private render(): void {
     const snapshot = this.controller.getSnapshot();
     applyTheme(this.hostElement, snapshot.whiteLabel);
@@ -135,14 +215,22 @@ export class CommerceHubConnectWidgetRenderer {
       <section class="ch-sdk-shell">
         ${snapshot.whiteLabel.logoUrl ? `<header class="ch-sdk-header"><img src="${escapeHtml(snapshot.whiteLabel.logoUrl)}" alt="Merchant logo" class="ch-sdk-logo" /></header>` : ''}
         <div class="ch-sdk-card">
-          ${renderStatus(snapshot)}
-          ${snapshot.error ? renderError(snapshot.error.message) : ''}
-          ${renderStep(snapshot)}
+          <div class="ch-sdk-card-body">
+            ${renderStatus(snapshot)}
+            ${snapshot.error ? renderError(snapshot.error.message) : ''}
+            ${renderStep(snapshot)}
+          </div>
+          <footer class="ch-sdk-footer-brand" aria-label="Commerce Hub Connect">Commerce Hub Connect</footer>
         </div>
       </section>
     `;
 
-    if (snapshot.pendingPayByBankLaunch && snapshot.displayStep === 'payment' && snapshot.paymentEntryMode === 'add' && snapshot.selectedTenderType === 'BANK_ACCOUNT') {
+    if (
+      snapshot.pendingPayByBankLaunch &&
+      snapshot.displayStep === 'payment' &&
+      snapshot.paymentEntryMode === 'add' &&
+      snapshot.selectedTenderType === 'BANK_ACCOUNT'
+    ) {
       queueMicrotask(() => {
         void this.controller.launchPayByBank(snapshot.payByBankMountId);
       });
@@ -172,11 +260,11 @@ function renderStatus(snapshot: ReturnType<CommerceHubConnectWidgetController['g
   const subtitle = (() => {
     switch (snapshot.displayStep) {
       case 'otp':
-        return `We sent a one-time code to ${escapeHtml(formatOtpDestination(snapshot))}.`;
+        return `We send a one-time code to ${escapeHtml(formatOtpDestination(snapshot))}.`;
       case 'payment':
         return snapshot.paymentEntryMode === 'add'
           ? snapshot.selectedTenderType === 'CARD'
-            ? 'Securely save a new card to continue.'
+            ? 'Securely save a new card using the same streamlined experience.'
             : 'Follow the bank-linking flow below to continue.'
           : 'Choose a saved payment method or add a new one.';
       case 'success': {
@@ -192,8 +280,7 @@ function renderStatus(snapshot: ReturnType<CommerceHubConnectWidgetController['g
   })();
 
   return `
-    <div class="ch-sdk-title-block">
-      <span class="ch-sdk-eyebrow">Commerce Hub Connect</span>
+    <div class="ch-sdk-title-block${snapshot.displayStep === 'email' || snapshot.displayStep === 'otp' || snapshot.displayStep === 'success' ? ' ch-sdk-title-block--centered' : ''}">
       <h2>${escapeHtml(title)}</h2>
       <p>${subtitle}</p>
     </div>
@@ -229,26 +316,42 @@ function renderEmailStep(snapshot: ReturnType<CommerceHubConnectWidgetController
         <span>Email address</span>
         <input name="email" type="email" value="${escapeHtml(snapshot.email)}" autocomplete="email" ${snapshot.interaction.allowEmailChange === false && snapshot.email ? 'disabled' : ''} required />
       </label>
-      <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? 'disabled' : ''}>
-        ${snapshot.submitting ? 'Sending...' : 'Continue'}
-      </button>
+      <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? 'disabled' : ''}>${renderButtonLabel(snapshot.submitting ? 'Sending...' : 'Continue', 'arrow')}</button>
     </form>
   `;
 }
 
 function renderOtpStep(snapshot: ReturnType<CommerceHubConnectWidgetController['getSnapshot']>): string {
+  const otpDigits = getOtpDisplayDigits(snapshot.otpCode);
+
   return `
     <form class="ch-sdk-form" data-form="otp">
-      <label class="ch-sdk-field">
-        <span>One-time code</span>
-        <input name="otp" type="text" inputmode="numeric" maxlength="6" value="${escapeHtml(snapshot.otpCode)}" placeholder="123456" required />
-      </label>
-      <div class="ch-sdk-button-row">
-        <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? 'disabled' : ''}>${snapshot.submitting ? 'Verifying...' : 'Verify'}</button>
-        <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-email" type="button" ${snapshot.submitting ? 'disabled' : ''}>Back</button>
+      <input name="otp" type="hidden" value="${escapeHtml(snapshot.otpCode)}" />
+      <div class="ch-sdk-otp-group" role="group" aria-label="One-time code">
+        ${otpDigits
+          .map(
+            (digit, index) => `
+              <input
+                class="ch-sdk-otp-digit"
+                data-otp-digit-index="${index}"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                autocomplete="${index === 0 ? 'one-time-code' : 'off'}"
+                maxlength="1"
+                value="${escapeHtml(digit)}"
+                aria-label="Digit ${index + 1}"
+                ${snapshot.submitting ? 'disabled' : ''}
+              />
+            `,
+          )
+          .join('')}
       </div>
-      <div class="ch-sdk-inline-actions">
+      <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? 'disabled' : ''}>${renderButtonLabel(snapshot.submitting ? 'Verifying...' : 'Verify', 'check')}</button>
+      <p class="ch-sdk-helper-copy">Didn’t receive the code?</p>
+      <div class="ch-sdk-inline-actions ch-sdk-inline-actions--centered">
         <button class="ch-sdk-link-button" data-action="otp-alternate" type="button" ${snapshot.submitting ? 'disabled' : ''}>${snapshot.interaction.phone?.phoneNumber && snapshot.requestedOtpMode !== 'email' ? 'Send code to email instead' : 'Use another email'}</button>
+        <span class="ch-sdk-inline-separator" aria-hidden="true">•</span>
         <button class="ch-sdk-link-button" data-action="resend-otp" type="button" ${snapshot.submitting ? 'disabled' : ''}>Resend code</button>
       </div>
     </form>
@@ -256,19 +359,25 @@ function renderOtpStep(snapshot: ReturnType<CommerceHubConnectWidgetController['
 }
 
 function renderPaymentListStep(snapshot: ReturnType<CommerceHubConnectWidgetController['getSnapshot']>): string {
-  const sourcesMarkup = snapshot.availableSources.length > 0
-    ? snapshot.availableSources.map((source) => renderSourceOption(source, snapshot.selectedSource?.id ?? null)).join('')
-    : '<div class="ch-sdk-empty-state">No saved payment methods are available yet.</div>';
+  const sourcesMarkup =
+    snapshot.availableSources.length > 0
+      ? snapshot.availableSources
+          .map((source) => renderSourceOption(source, snapshot.selectedSource?.id ?? null))
+          .join('')
+      : '<div class="ch-sdk-empty-state">No saved payment methods are available yet.</div>';
 
   return `
     <div class="ch-sdk-stack">
       <div class="ch-sdk-source-list">${sourcesMarkup}</div>
-      <div class="ch-sdk-inline-actions">
-        ${snapshot.supportedTenderTypes.includes('CARD') ? '<button class="ch-sdk-link-button" data-action="add-card" type="button">Add a credit or debit card</button>' : ''}
-        ${snapshot.supportedTenderTypes.includes('BANK_ACCOUNT') ? '<button class="ch-sdk-link-button" data-action="add-bank" type="button">Add bank account</button>' : ''}
+      <div class="ch-sdk-pill-actions">
+        ${snapshot.supportedTenderTypes.includes('CARD') ? '<button class="ch-sdk-pill-button" data-action="add-card" type="button">Add a credit or debit card</button>' : ''}
+        ${snapshot.supportedTenderTypes.includes('BANK_ACCOUNT') ? '<button class="ch-sdk-pill-button" data-action="add-bank" type="button">Add bank account</button>' : ''}
       </div>
       <button class="ch-sdk-button" data-action="attach-selected-source" type="button" ${snapshot.submitting || !snapshot.selectedSource ? 'disabled' : ''}>
-        ${snapshot.submitting ? 'Saving...' : snapshot.configuration.paymentSelectionConfirmLabel?.trim() || 'Confirm'}
+        ${renderButtonLabel(
+          snapshot.submitting ? 'Saving...' : snapshot.configuration.paymentSelectionConfirmLabel?.trim() || 'Confirm',
+          'arrow',
+        )}
       </button>
     </div>
   `;
@@ -290,14 +399,26 @@ function renderSourceOption(source: PaymentSource, selectedSourceId: string | nu
 
 function renderCardStep(snapshot: ReturnType<CommerceHubConnectWidgetController['getSnapshot']>): string {
   const draft = snapshot.cardDraft;
-  const useNewBillingAddress = (draft.billingAddressValue || getNewBillingAddressValue()) === getNewBillingAddressValue();
-  const billingAddressOptions = renderBillingAddressOptions(snapshot.billingAddresses, draft.billingAddressValue || getNewBillingAddressValue());
-  const cardPreview = draft.cardNumber ? `<small class="ch-sdk-field-help">Preview: ${escapeHtml(getMaskedCardPreview(draft.cardNumber))}</small>` : '';
-  const cvvPreview = draft.cvc ? `<small class="ch-sdk-field-help">Preview: ${escapeHtml(getMaskedCvvPreview(draft.cvc))}</small>` : '';
+  const useNewBillingAddress =
+    (draft.billingAddressValue || getNewBillingAddressValue()) === getNewBillingAddressValue();
+  const billingAddressOptions = renderBillingAddressOptions(
+    snapshot.billingAddresses,
+    draft.billingAddressValue || getNewBillingAddressValue(),
+  );
+  const cardPreview = draft.cardNumber
+    ? `<small class="ch-sdk-field-help">Preview: ${escapeHtml(getMaskedCardPreview(draft.cardNumber))}</small>`
+    : '';
+  const cvvPreview = draft.cvc
+    ? `<small class="ch-sdk-field-help">Preview: ${escapeHtml(getMaskedCvvPreview(draft.cvc))}</small>`
+    : '';
 
   return `
     <form class="ch-sdk-form" data-form="card">
       ${snapshot.cardDraftMessage ? `<div class="ch-sdk-alert ch-sdk-alert--error">${escapeHtml(snapshot.cardDraftMessage)}</div>` : ''}
+      <div class="ch-sdk-form-intro">
+        <strong>Card details</strong>
+        <p>Enter the payment details you want to save to this profile.</p>
+      </div>
       <div class="ch-sdk-grid ch-sdk-grid--two">
         ${renderInputField('Card name', 'name', draft.name, snapshot.cardDraftErrors.name)}
         ${renderInputField('Name on card', 'fullName', draft.fullName, snapshot.cardDraftErrors.fullName)}
@@ -317,7 +438,7 @@ function renderCardStep(snapshot: ReturnType<CommerceHubConnectWidgetController[
       ${cvvPreview}
       ${useNewBillingAddress ? renderNewBillingAddressFields(draft, snapshot.cardDraftErrors) : ''}
       <div class="ch-sdk-button-row">
-        <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? 'disabled' : ''}>${snapshot.submitting ? 'Saving...' : 'Save payment method'}</button>
+        <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? 'disabled' : ''}>${renderButtonLabel(snapshot.submitting ? 'Saving...' : 'Save payment method', 'arrow')}</button>
         <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button" ${snapshot.submitting ? 'disabled' : ''}>Back</button>
       </div>
     </form>
@@ -380,8 +501,10 @@ function renderSuccessStep(snapshot: ReturnType<CommerceHubConnectWidgetControll
 
   return `
     <div class="ch-sdk-stack">
-      <div class="ch-sdk-alert ch-sdk-alert--success">
-        ${escapeHtml(source ? `${formatSourcePrimaryLabel(source)} is ready to use.` : 'Payment source linked successfully.')}
+      <div class="ch-sdk-alert ch-sdk-alert--success ch-sdk-alert--success-prominent">
+        ${escapeHtml(
+          source ? `${formatSourcePrimaryLabel(source)} is ready to use.` : 'Payment source linked successfully.',
+        )}
       </div>
       ${source ? renderSuccessSummary(source) : ''}
       <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button">Manage payment methods</button>
@@ -425,4 +548,74 @@ function applyTheme(
   hostElement.style.setProperty('--ch-sdk-secondary', whiteLabel.secondaryColor);
   hostElement.style.setProperty('--ch-sdk-text', whiteLabel.textColor);
   hostElement.style.setProperty('--ch-sdk-font-family', whiteLabel.fontFamily);
+}
+
+function renderButtonLabel(label: string, icon: 'arrow' | 'check'): string {
+  const iconMarkup =
+    icon === 'arrow'
+      ? '<span class="ch-sdk-button-icon" aria-hidden="true">→</span>'
+      : '<span class="ch-sdk-button-icon" aria-hidden="true">✓</span>';
+
+  return `<span class="ch-sdk-button-label">${escapeHtml(label)}</span>${iconMarkup}`;
+}
+
+function getOtpDisplayDigits(code: string): string[] {
+  const digits = normalizeOtpDigits(code).split('');
+  return Array.from({ length: 6 }, (_, index) => digits[index] ?? '');
+}
+
+function normalizeOtpDigits(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 6);
+}
+
+function getOtpDigitInputs(input: HTMLInputElement): HTMLInputElement[] {
+  return Array.from(input.form?.querySelectorAll<HTMLInputElement>('[data-otp-digit-index]') ?? []);
+}
+
+function syncOtpFormValue(form: HTMLFormElement | null, inputs: HTMLInputElement[]): void {
+  const hiddenInput = form?.querySelector<HTMLInputElement>('input[name="otp"]');
+  if (!hiddenInput) {
+    return;
+  }
+
+  hiddenInput.value = inputs.map((otpInput) => normalizeOtpDigits(otpInput.value)).join('');
+}
+
+function focusOtpInput(input: HTMLInputElement | undefined): void {
+  if (!input) {
+    return;
+  }
+
+  input.focus();
+  input.select();
+}
+
+function syncOtpDigits(target: HTMLInputElement): void {
+  const inputs = getOtpDigitInputs(target);
+  const index = Number(target.dataset['otpDigitIndex'] ?? -1);
+  if (index < 0) {
+    return;
+  }
+
+  const digits = normalizeOtpDigits(target.value);
+  if (digits.length <= 1) {
+    target.value = digits;
+    syncOtpFormValue(target.form, inputs);
+    if (digits) {
+      focusOtpInput(inputs[index + 1]);
+    }
+    return;
+  }
+
+  let cursor = index;
+  for (const digit of digits) {
+    if (cursor >= inputs.length) {
+      break;
+    }
+    inputs[cursor].value = digit;
+    cursor += 1;
+  }
+
+  syncOtpFormValue(target.form, inputs);
+  focusOtpInput(inputs[Math.min(cursor, inputs.length - 1)]);
 }

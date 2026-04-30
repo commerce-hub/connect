@@ -323,8 +323,11 @@
           return state.counters['POST /interaction/otp/send'] === 1;
         });
 
-        const otpInput = await waitFor('OTP input rendered', () => mountTarget.querySelector('input[name="otp"]'));
-        setInputValue(otpInput, '123456');
+        const otpDigits = await waitFor('Segmented OTP inputs rendered', () => {
+          const inputs = mountTarget.querySelectorAll('.ch-sdk-otp-digit');
+          return inputs.length === 6 ? inputs : null;
+        });
+        otpDigits.forEach((input, index) => setInputValue(input, String(index + 1)));
         click(getRequiredElement('button[type="submit"]'));
 
         await waitFor('OTP validate request completed', async () => {

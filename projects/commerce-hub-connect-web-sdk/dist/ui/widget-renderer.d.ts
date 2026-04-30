@@ -7,5 +7,8 @@ export declare class CommerceHubConnectWidgetRenderer {
     destroy(): void;
     private readonly handleClick;
     private readonly handleSubmit;
+    private readonly handleInput;
+    private readonly handleKeydown;
+    private readonly handlePaste;
     private render;
 }
