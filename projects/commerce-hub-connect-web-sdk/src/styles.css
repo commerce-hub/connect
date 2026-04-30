@@ -1,9 +1,321 @@
-@import "../../commerce-hub-connect-sdk/src/lib/theme/commerce-hub-sdk.css";
-
-:root {
-  color-scheme: light;
+:host,
+.commerce-hub-connect-web-sdk-mount {
+  color: var(--ch-sdk-text, #101828);
+  font-family: var(--ch-sdk-font-family, "Open Sans", "Segoe UI", sans-serif);
 }
 
-.commerce-hub-connect-web-sdk-mount {
-  display: block;
+.ch-sdk-shell {
+  --ch-sdk-primary-soft: color-mix(in srgb, var(--ch-sdk-primary, #0a5dff) 14%, white);
+  --ch-sdk-secondary-soft: color-mix(in srgb, var(--ch-sdk-secondary, #627d98) 18%, white);
+  --ch-sdk-border: color-mix(in srgb, var(--ch-sdk-text, #101828) 10%, white);
+  --ch-sdk-shadow: 0 20px 50px rgba(16, 24, 40, 0.12);
+  --ch-sdk-surface: #ffffff;
+  --ch-sdk-surface-alt: #f7f9fc;
+  --ch-sdk-danger: #b42318;
+  --ch-sdk-danger-soft: rgba(180, 35, 24, 0.08);
+  --ch-sdk-success: #047857;
+  --ch-sdk-success-soft: rgba(4, 120, 87, 0.1);
+  width: 100%;
+}
+
+.ch-sdk-header {
+  margin-bottom: 12px;
+}
+
+.ch-sdk-logo {
+  max-height: 36px;
+  max-width: 160px;
+  object-fit: contain;
+}
+
+.ch-sdk-card {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  padding: 24px;
+  border: 1px solid var(--ch-sdk-border);
+  border-radius: 24px;
+  background: var(--ch-sdk-surface);
+  box-shadow: var(--ch-sdk-shadow);
+}
+
+.ch-sdk-title-block {
+  display: grid;
+  gap: 6px;
+}
+
+.ch-sdk-title-block h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.ch-sdk-title-block p {
+  margin: 0;
+  color: color-mix(in srgb, var(--ch-sdk-text) 70%, white);
+  line-height: 1.5;
+}
+
+.ch-sdk-eyebrow {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ch-sdk-primary);
+}
+
+.ch-sdk-form,
+.ch-sdk-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.ch-sdk-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.ch-sdk-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ch-sdk-field {
+  display: grid;
+  gap: 6px;
+}
+
+.ch-sdk-field span {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ch-sdk-field input,
+.ch-sdk-field select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--ch-sdk-border);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ch-sdk-text);
+  font: inherit;
+}
+
+.ch-sdk-field input:focus,
+.ch-sdk-field select:focus {
+  outline: 0;
+  border-color: var(--ch-sdk-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ch-sdk-primary) 14%, white);
+}
+
+.ch-sdk-field-help,
+.ch-sdk-field-error {
+  font-size: 0.8rem;
+}
+
+.ch-sdk-field-help {
+  color: color-mix(in srgb, var(--ch-sdk-text) 65%, white);
+}
+
+.ch-sdk-field-error {
+  color: var(--ch-sdk-danger);
+}
+
+.ch-sdk-button,
+.ch-sdk-link-button,
+.ch-sdk-source-option {
+  font: inherit;
+}
+
+.ch-sdk-button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--ch-sdk-primary);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ch-sdk-button:hover:not(:disabled) {
+  filter: brightness(0.98);
+}
+
+.ch-sdk-button:disabled,
+.ch-sdk-link-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ch-sdk-button--secondary {
+  background: var(--ch-sdk-secondary-soft);
+  color: var(--ch-sdk-text);
+}
+
+.ch-sdk-button-row,
+.ch-sdk-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ch-sdk-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ch-sdk-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ch-sdk-alert {
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.ch-sdk-alert--error {
+  background: var(--ch-sdk-danger-soft);
+  color: var(--ch-sdk-danger);
+}
+
+.ch-sdk-alert--success {
+  background: var(--ch-sdk-success-soft);
+  color: var(--ch-sdk-success);
+}
+
+.ch-sdk-source-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ch-sdk-source-option,
+.ch-sdk-success-summary {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--ch-sdk-border);
+  border-radius: 18px;
+  background: var(--ch-sdk-surface-alt);
+  color: inherit;
+}
+
+.ch-sdk-source-option {
+  cursor: pointer;
+  text-align: left;
+}
+
+.ch-sdk-source-option.is-selected {
+  border-color: var(--ch-sdk-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ch-sdk-primary) 10%, white);
+}
+
+.ch-sdk-source-radio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--ch-sdk-border);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.ch-sdk-source-radio span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--ch-sdk-primary);
+}
+
+.ch-sdk-source-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ch-sdk-primary) 14%, white);
+  color: var(--ch-sdk-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ch-sdk-source-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.ch-sdk-source-copy strong,
+.ch-sdk-source-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ch-sdk-source-copy small {
+  color: color-mix(in srgb, var(--ch-sdk-text) 70%, white);
+}
+
+.ch-sdk-empty-state {
+  padding: 16px;
+  border: 1px dashed var(--ch-sdk-border);
+  border-radius: 16px;
+  background: var(--ch-sdk-surface-alt);
+  color: color-mix(in srgb, var(--ch-sdk-text) 70%, white);
+}
+
+.ch-sdk-bank-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--ch-sdk-border);
+  background: var(--ch-sdk-surface-alt);
+}
+
+.ch-sdk-bank-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.ch-sdk-bank-copy p {
+  margin: 0;
+  color: color-mix(in srgb, var(--ch-sdk-text) 70%, white);
+}
+
+.ch-sdk-bank-mount {
+  min-height: 160px;
+  border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--ch-sdk-primary) 35%, white);
+  background: #fff;
+}
+
+@media (max-width: 640px) {
+  .ch-sdk-card {
+    padding: 18px;
+  }
+
+  .ch-sdk-grid--two {
+    grid-template-columns: 1fr;
+  }
+
+  .ch-sdk-source-option,
+  .ch-sdk-success-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ch-sdk-source-radio {
+    display: none;
+  }
 }

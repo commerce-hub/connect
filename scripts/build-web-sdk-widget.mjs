@@ -7,55 +7,52 @@ import { build as esbuild } from 'esbuild';
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const widgetProjectDir = path.join(workspaceRoot, 'projects', 'commerce-hub-connect-web-sdk');
-const widgetBuildDir = path.join(widgetProjectDir, 'dist-widget');
-const widgetBrowserDir = path.join(widgetBuildDir, 'browser');
+const sourceDir = path.join(widgetProjectDir, 'src');
 const outputDir = path.join(widgetProjectDir, 'dist');
-const rawEntryFile = path.join(widgetBrowserDir, 'main.js');
-const rawStylesFile = path.join(widgetBrowserDir, 'styles.css');
-const typeDefinitionFile = path.join(widgetProjectDir, 'web-sdk.d.ts');
-const licenseFile = path.join(widgetBuildDir, '3rdpartylicenses.txt');
 const outputBundleFile = path.join(outputDir, 'CommerceHubConnectSDK.js');
 const outputTypesFile = path.join(outputDir, 'CommerceHubConnectSDK.d.ts');
-const outputLicenseFile = path.join(outputDir, '3rdpartylicenses.txt');
+const tmpTypesDir = path.join(widgetProjectDir, '.tmp-types');
+const entryFile = path.join(sourceDir, 'main.ts');
+const stylesheetFile = path.join(sourceDir, 'styles.css');
+const projectPackageJson = path.join(widgetProjectDir, 'package.json');
+const projectReadme = path.join(widgetProjectDir, 'README.md');
 
-await fs.rm(outputDir, { recursive: true, force: true });
-await runAngularBuild();
 await resetDirectory(outputDir);
+await fs.rm(tmpTypesDir, { recursive: true, force: true });
 
-const inlinedCss = await inlineCssAssets(rawStylesFile, widgetBrowserDir);
+const inlinedCss = await fs.readFile(stylesheetFile, 'utf8');
 
 await esbuild({
-  entryPoints: [rawEntryFile],
+  entryPoints: [entryFile],
   bundle: true,
   format: 'iife',
   platform: 'browser',
   target: ['es2020'],
   logLevel: 'info',
-  logOverride: {
-    'empty-import-meta': 'silent',
-  },
   outfile: outputBundleFile,
   banner: {
     js: `globalThis.__commerceHubConnectWebSdkInlineCss = ${JSON.stringify(inlinedCss)};`,
   },
 });
 
+await runCommand(resolveBin('tsc'), ['-p', path.join(widgetProjectDir, 'tsconfig.build.json')]);
+await copyDeclarationTree(tmpTypesDir, outputDir);
+await fs.rename(path.join(outputDir, 'web-sdk.d.ts'), outputTypesFile);
 await Promise.all([
-  replaceFile(typeDefinitionFile, outputTypesFile),
-  copyIfPresent(licenseFile, outputLicenseFile),
+  copyIfPresent(projectPackageJson, path.join(outputDir, 'package.json')),
+  copyIfPresent(projectReadme, path.join(outputDir, 'README.md')),
 ]);
+await fs.rm(tmpTypesDir, { recursive: true, force: true });
 
 console.log(`Generated ${path.relative(workspaceRoot, outputBundleFile)}`);
 
-async function runAngularBuild() {
-  const angularCli = path.join(
+function resolveBin(name) {
+  return path.join(
     workspaceRoot,
     'node_modules',
     '.bin',
-    process.platform === 'win32' ? 'ng.cmd' : 'ng',
+    process.platform === 'win32' ? `${name}.cmd` : name,
   );
-
-  await runCommand(angularCli, ['build', 'commerce-hub-connect-web-sdk-widget']);
 }
 
 async function runCommand(command, args) {
@@ -82,79 +79,28 @@ async function resetDirectory(directoryPath) {
   await fs.mkdir(directoryPath, { recursive: true });
 }
 
-async function inlineCssAssets(stylesheetFile, assetRootDir) {
-  const stylesheet = await fs.readFile(stylesheetFile, 'utf8');
-  const urlPattern = /url\(([^)]+)\)/g;
-  let inlinedStylesheet = '';
-  let lastIndex = 0;
+async function copyDeclarationTree(sourceDir, destinationDir) {
+  const entries = await fs.readdir(sourceDir, { withFileTypes: true });
 
-  for (const match of stylesheet.matchAll(urlPattern)) {
-    const [fullMatch, rawUrl] = match;
-    const start = match.index ?? 0;
-    const assetUrl = rawUrl.trim().replace(/^['"]|['"]$/g, '');
-    const assetPath = resolveAssetPath(assetRootDir, assetUrl);
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const destinationPath = path.join(destinationDir, entry.name);
 
-    inlinedStylesheet += stylesheet.slice(lastIndex, start);
-    inlinedStylesheet += assetPath
-      ? `url(${JSON.stringify(await toDataUrl(assetPath))})`
-      : fullMatch;
+    if (entry.isDirectory()) {
+      await fs.mkdir(destinationPath, { recursive: true });
+      await copyDeclarationTree(sourcePath, destinationPath);
+      continue;
+    }
 
-    lastIndex = start + fullMatch.length;
-  }
-
-  inlinedStylesheet += stylesheet.slice(lastIndex);
-  return inlinedStylesheet;
-}
-
-function shouldInlineAsset(assetUrl) {
-  return (
-    assetUrl &&
-    !assetUrl.startsWith('data:') &&
-    !assetUrl.startsWith('http://') &&
-    !assetUrl.startsWith('https://') &&
-    !assetUrl.startsWith('//') &&
-    !assetUrl.startsWith('#')
-  );
-}
-
-function resolveAssetPath(assetRootDir, assetUrl) {
-  if (!shouldInlineAsset(assetUrl)) {
-    return null;
-  }
-
-  const [pathname] = assetUrl.split(/[?#]/, 1);
-  return path.join(assetRootDir, pathname);
-}
-
-async function toDataUrl(assetPath) {
-  const fileBuffer = await fs.readFile(assetPath);
-  const extension = path.extname(assetPath).toLowerCase();
-  const mimeType = resolveMimeType(extension);
-  return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-}
-
-function resolveMimeType(extension) {
-  switch (extension) {
-    case '.css':
-      return 'text/css';
-    case '.eot':
-      return 'application/vnd.ms-fontobject';
-    case '.svg':
-      return 'image/svg+xml';
-    case '.ttf':
-      return 'font/ttf';
-    case '.woff':
-      return 'font/woff';
-    case '.woff2':
-      return 'font/woff2';
-    default:
-      return 'application/octet-stream';
+    const fileBuffer = await fs.readFile(sourcePath);
+    await fs.writeFile(destinationPath, fileBuffer);
   }
 }
 
 async function copyIfPresent(source, destination) {
   try {
-    await replaceFile(source, destination);
+    const fileBuffer = await fs.readFile(source);
+    await fs.writeFile(destination, fileBuffer);
   } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
       return;
@@ -162,10 +108,4 @@ async function copyIfPresent(source, destination) {
 
     throw error;
   }
-}
-
-async function replaceFile(source, destination) {
-  const fileBuffer = await fs.readFile(source);
-  await fs.rm(destination, { force: true });
-  await fs.writeFile(destination, fileBuffer);
 }

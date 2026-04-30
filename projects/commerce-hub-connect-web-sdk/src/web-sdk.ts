@@ -1,29 +1,15 @@
-import { provideHttpClient } from '@angular/common/http';
+import type { CommerceHubConnectEnvironment } from './contracts/environment';
 import {
-  type ApplicationConfig,
-  type ApplicationRef,
-  type ComponentRef,
-  Injector,
-  createComponent,
-  provideBrowserGlobalErrorListeners,
-  provideZoneChangeDetection,
-} from '@angular/core';
-import { createApplication } from '@angular/platform-browser';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-
-import {
-  COMMERCE_HUB_CONNECT_API_BASE_URL,
-  COMMERCE_HUB_CONNECT_ENVIRONMENT,
-  type CommerceHubConnectEnvironment,
-  CommerceHubConnectCaptureComponent,
-  type CommerceHubSdkConfiguration,
-  type InteractionResponse,
-  type CommerceHubWhiteLabelOptions,
   normalizeCommerceHubConnectEnvironment,
-  provideCommerceHubSdkTheme,
   resolveCommerceHubConnectApiBaseUrl,
-} from 'commerce-hub-connect-sdk';
-
+} from './contracts/environment';
+import type {
+  CommerceHubSdkConfiguration,
+  CommerceHubWhiteLabelOptions,
+} from './contracts/sdk-models';
+import type { InteractionResponse } from './contracts/api-models';
+import { CommerceHubConnectWidgetController } from './core/controller';
+import { CommerceHubConnectWidgetRenderer } from './ui/widget-renderer';
 import type {
   CommerceHubConnectWebSdkElementOptions,
   CommerceHubConnectWebSdkMountOptions,
@@ -51,7 +37,7 @@ export interface CommerceHubConnectWebSdkInstance {
   update(
     options: CommerceHubConnectWebSdkMountOptions,
     environment?: CommerceHubConnectEnvironment,
-  ): void;
+  ): Promise<void>;
   destroy(): void;
 }
 
@@ -70,57 +56,54 @@ export interface CommerceHubConnectWebSdkNamespace {
   ): CommerceHubConnectWidgetElement;
 }
 
-const applicationConfig: ApplicationConfig = {
-  providers: [
-    provideBrowserGlobalErrorListeners(),
-    provideZoneChangeDetection({ eventCoalescing: true }),
-    provideAnimationsAsync(),
-    provideHttpClient(),
-    provideCommerceHubSdkTheme(),
-  ],
-};
-
 const mountedWidgets = new WeakMap<Element, MountedWidget>();
-
-let applicationRefPromise: Promise<ApplicationRef> | null = null;
 let stylesheetPromise: Promise<void> | null = null;
 
-type MountedWidgetRuntimeConfig = {
-  apiBaseUrl: string;
-  environment: CommerceHubConnectEnvironment;
-};
+export class MountedWidget implements CommerceHubConnectWebSdkInstance {
+  private readonly controller: CommerceHubConnectWidgetController;
+  private readonly renderer: CommerceHubConnectWidgetRenderer;
 
-class MountedWidget implements CommerceHubConnectWebSdkInstance {
   constructor(
-    private readonly applicationRef: ApplicationRef,
-    private readonly componentRef: ComponentRef<CommerceHubConnectCaptureComponent>,
     readonly containerElement: Element,
     readonly hostElement: HTMLElement,
     private readonly runtimeOrigin: string | undefined,
-    private readonly runtimeConfig: MountedWidgetRuntimeConfig,
-  ) {}
+    options: CommerceHubConnectWebSdkMountOptions,
+    private environment: CommerceHubConnectEnvironment,
+  ) {
+    const apiBaseUrl = resolveMountedWidgetApiBaseUrl(environment, this.runtimeOrigin);
+    this.controller = new CommerceHubConnectWidgetController(
+      options.interaction,
+      options.configuration,
+      options.whiteLabel,
+      environment,
+      apiBaseUrl,
+    );
+    this.renderer = new CommerceHubConnectWidgetRenderer(hostElement, this.controller);
+  }
 
-  update(
+  async update(
     options: CommerceHubConnectWebSdkMountOptions,
     environment?: CommerceHubConnectEnvironment,
-  ): void {
+  ): Promise<void> {
     validateMountRequest(options, environment);
 
     const nextEnvironment = normalizeCommerceHubConnectEnvironment(environment);
     const nextApiBaseUrl = resolveMountedWidgetApiBaseUrl(nextEnvironment, this.runtimeOrigin);
 
-    if (nextApiBaseUrl !== this.runtimeConfig.apiBaseUrl) {
+    if (nextApiBaseUrl !== resolveMountedWidgetApiBaseUrl(this.environment, this.runtimeOrigin)) {
       throw new Error(
         'Changing environment after mount is not supported when it resolves to a different API URL.',
       );
     }
 
-    this.runtimeConfig.apiBaseUrl = nextApiBaseUrl;
-    this.runtimeConfig.environment = nextEnvironment;
-    this.componentRef.setInput('interaction', options.interaction);
-    this.componentRef.setInput('configuration', options.configuration);
-    this.componentRef.setInput('whiteLabel', options.whiteLabel);
-    this.componentRef.changeDetectorRef.detectChanges();
+    this.environment = nextEnvironment;
+    await this.controller.update(
+      options.interaction,
+      options.configuration,
+      options.whiteLabel,
+      nextEnvironment,
+      nextApiBaseUrl,
+    );
   }
 
   destroy(): void {
@@ -128,8 +111,8 @@ class MountedWidget implements CommerceHubConnectWebSdkInstance {
       mountedWidgets.delete(this.containerElement);
     }
 
-    this.applicationRef.detachView(this.componentRef.hostView);
-    this.componentRef.destroy();
+    this.renderer.destroy();
+    this.controller.destroy();
     this.hostElement.remove();
   }
 }
@@ -209,7 +192,7 @@ export class CommerceHubConnectWidgetElement extends HTMLElement {
       return;
     }
 
-    this.instance.update(options, this.environmentValue);
+    await this.instance.update(options, this.environmentValue);
   }
 }
 
@@ -270,7 +253,6 @@ export async function mount(
   validateMountRequest(options, environment);
   await ensureStylesheet();
 
-  const applicationRef = await getApplicationRef();
   const containerElement = resolveMountTarget(target);
   const existing = mountedWidgets.get(containerElement);
 
@@ -288,48 +270,18 @@ export async function mount(
 
   const normalizedEnvironment = normalizeCommerceHubConnectEnvironment(environment);
   const runtimeOrigin = resolveSdkRuntimeOrigin(document);
-  const apiBaseUrl = resolveMountedWidgetApiBaseUrl(normalizedEnvironment, runtimeOrigin);
-  const runtimeConfig: MountedWidgetRuntimeConfig = {
-    apiBaseUrl,
-    environment: normalizedEnvironment,
-  };
-
-  const componentRef = createComponent(CommerceHubConnectCaptureComponent, {
-    environmentInjector: applicationRef.injector,
-    elementInjector: Injector.create({
-      providers: [
-        {
-          provide: COMMERCE_HUB_CONNECT_API_BASE_URL,
-          useValue: () => runtimeConfig.apiBaseUrl,
-        },
-        {
-          provide: COMMERCE_HUB_CONNECT_ENVIRONMENT,
-          useValue: () => runtimeConfig.environment,
-        },
-      ],
-      parent: applicationRef.injector,
-    }),
-    hostElement,
-  });
-
-  applicationRef.attachView(componentRef.hostView);
 
   try {
     const instance = new MountedWidget(
-      applicationRef,
-      componentRef,
       containerElement,
       hostElement,
       runtimeOrigin,
-      runtimeConfig,
+      options,
+      normalizedEnvironment,
     );
-
-    instance.update(options, normalizedEnvironment);
     mountedWidgets.set(containerElement, instance);
     return instance;
   } catch (error) {
-    applicationRef.detachView(componentRef.hostView);
-    componentRef.destroy();
     hostElement.remove();
     throw error;
   }
@@ -339,14 +291,6 @@ function ensureCustomElementRegistered(): void {
   if (!customElements.get(SDK_TAG_NAME)) {
     customElements.define(SDK_TAG_NAME, CommerceHubConnectWidgetElement);
   }
-}
-
-async function getApplicationRef(): Promise<ApplicationRef> {
-  if (!applicationRefPromise) {
-    applicationRefPromise = createApplication(applicationConfig);
-  }
-
-  return applicationRefPromise;
 }
 
 async function ensureStylesheet(): Promise<void> {
@@ -377,3 +321,14 @@ async function ensureStylesheet(): Promise<void> {
   stylesheetPromise = Promise.resolve();
   return stylesheetPromise;
 }
+
+export type {
+  CommerceHubConnectEnvironment,
+  InteractionResponse,
+  CommerceHubSdkConfiguration,
+  CommerceHubWhiteLabelOptions,
+};
+export * from './contracts/api-models';
+export * from './contracts/environment';
+export * from './contracts/sdk-models';
+export * from './web-sdk-types';

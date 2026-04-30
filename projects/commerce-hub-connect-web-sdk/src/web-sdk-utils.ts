@@ -2,8 +2,7 @@ import {
   type CommerceHubConnectEnvironment,
   isCommerceHubConnectEnvironment,
   normalizeCommerceHubConnectRuntimeOrigin,
-} from 'commerce-hub-connect-sdk';
-
+} from './contracts/environment';
 import type { CommerceHubConnectWebSdkMountOptions } from './web-sdk-types';
 
 export function resolveSdkRuntimeOrigin(doc: Document = document): string | undefined {
@@ -61,4 +60,21 @@ export function validateMountRequest(
   if (environment !== undefined && !isCommerceHubConnectEnvironment(environment)) {
     throw new Error('environment must be one of dev, qa, cat, or prod.');
   }
+}
+
+export function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+export function createStableId(prefix: string): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }

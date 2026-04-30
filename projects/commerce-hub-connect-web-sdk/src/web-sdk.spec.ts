@@ -1,60 +1,47 @@
-import { getDebugNode } from '@angular/core';
-import { of } from 'rxjs';
-
+import type { InteractionResponse, PaymentSource } from './contracts/api-models';
 import {
-  COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT,
-  CommerceHubConnectApiService,
-  CommerceHubConnectSdkService,
-  type CommerceHubSdkConfiguration,
-  type InteractionResponse,
-} from 'commerce-hub-connect-sdk';
+  registerCommerceHubConnectWebSdk,
+  resolveApiBaseUrl,
+  type CommerceHubConnectWebSdkMountOptions,
+} from './web-sdk';
 
-import { mount, registerCommerceHubConnectWebSdk } from './web-sdk';
-
-const ORIGINAL_API_BASE_URLS = {
-  ...COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT,
-};
-
-function createMountOptions(): {
-  interaction: InteractionResponse;
-  configuration: CommerceHubSdkConfiguration;
-} {
+function createConfiguration(overrides: Partial<CommerceHubConnectWebSdkMountOptions['configuration']> = {}) {
   return {
-    interaction: {
-      interactionId: 'interaction-1',
-      status: 'OTP_VALIDATION_PENDING',
-      paymentSources: [],
-      allowedTenderTypes: ['BANK_ACCOUNT'],
-      allowEmailChange: true,
-    },
-    configuration: {
-      onSuccess: () => undefined,
-      onError: () => undefined,
-      wallet: true,
-    },
+    onSuccess: jasmine.createSpy('onSuccess'),
+    onError: jasmine.createSpy('onError'),
+    ...overrides,
   };
 }
 
-describe('registerCommerceHubConnectWebSdk', () => {
-  let mountTarget: HTMLDivElement | null = null;
-  let expectedLocalProxyBaseUrl: string;
+function createInteraction(
+  overrides: Partial<InteractionResponse> = {},
+  paymentSources: PaymentSource[] = [],
+): InteractionResponse {
+  return {
+    interactionId: 'interaction-1',
+    status: 'EMAIL_REQUESTED',
+    paymentSources,
+    allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+    allowEmailChange: true,
+    ...overrides,
+  };
+}
+
+describe('web sdk', () => {
+  let mountTarget: HTMLDivElement;
 
   beforeEach(() => {
-    COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT.dev = 'https://dev.example.test';
-    COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT.qa = 'https://qa.example.test';
-    COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT.cat = 'https://cat.example.test';
-    COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT.prod = 'https://prod.example.test';
-    expectedLocalProxyBaseUrl = `${document.location.origin}/commerce-hub-proxy/cat`;
-
     mountTarget = document.createElement('div');
+    mountTarget.id = 'mount-target';
     document.body.appendChild(mountTarget);
+    (globalThis as typeof globalThis & { __commerceHubConnectWebSdkInlineCss?: string })
+      .__commerceHubConnectWebSdkInlineCss = '.commerce-hub-connect-web-sdk-mount { --spec-loaded: yes; }';
+    delete window.CommerceHubConnectWebSdk;
   });
 
   afterEach(() => {
-    Object.assign(COMMERCE_HUB_CONNECT_API_BASE_URL_BY_ENVIRONMENT, ORIGINAL_API_BASE_URLS);
-    mountTarget?.remove();
-    mountTarget = null;
-    delete window.PaymentSDK;
+    mountTarget.remove();
+    delete window.CommerceHubConnectWebSdk;
   });
 
   it('registers the browser namespace and custom element', async () => {
@@ -65,86 +52,109 @@ describe('registerCommerceHubConnectWebSdk', () => {
     expect(customElements.get(namespace.tagName)).toBeDefined();
   });
 
-  it('resolves the api base url from the selected web sdk environment', async () => {
-    const namespace = await registerCommerceHubConnectWebSdk();
+  it('resolves api base urls from the selected environment and runtime origin', () => {
+    const localDocument = {
+      currentScript: { src: 'http://localhost:8080/dist/CommerceHubConnectSDK.js' },
+      location: { origin: 'https://merchant.example' },
+    } as Document;
 
-    expect(namespace.resolveApiBaseUrl('cat')).toBe(expectedLocalProxyBaseUrl);
-    expect(namespace.resolveApiBaseUrl()).toBe(`${document.location.origin}/commerce-hub-proxy/prod`);
-  });
+    const remoteDocument = {
+      currentScript: { src: 'https://cdn.example/sdk/CommerceHubConnectSDK.js' },
+      location: { origin: 'https://merchant.example' },
+    } as Document;
 
-  it('initializes the api base url token from the selected web sdk environment', async () => {
-    const instance = await mount(mountTarget!, createMountOptions(), 'cat');
-    const debugNode = getDebugNode(instance.hostElement);
-    const api = debugNode?.injector.get(CommerceHubConnectApiService) as
-      | CommerceHubConnectApiService
-      | undefined;
-
-    expect(api).toBeDefined();
-    expect(((api as any).resolveBaseUrl as () => string)()).toBe(expectedLocalProxyBaseUrl);
-
-    instance.destroy();
-  });
-
-  it('ignores apiBaseUrl values passed at mount time and keeps the environment-based url', async () => {
-    const instance = await mount(
-      mountTarget!,
-      {
-        ...createMountOptions(),
-        apiBaseUrl: 'https://merchant.example.test/commerce-hub/',
-      } as any,
-      'cat',
+    expect(resolveApiBaseUrl('cat', localDocument)).toBe(
+      'http://localhost:8080/commerce-hub-proxy/cat',
     );
-    const debugNode = getDebugNode(instance.hostElement);
-    const api = debugNode?.injector.get(CommerceHubConnectApiService) as
-      | CommerceHubConnectApiService
-      | undefined;
-
-    expect(api).toBeDefined();
-    expect(((api as any).resolveBaseUrl as () => string)()).toBe(expectedLocalProxyBaseUrl);
-
-    instance.destroy();
+    expect(resolveApiBaseUrl('prod', remoteDocument)).toBe(
+      'https://dev.openfx-nonprod.aws.fisv.cloud',
+    );
   });
 
-  it('passes the selected web sdk environment into pay by bank defaults', async () => {
-    const instance = await mount(mountTarget!, createMountOptions(), 'cat');
-    const debugNode = getDebugNode(instance.hostElement);
-    const sdk = debugNode?.injector.get(CommerceHubConnectSdkService) as
-      | CommerceHubConnectSdkService
-      | undefined;
-
-    expect(sdk).toBeDefined();
-
-    const paymentSdkInit = jasmine
-      .createSpy('init')
-      .and.callFake((configuration: { onEvent: (event: { type: string }) => void }) => {
-        configuration.onEvent({ type: 'cancel' });
-      });
-
-    window.PaymentSDK = {
-      init: paymentSdkInit,
-      destroy: jasmine.createSpy('destroy'),
+  it('mounts an inline widget, injects the stylesheet once, and updates in place', async () => {
+    const namespace = await registerCommerceHubConnectWebSdk();
+    const savedCard: PaymentSource = {
+      id: 'card-1',
+      name: 'Primary Visa',
+      tenderType: 'CARD',
+      card: {
+        cardNumber: '4111111111111111',
+        cvv: '***',
+        expirationMonth: '12',
+        expirationYear: '30',
+        nameOnCard: 'Smoke Tester',
+        network: 'Visa',
+      },
     };
 
-    spyOn<any>(sdk, 'getExistingBankSourceIds').and.resolveTo(new Set<string>());
-    spyOn<any>(sdk, 'loadPaymentSdkScript').and.resolveTo();
-    spyOn((sdk as any).api, 'createPayByBankSession').and.returnValue(
-      of({
-        aggregatorSessionId: 'agg-session-1',
-        tokenID: 'access-token-1',
-        pToken: 'p-token-1',
-        publicKey: 'public-key-1',
-      }),
-    );
+    const stylesheetCountBeforeMount = document.head.querySelectorAll(
+      '[data-commerce-hub-connect-web-sdk-style="true"]',
+    ).length;
 
-    await expectAsync(sdk!.launchPayByBank('pay-by-bank-container')).toBeRejected();
+    const instance = await namespace.mount('#mount-target', {
+      interaction: createInteraction(),
+      configuration: createConfiguration(),
+      whiteLabel: {
+        primaryColor: '#ff5a1f',
+      },
+    });
 
-    expect(paymentSdkInit).toHaveBeenCalledWith(
-      jasmine.objectContaining({
-        environment: 'cat',
-        containerId: 'pay-by-bank-container',
-      }),
+    const stylesheetCountAfterMount = document.head.querySelectorAll(
+      '[data-commerce-hub-connect-web-sdk-style="true"]',
+    ).length;
+
+    expect(stylesheetCountAfterMount).toBeGreaterThan(0);
+    expect(stylesheetCountAfterMount).toBe(stylesheetCountBeforeMount || 1);
+    expect(mountTarget.querySelector('.commerce-hub-connect-web-sdk-mount')).toBe(instance.hostElement);
+    expect(instance.hostElement.textContent).toContain('Sign in');
+    expect(instance.hostElement.style.getPropertyValue('--ch-sdk-primary').trim()).toBe('#ff5a1f');
+
+    await instance.update({
+      interaction: createInteraction(
+        {
+          interactionId: 'interaction-1',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          selectedSource: savedCard,
+        },
+        [savedCard],
+      ),
+      configuration: createConfiguration({ paymentSelectionTitle: 'Saved methods' }),
+      whiteLabel: {
+        primaryColor: '#1d4ed8',
+      },
+    });
+
+    expect(document.head.querySelectorAll('[data-commerce-hub-connect-web-sdk-style="true"]').length).toBe(
+      stylesheetCountAfterMount,
     );
+    expect(instance.hostElement.textContent).toContain('Saved methods');
+    expect(instance.hostElement.textContent).toContain('Primary Visa');
+    expect(instance.hostElement.style.getPropertyValue('--ch-sdk-primary').trim()).toBe('#1d4ed8');
 
     instance.destroy();
+    expect(mountTarget.querySelector('.commerce-hub-connect-web-sdk-mount')).toBeNull();
+  });
+
+  it('renders the host-mounted custom element with inline properties', async () => {
+    const namespace = await registerCommerceHubConnectWebSdk();
+    const element = namespace.createElement(
+      {
+        interaction: createInteraction(),
+        configuration: createConfiguration(),
+        whiteLabel: {
+          secondaryColor: '#1d4ed8',
+        },
+      },
+      'qa',
+    );
+
+    mountTarget.appendChild(element);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(element.querySelector('.commerce-hub-connect-web-sdk-mount')).not.toBeNull();
+    expect(element.textContent).toContain('Sign in');
+    const emailInput = element.querySelector('input[name="email"]') as HTMLInputElement | null;
+    expect(emailInput?.value).toBe('');
   });
 });
