@@ -39,6 +39,12 @@
       "path": "./projects/commerce-hub-connect-angular-app/tsconfig.spec.json"
     },
     {
+      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.example.app.json"
+    },
+    {
+      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.example.spec.json"
+    },
+    {
       "path": "./projects/commerce-hub-connect-web-sdk/tsconfig.app.json"
     },
     {

@@ -36,6 +36,89 @@
         }
       }
     },
+    "commerce-hub-connect-angular-example": {
+      "projectType": "application",
+      "root": "projects/commerce-hub-connect-angular-app",
+      "sourceRoot": "projects/commerce-hub-connect-angular-app/example",
+      "prefix": "ch-angular-example",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/commerce-hub-connect-angular-example",
+            "browser": "projects/commerce-hub-connect-angular-app/example/main.ts",
+            "index": "projects/commerce-hub-connect-angular-app/example/index.html",
+            "polyfills": [
+              "zone.js"
+            ],
+            "tsConfig": "projects/commerce-hub-connect-angular-app/tsconfig.example.app.json",
+            "inlineStyleLanguage": "css",
+            "assets": [
+              {
+                "glob": "CommerceHubConnectSDK.js",
+                "input": "projects/commerce-hub-connect-web-sdk/dist",
+                "output": "/"
+              }
+            ],
+            "styles": [
+              "projects/commerce-hub-connect-angular-app/example/styles.css"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "750kB",
+                  "maximumError": "1.2MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kB",
+                  "maximumError": "10kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "commerce-hub-connect-angular-example:build:production"
+            },
+            "development": {
+              "buildTarget": "commerce-hub-connect-angular-example:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular/build:karma",
+          "options": {
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ],
+            "tsConfig": "projects/commerce-hub-connect-angular-app/tsconfig.example.spec.json",
+            "inlineStyleLanguage": "css",
+            "styles": [
+              "projects/commerce-hub-connect-angular-app/example/styles.css"
+            ]
+          }
+        }
+      }
+    },
     "commerce-hub-connect-web-sdk-widget": {
       "projectType": "application",
       "root": "projects/commerce-hub-connect-web-sdk",

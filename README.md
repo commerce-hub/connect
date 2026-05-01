@@ -1,8 +1,9 @@
 # Commerce Hub Connect wallet SDK workspace
 
-This workspace includes two local example surfaces for the Commerce Hub Connect integration:
+This workspace includes three local example surfaces for the Commerce Hub Connect integration:
 
 - **Web SDK example** — plain browser host in `projects/commerce-hub-connect-web-sdk/example/index.html`
+- **Angular binding example** — standalone Angular host in `projects/commerce-hub-connect-angular-app/example/**`
 - **React binding example** — Vite host app in `projects/commerce-hub-connect-react-app/src/example-app.tsx`
 
 ## Run the examples
@@ -13,6 +14,14 @@ This workspace includes two local example surfaces for the Commerce Hub Connect 
 npm run build:web-sdk-widget
 npm run start:web-sdk-example
 ```
+
+### Angular binding example
+
+```bash
+npm run start:angular-binding-example
+```
+
+This serves the Angular host on port `4500` with local proxy routing for `/commerce-hub-proxy/<environment>`.
 
 ### React binding example
 
@@ -27,6 +36,8 @@ This starts the Vite host on port `4173` with local proxy routing for `/commerce
 ```bash
 npm run build:angular-binding
 npm run test:angular-binding
+npm run build:angular-binding-example
+npm run test:angular-binding-example
 ```
 
 ## Verification commands
