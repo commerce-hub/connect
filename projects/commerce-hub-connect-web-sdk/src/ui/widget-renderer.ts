@@ -247,7 +247,7 @@ function renderStatus(snapshot: ReturnType<CommerceHubConnectWidgetController['g
         return snapshot.paymentEntryMode === 'add'
           ? snapshot.selectedTenderType === 'CARD'
             ? 'Add a credit card'
-            : 'Link bank account'
+            : '' // iframe has title
           : snapshot.configuration.paymentSelectionTitle?.trim() || 'Pay with';
       case 'success':
         return 'Payment method saved';
@@ -265,7 +265,7 @@ function renderStatus(snapshot: ReturnType<CommerceHubConnectWidgetController['g
         return snapshot.paymentEntryMode === 'add'
           ? snapshot.selectedTenderType === 'CARD'
             ? 'Securely save a new card using the same streamlined experience.'
-            : 'Follow the bank-linking flow below to continue.'
+            : '' // iframe has its own instructions
           : 'Choose a saved payment method or add a new one.';
       case 'success': {
         const source = snapshot.completedResult?.paymentSource ?? snapshot.selectedSource;
@@ -483,10 +483,6 @@ function renderBankStep(snapshot: ReturnType<CommerceHubConnectWidgetController[
   return `
     <div class="ch-sdk-stack">
       <div class="ch-sdk-bank-panel">
-        <div class="ch-sdk-bank-copy">
-          <strong>${snapshot.bankLinkLoading ? 'Connecting to your bank…' : 'Bank account linking'}</strong>
-          <p>The linked banking experience will render inline below.</p>
-        </div>
         <div id="${escapeHtml(snapshot.payByBankMountId)}" class="ch-sdk-bank-mount"></div>
       </div>
       <div class="ch-sdk-button-row">

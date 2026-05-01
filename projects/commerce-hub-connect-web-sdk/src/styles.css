@@ -414,7 +414,7 @@
 }
 
 .ch-sdk-bank-mount {
-  min-height: 180px;
+  min-height: 572px;
   border-radius: 18px;
   border: 1px dashed color-mix(in srgb, var(--ch-sdk-primary) 28%, white);
   background: #fff;
