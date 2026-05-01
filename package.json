@@ -21,6 +21,7 @@
     "test:angular-binding-smoke": "node scripts/run-angular-binding-smoke-test.mjs",
     "typecheck:react-binding": "npm --prefix projects/commerce-hub-connect-react-app run typecheck",
     "build:react-binding": "npm --prefix projects/commerce-hub-connect-react-app run build",
+    "pack:web-sdk": "npm run build:web-sdk-widget && cd projects/commerce-hub-connect-web-sdk/dist && npm pack",
     "pack:react-binding": "cd projects/commerce-hub-connect-react-app && npm pack",
     "test:react-binding": "node scripts/run-react-binding-smoke-test.mjs",
     "verify:framework-bindings": "node scripts/verify-framework-binding-wiring.mjs"
