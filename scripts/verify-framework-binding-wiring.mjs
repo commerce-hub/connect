@@ -11,7 +11,7 @@ await assertMissing('projects/commerce-hub-connect-react-app/src/generated/sdk-m
 await assertMissing('projects/commerce-hub-connect-react-app/src/sdk-loader.ts');
 
 await assertFileExcludes('package.json', ['build:sdk', 'generate:react-app', 'generate:web-sdk-client']);
-await assertFileExcludes('projects/commerce-hub-connect-sdk/src/public-api.ts', [
+await assertFileExcludes('projects/commerce-hub-connect-angular-app/src/public-api.ts', [
   'capture-payment.component',
   'commerce-hub-connect-sdk.service',
   'commerce-hub-pci-vault.service',
