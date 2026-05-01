@@ -45,9 +45,12 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/commerce-hub-connect-angular-example",
+            "outputPath": "dist/commerce-hub-connect-angular-app",
             "browser": "projects/commerce-hub-connect-angular-app/example/main.ts",
-            "index": "projects/commerce-hub-connect-angular-app/example/index.html",
+            "index": {
+              "input": "projects/commerce-hub-connect-angular-app/index.html",
+              "output": "index.html"
+            },
             "polyfills": [
               "zone.js"
             ],
@@ -116,6 +119,64 @@
               "projects/commerce-hub-connect-angular-app/example/styles.css"
             ]
           }
+        }
+      }
+    },
+    "commerce-hub-connect-angular-fixture": {
+      "projectType": "application",
+      "root": "projects/commerce-hub-connect-angular-app",
+      "sourceRoot": "projects/commerce-hub-connect-angular-app/example",
+      "prefix": "ch-angular-fixture",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/commerce-hub-connect-angular-app",
+            "deleteOutputPath": false,
+            "browser": "projects/commerce-hub-connect-angular-app/example/fixture-main.ts",
+            "index": {
+              "input": "projects/commerce-hub-connect-angular-app/fixture.html",
+              "output": "fixture.html"
+            },
+            "polyfills": [
+              "zone.js"
+            ],
+            "tsConfig": "projects/commerce-hub-connect-angular-app/tsconfig.example.app.json",
+            "inlineStyleLanguage": "css",
+            "assets": [
+              {
+                "glob": "CommerceHubConnectSDK.js",
+                "input": "projects/commerce-hub-connect-web-sdk/dist",
+                "output": "/"
+              }
+            ],
+            "styles": [
+              "projects/commerce-hub-connect-angular-app/example/styles.css"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "750kB",
+                  "maximumError": "1.2MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kB",
+                  "maximumError": "10kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
         }
       }
     },

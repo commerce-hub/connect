@@ -27,6 +27,9 @@ import { commerceHubConnectWebSdkAdapter } from './commerce-hub-connect-web-sdk-
   selector: 'commerce-hub-connect-web-sdk',
   standalone: true,
   template: '<div #mountHost class="commerce-hub-connect-angular-binding"></div>',
+  host: {
+    'data-commerce-hub-connect-angular-binding': 'true',
+  },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CommerceHubConnectWebSdkComponent implements AfterViewInit, OnChanges, OnDestroy {

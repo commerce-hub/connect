@@ -3,7 +3,7 @@
 This workspace includes three local example surfaces for the Commerce Hub Connect integration:
 
 - **Web SDK example** — plain browser host in `projects/commerce-hub-connect-web-sdk/example/index.html`
-- **Angular binding example** — standalone Angular host in `projects/commerce-hub-connect-angular-app/example/**`
+- **Angular binding example** — standalone Angular host in `projects/commerce-hub-connect-angular-app/example/example-app.component.ts`
 - **React binding example** — Vite host app in `projects/commerce-hub-connect-react-app/src/example-app.tsx`
 
 ## Run the examples
@@ -38,6 +38,7 @@ npm run build:angular-binding
 npm run test:angular-binding
 npm run build:angular-binding-example
 npm run test:angular-binding-example
+npm run test:angular-binding-smoke
 ```
 
 ## Verification commands
@@ -45,6 +46,7 @@ npm run test:angular-binding-example
 ```bash
 npm run build
 npm run test
+npm run test:angular-binding-smoke
 npm run typecheck:react-binding
 npm run build:react-binding
 npm run test:react-binding

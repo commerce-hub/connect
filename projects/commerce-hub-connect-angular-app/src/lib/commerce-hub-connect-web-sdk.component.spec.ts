@@ -76,7 +76,12 @@ describe('CommerceHubConnectWebSdkComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
+    const bindingHost = fixture.nativeElement.querySelector(
+      'commerce-hub-connect-web-sdk',
+    ) as HTMLElement | null;
+
     expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(bindingHost?.dataset['commerceHubConnectAngularBinding']).toBe('true');
     expect(mountSpy.calls.mostRecent().args[0]).toEqual(jasmine.any(HTMLDivElement));
     expect(mountSpy.calls.mostRecent().args[1]).toEqual(
       jasmine.objectContaining({

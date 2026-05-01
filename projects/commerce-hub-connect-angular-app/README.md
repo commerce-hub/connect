@@ -4,9 +4,9 @@ Thin Angular binding over `commerce-hub-connect-web-sdk`.
 
 ## What ships
 
-This package provides a standalone Angular component, `CommerceHubConnectWebSdkComponent`, that delegates wallet rendering to the framework-agnostic web SDK while keeping Angular-specific lifecycle handling in the wrapper.
-
-- `example/**` — a local Angular example host mirroring the web SDK create/mount/update/destroy flow
+- `CommerceHubConnectWebSdkComponent` — an Angular wrapper that delegates mount/update/unmount to the framework-agnostic web SDK
+- `example/example-app.component.ts` — a local example host mirroring the web SDK create/mount/update/destroy flow
+- `example/fixture-app.component.ts` + `fixture.html` — a smoke-test fixture that verifies the wrapper lifecycle in a browser
 
 ## Build
 
@@ -61,9 +61,11 @@ export class DemoComponent {
 
 The Angular binding re-exports the web SDK types so Angular hosts can share one typed configuration model with browser-host integrations.
 
-## Tests
+## Verification
 
 ```bash
+ng build commerce-hub-connect-sdk
 ng test commerce-hub-connect-sdk --watch=false --browsers=ChromeHeadless
 npm run test:angular-binding-example
+node ../../scripts/run-angular-binding-smoke-test.mjs
 ```
