@@ -31,6 +31,18 @@ npm run start:react-binding-example
 
 This starts the Vite host on port `4173` with local proxy routing for `/commerce-hub-proxy/<environment>`.
 
+## React binding library
+
+```bash
+npm run build:react-binding
+npm run pack:react-binding
+npm run test:react-binding
+```
+
+`build:react-binding` writes the distributable package files to
+`projects/commerce-hub-connect-react-app/dist`, and `pack:react-binding` creates a tarball you can
+hand to another app team.
+
 ## Angular binding library
 
 ```bash
@@ -49,6 +61,7 @@ npm run test
 npm run test:angular-binding-smoke
 npm run typecheck:react-binding
 npm run build:react-binding
+npm run pack:react-binding
 npm run test:react-binding
 npm run test:web-sdk-smoke
 npm run verify:framework-bindings

@@ -2,11 +2,14 @@
 
 Thin React binding over `commerce-hub-connect-web-sdk`.
 
-## What ships
+## What ships in the package
 
+- `dist/index.js` — the distributable React binding entry
+- `dist/index.d.ts` — package typings
 - `CommerceHubConnectReactBinding` — a React wrapper that delegates mount/update/unmount to the framework-agnostic web SDK
-- `src/example-app.tsx` — a local example host mirroring the web SDK create/mount/update/destroy flow
-- `src/fixture-app.tsx` + `fixture.html` — a smoke-test fixture that verifies the wrapper lifecycle in a browser
+
+The example host and smoke-test fixture stay in the repo for local verification, but they are not
+included when you pack or publish the library.
 
 ## Run the React example
 
@@ -28,6 +31,20 @@ The Vite dev server proxies localhost Commerce Hub traffic through `/commerce-hu
 
 ```bash
 npm run build
+```
+
+This builds the distributable library into `dist/`.
+
+To package it for handoff or publishing:
+
+```bash
+npm pack
+```
+
+To build the local example + fixture bundle used by the smoke test:
+
+```bash
+npm run build:example
 ```
 
 ## Basic usage
@@ -68,5 +85,6 @@ The binding re-exports the shared web SDK types so React hosts can stay aligned 
 ```bash
 npm run typecheck
 npm run build
+npm run build:example
 node ../../scripts/run-react-binding-smoke-test.mjs
 ```

@@ -1,23 +1,35 @@
 {
   "name": "commerce-hub-connect-react-binding",
-  "private": true,
   "version": "0.0.1",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "build": "node ../../scripts/build-react-binding-library.mjs",
+    "build:example": "vite build --mode example",
+    "build:library:bundle": "vite build --mode library",
+    "build:library:types": "tsc -p tsconfig.build.json",
+    "preview": "vite preview --mode example",
+    "prepack": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
     "commerce-hub-connect-web-sdk": "^0.0.1",
     "react": ">=18",
     "react-dom": ">=18"
-  },
-  "peerDependenciesMeta": {
-    "commerce-hub-connect-web-sdk": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@types/react": "latest",

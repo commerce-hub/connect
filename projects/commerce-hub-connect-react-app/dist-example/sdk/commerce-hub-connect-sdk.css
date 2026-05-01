@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@import "primeicons/primeicons.css";
+@source "../components";
+
+:root {
+  color-scheme: light;
+  font-family: "Open Sans", "Segoe UI", sans-serif;
+
+  /*
+ * White-label design tokens
+ * - PrimeNG consumes the computed palette variables (e.g. `--brand-primary-500`).
+ */
+
+  --brand-font-family: "Open Sans", "Segoe UI", sans-serif;
+
+  /* Brand seed colors (RGB channels) */
+  --brand-primary: 10 93 255;
+  --brand-secondary: 98 125 152;
+
+  /* Foreground colors on brand backgrounds (RGB channels) */
+  --brand-on-primary: 255 255 255;
+  --brand-on-secondary: 255 255 255;
+
+  /* Computed color strings */
+  --brand-primary-color: rgb(var(--brand-primary) / 1);
+  --brand-secondary-color: rgb(var(--brand-secondary) / 1);
+  --brand-on-primary-color: rgb(var(--brand-on-primary) / 1);
+  --brand-on-secondary-color: rgb(var(--brand-on-secondary) / 1);
+
+  /* Brand palettes (color strings) */
+  --brand-primary-0: color-mix(in srgb, var(--brand-primary-color) 2%, white);
+  --brand-primary-50: color-mix(in srgb, var(--brand-primary-color) 5%, white);
+  --brand-primary-100: color-mix(in srgb, var(--brand-primary-color) 10%, white);
+  --brand-primary-200: color-mix(in srgb, var(--brand-primary-color) 20%, white);
+  --brand-primary-300: color-mix(in srgb, var(--brand-primary-color) 35%, white);
+  --brand-primary-400: color-mix(in srgb, var(--brand-primary-color) 55%, white);
+  --brand-primary-500: var(--brand-primary-color);
+  --brand-primary-600: color-mix(in srgb, var(--brand-primary-color) 85%, black);
+  --brand-primary-700: color-mix(in srgb, var(--brand-primary-color) 70%, black);
+  --brand-primary-800: color-mix(in srgb, var(--brand-primary-color) 55%, black);
+  --brand-primary-900: color-mix(in srgb, var(--brand-primary-color) 40%, black);
+  --brand-primary-950: color-mix(in srgb, var(--brand-primary-color) 25%, black);
+
+  /* Shared radii (PrimeNG consumes via theme preset) */
+  --radius-none: 0px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+.ch-sdk-host {
+  --brand-primary-color: #0a5dff;
+  --brand-on-primary-color: #ffffff;
+  --brand-secondary-color: #627d98;
+  --brand-on-secondary-color: #ffffff;
+  --brand-text-color: #101828;
+}
+

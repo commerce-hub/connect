@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const projectRoot = path.join(workspaceRoot, 'projects', 'commerce-hub-connect-react-app');
-const distRoot = path.join(projectRoot, 'dist');
+const distRoot = path.join(projectRoot, 'dist-example');
 const chromeExecutable =
   process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const serverHost = 'localhost';
@@ -15,7 +15,7 @@ const indexUrl = `http://${serverHost}:${serverPort}/fixture.html`;
 
 await assertFileExists(chromeExecutable, 'Chrome executable');
 await ensureReactDependencies(projectRoot);
-await runCommand('npm', ['run', 'build'], projectRoot);
+await runCommand('npm', ['run', 'build:example'], projectRoot);
 
 const server = createStaticServer(distRoot);
 
