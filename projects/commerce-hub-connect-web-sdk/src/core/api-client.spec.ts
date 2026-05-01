@@ -85,13 +85,59 @@ describe('CommerceHubConnectApiClient', () => {
     expect(requestInitFrom(fetchSpy)?.credentials).toBe('include');
   });
 
-  it('does not add x-interaction-id to non-customer requests', async () => {
+  it('adds x-interaction-id to /pbb/session requests when an interaction id exists', async () => {
     const client = new CommerceHubConnectApiClient('/api', 'interaction-1');
 
     fetchSpy.and.callFake(async (_input: RequestInfo | URL, _init?: RequestInit) =>
       createJsonResponse(createPayByBankResponse()),
     );
     await client.createPayByBankSession();
+
+    expect(requestHeadersFrom(fetchSpy)).toEqual(
+      jasmine.objectContaining({
+        accept: 'application/json',
+        'x-interaction-id': 'interaction-1',
+      }),
+    );
+    expect(requestInitFrom(fetchSpy)?.credentials).toBe('include');
+  });
+
+  it('adds x-interaction-id to nested /pbb/session requests when an interaction id exists', async () => {
+    const client = new CommerceHubConnectApiClient('/api', 'interaction-1');
+
+    fetchSpy.and.callFake(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(null, { status: 204 }),
+    );
+    await client.finalizePayByBankSession('agg-session-1', 'p-token-1');
+
+    expect(requestHeadersFrom(fetchSpy)).toEqual(
+      jasmine.objectContaining({
+        accept: 'application/json',
+        'x-interaction-id': 'interaction-1',
+      }),
+    );
+    expect(requestInitFrom(fetchSpy)?.credentials).toBe('include');
+  });
+
+  it('does not add x-interaction-id to /pbb/session requests when an interaction id is absent', async () => {
+    const client = new CommerceHubConnectApiClient('/api');
+
+    fetchSpy.and.callFake(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      createJsonResponse(createPayByBankResponse()),
+    );
+    await client.createPayByBankSession();
+
+    expect(requestHeadersFrom(fetchSpy)['x-interaction-id']).toBeUndefined();
+  });
+
+  it('does not add x-interaction-id to unrelated requests', async () => {
+    const client = new CommerceHubConnectApiClient('/api', 'interaction-1');
+
+    fetchSpy.and.callFake(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      createJsonResponse({ ok: true }),
+    );
+    await (client as any).request('/merchant/session', { method: 'GET' });
+
     expect(requestHeadersFrom(fetchSpy)['x-interaction-id']).toBeUndefined();
   });
 

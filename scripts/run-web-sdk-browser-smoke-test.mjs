@@ -25,6 +25,7 @@ const CONTENT_TYPES = new Map([
 
 const smokeState = {
   counters: Object.create(null),
+  interactionHeaders: Object.create(null),
   interactions: new Map(),
   interactionOrder: [],
   currentInteractionId: null,
@@ -80,11 +81,14 @@ function createSmokeServer(rootDir, state) {
       if (requestUrl.pathname === '/__smoke__/state') {
         writeJson(response, 200, {
           counters: state.counters,
+          interactionHeaders: state.interactionHeaders,
           interactions: state.interactionOrder,
           currentInteractionId: state.currentInteractionId,
         });
         return;
       }
+
+      recordInteractionHeader(state, request, normalizedPath);
 
       if (normalizedPath === '/merchant/interaction/create' && request.method === 'POST') {
         incrementCounter(state, 'POST /merchant/interaction/create');
@@ -486,6 +490,22 @@ function summarizeResults(dom) {
 
 function incrementCounter(state, key) {
   state.counters[key] = (state.counters[key] || 0) + 1;
+}
+
+function recordInteractionHeader(state, request, normalizedPath) {
+  if (!normalizedPath.startsWith('/')) {
+    return;
+  }
+
+  const requestKey = `${request.method || 'GET'} ${normalizedPath}`;
+  if (
+    requestKey !== 'GET /pbb/session' &&
+    requestKey !== 'PUT /pbb/session/agg-session-1/p-token-1'
+  ) {
+    return;
+  }
+
+  state.interactionHeaders[requestKey] = request.headers['x-interaction-id'] ?? null;
 }
 
 function readJsonBody(request) {

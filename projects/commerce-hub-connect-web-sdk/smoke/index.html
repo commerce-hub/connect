@@ -413,9 +413,25 @@
           return state.counters['GET /pbb/session'] === 1;
         });
 
+        await waitFor('Pay by Bank session request includes x-interaction-id', async () => {
+          const state = await fetchState();
+          return (
+            state.interactionHeaders?.['GET /pbb/session'] &&
+            state.interactionHeaders['GET /pbb/session'] === state.currentInteractionId
+          );
+        });
+
         await waitFor('Pay by Bank finalize completed', async () => {
           const state = await fetchState();
           return state.counters['PUT /pbb/session/agg-session-1/p-token-1'] === 1;
+        });
+
+        await waitFor('Pay by Bank finalize request includes x-interaction-id', async () => {
+          const state = await fetchState();
+          return (
+            state.interactionHeaders?.['PUT /pbb/session/agg-session-1/p-token-1'] &&
+            state.interactionHeaders['PUT /pbb/session/agg-session-1/p-token-1'] === state.currentInteractionId
+          );
         });
 
         await waitFor('Created bank source attach completed', async () => {

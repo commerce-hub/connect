@@ -163,7 +163,11 @@ export class CommerceHubConnectApiClient {
   }
 
   private requiresInteractionHeader(path: string): boolean {
-    return this.isPathSegment(path, '/interaction') || this.isPathSegment(path, '/customer');
+    return (
+      this.isPathSegment(path, '/interaction') ||
+      this.isPathSegment(path, '/customer') ||
+      this.isPathSegment(path, '/pbb/session')
+    );
   }
 
   private isPathSegment(path: string, prefix: string): boolean {

@@ -170,7 +170,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       return headers;
     }
     requiresInteractionHeader(path) {
-      return this.isPathSegment(path, "/interaction") || this.isPathSegment(path, "/customer");
+      return this.isPathSegment(path, "/interaction") || this.isPathSegment(path, "/customer") || this.isPathSegment(path, "/pbb/session");
     }
     isPathSegment(path, prefix) {
       return path === prefix || path.startsWith(`${prefix}/`);
