@@ -247,6 +247,17 @@
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
 
+      function blurInput(input) {
+        input.dispatchEvent(
+          typeof FocusEvent === 'function'
+            ? new FocusEvent('focusout', { bubbles: true })
+            : new Event('focusout', { bubbles: true }),
+        );
+        input.dispatchEvent(
+          typeof FocusEvent === 'function' ? new FocusEvent('blur') : new Event('blur'),
+        );
+      }
+
       function click(element) {
         element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       }
@@ -373,29 +384,85 @@
         setInputValue(getRequiredElement('input[name="city"]'), 'New York');
         setInputValue(getRequiredElement('input[name="state"]'), 'NY');
         setInputValue(getRequiredElement('input[name="zip"]'), '10001');
+
+        let state = await fetchState();
+        if ((state.counters['POST /customer/mask/card'] ?? 0) !== 0 || (state.counters['POST /customer/mask/cvv'] ?? 0) !== 0) {
+          throw new Error('Typing alone should not trigger card masking requests before blur.');
+        }
+        addResult('Typing card inputs does not trigger per-keystroke masking', 'pass');
+
+        const submitButtonBeforeBlur = getRequiredElement('form[data-form="card"] button[type="submit"]');
+        if (!submitButtonBeforeBlur.disabled) {
+          throw new Error('Save payment method should stay disabled until blur encryption succeeds.');
+        }
+        addResult('Save stays disabled before blur-time encryption completes', 'pass');
+
+        blurInput(getRequiredElement('input[name="cardNumber"]'));
+        await waitFor('Card number blur triggered exactly one card masking request', async () => {
+          const nextState = await fetchState();
+          return nextState.counters['POST /customer/mask/card'] === 1;
+        });
+
+        blurInput(getRequiredElement('input[name="cardNumber"]'));
+        state = await fetchState();
+        if (state.counters['POST /customer/mask/card'] !== 1) {
+          throw new Error('Re-blurring an unchanged card number should not issue a duplicate mask call.');
+        }
+        addResult('Unchanged card-number re-blur skips duplicate masking', 'pass');
+
+        const submitButtonAfterCardBlur = getRequiredElement('form[data-form="card"] button[type="submit"]');
+        if (!submitButtonAfterCardBlur.disabled) {
+          throw new Error('Save payment method should remain disabled until both sensitive fields are encrypted.');
+        }
+        addResult('Save remains disabled after only the card number is encrypted', 'pass');
+
+        blurInput(getRequiredElement('input[name="cvc"]'));
+        await waitFor('CVC blur triggered exactly one cvc masking request', async () => {
+          const nextState = await fetchState();
+          return nextState.counters['POST /customer/mask/cvv'] === 1;
+        });
+
+        blurInput(getRequiredElement('input[name="cvc"]'));
+        state = await fetchState();
+        if (state.counters['POST /customer/mask/cvv'] !== 1) {
+          throw new Error('Re-blurring an unchanged CVC should not issue a duplicate mask call.');
+        }
+        addResult('Unchanged CVC re-blur skips duplicate masking', 'pass');
+
+        await waitFor('Save enables after both sensitive fields encrypt on blur', async () => {
+          const submitButton = getRequiredElement('form[data-form="card"] button[type="submit"]');
+          return submitButton.disabled ? null : submitButton;
+        });
+
+        state = await fetchState();
+        if ((state.counters['POST /customer/source'] ?? 0) !== 0) {
+          throw new Error('Card source creation should not start before the user clicks Save.');
+        }
+        addResult('Blur-time encryption completes before final save submission', 'pass');
+
         click(getRequiredElement('form[data-form="card"] button[type="submit"]'));
 
         await waitFor('Billing address creation completed', async () => {
-          const state = await fetchState();
-          return state.counters['POST /customer/billing-address'] === 1;
+          const nextState = await fetchState();
+          return nextState.counters['POST /customer/billing-address'] === 1;
         });
 
         await waitFor('Card masking requests completed', async () => {
-          const state = await fetchState();
+          const nextState = await fetchState();
           return (
-            state.counters['POST /customer/mask/card'] === 1 &&
-            state.counters['POST /customer/mask/cvv'] === 1
+            nextState.counters['POST /customer/mask/card'] === 1 &&
+            nextState.counters['POST /customer/mask/cvv'] === 1
           );
         });
 
         await waitFor('Card source creation completed', async () => {
-          const state = await fetchState();
-          return state.counters['POST /customer/source'] === 1;
+          const nextState = await fetchState();
+          return nextState.counters['POST /customer/source'] === 1;
         });
 
         await waitFor('Created card attach completed', async () => {
-          const state = await fetchState();
-          return state.counters['POST /interaction/payment-source/card-created-1/attach'] === 1;
+          const nextState = await fetchState();
+          return nextState.counters['POST /interaction/payment-source/card-created-1/attach'] === 1;
         });
       }
 

@@ -500,6 +500,107 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     selectExistingSource(sourceId) {
       this.updateState({ selectedSourceId: sourceId });
     }
+    syncCardDraftField(field, value, options) {
+      this.state.cardDraft = {
+        ...this.state.cardDraft,
+        [field]: value
+      };
+      if (isSensitiveCardField(field)) {
+        const nextNormalizedValue = normalizeSensitiveCardFieldValue(field, value);
+        this.state.cardEncryption = {
+          ...this.state.cardEncryption,
+          [field]: resolveDirtyCardEncryptionState(this.state.cardEncryption[field], nextNormalizedValue)
+        };
+      }
+      if (options?.notify) {
+        this.notify();
+      }
+    }
+    async encryptCardField(field, value) {
+      this.syncCardDraftField(field, value);
+      const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
+      const validationError = validateSensitiveCardField(field, value);
+      if (!normalizedValue) {
+        this.updateState({
+          cardDraftErrors: omitCardDraftError(this.state.cardDraftErrors, field),
+          cardEncryption: {
+            ...this.state.cardEncryption,
+            [field]: createCardEncryptionFieldState()
+          }
+        });
+        return;
+      }
+      if (validationError) {
+        this.updateState({
+          cardDraftErrors: {
+            ...omitCardDraftError(this.state.cardDraftErrors, field),
+            [field]: validationError
+          },
+          cardEncryption: {
+            ...this.state.cardEncryption,
+            [field]: resolveDirtyCardEncryptionState(this.state.cardEncryption[field], normalizedValue)
+          }
+        });
+        return;
+      }
+      const currentFieldState = this.state.cardEncryption[field];
+      if (currentFieldState.status === "encrypting" && currentFieldState.normalizedValue === normalizedValue) {
+        return;
+      }
+      if (currentFieldState.status === "encrypted" && currentFieldState.normalizedValue === normalizedValue) {
+        return;
+      }
+      this.updateState({
+        cardDraftErrors: omitCardDraftError(this.state.cardDraftErrors, field),
+        cardDraftMessage: null,
+        cardEncryption: {
+          ...this.state.cardEncryption,
+          [field]: {
+            status: "encrypting",
+            normalizedValue,
+            encryptedValue: null
+          }
+        }
+      });
+      try {
+        const encryptedValue = await this.maskSensitiveCardValue(field, value);
+        if (normalizeSensitiveCardFieldValue(field, this.state.cardDraft[field]) !== normalizedValue) {
+          return;
+        }
+        this.updateState({
+          cardDraftErrors: omitCardDraftError(this.state.cardDraftErrors, field),
+          cardDraftMessage: null,
+          cardEncryption: {
+            ...this.state.cardEncryption,
+            [field]: {
+              status: "encrypted",
+              normalizedValue,
+              encryptedValue
+            }
+          }
+        });
+      } catch (error) {
+        if (normalizeSensitiveCardFieldValue(field, this.state.cardDraft[field]) !== normalizedValue) {
+          return;
+        }
+        this.updateState({
+          cardDraftErrors: {
+            ...omitCardDraftError(this.state.cardDraftErrors, field),
+            [field]: buildCardEncryptionErrorMessage(field)
+          },
+          cardDraftMessage: null,
+          cardEncryption: {
+            ...this.state.cardEncryption,
+            [field]: {
+              status: "failed",
+              normalizedValue,
+              encryptedValue: null
+            }
+          }
+        });
+        void error;
+      }
+    }
     showAddCardMethod() {
       this.updateState({
         paymentEntryMode: "add",
@@ -558,6 +659,15 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     async submitCard(draft) {
       const normalizedDraft = normalizeCardDraft(draft);
       const errors = validateCardDraft(normalizedDraft);
+      const encryptionReadinessErrors = validateCardEncryptionReadiness(
+        normalizedDraft,
+        this.state.cardEncryption
+      );
+      for (const field of ["cardNumber", "cvc"]) {
+        if (!errors[field] && encryptionReadinessErrors[field]) {
+          errors[field] = encryptionReadinessErrors[field];
+        }
+      }
       if (Object.keys(errors).length > 0) {
         this.updateState({
           cardDraft: normalizedDraft,
@@ -574,8 +684,12 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         error: null
       });
       try {
-        const maskedCardNumber = await this.secureValue("card", normalizedDraft.cardNumber);
-        const maskedCvv = await this.secureValue("cvv", normalizedDraft.cvc);
+        const maskedCardNumber = resolveEncryptedCardFieldValue(
+          "cardNumber",
+          normalizedDraft.cardNumber,
+          this.state.cardEncryption
+        );
+        const maskedCvv = resolveEncryptedCardFieldValue("cvc", normalizedDraft.cvc, this.state.cardEncryption);
         const { month, year } = parseExpiration(normalizedDraft.expiration);
         if (!month || !year) {
           this.updateState({
@@ -631,7 +745,8 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         this.updateState({
           completedResult: result,
           paymentEntryMode: "list",
-          cardDraft: defaultCardDraft()
+          cardDraft: defaultCardDraft(),
+          cardEncryption: defaultCardEncryptionState()
         });
         await this.loadBillingAddresses();
       } catch (error) {
@@ -743,6 +858,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         completedResult,
         billingAddresses: previous?.interaction.interactionId === interaction.interactionId ? previous.billingAddresses : [],
         cardDraft: previous?.interaction.interactionId === interaction.interactionId ? previous.cardDraft : defaultCardDraft(),
+        cardEncryption: previous?.interaction.interactionId === interaction.interactionId ? previous.cardEncryption : defaultCardEncryptionState(),
         cardDraftErrors: {},
         cardDraftMessage: null,
         requestedOtpMode: previous?.requestedOtpMode ?? "default",
@@ -805,13 +921,10 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       await this.api.addBillingAddress(address);
       return address.id;
     }
-    async secureValue(type, value) {
-      try {
-        const masked = await this.api.mask(type, { value });
-        return masked.value;
-      } catch {
-        return type === "card" ? normalizeCardNumber(value) : normalizeCvv(value);
-      }
+    async maskSensitiveCardValue(field, value) {
+      const type = field === "cardNumber" ? "card" : "cvv";
+      const masked = await this.api.mask(type, { value });
+      return masked.value;
     }
     async getExistingBankSourceIds() {
       try {
@@ -951,6 +1064,79 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       state: "",
       zip: ""
     };
+  }
+  function defaultCardEncryptionState() {
+    return {
+      cardNumber: createCardEncryptionFieldState(),
+      cvc: createCardEncryptionFieldState()
+    };
+  }
+  function createCardEncryptionFieldState() {
+    return {
+      status: "idle",
+      normalizedValue: "",
+      encryptedValue: null
+    };
+  }
+  function isSensitiveCardField(field) {
+    return field === "cardNumber" || field === "cvc";
+  }
+  function normalizeSensitiveCardFieldValue(field, value) {
+    return field === "cardNumber" ? normalizeCardNumber(value) : normalizeCvv(value);
+  }
+  function validateSensitiveCardField(field, value) {
+    if (field === "cardNumber") {
+      return isValidCardNumber(value) ? void 0 : "Enter a valid card number.";
+    }
+    return isValidCvv(value) ? void 0 : "Enter a valid CVC.";
+  }
+  function buildCardEncryptionErrorMessage(field) {
+    return field === "cardNumber" ? "Unable to encrypt the card number. Try again." : "Unable to encrypt the CVC. Try again.";
+  }
+  function resolveDirtyCardEncryptionState(previous, normalizedValue) {
+    if (!normalizedValue) {
+      return createCardEncryptionFieldState();
+    }
+    if (previous.normalizedValue === normalizedValue && (previous.status === "encrypting" || previous.status === "encrypted")) {
+      return previous;
+    }
+    return {
+      status: "dirty",
+      normalizedValue,
+      encryptedValue: null
+    };
+  }
+  function omitCardDraftError(errors, field) {
+    const nextErrors = {
+      ...errors
+    };
+    delete nextErrors[field];
+    return nextErrors;
+  }
+  function validateCardEncryptionReadiness(draft, cardEncryption) {
+    const errors = {};
+    for (const field of ["cardNumber", "cvc"]) {
+      const normalizedValue = normalizeSensitiveCardFieldValue(field, draft[field]);
+      const encryptedField = cardEncryption[field];
+      if (!normalizedValue) {
+        continue;
+      }
+      const isEncrypted = encryptedField.status === "encrypted" && encryptedField.normalizedValue === normalizedValue && Boolean(encryptedField.encryptedValue);
+      if (!isEncrypted) {
+        errors[field] = encryptedField.status === "failed" ? buildCardEncryptionErrorMessage(field) : field === "cardNumber" ? "Encrypt the card number before saving." : "Encrypt the CVC before saving.";
+      }
+    }
+    return errors;
+  }
+  function resolveEncryptedCardFieldValue(field, value, cardEncryption) {
+    const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
+    const encryptedField = cardEncryption[field];
+    if (encryptedField.status !== "encrypted" || encryptedField.normalizedValue !== normalizedValue || !encryptedField.encryptedValue) {
+      throw new Error(
+        field === "cardNumber" ? "Card number encryption must complete before saving." : "CVC encryption must complete before saving."
+      );
+    }
+    return encryptedField.encryptedValue;
   }
   function validateCardDraft(draft) {
     const errors = {};
@@ -1143,8 +1329,25 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
   function getMaskedCvvPreview(cvv) {
     return maskCvvForDisplay(cvv);
   }
+  function canSubmitCard(snapshot) {
+    return snapshot.cardEncryption.cardNumber.status === "encrypted" && snapshot.cardEncryption.cvc.status === "encrypted" && !snapshot.submitting;
+  }
 
   // projects/commerce-hub-connect-web-sdk/src/ui/widget-renderer.ts
+  var CARD_DRAFT_FIELD_NAMES = /* @__PURE__ */ new Set([
+    "name",
+    "fullName",
+    "cardNumber",
+    "expiration",
+    "cvc",
+    "billingAddressValue",
+    "country",
+    "addressLine1",
+    "addressLine2",
+    "city",
+    "state",
+    "zip"
+  ]);
   var CommerceHubConnectWidgetRenderer = class {
     constructor(hostElement, controller) {
       __publicField(this, "hostElement", hostElement);
@@ -1243,10 +1446,41 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       });
       __publicField(this, "handleInput", (event) => {
         const target = event.target;
-        if (!(target instanceof HTMLInputElement) || target.dataset["otpDigitIndex"] === void 0) {
+        if (!(target instanceof HTMLInputElement)) {
           return;
         }
-        syncOtpDigits(target);
+        if (target.dataset["otpDigitIndex"] !== void 0) {
+          syncOtpDigits(target);
+          return;
+        }
+        if (isCardDraftFormControl(target)) {
+          this.controller.syncCardDraftField(target.name, target.value);
+          if (isSensitiveCardInput(target)) {
+            updateCardSubmitAvailability(target.form, this.controller);
+          }
+        }
+      });
+      __publicField(this, "handleChange", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+          return;
+        }
+        if (!isCardDraftFormControl(target)) {
+          return;
+        }
+        this.controller.syncCardDraftField(target.name, target.value, {
+          notify: target instanceof HTMLSelectElement
+        });
+        if (target instanceof HTMLInputElement && isSensitiveCardInput(target)) {
+          updateCardSubmitAvailability(target.form, this.controller);
+        }
+      });
+      __publicField(this, "handleBlur", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement) || !isSensitiveCardInput(target)) {
+          return;
+        }
+        void this.controller.encryptCardField(target.name, target.value);
       });
       __publicField(this, "handleKeydown", (event) => {
         const keyboardEvent = event;
@@ -1305,6 +1539,8 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       this.hostElement.addEventListener("click", this.handleClick);
       this.hostElement.addEventListener("submit", this.handleSubmit);
       this.hostElement.addEventListener("input", this.handleInput);
+      this.hostElement.addEventListener("change", this.handleChange);
+      this.hostElement.addEventListener("blur", this.handleBlur, true);
       this.hostElement.addEventListener("keydown", this.handleKeydown);
       this.hostElement.addEventListener("paste", this.handlePaste);
       this.render();
@@ -1314,6 +1550,8 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       this.hostElement.removeEventListener("click", this.handleClick);
       this.hostElement.removeEventListener("submit", this.handleSubmit);
       this.hostElement.removeEventListener("input", this.handleInput);
+      this.hostElement.removeEventListener("change", this.handleChange);
+      this.hostElement.removeEventListener("blur", this.handleBlur, true);
       this.hostElement.removeEventListener("keydown", this.handleKeydown);
       this.hostElement.removeEventListener("paste", this.handlePaste);
       this.hostElement.replaceChildren();
@@ -1503,7 +1741,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       ${cvvPreview}
       ${useNewBillingAddress ? renderNewBillingAddressFields(draft, snapshot.cardDraftErrors) : ""}
       <div class="ch-sdk-button-row">
-        <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? "disabled" : ""}>${renderButtonLabel(snapshot.submitting ? "Saving..." : "Save payment method", "arrow")}</button>
+        <button class="ch-sdk-button" type="submit" ${canSubmitCard(snapshot) ? "" : "disabled"}>${renderButtonLabel(snapshot.submitting ? "Saving..." : "Save payment method", "arrow")}</button>
         <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button" ${snapshot.submitting ? "disabled" : ""}>Back</button>
       </div>
     </form>
@@ -1583,6 +1821,22 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     hostElement.style.setProperty("--ch-sdk-secondary", whiteLabel.secondaryColor);
     hostElement.style.setProperty("--ch-sdk-text", whiteLabel.textColor);
     hostElement.style.setProperty("--ch-sdk-font-family", whiteLabel.fontFamily);
+  }
+  function isSensitiveCardInput(target) {
+    return target.form?.dataset["form"] === "card" && (target.name === "cardNumber" || target.name === "cvc");
+  }
+  function isCardDraftFieldName(name) {
+    return CARD_DRAFT_FIELD_NAMES.has(name);
+  }
+  function isCardDraftFormControl(target) {
+    return target.form?.dataset["form"] === "card" && isCardDraftFieldName(target.name);
+  }
+  function updateCardSubmitAvailability(form, controller) {
+    const submitButton = form?.querySelector('button[type="submit"]');
+    if (!submitButton) {
+      return;
+    }
+    submitButton.disabled = !canSubmitCard(controller.getSnapshot());
   }
   function renderButtonLabel(label, icon) {
     const iconMarkup = icon === "arrow" ? '<span class="ch-sdk-button-icon" aria-hidden="true">\u2192</span>' : '<span class="ch-sdk-button-icon" aria-hidden="true">\u2713</span>';

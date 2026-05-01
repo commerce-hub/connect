@@ -59,6 +59,20 @@ export interface CardDraft {
   zip: string;
 }
 
+type SensitiveCardField = 'cardNumber' | 'cvc';
+type CardEncryptionStatus = 'idle' | 'dirty' | 'encrypting' | 'encrypted' | 'failed';
+
+interface SensitiveCardFieldEncryptionState {
+  status: CardEncryptionStatus;
+  normalizedValue: string;
+  encryptedValue: string | null;
+}
+
+export interface CardEncryptionState {
+  cardNumber: SensitiveCardFieldEncryptionState;
+  cvc: SensitiveCardFieldEncryptionState;
+}
+
 export interface WidgetSnapshot {
   interaction: InteractionResponse;
   configuration: CommerceHubSdkConfiguration;
@@ -83,6 +97,7 @@ export interface WidgetSnapshot {
   cardDraft: CardDraft;
   cardDraftErrors: Partial<Record<keyof CardDraft, string>>;
   cardDraftMessage: string | null;
+  cardEncryption: CardEncryptionState;
   requestedOtpMode: 'default' | 'email';
   whiteLabel: ResolvedCommerceHubWhiteLabelOptions;
   payByBankMountId: string;
@@ -236,6 +251,120 @@ export class CommerceHubConnectWidgetController {
     this.updateState({ selectedSourceId: sourceId });
   }
 
+  syncCardDraftField(field: keyof CardDraft, value: string, options?: { notify?: boolean }): void {
+    this.state.cardDraft = {
+      ...this.state.cardDraft,
+      [field]: value,
+    };
+
+    if (isSensitiveCardField(field)) {
+      const nextNormalizedValue = normalizeSensitiveCardFieldValue(field, value);
+      this.state.cardEncryption = {
+        ...this.state.cardEncryption,
+        [field]: resolveDirtyCardEncryptionState(this.state.cardEncryption[field], nextNormalizedValue),
+      };
+    }
+
+    if (options?.notify) {
+      this.notify();
+    }
+  }
+
+  async encryptCardField(field: SensitiveCardField, value: string): Promise<void> {
+    this.syncCardDraftField(field, value);
+
+    const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
+    const validationError = validateSensitiveCardField(field, value);
+
+    if (!normalizedValue) {
+      this.updateState({
+        cardDraftErrors: omitCardDraftError(this.state.cardDraftErrors, field),
+        cardEncryption: {
+          ...this.state.cardEncryption,
+          [field]: createCardEncryptionFieldState(),
+        },
+      });
+      return;
+    }
+
+    if (validationError) {
+      this.updateState({
+        cardDraftErrors: {
+          ...omitCardDraftError(this.state.cardDraftErrors, field),
+          [field]: validationError,
+        },
+        cardEncryption: {
+          ...this.state.cardEncryption,
+          [field]: resolveDirtyCardEncryptionState(this.state.cardEncryption[field], normalizedValue),
+        },
+      });
+      return;
+    }
+
+    const currentFieldState = this.state.cardEncryption[field];
+    if (currentFieldState.status === 'encrypting' && currentFieldState.normalizedValue === normalizedValue) {
+      return;
+    }
+
+    if (currentFieldState.status === 'encrypted' && currentFieldState.normalizedValue === normalizedValue) {
+      return;
+    }
+
+    this.updateState({
+      cardDraftErrors: omitCardDraftError(this.state.cardDraftErrors, field),
+      cardDraftMessage: null,
+      cardEncryption: {
+        ...this.state.cardEncryption,
+        [field]: {
+          status: 'encrypting',
+          normalizedValue,
+          encryptedValue: null,
+        },
+      },
+    });
+
+    try {
+      const encryptedValue = await this.maskSensitiveCardValue(field, value);
+      if (normalizeSensitiveCardFieldValue(field, this.state.cardDraft[field]) !== normalizedValue) {
+        return;
+      }
+
+      this.updateState({
+        cardDraftErrors: omitCardDraftError(this.state.cardDraftErrors, field),
+        cardDraftMessage: null,
+        cardEncryption: {
+          ...this.state.cardEncryption,
+          [field]: {
+            status: 'encrypted',
+            normalizedValue,
+            encryptedValue,
+          },
+        },
+      });
+    } catch (error) {
+      if (normalizeSensitiveCardFieldValue(field, this.state.cardDraft[field]) !== normalizedValue) {
+        return;
+      }
+
+      this.updateState({
+        cardDraftErrors: {
+          ...omitCardDraftError(this.state.cardDraftErrors, field),
+          [field]: buildCardEncryptionErrorMessage(field),
+        },
+        cardDraftMessage: null,
+        cardEncryption: {
+          ...this.state.cardEncryption,
+          [field]: {
+            status: 'failed',
+            normalizedValue,
+            encryptedValue: null,
+          },
+        },
+      });
+      void error;
+    }
+  }
+
   showAddCardMethod(): void {
     this.updateState({
       paymentEntryMode: 'add',
@@ -300,6 +429,15 @@ export class CommerceHubConnectWidgetController {
   async submitCard(draft: CardDraft): Promise<void> {
     const normalizedDraft = normalizeCardDraft(draft);
     const errors = validateCardDraft(normalizedDraft);
+    const encryptionReadinessErrors = validateCardEncryptionReadiness(
+      normalizedDraft,
+      this.state.cardEncryption,
+    );
+    for (const field of ['cardNumber', 'cvc'] as const) {
+      if (!errors[field] && encryptionReadinessErrors[field]) {
+        errors[field] = encryptionReadinessErrors[field];
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       this.updateState({
@@ -319,8 +457,12 @@ export class CommerceHubConnectWidgetController {
     });
 
     try {
-      const maskedCardNumber = await this.secureValue('card', normalizedDraft.cardNumber);
-      const maskedCvv = await this.secureValue('cvv', normalizedDraft.cvc);
+      const maskedCardNumber = resolveEncryptedCardFieldValue(
+        'cardNumber',
+        normalizedDraft.cardNumber,
+        this.state.cardEncryption,
+      );
+      const maskedCvv = resolveEncryptedCardFieldValue('cvc', normalizedDraft.cvc, this.state.cardEncryption);
       const { month, year } = parseExpiration(normalizedDraft.expiration);
 
       if (!month || !year) {
@@ -387,6 +529,7 @@ export class CommerceHubConnectWidgetController {
         completedResult: result,
         paymentEntryMode: 'list',
         cardDraft: defaultCardDraft(),
+        cardEncryption: defaultCardEncryptionState(),
       });
       await this.loadBillingAddresses();
     } catch (error) {
@@ -525,6 +668,10 @@ export class CommerceHubConnectWidgetController {
         previous?.interaction.interactionId === interaction.interactionId
           ? previous.cardDraft
           : defaultCardDraft(),
+      cardEncryption:
+        previous?.interaction.interactionId === interaction.interactionId
+          ? previous.cardEncryption
+          : defaultCardEncryptionState(),
       cardDraftErrors: {},
       cardDraftMessage: null,
       requestedOtpMode: previous?.requestedOtpMode ?? 'default',
@@ -601,13 +748,10 @@ export class CommerceHubConnectWidgetController {
     return address.id;
   }
 
-  private async secureValue(type: CustomerMaskType, value: string): Promise<string> {
-    try {
-      const masked = await this.api.mask(type, { value });
-      return masked.value;
-    } catch {
-      return type === 'card' ? normalizeCardNumber(value) : normalizeCvv(value);
-    }
+  private async maskSensitiveCardValue(field: SensitiveCardField, value: string): Promise<string> {
+    const type: CustomerMaskType = field === 'cardNumber' ? 'card' : 'cvv';
+    const masked = await this.api.mask(type, { value });
+    return masked.value;
   }
 
   private async getExistingBankSourceIds(): Promise<Set<string>> {
@@ -783,6 +927,128 @@ function defaultCardDraft(): CardDraft {
     state: '',
     zip: '',
   };
+}
+
+function defaultCardEncryptionState(): CardEncryptionState {
+  return {
+    cardNumber: createCardEncryptionFieldState(),
+    cvc: createCardEncryptionFieldState(),
+  };
+}
+
+function createCardEncryptionFieldState(): SensitiveCardFieldEncryptionState {
+  return {
+    status: 'idle',
+    normalizedValue: '',
+    encryptedValue: null,
+  };
+}
+
+function isSensitiveCardField(field: keyof CardDraft): field is SensitiveCardField {
+  return field === 'cardNumber' || field === 'cvc';
+}
+
+function normalizeSensitiveCardFieldValue(field: SensitiveCardField, value: string): string {
+  return field === 'cardNumber' ? normalizeCardNumber(value) : normalizeCvv(value);
+}
+
+function validateSensitiveCardField(field: SensitiveCardField, value: string): string | undefined {
+  if (field === 'cardNumber') {
+    return isValidCardNumber(value) ? undefined : 'Enter a valid card number.';
+  }
+
+  return isValidCvv(value) ? undefined : 'Enter a valid CVC.';
+}
+
+function buildCardEncryptionErrorMessage(field: SensitiveCardField): string {
+  return field === 'cardNumber'
+    ? 'Unable to encrypt the card number. Try again.'
+    : 'Unable to encrypt the CVC. Try again.';
+}
+
+function resolveDirtyCardEncryptionState(
+  previous: SensitiveCardFieldEncryptionState,
+  normalizedValue: string,
+): SensitiveCardFieldEncryptionState {
+  if (!normalizedValue) {
+    return createCardEncryptionFieldState();
+  }
+
+  if (
+    previous.normalizedValue === normalizedValue &&
+    (previous.status === 'encrypting' || previous.status === 'encrypted')
+  ) {
+    return previous;
+  }
+
+  return {
+    status: 'dirty',
+    normalizedValue,
+    encryptedValue: null,
+  };
+}
+
+function omitCardDraftError(
+  errors: Partial<Record<keyof CardDraft, string>>,
+  field: keyof CardDraft,
+): Partial<Record<keyof CardDraft, string>> {
+  const nextErrors = {
+    ...errors,
+  };
+  delete nextErrors[field];
+  return nextErrors;
+}
+
+function validateCardEncryptionReadiness(
+  draft: CardDraft,
+  cardEncryption: CardEncryptionState,
+): Partial<Record<keyof CardDraft, string>> {
+  const errors: Partial<Record<keyof CardDraft, string>> = {};
+  for (const field of ['cardNumber', 'cvc'] as const) {
+    const normalizedValue = normalizeSensitiveCardFieldValue(field, draft[field]);
+    const encryptedField = cardEncryption[field];
+    if (!normalizedValue) {
+      continue;
+    }
+
+    const isEncrypted =
+      encryptedField.status === 'encrypted' &&
+      encryptedField.normalizedValue === normalizedValue &&
+      Boolean(encryptedField.encryptedValue);
+
+    if (!isEncrypted) {
+      errors[field] =
+        encryptedField.status === 'failed'
+          ? buildCardEncryptionErrorMessage(field)
+          : field === 'cardNumber'
+            ? 'Encrypt the card number before saving.'
+            : 'Encrypt the CVC before saving.';
+    }
+  }
+
+  return errors;
+}
+
+function resolveEncryptedCardFieldValue(
+  field: SensitiveCardField,
+  value: string,
+  cardEncryption: CardEncryptionState,
+): string {
+  const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
+  const encryptedField = cardEncryption[field];
+  if (
+    encryptedField.status !== 'encrypted' ||
+    encryptedField.normalizedValue !== normalizedValue ||
+    !encryptedField.encryptedValue
+  ) {
+    throw new Error(
+      field === 'cardNumber'
+        ? 'Card number encryption must complete before saving.'
+        : 'CVC encryption must complete before saving.',
+    );
+  }
+
+  return encryptedField.encryptedValue;
 }
 
 function validateCardDraft(draft: CardDraft): Partial<Record<keyof CardDraft, string>> {
@@ -1047,4 +1313,12 @@ export function getMaskedCardPreview(cardNumber: string): string {
 
 export function getMaskedCvvPreview(cvv: string): string {
   return maskCvvForDisplay(cvv);
+}
+
+export function canSubmitCard(snapshot: WidgetSnapshot): boolean {
+  return (
+    snapshot.cardEncryption.cardNumber.status === 'encrypted' &&
+    snapshot.cardEncryption.cvc.status === 'encrypted' &&
+    !snapshot.submitting
+  );
 }

@@ -15,6 +15,17 @@ export interface CardDraft {
     state: string;
     zip: string;
 }
+type SensitiveCardField = 'cardNumber' | 'cvc';
+type CardEncryptionStatus = 'idle' | 'dirty' | 'encrypting' | 'encrypted' | 'failed';
+interface SensitiveCardFieldEncryptionState {
+    status: CardEncryptionStatus;
+    normalizedValue: string;
+    encryptedValue: string | null;
+}
+export interface CardEncryptionState {
+    cardNumber: SensitiveCardFieldEncryptionState;
+    cvc: SensitiveCardFieldEncryptionState;
+}
 export interface WidgetSnapshot {
     interaction: InteractionResponse;
     configuration: CommerceHubSdkConfiguration;
@@ -39,6 +50,7 @@ export interface WidgetSnapshot {
     cardDraft: CardDraft;
     cardDraftErrors: Partial<Record<keyof CardDraft, string>>;
     cardDraftMessage: string | null;
+    cardEncryption: CardEncryptionState;
     requestedOtpMode: 'default' | 'email';
     whiteLabel: ResolvedCommerceHubWhiteLabelOptions;
     payByBankMountId: string;
@@ -61,6 +73,10 @@ export declare class CommerceHubConnectWidgetController {
     resendCode(): Promise<void>;
     onOtpAlternateAction(): Promise<void>;
     selectExistingSource(sourceId: string): void;
+    syncCardDraftField(field: keyof CardDraft, value: string, options?: {
+        notify?: boolean;
+    }): void;
+    encryptCardField(field: SensitiveCardField, value: string): Promise<void>;
     showAddCardMethod(): void;
     showAddBankAccountMethod(): void;
     backToPaymentList(): void;
@@ -73,7 +89,7 @@ export declare class CommerceHubConnectWidgetController {
     private loadBillingAddresses;
     private otpChannel;
     private resolveBillingAddressId;
-    private secureValue;
+    private maskSensitiveCardValue;
     private getExistingBankSourceIds;
     private commitInteraction;
     private failWith;
@@ -89,3 +105,5 @@ export declare function getNewBillingAddressValue(): string;
 export declare function getDefaultCardDraft(): CardDraft;
 export declare function getMaskedCardPreview(cardNumber: string): string;
 export declare function getMaskedCvvPreview(cvv: string): string;
+export declare function canSubmitCard(snapshot: WidgetSnapshot): boolean;
+export {};

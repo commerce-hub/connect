@@ -1,6 +1,8 @@
 import type { Address, PaymentSource } from '../contracts/api-models';
+import type { CardDraft } from '../core/controller';
 import { escapeHtml } from '../web-sdk-utils';
 import {
+  canSubmitCard,
   CommerceHubConnectWidgetController,
   formatBillingAddressLabel,
   formatOtpDestination,
@@ -13,6 +15,21 @@ import {
   getNewBillingAddressValue,
 } from '../core/controller';
 
+const CARD_DRAFT_FIELD_NAMES = new Set<keyof CardDraft>([
+  'name',
+  'fullName',
+  'cardNumber',
+  'expiration',
+  'cvc',
+  'billingAddressValue',
+  'country',
+  'addressLine1',
+  'addressLine2',
+  'city',
+  'state',
+  'zip',
+]);
+
 export class CommerceHubConnectWidgetRenderer {
   private readonly unsubscribe: () => void;
 
@@ -24,6 +41,8 @@ export class CommerceHubConnectWidgetRenderer {
     this.hostElement.addEventListener('click', this.handleClick);
     this.hostElement.addEventListener('submit', this.handleSubmit);
     this.hostElement.addEventListener('input', this.handleInput);
+    this.hostElement.addEventListener('change', this.handleChange);
+    this.hostElement.addEventListener('blur', this.handleBlur, true);
     this.hostElement.addEventListener('keydown', this.handleKeydown);
     this.hostElement.addEventListener('paste', this.handlePaste);
     this.render();
@@ -34,6 +53,8 @@ export class CommerceHubConnectWidgetRenderer {
     this.hostElement.removeEventListener('click', this.handleClick);
     this.hostElement.removeEventListener('submit', this.handleSubmit);
     this.hostElement.removeEventListener('input', this.handleInput);
+    this.hostElement.removeEventListener('change', this.handleChange);
+    this.hostElement.removeEventListener('blur', this.handleBlur, true);
     this.hostElement.removeEventListener('keydown', this.handleKeydown);
     this.hostElement.removeEventListener('paste', this.handlePaste);
     this.hostElement.replaceChildren();
@@ -138,11 +159,48 @@ export class CommerceHubConnectWidgetRenderer {
 
   private readonly handleInput = (event: Event): void => {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement) || target.dataset['otpDigitIndex'] === undefined) {
+    if (!(target instanceof HTMLInputElement)) {
       return;
     }
 
-    syncOtpDigits(target);
+    if (target.dataset['otpDigitIndex'] !== undefined) {
+      syncOtpDigits(target);
+      return;
+    }
+
+    if (isCardDraftFormControl(target)) {
+      this.controller.syncCardDraftField(target.name, target.value);
+      if (isSensitiveCardInput(target)) {
+        updateCardSubmitAvailability(target.form, this.controller);
+      }
+    }
+  };
+
+  private readonly handleChange = (event: Event): void => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+      return;
+    }
+
+    if (!isCardDraftFormControl(target)) {
+      return;
+    }
+
+    this.controller.syncCardDraftField(target.name, target.value, {
+      notify: target instanceof HTMLSelectElement,
+    });
+    if (target instanceof HTMLInputElement && isSensitiveCardInput(target)) {
+      updateCardSubmitAvailability(target.form, this.controller);
+    }
+  };
+
+  private readonly handleBlur = (event: Event): void => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !isSensitiveCardInput(target)) {
+      return;
+    }
+
+    void this.controller.encryptCardField(target.name, target.value);
   };
 
   private readonly handleKeydown = (event: Event): void => {
@@ -438,7 +496,7 @@ function renderCardStep(snapshot: ReturnType<CommerceHubConnectWidgetController[
       ${cvvPreview}
       ${useNewBillingAddress ? renderNewBillingAddressFields(draft, snapshot.cardDraftErrors) : ''}
       <div class="ch-sdk-button-row">
-        <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? 'disabled' : ''}>${renderButtonLabel(snapshot.submitting ? 'Saving...' : 'Save payment method', 'arrow')}</button>
+        <button class="ch-sdk-button" type="submit" ${canSubmitCard(snapshot) ? '' : 'disabled'}>${renderButtonLabel(snapshot.submitting ? 'Saving...' : 'Save payment method', 'arrow')}</button>
         <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button" ${snapshot.submitting ? 'disabled' : ''}>Back</button>
       </div>
     </form>
@@ -544,6 +602,32 @@ function applyTheme(
   hostElement.style.setProperty('--ch-sdk-secondary', whiteLabel.secondaryColor);
   hostElement.style.setProperty('--ch-sdk-text', whiteLabel.textColor);
   hostElement.style.setProperty('--ch-sdk-font-family', whiteLabel.fontFamily);
+}
+
+function isSensitiveCardInput(target: HTMLInputElement): target is HTMLInputElement & { name: 'cardNumber' | 'cvc' } {
+  return target.form?.dataset['form'] === 'card' && (target.name === 'cardNumber' || target.name === 'cvc');
+}
+
+function isCardDraftFieldName(name: string): name is keyof CardDraft {
+  return CARD_DRAFT_FIELD_NAMES.has(name as keyof CardDraft);
+}
+
+function isCardDraftFormControl(
+  target: HTMLInputElement | HTMLSelectElement,
+): target is (HTMLInputElement | HTMLSelectElement) & { name: keyof CardDraft } {
+  return target.form?.dataset['form'] === 'card' && isCardDraftFieldName(target.name);
+}
+
+function updateCardSubmitAvailability(
+  form: HTMLFormElement | null,
+  controller: CommerceHubConnectWidgetController,
+): void {
+  const submitButton = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+  if (!submitButton) {
+    return;
+  }
+
+  submitButton.disabled = !canSubmitCard(controller.getSnapshot());
 }
 
 function renderButtonLabel(label: string, icon: 'arrow' | 'check'): string {
