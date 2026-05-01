@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -10,6 +10,8 @@ import {
   defaultProxyTargets,
   proxyRoutePrefix,
 } from './serve-web-sdk-example.mjs';
+
+const workspaceRoot = process.cwd();
 
 test('serves the standalone example page from the server root', async (t) => {
   const projectRoot = await createProjectFixture();
@@ -31,6 +33,19 @@ test('serves the standalone example page from the server root', async (t) => {
 
   assert.equal(response.status, 200);
   assert.equal(await response.text(), '<!doctype html><title>Example sandbox fixture</title>');
+});
+
+test('standalone example exposes merchantData controls and sends them in create requests', async () => {
+  const exampleHtml = await readFile(
+    path.join(workspaceRoot, 'projects', 'commerce-hub-connect-web-sdk', 'example', 'index.html'),
+    'utf8',
+  );
+
+  assert.match(exampleHtml, /id="client-id"[^>]*value="marriot"/);
+  assert.match(exampleHtml, /id="merchant-id"[^>]*value="101475000000009"/);
+  assert.match(exampleHtml, /id="terminal-id"[^>]*value="10000001"/);
+  assert.match(exampleHtml, /function readMerchantData\(\)/);
+  assert.match(exampleHtml, /merchantData: readMerchantData\(\)/);
 });
 
 test('answers proxy preflight requests without contacting the upstream host', async (t) => {

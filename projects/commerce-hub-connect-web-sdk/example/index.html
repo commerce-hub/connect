@@ -256,6 +256,25 @@
 
             <div class="grid grid--two">
               <label>
+                Client ID
+                <input id="client-id" type="text" value="marriot" />
+              </label>
+
+              <label>
+                Merchant ID
+                <input id="merchant-id" type="text" value="101475000000009" />
+              </label>
+            </div>
+
+            <div class="grid grid--two">
+              <label>
+                Terminal ID
+                <input id="terminal-id" type="text" value="10000001" />
+              </label>
+            </div>
+
+            <div class="grid grid--two">
+              <label>
                 Primary color
                 <input id="primary-color" type="text" value="#0a5dff" />
               </label>
@@ -363,6 +382,14 @@
         return allowed.length ? allowed : ['CARD'];
       }
 
+      function readMerchantData() {
+        return {
+          clientId: document.getElementById('client-id').value,
+          merchantId: document.getElementById('merchant-id').value,
+          terminalId: document.getElementById('terminal-id').value,
+        };
+      }
+
       function readConfiguration() {
         return {
           wallet: document.getElementById('wallet-enabled').checked,
@@ -398,6 +425,7 @@
             authType: 'FINAL_SALE',
             email: document.getElementById('email').value,
             allowedTenderTypes: readAllowedTenderTypes(),
+            merchantData: readMerchantData(),
             wallet: document.getElementById('wallet-enabled').checked,
           }),
         });

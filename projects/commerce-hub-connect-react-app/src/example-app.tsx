@@ -20,6 +20,9 @@ type ExampleStatusTone = 'neutral' | 'success' | 'error';
 type ExampleFormState = {
   environment: CommerceHubConnectEnvironment;
   email: string;
+  clientId: string;
+  merchantId: string;
+  terminalId: string;
   paymentSelectionTitle: string;
   paymentSelectionConfirmLabel: string;
   primaryColor: string;
@@ -34,6 +37,9 @@ type ExampleFormState = {
 const initialFormState: ExampleFormState = {
   environment: 'qa',
   email: 'gregory.jablonski@fiserv.com',
+  clientId: 'marriot',
+  merchantId: '101475000000009',
+  terminalId: '10000001',
   paymentSelectionTitle: 'Pay with',
   paymentSelectionConfirmLabel: 'Confirm',
   primaryColor: '#0a5dff',
@@ -194,6 +200,33 @@ export default function ExampleApp() {
 
             <div className="grid grid--two">
               <label>
+                <span>Client ID</span>
+                <input type="text" value={formState.clientId} onChange={handleFieldChange('clientId')} />
+              </label>
+
+              <label>
+                <span>Merchant ID</span>
+                <input
+                  type="text"
+                  value={formState.merchantId}
+                  onChange={handleFieldChange('merchantId')}
+                />
+              </label>
+            </div>
+
+            <div className="grid grid--two">
+              <label>
+                <span>Terminal ID</span>
+                <input
+                  type="text"
+                  value={formState.terminalId}
+                  onChange={handleFieldChange('terminalId')}
+                />
+              </label>
+            </div>
+
+            <div className="grid grid--two">
+              <label>
                 <span>Payment Selection Title</span>
                 <input
                   type="text"
@@ -342,6 +375,7 @@ async function createInteraction(formState: ExampleFormState): Promise<Interacti
       authType: 'FINAL_SALE',
       email: formState.email,
       allowedTenderTypes: resolveAllowedTenderTypes(formState),
+      merchantData: buildMerchantData(formState),
       wallet: formState.wallet,
       allowEmailChange: true,
     }),
@@ -352,6 +386,14 @@ async function createInteraction(formState: ExampleFormState): Promise<Interacti
   }
 
   return response.json() as Promise<InteractionResponse>;
+}
+
+function buildMerchantData(formState: ExampleFormState) {
+  return {
+    clientId: formState.clientId,
+    merchantId: formState.merchantId,
+    terminalId: formState.terminalId,
+  };
 }
 
 function buildBindingProps(

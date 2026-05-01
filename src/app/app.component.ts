@@ -21,6 +21,9 @@ type ExampleStatusTone = 'neutral' | 'success' | 'error';
 type ExampleFormValue = {
   environment: CommerceHubConnectEnvironment;
   email: string;
+  clientId: string;
+  merchantId: string;
+  terminalId: string;
   paymentSelectionTitle: string;
   paymentSelectionConfirmLabel: string;
   primaryColor: string;
@@ -47,6 +50,9 @@ export class AppComponent {
   protected readonly form = this.formBuilder.nonNullable.group({
     environment: 'qa' as CommerceHubConnectEnvironment,
     email: 'gregory.jablonski@fiserv.com',
+    clientId: 'marriot',
+    merchantId: '101475000000009',
+    terminalId: '10000001',
     paymentSelectionTitle: 'Pay with',
     paymentSelectionConfirmLabel: 'Confirm',
     primaryColor: '#0a5dff',
@@ -94,6 +100,7 @@ export class AppComponent {
             authType: 'FINAL_SALE',
             email: formValue.email,
             allowedTenderTypes: this.resolveAllowedTenderTypes(formValue),
+            merchantData: this.buildMerchantData(formValue),
             wallet: formValue.wallet,
             allowEmailChange: true,
           },
@@ -190,6 +197,18 @@ export class AppComponent {
     }
 
     return allowed.length ? allowed : ['CARD'];
+  }
+
+  private buildMerchantData(formValue: ExampleFormValue): {
+    clientId: string;
+    merchantId: string;
+    terminalId: string;
+  } {
+    return {
+      clientId: formValue.clientId,
+      merchantId: formValue.merchantId,
+      terminalId: formValue.terminalId,
+    };
   }
 
   private appendLog(label: string, payload?: unknown): void {

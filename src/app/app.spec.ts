@@ -66,6 +66,11 @@ describe('AppComponent', () => {
         authType: 'FINAL_SALE',
         email: 'gregory.jablonski@fiserv.com',
         allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+        merchantData: {
+          clientId: 'marriot',
+          merchantId: '101475000000009',
+          terminalId: '10000001',
+        },
         wallet: true,
         allowEmailChange: true,
       }),
@@ -140,5 +145,49 @@ describe('AppComponent', () => {
 
     expect(component.activeInteraction()).toBeNull();
     expect(component.statusMessage()).toContain('Destroyed the mounted Angular binding instance');
+  });
+
+  it('uses configured merchant data in the create request body', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const component = fixture.componentInstance as AppComponent & {
+      createAndMount(): Promise<void>;
+      form: {
+        patchValue(value: {
+          clientId?: string;
+          merchantId?: string;
+          terminalId?: string;
+        }): void;
+      };
+    };
+
+    fixture.detectChanges();
+    component.form.patchValue({
+      clientId: 'custom-client',
+      merchantId: 'custom-merchant',
+      terminalId: 'custom-terminal',
+    });
+
+    const createPromise = component.createAndMount();
+    const request = httpMock.expectOne((request) =>
+      request.url.endsWith('/commerce-hub-proxy/qa/merchant/interaction/create'),
+    );
+
+    expect(request.request.body).toEqual(
+      jasmine.objectContaining({
+        merchantData: {
+          clientId: 'custom-client',
+          merchantId: 'custom-merchant',
+          terminalId: 'custom-terminal',
+        },
+      }),
+    );
+
+    request.flush({
+      interactionId: 'interaction-3',
+      status: 'EMAIL_REQUESTED',
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+    });
+
+    await createPromise;
   });
 });

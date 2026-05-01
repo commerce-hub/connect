@@ -11,6 +11,11 @@ const chromeExecutable =
 const smokeEntryUrlPath = '/smoke/index.html';
 const smokeServerPort = 8080;
 const smokeServerHost = 'localhost';
+const expectedMerchantData = {
+  clientId: 'marriot',
+  merchantId: '101475000000009',
+  terminalId: '10000001',
+};
 
 const CONTENT_TYPES = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -265,6 +270,8 @@ function createSmokeServer(rootDir, state) {
 }
 
 function createInteractionRecord(state, requestBody) {
+  assertExpectedMerchantData(requestBody?.merchantData);
+
   const scenario = String(requestBody?.sessionReferenceId ?? 'default').trim() || 'default';
   const interactionId = `interaction-${state.nextInteractionNumber++}`;
   const allowedTenderTypes = requestBody?.allowedTenderTypes?.length
@@ -307,6 +314,20 @@ function createInteractionRecord(state, requestBody) {
   state.interactionOrder.push(interactionId);
   state.currentInteractionId = interactionId;
   return record;
+}
+
+function assertExpectedMerchantData(merchantData) {
+  if (
+    merchantData?.clientId === expectedMerchantData.clientId &&
+    merchantData?.merchantId === expectedMerchantData.merchantId &&
+    merchantData?.terminalId === expectedMerchantData.terminalId
+  ) {
+    return;
+  }
+
+  throw new Error(
+    `Smoke create request missing expected merchantData: ${JSON.stringify(merchantData)}`,
+  );
 }
 
 function buildPostOtpInteraction(interaction) {

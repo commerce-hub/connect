@@ -172,6 +172,11 @@
       const detailsElement = document.getElementById('details');
       const smokeStatusElement = document.getElementById('smoke-status');
       const mountTarget = document.getElementById('mount');
+      const defaultMerchantData = {
+        clientId: 'marriot',
+        merchantId: '101475000000009',
+        terminalId: '10000001',
+      };
 
       let activeInstance = null;
 
@@ -258,6 +263,7 @@
             authType: 'FINAL_SALE',
             email: 'smoke@example.com',
             allowedTenderTypes,
+            merchantData: defaultMerchantData,
             wallet: true,
           }),
         });
