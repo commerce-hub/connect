@@ -33,6 +33,35 @@ describe('CommerceHubConnectWidgetController', () => {
     controller.destroy();
   });
 
+  it('auto-submits the configured email once on the initial email step', async () => {
+    const controller = createController(
+      {},
+      createConfiguration({
+        email: 'shopper@example.com',
+      }),
+    );
+
+    await Promise.resolve();
+
+    expect(requestCount(fetchSpy, '/interaction/otp/send')).toBe(1);
+
+    controller.destroy();
+  });
+
+  it('skips the queued initial email submit after destroy', async () => {
+    const controller = createController(
+      {},
+      createConfiguration({
+        email: 'shopper@example.com',
+      }),
+    );
+
+    controller.destroy();
+    await Promise.resolve();
+
+    expect(requestCount(fetchSpy, '/interaction/otp/send')).toBe(0);
+  });
+
   it('stores an otp validation error when /interaction/otp/validate fails', async () => {
     fetchSpy.and.callFake(async (input: RequestInfo | URL) => {
       const url = String(input);
