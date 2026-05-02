@@ -4,7 +4,12 @@ Framework-agnostic Commerce Hub inline widget built in pure TypeScript.
 
 ## What ships
 
-The bundle exposes `window.CommerceHubConnectWebSdk` and can mount a host-managed inline widget into any DOM container without Angular, Prime, or PrimeNG runtime dependencies.
+The package now ships two integration surfaces:
+
+- `import { mount, resolveApiBaseUrl } from 'commerce-hub-connect-web-sdk'` for bundlers and framework bindings
+- `CommerceHubConnectSDK.js` for browser hosts that want the global `window.CommerceHubConnectWebSdk`
+
+Both surfaces mount the same host-managed inline widget without Angular, Prime, or PrimeNG runtime dependencies.
 
 ## Build
 
@@ -16,10 +21,42 @@ npm run build:web-sdk-widget
 
 This writes:
 
+- `projects/commerce-hub-connect-web-sdk/dist/index.js`
 - `projects/commerce-hub-connect-web-sdk/dist/CommerceHubConnectSDK.js`
 - `projects/commerce-hub-connect-web-sdk/dist/CommerceHubConnectSDK.d.ts`
 
 ## Basic usage
+
+### Module / bundler usage
+
+```ts
+import {
+  mount,
+  resolveApiBaseUrl,
+  type CommerceHubSdkConfiguration,
+  type InteractionResponse,
+} from 'commerce-hub-connect-web-sdk';
+
+const interaction: InteractionResponse = {
+  interactionId: 'interaction-1',
+  status: 'EMAIL_REQUESTED',
+  allowedTenderTypes: ['CARD'],
+};
+
+const configuration: CommerceHubSdkConfiguration = {
+  onSuccess(result) {
+    console.log('success', result);
+  },
+  onError(error) {
+    console.error('error', error);
+  },
+};
+
+await mount('#payment-container', { interaction, configuration }, 'qa');
+console.log(resolveApiBaseUrl('qa'));
+```
+
+### Browser bundle usage
 
 ```html
 <div id="payment-container"></div>

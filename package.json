@@ -23,7 +23,9 @@
     "build:react-binding": "npm --prefix projects/commerce-hub-connect-react-app run build",
     "pack:web-sdk": "npm run build:web-sdk-widget && cd projects/commerce-hub-connect-web-sdk/dist && npm pack",
     "pack:react-binding": "cd projects/commerce-hub-connect-react-app && npm pack",
-    "test:react-binding": "node scripts/run-react-binding-smoke-test.mjs",
+    "test:react-binding": "npm run test:react-binding:example && npm run test:react-binding:package",
+    "test:react-binding:example": "node scripts/run-react-binding-smoke-test.mjs",
+    "test:react-binding:package": "node scripts/run-react-binding-package-smoke-test.mjs",
     "verify:framework-bindings": "node scripts/verify-framework-binding-wiring.mjs"
   },
   "prettier": {

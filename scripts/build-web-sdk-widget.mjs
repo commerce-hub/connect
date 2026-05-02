@@ -9,10 +9,12 @@ const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const widgetProjectDir = path.join(workspaceRoot, 'projects', 'commerce-hub-connect-web-sdk');
 const sourceDir = path.join(widgetProjectDir, 'src');
 const outputDir = path.join(widgetProjectDir, 'dist');
-const outputBundleFile = path.join(outputDir, 'CommerceHubConnectSDK.js');
+const outputModuleFile = path.join(outputDir, 'index.js');
+const outputBrowserBundleFile = path.join(outputDir, 'CommerceHubConnectSDK.js');
 const outputTypesFile = path.join(outputDir, 'CommerceHubConnectSDK.d.ts');
 const tmpTypesDir = path.join(widgetProjectDir, '.tmp-types');
-const entryFile = path.join(sourceDir, 'main.ts');
+const browserEntryFile = path.join(sourceDir, 'main.ts');
+const moduleEntryFile = path.join(sourceDir, 'public-api.ts');
 const stylesheetFile = path.join(sourceDir, 'styles.css');
 const inlineStylesFile = path.join(sourceDir, 'styles-inline.ts');
 const projectPackageJson = path.join(widgetProjectDir, 'package.json');
@@ -28,16 +30,26 @@ await fs.writeFile(
 );
 
 await esbuild({
-  entryPoints: [entryFile],
+  entryPoints: [browserEntryFile],
   bundle: true,
   format: 'iife',
   platform: 'browser',
   target: ['es2020'],
   logLevel: 'info',
-  outfile: outputBundleFile,
+  outfile: outputBrowserBundleFile,
   banner: {
     js: `globalThis.__commerceHubConnectWebSdkInlineCss = ${JSON.stringify(inlinedCss)};`,
   },
+});
+
+await esbuild({
+  entryPoints: [moduleEntryFile],
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: ['es2020'],
+  logLevel: 'info',
+  outfile: outputModuleFile,
 });
 
 await runCommand(resolveBin('tsc'), ['-p', path.join(widgetProjectDir, 'tsconfig.build.json')]);
@@ -49,7 +61,12 @@ await Promise.all([
 ]);
 await fs.rm(tmpTypesDir, { recursive: true, force: true });
 
-console.log(`Generated ${path.relative(workspaceRoot, outputBundleFile)}`);
+console.log(
+  [
+    `Generated ${path.relative(workspaceRoot, outputModuleFile)}`,
+    `Generated ${path.relative(workspaceRoot, outputBrowserBundleFile)}`,
+  ].join('\n'),
+);
 
 function resolveBin(name) {
   return path.join(

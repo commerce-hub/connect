@@ -2,6 +2,17 @@
 
 Thin React binding over `commerce-hub-connect-web-sdk`.
 
+## Install
+
+Install the React binding **and** the web SDK package together:
+
+```bash
+npm install commerce-hub-connect-web-sdk commerce-hub-connect-react-binding
+```
+
+The React binding imports the web SDK module internally, so React hosts do **not** need to load
+`CommerceHubConnectSDK.js` with a script tag.
+
 ## What ships in the package
 
 - `dist/index.js` — the distributable React binding entry
@@ -80,6 +91,12 @@ export function Checkout() {
 
 The binding re-exports the shared web SDK types so React hosts can stay aligned with plain browser and Angular integrations.
 
+## Consumer notes
+
+- Install both packages at compatible versions.
+- Use the React binding directly from your component tree.
+- Do not wire `window.CommerceHubConnectWebSdk` manually for React usage; that browser-global path is for non-bundled script-tag hosts.
+
 ## Verification
 
 ```bash
@@ -87,4 +104,5 @@ npm run typecheck
 npm run build
 npm run build:example
 node ../../scripts/run-react-binding-smoke-test.mjs
+node ../../scripts/run-react-binding-package-smoke-test.mjs
 ```
