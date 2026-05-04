@@ -695,21 +695,9 @@ export class CommerceHubConnectWidgetController {
       this.state.currentStep === 'email' &&
       this.autoSubmittedInteractionId !== this.state.interaction.interactionId
     ) {
-      const interactionId = this.state.interaction.interactionId;
-      const email = this.state.email;
-
-      this.autoSubmittedInteractionId = interactionId;
+      this.autoSubmittedInteractionId = this.state.interaction.interactionId;
       queueMicrotask(() => {
-        if (
-          this.destroyed ||
-          this.state.interaction.interactionId !== interactionId ||
-          this.state.currentStep !== 'email' ||
-          this.state.email !== email
-        ) {
-          return;
-        }
-
-        void this.submitEmail(email, 'default');
+        void this.submitEmail(this.state.email, 'default');
       });
     }
   }
