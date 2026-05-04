@@ -6,7 +6,9 @@ import {
 } from './web-sdk';
 import { commerceHubConnectWebSdkInlineCss } from './styles-inline';
 
-function createConfiguration(overrides: Partial<CommerceHubConnectWebSdkMountOptions['configuration']> = {}) {
+function createConfiguration(
+  overrides: Partial<CommerceHubConnectWebSdkMountOptions['configuration']> = {},
+) {
   return {
     onSuccess: jasmine.createSpy('onSuccess'),
     onError: jasmine.createSpy('onError'),
@@ -36,8 +38,10 @@ describe('web sdk', () => {
     mountTarget = document.createElement('div');
     mountTarget.id = 'mount-target';
     document.body.appendChild(mountTarget);
-    (globalThis as typeof globalThis & { __commerceHubConnectWebSdkInlineCss?: string })
-      .__commerceHubConnectWebSdkInlineCss = '.commerce-hub-connect-web-sdk-mount { --spec-loaded: yes; }';
+    (
+      globalThis as typeof globalThis & { __commerceHubConnectWebSdkInlineCss?: string }
+    ).__commerceHubConnectWebSdkInlineCss =
+      '.commerce-hub-connect-web-sdk-mount { --spec-loaded: yes; }';
     delete window.CommerceHubConnectWebSdk;
     fetchSpy = spyOn(globalThis, 'fetch').and.callFake(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -88,6 +92,8 @@ describe('web sdk', () => {
     );
     expect(commerceHubConnectWebSdkInlineCss).toContain('background: var(--ch-sdk-action);');
     expect(commerceHubConnectWebSdkInlineCss).toContain('border: 1px solid var(--ch-sdk-action);');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-spinner');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
   it('mounts an inline widget, injects the stylesheet once, and updates in place', async () => {
@@ -124,7 +130,9 @@ describe('web sdk', () => {
 
     expect(stylesheetCountAfterMount).toBeGreaterThan(0);
     expect(stylesheetCountAfterMount).toBe(stylesheetCountBeforeMount || 1);
-    expect(mountTarget.querySelector('.commerce-hub-connect-web-sdk-mount')).toBe(instance.hostElement);
+    expect(mountTarget.querySelector('.commerce-hub-connect-web-sdk-mount')).toBe(
+      instance.hostElement,
+    );
     expect(instance.hostElement.textContent).toContain('Sign in');
     expect(instance.hostElement.style.getPropertyValue('--ch-sdk-primary').trim()).toBe('#ff5a1f');
 
@@ -143,12 +151,17 @@ describe('web sdk', () => {
       },
     });
 
-    expect(document.head.querySelectorAll('[data-commerce-hub-connect-web-sdk-style="true"]').length).toBe(
-      stylesheetCountAfterMount,
-    );
+    expect(
+      document.head.querySelectorAll('[data-commerce-hub-connect-web-sdk-style="true"]').length,
+    ).toBe(stylesheetCountAfterMount);
     expect(instance.hostElement.textContent).toContain('Saved methods');
     expect(instance.hostElement.textContent).toContain('Primary Visa');
     expect(instance.hostElement.style.getPropertyValue('--ch-sdk-primary').trim()).toBe('#1d4ed8');
+    expect(instance.hostElement.querySelector('.ch-sdk-source-option.is-selected')).not.toBeNull();
+    expect(instance.hostElement.querySelector('.ch-sdk-source-check')).not.toBeNull();
+    expect(
+      instance.hostElement.querySelector('.ch-sdk-source-option')?.getAttribute('aria-pressed'),
+    ).toBe('true');
 
     instance.destroy();
     expect(mountTarget.querySelector('.commerce-hub-connect-web-sdk-mount')).toBeNull();
@@ -200,6 +213,33 @@ describe('web sdk', () => {
     instance.destroy();
   });
 
+  it('marks otp inputs after invalid code submission', async () => {
+    const namespace = await registerCommerceHubConnectWebSdk();
+    const instance = await namespace.mount('#mount-target', {
+      interaction: createInteraction({
+        status: 'OTP_VALIDATION_PENDING',
+        email: 'gregory.jablonski@fiserv.com',
+      }),
+      configuration: createConfiguration(),
+    });
+
+    const form = instance.hostElement.querySelector('form[data-form="otp"]');
+    if (!(form instanceof HTMLFormElement)) {
+      fail('Unable to find otp form.');
+      return;
+    }
+
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+    expect(instance.hostElement.textContent).toContain('Enter the 6-digit code.');
+    expect(instance.hostElement.querySelector('.ch-sdk-otp-group.is-error')).not.toBeNull();
+    expect(
+      instance.hostElement.querySelectorAll('.ch-sdk-otp-digit[aria-invalid="true"]').length,
+    ).toBe(6);
+
+    instance.destroy();
+  });
+
   it('encrypts sensitive card fields only on blur, blocks save until both succeed, and avoids duplicate blur calls', async () => {
     const namespace = await registerCommerceHubConnectWebSdk();
     const configuration = createConfiguration();
@@ -227,13 +267,19 @@ describe('web sdk', () => {
     expect(fetchHarness.counters.cvvMask).toBe(0);
     expect(getCardSubmitButton(instance.hostElement).disabled).toBeTrue();
 
-    await controller.encryptCardField('cardNumber', getRequiredInput(instance.hostElement, 'cardNumber').value);
+    await controller.encryptCardField(
+      'cardNumber',
+      getRequiredInput(instance.hostElement, 'cardNumber').value,
+    );
     expect(controller.getSnapshot().cardEncryption.cardNumber.status).toBe('encrypted');
     expect(fetchHarness.counters.cardMask).toBe(1);
     expect(fetchHarness.counters.cvvMask).toBe(0);
     expect(getCardSubmitButton(instance.hostElement).disabled).toBeTrue();
 
-    await controller.encryptCardField('cardNumber', getRequiredInput(instance.hostElement, 'cardNumber').value);
+    await controller.encryptCardField(
+      'cardNumber',
+      getRequiredInput(instance.hostElement, 'cardNumber').value,
+    );
     expect(fetchHarness.counters.cardMask).toBe(1);
 
     await controller.encryptCardField('cvc', getRequiredInput(instance.hostElement, 'cvc').value);
@@ -281,21 +327,31 @@ describe('web sdk', () => {
     clickRequired(instance.hostElement, '[data-action="add-card"]');
 
     fillCardForm(instance.hostElement);
-    await controller.encryptCardField('cardNumber', getRequiredInput(instance.hostElement, 'cardNumber').value);
+    await controller.encryptCardField(
+      'cardNumber',
+      getRequiredInput(instance.hostElement, 'cardNumber').value,
+    );
 
     expect(fetchHarness.counters.cardMask).toBe(1);
     expect(controller.getSnapshot().cardEncryption.cardNumber.status).toBe('failed');
     expect(controller.getSnapshot().cardDraftErrors.cardNumber).toBe(
       'Unable to encrypt the card number. Try again.',
     );
-    expect(instance.hostElement.textContent).toContain('Unable to encrypt the card number. Try again.');
+    expect(instance.hostElement.textContent).toContain(
+      'Unable to encrypt the card number. Try again.',
+    );
     expect(getCardSubmitButton(instance.hostElement).disabled).toBeTrue();
 
-    await controller.encryptCardField('cardNumber', getRequiredInput(instance.hostElement, 'cardNumber').value);
+    await controller.encryptCardField(
+      'cardNumber',
+      getRequiredInput(instance.hostElement, 'cardNumber').value,
+    );
     expect(fetchHarness.counters.cardMask).toBe(2);
     expect(controller.getSnapshot().cardEncryption.cardNumber.status).toBe('encrypted');
     expect(controller.getSnapshot().cardDraftErrors.cardNumber).toBeUndefined();
-    expect(instance.hostElement.textContent).not.toContain('Unable to encrypt the card number. Try again.');
+    expect(instance.hostElement.textContent).not.toContain(
+      'Unable to encrypt the card number. Try again.',
+    );
 
     await controller.encryptCardField('cvc', getRequiredInput(instance.hostElement, 'cvc').value);
     expect(fetchHarness.counters.cvvMask).toBe(1);
@@ -311,13 +367,15 @@ function getMountedWidgetController(instance: unknown): {
   encryptCardField(field: 'cardNumber' | 'cvc', value: string): Promise<void>;
   submitCard(draft: ReturnType<typeof readCardDraft>): Promise<void>;
 } {
-  return (instance as {
-    controller: {
-      getSnapshot(): any;
-      encryptCardField(field: 'cardNumber' | 'cvc', value: string): Promise<void>;
-      submitCard(draft: ReturnType<typeof readCardDraft>): Promise<void>;
-    };
-  }).controller;
+  return (
+    instance as {
+      controller: {
+        getSnapshot(): any;
+        encryptCardField(field: 'cardNumber' | 'cvc', value: string): Promise<void>;
+        submitCard(draft: ReturnType<typeof readCardDraft>): Promise<void>;
+      };
+    }
+  ).controller;
 }
 
 function fillCardForm(hostElement: HTMLElement): void {
@@ -367,8 +425,8 @@ function readCardDraft(hostElement: HTMLElement) {
     expiration: getRequiredInput(hostElement, 'expiration').value,
     cvc: getRequiredInput(hostElement, 'cvc').value,
     billingAddressValue:
-      (hostElement.querySelector('select[name="billingAddressValue"]') as HTMLSelectElement | null)?.value ??
-      getRequiredInput(hostElement, 'billingAddressValue').value,
+      (hostElement.querySelector('select[name="billingAddressValue"]') as HTMLSelectElement | null)
+        ?.value ?? getRequiredInput(hostElement, 'billingAddressValue').value,
     country: getRequiredInput(hostElement, 'country').value,
     addressLine1: getRequiredInput(hostElement, 'addressLine1').value,
     addressLine2: getRequiredInput(hostElement, 'addressLine2').value,

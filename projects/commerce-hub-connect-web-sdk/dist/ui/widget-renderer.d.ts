@@ -3,6 +3,7 @@ export declare class CommerceHubConnectWidgetRenderer {
     private readonly hostElement;
     private readonly controller;
     private readonly unsubscribe;
+    private lastRenderedStepKey;
     constructor(hostElement: HTMLElement, controller: CommerceHubConnectWidgetController);
     destroy(): void;
     private readonly handleClick;
