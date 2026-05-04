@@ -4,6 +4,7 @@ import {
   resolveApiBaseUrl,
   type CommerceHubConnectWebSdkMountOptions,
 } from './web-sdk';
+import { commerceHubConnectWebSdkInlineCss } from './styles-inline';
 
 function createConfiguration(overrides: Partial<CommerceHubConnectWebSdkMountOptions['configuration']> = {}) {
   return {
@@ -79,6 +80,14 @@ describe('web sdk', () => {
     expect(resolveApiBaseUrl('prod', remoteDocument)).toBe(
       'https://dev.openfx-nonprod.aws.fisv.cloud',
     );
+  });
+
+  it('maps white-label primary color to primary CTA styling', () => {
+    expect(commerceHubConnectWebSdkInlineCss).toContain(
+      '--ch-sdk-action: var(--ch-sdk-primary, #084acc);',
+    );
+    expect(commerceHubConnectWebSdkInlineCss).toContain('background: var(--ch-sdk-action);');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('border: 1px solid var(--ch-sdk-action);');
   });
 
   it('mounts an inline widget, injects the stylesheet once, and updates in place', async () => {
@@ -183,10 +192,10 @@ describe('web sdk', () => {
       'input[name="otp"][type="hidden"]',
     ) as HTMLInputElement | null;
 
-    expect(instance.hostElement.textContent).toContain('Enter the code');
+    expect(instance.hostElement.textContent).toContain('Enter code');
     expect(otpDigits.length).toBe(6);
     expect(hiddenOtpInput).not.toBeNull();
-    expect(instance.hostElement.textContent).toContain('Commerce Hub Connect');
+    expect(instance.hostElement.querySelector('.ch-sdk-footer-brand')).toBeNull();
 
     instance.destroy();
   });
@@ -357,8 +366,9 @@ function readCardDraft(hostElement: HTMLElement) {
     cardNumber: getRequiredInput(hostElement, 'cardNumber').value,
     expiration: getRequiredInput(hostElement, 'expiration').value,
     cvc: getRequiredInput(hostElement, 'cvc').value,
-    billingAddressValue: (hostElement.querySelector('select[name="billingAddressValue"]') as HTMLSelectElement)
-      .value,
+    billingAddressValue:
+      (hostElement.querySelector('select[name="billingAddressValue"]') as HTMLSelectElement | null)?.value ??
+      getRequiredInput(hostElement, 'billingAddressValue').value,
     country: getRequiredInput(hostElement, 'country').value,
     addressLine1: getRequiredInput(hostElement, 'addressLine1').value,
     addressLine2: getRequiredInput(hostElement, 'addressLine2').value,

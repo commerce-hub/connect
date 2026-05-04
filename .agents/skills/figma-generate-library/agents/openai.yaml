@@ -1,0 +1,12 @@
+interface:
+  display_name: "Generate Figma Library"
+  short_description: "Build reusable Figma libraries and design system assets"
+  default_prompt: "Use $figma-generate-library to build or update a reusable Figma library with tokens, styles, components, and variants."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "figma"
+      description: "Figma MCP server"
+      transport: "streamable_http"
+      url: "https://mcp.figma.com/mcp"

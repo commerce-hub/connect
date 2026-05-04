@@ -269,16 +269,21 @@ export class CommerceHubConnectWidgetRenderer {
   private render(): void {
     const snapshot = this.controller.getSnapshot();
     applyTheme(this.hostElement, snapshot.whiteLabel);
+    const cardClass =
+      snapshot.displayStep === 'payment' &&
+      snapshot.paymentEntryMode === 'add' &&
+      snapshot.selectedTenderType === 'CARD'
+        ? ' ch-sdk-card--wide'
+        : '';
     this.hostElement.innerHTML = `
       <section class="ch-sdk-shell">
         ${snapshot.whiteLabel.logoUrl ? `<header class="ch-sdk-header"><img src="${escapeHtml(snapshot.whiteLabel.logoUrl)}" alt="Merchant logo" class="ch-sdk-logo" /></header>` : ''}
-        <div class="ch-sdk-card">
+        <div class="ch-sdk-card${cardClass}">
           <div class="ch-sdk-card-body">
             ${renderStatus(snapshot)}
             ${snapshot.error ? renderError(snapshot.error.message) : ''}
             ${renderStep(snapshot)}
           </div>
-          <footer class="ch-sdk-footer-brand" aria-label="Commerce Hub Connect">Commerce Hub Connect</footer>
         </div>
       </section>
     `;
@@ -300,13 +305,13 @@ function renderStatus(snapshot: ReturnType<CommerceHubConnectWidgetController['g
   const title = (() => {
     switch (snapshot.displayStep) {
       case 'otp':
-        return 'Enter the code';
+        return 'Enter code';
       case 'payment':
         return snapshot.paymentEntryMode === 'add'
           ? snapshot.selectedTenderType === 'CARD'
-            ? 'Add a credit card'
-            : '' // iframe has title
-          : snapshot.configuration.paymentSelectionTitle?.trim() || 'Pay with';
+            ? 'Add card'
+            : 'Connect bank'
+          : snapshot.configuration.paymentSelectionTitle?.trim() || 'Payment method';
       case 'success':
         return 'Payment method saved';
       case 'email':
@@ -318,12 +323,12 @@ function renderStatus(snapshot: ReturnType<CommerceHubConnectWidgetController['g
   const subtitle = (() => {
     switch (snapshot.displayStep) {
       case 'otp':
-        return `We send a one-time code to ${escapeHtml(formatOtpDestination(snapshot))}.`;
+        return `We sent a six-digit code to ${escapeHtml(formatOtpDestination(snapshot))}.`;
       case 'payment':
         return snapshot.paymentEntryMode === 'add'
           ? snapshot.selectedTenderType === 'CARD'
-            ? 'Securely save a new card using the same streamlined experience.'
-            : '' // iframe has its own instructions
+            ? 'Save a new credit or debit card to this wallet.'
+            : 'Continue in the secure bank-link frame.'
           : 'Choose a saved payment method or add a new one.';
       case 'success': {
         const source = snapshot.completedResult?.paymentSource ?? snapshot.selectedSource;
@@ -333,12 +338,12 @@ function renderStatus(snapshot: ReturnType<CommerceHubConnectWidgetController['g
       }
       case 'email':
       default:
-        return 'Enter your email address to access your payment dashboard.';
+        return 'Enter the email address linked to this customer wallet.';
     }
   })();
 
   return `
-    <div class="ch-sdk-title-block${snapshot.displayStep === 'email' || snapshot.displayStep === 'otp' || snapshot.displayStep === 'success' ? ' ch-sdk-title-block--centered' : ''}">
+    <div class="ch-sdk-title-block">
       <h2>${escapeHtml(title)}</h2>
       <p>${subtitle}</p>
     </div>
@@ -406,7 +411,6 @@ function renderOtpStep(snapshot: ReturnType<CommerceHubConnectWidgetController['
           .join('')}
       </div>
       <button class="ch-sdk-button" type="submit" ${snapshot.submitting ? 'disabled' : ''}>${renderButtonLabel(snapshot.submitting ? 'Verifying...' : 'Verify', 'check')}</button>
-      <p class="ch-sdk-helper-copy">Didn’t receive the code?</p>
       <div class="ch-sdk-inline-actions ch-sdk-inline-actions--centered">
         <button class="ch-sdk-link-button" data-action="otp-alternate" type="button" ${snapshot.submitting ? 'disabled' : ''}>${snapshot.interaction.phone?.phoneNumber && snapshot.requestedOtpMode !== 'email' ? 'Send code to email instead' : 'Use another email'}</button>
         <span class="ch-sdk-inline-separator" aria-hidden="true">•</span>
@@ -428,7 +432,7 @@ function renderPaymentListStep(snapshot: ReturnType<CommerceHubConnectWidgetCont
     <div class="ch-sdk-stack">
       <div class="ch-sdk-source-list">${sourcesMarkup}</div>
       <div class="ch-sdk-pill-actions">
-        ${snapshot.supportedTenderTypes.includes('CARD') ? '<button class="ch-sdk-pill-button" data-action="add-card" type="button">Add a credit or debit card</button>' : ''}
+        ${snapshot.supportedTenderTypes.includes('CARD') ? '<button class="ch-sdk-pill-button" data-action="add-card" type="button">Add card</button>' : ''}
         ${snapshot.supportedTenderTypes.includes('BANK_ACCOUNT') ? '<button class="ch-sdk-pill-button" data-action="add-bank" type="button">Add bank account</button>' : ''}
       </div>
       <button class="ch-sdk-button" data-action="attach-selected-source" type="button" ${snapshot.submitting || !snapshot.selectedSource ? 'disabled' : ''}>
@@ -463,6 +467,13 @@ function renderCardStep(snapshot: ReturnType<CommerceHubConnectWidgetController[
     snapshot.billingAddresses,
     draft.billingAddressValue || getNewBillingAddressValue(),
   );
+  const billingAddressControl =
+    snapshot.billingAddresses.length > 0
+      ? `<label class="ch-sdk-field">
+          <span>Billing address</span>
+          <select name="billingAddressValue">${billingAddressOptions}</select>
+        </label>`
+      : `<input name="billingAddressValue" type="hidden" value="${getNewBillingAddressValue()}" />`;
   const cardPreview = draft.cardNumber
     ? `<small class="ch-sdk-field-help">Preview: ${escapeHtml(getMaskedCardPreview(draft.cardNumber))}</small>`
     : '';
@@ -473,12 +484,8 @@ function renderCardStep(snapshot: ReturnType<CommerceHubConnectWidgetController[
   return `
     <form class="ch-sdk-form" data-form="card">
       ${snapshot.cardDraftMessage ? `<div class="ch-sdk-alert ch-sdk-alert--error">${escapeHtml(snapshot.cardDraftMessage)}</div>` : ''}
-      <div class="ch-sdk-form-intro">
-        <strong>Card details</strong>
-        <p>Enter the payment details you want to save to this profile.</p>
-      </div>
       <div class="ch-sdk-grid ch-sdk-grid--two">
-        ${renderInputField('Card name', 'name', draft.name, snapshot.cardDraftErrors.name)}
+        ${renderInputField('Card label', 'name', draft.name, snapshot.cardDraftErrors.name)}
         ${renderInputField('Name on card', 'fullName', draft.fullName, snapshot.cardDraftErrors.fullName)}
       </div>
       <div class="ch-sdk-grid ch-sdk-grid--two">
@@ -488,12 +495,10 @@ function renderCardStep(snapshot: ReturnType<CommerceHubConnectWidgetController[
       ${cardPreview}
       <div class="ch-sdk-grid ch-sdk-grid--two">
         ${renderInputField('CVC', 'cvc', draft.cvc, snapshot.cardDraftErrors.cvc, 'password', 'cc-csc')}
-        <label class="ch-sdk-field">
-          <span>Billing address</span>
-          <select name="billingAddressValue">${billingAddressOptions}</select>
-        </label>
+        ${useNewBillingAddress ? renderInputField('Country', 'country', draft.country, snapshot.cardDraftErrors.country) : billingAddressControl}
       </div>
       ${cvvPreview}
+      ${useNewBillingAddress ? billingAddressControl : ''}
       ${useNewBillingAddress ? renderNewBillingAddressFields(draft, snapshot.cardDraftErrors) : ''}
       <div class="ch-sdk-button-row">
         <button class="ch-sdk-button" type="submit" ${canSubmitCard(snapshot) ? '' : 'disabled'}>${renderButtonLabel(snapshot.submitting ? 'Saving...' : 'Save payment method', 'arrow')}</button>
@@ -508,10 +513,9 @@ function renderNewBillingAddressFields(
   errors: ReturnType<CommerceHubConnectWidgetController['getSnapshot']>['cardDraftErrors'],
 ): string {
   return `
+    ${renderInputField('Address line 1', 'addressLine1', draft.addressLine1, errors.addressLine1)}
+    <input name="addressLine2" type="hidden" value="${escapeHtml(draft.addressLine2)}" />
     <div class="ch-sdk-grid ch-sdk-grid--two">
-      ${renderInputField('Country', 'country', draft.country, errors.country)}
-      ${renderInputField('Address line 1', 'addressLine1', draft.addressLine1, errors.addressLine1)}
-      ${renderInputField('Address line 2', 'addressLine2', draft.addressLine2, errors.addressLine2)}
       ${renderInputField('City', 'city', draft.city, errors.city)}
       ${renderInputField('State', 'state', draft.state, errors.state)}
       ${renderInputField('ZIP code', 'zip', draft.zip, errors.zip)}
@@ -540,9 +544,7 @@ function renderInputField(
 function renderBankStep(snapshot: ReturnType<CommerceHubConnectWidgetController['getSnapshot']>): string {
   return `
     <div class="ch-sdk-stack">
-      <div class="ch-sdk-bank-panel">
-        <div id="${escapeHtml(snapshot.payByBankMountId)}" class="ch-sdk-bank-mount"></div>
-      </div>
+      <div id="${escapeHtml(snapshot.payByBankMountId)}" class="ch-sdk-bank-mount"></div>
       <div class="ch-sdk-button-row">
         <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button" ${snapshot.bankLinkLoading ? 'disabled' : ''}>Back</button>
       </div>
@@ -569,9 +571,8 @@ function renderSuccessStep(snapshot: ReturnType<CommerceHubConnectWidgetControll
 function renderSuccessSummary(source: PaymentSource): string {
   return `
     <div class="ch-sdk-success-summary">
-      <div>
-        <span class="ch-sdk-source-badge">${escapeHtml(formatSourceBadgeLabel(source))}</span>
-      </div>
+      <span class="ch-sdk-source-radio" aria-hidden="true"></span>
+      <span class="ch-sdk-source-badge">${escapeHtml(formatSourceBadgeLabel(source))}</span>
       <div class="ch-sdk-source-copy">
         <strong>${escapeHtml(formatSourcePrimaryLabel(source))}</strong>
         <small>${escapeHtml(formatSourceSecondaryLabel(source))}</small>
@@ -630,13 +631,8 @@ function updateCardSubmitAvailability(
   submitButton.disabled = !canSubmitCard(controller.getSnapshot());
 }
 
-function renderButtonLabel(label: string, icon: 'arrow' | 'check'): string {
-  const iconMarkup =
-    icon === 'arrow'
-      ? '<span class="ch-sdk-button-icon" aria-hidden="true">→</span>'
-      : '<span class="ch-sdk-button-icon" aria-hidden="true">✓</span>';
-
-  return `<span class="ch-sdk-button-label">${escapeHtml(label)}</span>${iconMarkup}`;
+function renderButtonLabel(label: string, _icon: 'arrow' | 'check'): string {
+  return `<span class="ch-sdk-button-label">${escapeHtml(label)}</span>`;
 }
 
 function getOtpDisplayDigits(code: string): string[] {

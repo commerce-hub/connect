@@ -37,10 +37,10 @@ import { createStableId } from '../web-sdk-utils';
 
 const DEFAULT_ALLOWED_TENDERS = ['CARD', 'BANK_ACCOUNT'] as const;
 const DEFAULT_WHITE_LABEL: ResolvedCommerceHubWhiteLabelOptions = {
-  primaryColor: '#0a5dff',
-  secondaryColor: '#627d98',
+  primaryColor: '#084acc',
+  secondaryColor: '#667085',
   textColor: '#101828',
-  fontFamily: '"Open Sans", "Segoe UI", sans-serif',
+  fontFamily: '"Open Sans", sans-serif',
 };
 const NEW_BILLING_ADDRESS_VALUE = '__new__';
 
