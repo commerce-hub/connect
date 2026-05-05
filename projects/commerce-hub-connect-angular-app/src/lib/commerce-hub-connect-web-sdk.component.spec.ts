@@ -20,7 +20,7 @@ import { commerceHubConnectWebSdkAdapter } from './commerce-hub-connect-web-sdk-
   `,
 })
 class HostComponent {
-  readonly successEvents: webSdk.CommerceHubSuccessResult[] = [];
+  readonly successEvents: webSdk.InteractionResponse[] = [];
   readonly errorEvents: webSdk.CommerceHubSdkError[] = [];
 
   interaction: webSdk.InteractionResponse = {
@@ -138,22 +138,21 @@ describe('CommerceHubConnectWebSdkComponent', () => {
     await fixture.whenStable();
 
     const mountOptions = mountSpy.calls.mostRecent().args[1] as webSdk.CommerceHubConnectWebSdkMountOptions;
-    const successResult: webSdk.CommerceHubSuccessResult = {
-      interaction: host.interaction,
-      paymentSourceId: 'card-1',
-      tenderType: 'CARD',
+    const successInteraction: webSdk.InteractionResponse = {
+      interactionId: 'interaction-2',
+      status: 'PAYMENT_SOURCE_ATTACHED',
     };
     const sdkError: webSdk.CommerceHubSdkError = {
       message: 'mount failed',
       stage: 'mount',
     };
 
-    mountOptions.configuration.onSuccess(successResult);
+    mountOptions.configuration.onSuccess(successInteraction);
     mountOptions.configuration.onError(sdkError);
 
-    expect(host.configuration.onSuccess).toHaveBeenCalledWith(successResult);
+    expect(host.configuration.onSuccess).toHaveBeenCalledWith(successInteraction);
     expect(host.configuration.onError).toHaveBeenCalledWith(sdkError);
-    expect(host.successEvents).toEqual([successResult]);
+    expect(host.successEvents).toEqual([successInteraction]);
     expect(host.errorEvents).toEqual([sdkError]);
   });
 

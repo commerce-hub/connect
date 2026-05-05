@@ -436,7 +436,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         requestedOtpMode: mode,
         submitting: true,
         error: null,
-        completedResult: null
+        completedPaymentSource: null
       });
       try {
         const interaction = mode === "email" ? await this.api.sendInteractionOtpToEmail({ value: normalizedEmail }) : await this.api.sendInteractionOtp({ value: normalizedEmail });
@@ -605,7 +605,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       this.updateState({
         paymentEntryMode: "add",
         selectedTenderType: "CARD",
-        completedResult: null,
+        completedPaymentSource: null,
         error: null,
         pendingPayByBankLaunch: false,
         cardDraftMessage: null,
@@ -616,7 +616,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       this.updateState({
         paymentEntryMode: "add",
         selectedTenderType: "BANK_ACCOUNT",
-        completedResult: null,
+        completedPaymentSource: null,
         error: null,
         pendingPayByBankLaunch: true
       });
@@ -625,7 +625,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       this.updateState({
         paymentEntryMode: "list",
         pendingPayByBankLaunch: false,
-        completedResult: null,
+        completedPaymentSource: null,
         error: null
       });
       destroyPaymentSdk();
@@ -637,17 +637,11 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       }
       this.updateState({ submitting: true, error: null });
       try {
-        const interaction = await this.api.attachPaymentMethod(selectedSource.id);
-        this.commitInteraction(interaction);
-        const result = {
-          interaction,
-          paymentSourceId: selectedSource.id,
-          paymentSource: selectedSource,
-          tenderType: selectedSource.tenderType
-        };
-        this.state.configuration.onSuccess(result);
+        const attachedInteraction = await this.api.attachPaymentMethod(selectedSource.id);
+        this.commitInteraction(attachedInteraction);
+        this.state.configuration.onSuccess(attachedInteraction);
         this.updateState({
-          completedResult: result,
+          completedPaymentSource: selectedSource,
           paymentEntryMode: "list"
         });
       } catch (error) {
@@ -729,21 +723,15 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         if (!paymentSourceId) {
           throw new Error("Payment source creation completed without returning a source id.");
         }
-        const interaction = await this.api.attachPaymentMethod(paymentSourceId);
+        const attachedInteraction = await this.api.attachPaymentMethod(paymentSourceId);
         const createdSource = {
           ...cardSource,
           id: paymentSourceId
         };
-        this.commitInteraction(withUpsertedSource(interaction, createdSource));
-        const result = {
-          interaction: this.state.interaction,
-          paymentSourceId,
-          paymentSource: createdSource,
-          tenderType: createdSource.tenderType
-        };
-        this.state.configuration.onSuccess(result);
+        this.commitInteraction(withUpsertedSource(attachedInteraction, createdSource));
+        this.state.configuration.onSuccess(attachedInteraction);
         this.updateState({
-          completedResult: result,
+          completedPaymentSource: createdSource,
           paymentEntryMode: "list",
           cardDraft: defaultCardDraft(),
           cardEncryption: defaultCardEncryptionState()
@@ -801,19 +789,12 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
                 if (!paymentSourceId) {
                   throw new Error("Pay by Bank completed but no bank payment source was returned by /customer.");
                 }
-                const interaction = await this.api.attachPaymentMethod(paymentSourceId);
-                const nextInteraction = withUpsertedSource(interaction, bankSource);
+                const attachedInteraction = await this.api.attachPaymentMethod(paymentSourceId);
+                const nextInteraction = withUpsertedSource(attachedInteraction, bankSource);
                 this.commitInteraction(nextInteraction);
-                const result = {
-                  interaction: nextInteraction,
-                  paymentSourceId,
-                  paymentSource: bankSource,
-                  tenderType: bankSource.tenderType,
-                  bankLinkResponse: event
-                };
-                this.state.configuration.onSuccess(result);
+                this.state.configuration.onSuccess(attachedInteraction);
                 this.updateState({
-                  completedResult: result,
+                  completedPaymentSource: bankSource,
                   paymentEntryMode: "list"
                 });
                 settled = true;
@@ -835,13 +816,13 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       const selectedTenderType = resolveSelectedTenderType(interaction, previous?.selectedTenderType);
       const paymentEntryMode = previous?.paymentEntryMode === "add" ? "add" : "list";
       const email = configuration.email?.trim() || interaction.email?.trim() || previous?.email || "";
-      const completedResult = previous?.interaction.interactionId === interaction.interactionId ? previous.completedResult : null;
+      const completedPaymentSource = previous?.interaction.interactionId === interaction.interactionId ? previous.completedPaymentSource : null;
       return {
         interaction,
         configuration,
         environment,
         apiBaseUrl,
-        displayStep: deriveDisplayStep(interaction, paymentEntryMode, completedResult),
+        displayStep: deriveDisplayStep(interaction, paymentEntryMode, completedPaymentSource),
         currentStep: deriveCurrentStep(interaction),
         loading: false,
         submitting: false,
@@ -855,7 +836,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         availableSources: resolveAvailableSources(interaction),
         selectedSource: resolveSelectedSource(interaction, previous?.selectedSourceId),
         selectedSourceId: previous?.interaction.interactionId === interaction.interactionId ? previous?.selectedSourceId ?? interaction.selectedSource?.id ?? null : interaction.selectedSource?.id ?? null,
-        completedResult,
+        completedPaymentSource,
         billingAddresses: previous?.interaction.interactionId === interaction.interactionId ? previous.billingAddresses : [],
         cardDraft: previous?.interaction.interactionId === interaction.interactionId ? previous.cardDraft : defaultCardDraft(),
         cardEncryption: previous?.interaction.interactionId === interaction.interactionId ? previous.cardEncryption : defaultCardEncryptionState(),
@@ -944,7 +925,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       const nextDisplayStep = deriveDisplayStep(
         interaction,
         nextCurrentStep === "payment" ? this.state.paymentEntryMode : "list",
-        this.state.completedResult
+        this.state.completedPaymentSource
       );
       this.updateState({
         interaction,
@@ -970,7 +951,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       this.state.displayStep = deriveDisplayStep(
         this.state.interaction,
         this.state.paymentEntryMode,
-        this.state.completedResult
+        this.state.completedPaymentSource
       );
       this.state.availableSources = resolveAvailableSources(this.state.interaction);
       this.state.selectedSource = resolveSelectedSource(this.state.interaction, this.state.selectedSourceId);
@@ -1001,8 +982,8 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         return "email";
     }
   }
-  function deriveDisplayStep(interaction, paymentEntryMode, completedResult) {
-    if (completedResult) {
+  function deriveDisplayStep(interaction, paymentEntryMode, completedPaymentSource) {
+    if (completedPaymentSource) {
       return "success";
     }
     const currentStep = deriveCurrentStep(interaction);
@@ -1607,7 +1588,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         case "payment":
           return snapshot.paymentEntryMode === "add" ? snapshot.selectedTenderType === "CARD" ? "Save a new credit or debit card to this wallet." : "Continue in the secure bank-link frame." : "Choose a saved payment method or add a new one.";
         case "success": {
-          const source = snapshot.completedResult?.paymentSource ?? snapshot.selectedSource;
+          const source = snapshot.completedPaymentSource ?? snapshot.selectedSource;
           return source ? `${escapeHtml(formatSourcePrimaryLabel(source))} is ready to use.` : "Payment source linked successfully.";
         }
         case "email":
@@ -1787,7 +1768,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
   `;
   }
   function renderSuccessStep(snapshot) {
-    const source = snapshot.completedResult?.paymentSource ?? snapshot.selectedSource;
+    const source = snapshot.completedPaymentSource ?? snapshot.selectedSource;
     return `
     <div class="ch-sdk-stack">
       <div class="ch-sdk-alert ch-sdk-alert--success ch-sdk-alert--success-prominent">

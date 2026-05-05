@@ -6,7 +6,6 @@ import {
   type CommerceHubConnectEnvironment,
   type CommerceHubSdkConfiguration,
   type CommerceHubSdkError,
-  type CommerceHubSuccessResult,
   type CommerceHubWhiteLabelOptions,
   type InteractionResponse,
 } from 'commerce-hub-connect-sdk';
@@ -89,7 +88,7 @@ export class AngularBindingFixtureAppComponent implements AfterViewInit {
     paymentSelectionTitle: string = 'Select a payment method',
   ): CommerceHubSdkConfiguration {
     return {
-      onSuccess: (_result: CommerceHubSuccessResult) => undefined,
+      onSuccess: (_interaction: InteractionResponse) => undefined,
       onError: (_error: CommerceHubSdkError) => undefined,
       paymentSelectionTitle,
     };

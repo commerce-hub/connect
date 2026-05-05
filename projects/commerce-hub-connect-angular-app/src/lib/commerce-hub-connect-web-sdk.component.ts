@@ -15,7 +15,6 @@ import type {
   InteractionResponse,
   CommerceHubSdkConfiguration,
   CommerceHubSdkError,
-  CommerceHubSuccessResult,
   CommerceHubWhiteLabelOptions,
   CommerceHubConnectEnvironment,
   CommerceHubConnectWebSdkMountOptions,
@@ -40,7 +39,7 @@ export class CommerceHubConnectWebSdkComponent implements AfterViewInit, OnChang
   @Input() replaceContents = true;
   @Input() sdkScriptUrl = './CommerceHubConnectSDK.js';
 
-  @Output() readonly success = new EventEmitter<CommerceHubSuccessResult>();
+  @Output() readonly success = new EventEmitter<InteractionResponse>();
   @Output() readonly error = new EventEmitter<CommerceHubSdkError>();
 
   @ViewChild('mountHost', { static: true })
@@ -120,9 +119,9 @@ export class CommerceHubConnectWebSdkComponent implements AfterViewInit, OnChang
       interaction: this.interaction,
       configuration: {
         ...configuration,
-        onSuccess: (result) => {
-          configuration.onSuccess(result);
-          this.success.emit(result);
+        onSuccess: (interaction) => {
+          configuration.onSuccess(interaction);
+          this.success.emit(interaction);
         },
         onError: (sdkError) => {
           configuration.onError(sdkError);

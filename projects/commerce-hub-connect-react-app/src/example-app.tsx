@@ -9,7 +9,6 @@ import {
   type CommerceHubConnectEnvironment,
   type CommerceHubSdkConfiguration,
   type CommerceHubSdkError,
-  type CommerceHubSuccessResult,
   type CommerceHubTenderType,
   type CommerceHubWhiteLabelOptions,
   type InteractionResponse,
@@ -419,7 +418,7 @@ function buildConfiguration(
     wallet: formState.wallet,
     paymentSelectionTitle: formState.paymentSelectionTitle,
     paymentSelectionConfirmLabel: formState.paymentSelectionConfirmLabel,
-    onSuccess: (result: CommerceHubSuccessResult) => appendLog('onSuccess', result),
+    onSuccess: (interaction: InteractionResponse) => appendLog('onSuccess', interaction),
     onError: (error: CommerceHubSdkError) => appendLog('onError', error),
   };
 }

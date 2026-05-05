@@ -402,8 +402,8 @@
             textColor: document.getElementById('text-color').value,
             logoUrl: document.getElementById('logo-url').value,
           },
-          onSuccess(result) {
-            log('onSuccess', result);
+          onSuccess(interaction) {
+            log('onSuccess', interaction);
           },
           onError(error) {
             log('onError', error);

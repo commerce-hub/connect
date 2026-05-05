@@ -295,9 +295,16 @@ describe('web sdk', () => {
     expect(onSuccessSpy.calls.count()).toBe(1);
     expect(fetchHarness.lastSourceBody?.card.cardNumber).toBe('enc-card-1');
     expect(fetchHarness.lastSourceBody?.card.cvv).toBe('enc-cvv-1');
-    expect(configuration.onSuccess).toHaveBeenCalledWith(
-      jasmine.objectContaining({ paymentSourceId: 'card-created-1' }),
+    const successInteraction = onSuccessSpy.calls.mostRecent().args[0] as InteractionResponse;
+    expect(successInteraction).toEqual(
+      jasmine.objectContaining({
+        status: 'PAYMENT_SOURCE_ATTACHED',
+        selectedSource: createSavedCardSource('card-created-1'),
+      }),
     );
+    expect(
+      'paymentSourceId' in (successInteraction as unknown as Record<string, unknown>),
+    ).toBeFalse();
 
     instance.destroy();
   });

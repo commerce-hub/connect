@@ -296,8 +296,8 @@
               email: 'smoke@example.com',
               wallet: true,
               whiteLabel,
-              onSuccess(result) {
-                window.__lastSuccessResult = result;
+              onSuccess(interaction) {
+                window.__lastSuccessInteraction = interaction;
               },
               onError(error) {
                 window.__lastError = error;

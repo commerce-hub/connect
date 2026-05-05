@@ -1,6 +1,6 @@
 import type { Address, InteractionResponse, PaymentSource } from '../contracts/api-models';
 import type { CommerceHubConnectEnvironment } from '../contracts/environment';
-import type { CommerceHubSdkConfiguration, CommerceHubSdkError, CommerceHubSdkFlowStep, CommerceHubSuccessResult, CommerceHubWhiteLabelOptions, ResolvedCommerceHubWhiteLabelOptions } from '../contracts/sdk-models';
+import type { CommerceHubSdkConfiguration, CommerceHubSdkError, CommerceHubSdkFlowStep, CommerceHubWhiteLabelOptions, ResolvedCommerceHubWhiteLabelOptions } from '../contracts/sdk-models';
 export interface CardDraft {
     name: string;
     fullName: string;
@@ -45,7 +45,7 @@ export interface WidgetSnapshot {
     availableSources: PaymentSource[];
     selectedSourceId: string | null;
     selectedSource: PaymentSource | null;
-    completedResult: CommerceHubSuccessResult | null;
+    completedPaymentSource: PaymentSource | null;
     billingAddresses: Address[];
     cardDraft: CardDraft;
     cardDraftErrors: Partial<Record<keyof CardDraft, string>>;

@@ -9,7 +9,6 @@ import {
   type CommerceHubConnectEnvironment,
   type CommerceHubSdkConfiguration,
   type CommerceHubSdkError,
-  type CommerceHubSuccessResult,
   type CommerceHubTenderType,
   type CommerceHubWhiteLabelOptions,
   type InteractionResponse,
@@ -174,7 +173,7 @@ export class AngularBindingExampleAppComponent {
       wallet: formValue.wallet,
       paymentSelectionTitle: formValue.paymentSelectionTitle,
       paymentSelectionConfirmLabel: formValue.paymentSelectionConfirmLabel,
-      onSuccess: (result: CommerceHubSuccessResult) => this.appendLog('onSuccess', result),
+      onSuccess: (interaction: InteractionResponse) => this.appendLog('onSuccess', interaction),
       onError: (error: CommerceHubSdkError) => this.appendLog('onError', error),
     };
   }

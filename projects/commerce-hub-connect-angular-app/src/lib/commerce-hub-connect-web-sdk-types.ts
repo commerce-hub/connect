@@ -178,17 +178,8 @@ export interface CommerceHubSdkError {
   cause?: unknown;
 }
 
-export interface CommerceHubSuccessResult {
-  interaction: InteractionResponse | null;
-  paymentSourceId?: string;
-  paymentSource?: PaymentSource;
-  tenderType?: CommerceHubTenderType;
-  bankLinkResponse?: unknown;
-  vaultReference?: string;
-}
-
 export interface CommerceHubSdkConfiguration {
-  onSuccess: (result: CommerceHubSuccessResult) => void;
+  onSuccess: (interaction: InteractionResponse) => void;
   onError: (error: CommerceHubSdkError) => void;
   email?: string;
   paymentSelectionTitle?: string;

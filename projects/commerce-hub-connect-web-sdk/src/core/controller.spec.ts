@@ -129,6 +129,50 @@ describe('CommerceHubConnectWidgetController', () => {
     controller.destroy();
   });
 
+  it('emits the raw attach interaction when submitting an existing source', async () => {
+    const selectedSource = createSavedCardSource('card-saved-1');
+    const rawAttachInteraction = createInteractionResponse({
+      status: 'PAYMENT_SOURCE_ATTACHED',
+      paymentSources: [],
+    });
+    const configuration = createConfiguration();
+
+    fetchSpy.and.callFake(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/interaction/payment-source/card-saved-1/attach')) {
+        return createJsonResponse(rawAttachInteraction);
+      }
+      if (url.endsWith('/customer')) {
+        return createJsonResponse({ billingAddress: [] });
+      }
+
+      fail(`Unexpected fetch request: ${url}`);
+      return createJsonResponse({});
+    });
+
+    const controller = createController(
+      {
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        selectedSource,
+        paymentSources: [selectedSource],
+      },
+      configuration,
+    );
+
+    await controller.attachSelectedSource();
+
+    const successInteraction = (configuration.onSuccess as jasmine.Spy).calls.mostRecent()
+      .args[0] as InteractionResponse;
+    expect(successInteraction).toEqual(rawAttachInteraction);
+    expect(successInteraction.selectedSource).toBeUndefined();
+    expect(
+      'paymentSourceId' in (successInteraction as unknown as Record<string, unknown>),
+    ).toBeFalse();
+    expect(controller.getSnapshot().completedPaymentSource).toEqual(selectedSource);
+
+    controller.destroy();
+  });
+
   it('encrypts the card number on blur and skips unchanged re-blur requests', async () => {
     fetchSpy.and.callFake(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -373,11 +417,17 @@ describe('CommerceHubConnectWidgetController', () => {
     await controller.submitCard(createCardDraft());
 
     expect(requestCount(fetchSpy, '/customer/source')).toBe(1);
-    expect(configuration.onSuccess).toHaveBeenCalledWith(
+    const successInteraction = (configuration.onSuccess as jasmine.Spy).calls.mostRecent()
+      .args[0] as InteractionResponse;
+    expect(successInteraction).toEqual(
       jasmine.objectContaining({
-        paymentSourceId: 'card-created-1',
+        status: 'PAYMENT_SOURCE_ATTACHED',
+        selectedSource: createSavedCardSource('card-created-1'),
       }),
     );
+    expect(
+      'paymentSourceId' in (successInteraction as unknown as Record<string, unknown>),
+    ).toBeFalse();
     expect(controller.getSnapshot().cardEncryption.cardNumber.status).toBe('idle');
     expect(controller.getSnapshot().cardEncryption.cvc.status).toBe('idle');
     expect(controller.getSnapshot().cardDraft).toEqual(getDefaultCardDraft());

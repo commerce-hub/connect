@@ -344,7 +344,7 @@ function renderStatus(
             : 'Continue in the secure bank-link frame.'
           : 'Choose a saved payment method or add a new one.';
       case 'success': {
-        const source = snapshot.completedResult?.paymentSource ?? snapshot.selectedSource;
+        const source = snapshot.completedPaymentSource ?? snapshot.selectedSource;
         return source
           ? `${escapeHtml(formatSourcePrimaryLabel(source))} is ready to use.`
           : 'Payment source linked successfully.';
@@ -587,7 +587,7 @@ function renderBankStep(
 function renderSuccessStep(
   snapshot: ReturnType<CommerceHubConnectWidgetController['getSnapshot']>,
 ): string {
-  const source = snapshot.completedResult?.paymentSource ?? snapshot.selectedSource;
+  const source = snapshot.completedPaymentSource ?? snapshot.selectedSource;
 
   return `
     <div class="ch-sdk-stack">

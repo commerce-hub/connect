@@ -4,7 +4,6 @@ export type {
   CommerceHubConnectWebSdkMountOptions,
   CommerceHubSdkConfiguration,
   CommerceHubSdkError,
-  CommerceHubSuccessResult,
   CommerceHubWhiteLabelOptions,
   InteractionResponse,
 } from 'commerce-hub-connect-web-sdk';

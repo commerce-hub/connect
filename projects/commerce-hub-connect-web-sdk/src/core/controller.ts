@@ -12,7 +12,6 @@ import type {
   CommerceHubSdkConfiguration,
   CommerceHubSdkError,
   CommerceHubSdkFlowStep,
-  CommerceHubSuccessResult,
   CommerceHubWhiteLabelOptions,
   ResolvedCommerceHubWhiteLabelOptions,
 } from '../contracts/sdk-models';
@@ -92,7 +91,7 @@ export interface WidgetSnapshot {
   availableSources: PaymentSource[];
   selectedSourceId: string | null;
   selectedSource: PaymentSource | null;
-  completedResult: CommerceHubSuccessResult | null;
+  completedPaymentSource: PaymentSource | null;
   billingAddresses: Address[];
   cardDraft: CardDraft;
   cardDraftErrors: Partial<Record<keyof CardDraft, string>>;
@@ -172,7 +171,7 @@ export class CommerceHubConnectWidgetController {
       requestedOtpMode: mode,
       submitting: true,
       error: null,
-      completedResult: null,
+      completedPaymentSource: null,
     });
 
     try {
@@ -369,7 +368,7 @@ export class CommerceHubConnectWidgetController {
     this.updateState({
       paymentEntryMode: 'add',
       selectedTenderType: 'CARD',
-      completedResult: null,
+      completedPaymentSource: null,
       error: null,
       pendingPayByBankLaunch: false,
       cardDraftMessage: null,
@@ -381,7 +380,7 @@ export class CommerceHubConnectWidgetController {
     this.updateState({
       paymentEntryMode: 'add',
       selectedTenderType: 'BANK_ACCOUNT',
-      completedResult: null,
+      completedPaymentSource: null,
       error: null,
       pendingPayByBankLaunch: true,
     });
@@ -391,7 +390,7 @@ export class CommerceHubConnectWidgetController {
     this.updateState({
       paymentEntryMode: 'list',
       pendingPayByBankLaunch: false,
-      completedResult: null,
+      completedPaymentSource: null,
       error: null,
     });
     destroyPaymentSdk();
@@ -406,17 +405,11 @@ export class CommerceHubConnectWidgetController {
     this.updateState({ submitting: true, error: null });
 
     try {
-      const interaction = await this.api.attachPaymentMethod(selectedSource.id);
-      this.commitInteraction(interaction);
-      const result: CommerceHubSuccessResult = {
-        interaction,
-        paymentSourceId: selectedSource.id,
-        paymentSource: selectedSource,
-        tenderType: selectedSource.tenderType,
-      };
-      this.state.configuration.onSuccess(result);
+      const attachedInteraction = await this.api.attachPaymentMethod(selectedSource.id);
+      this.commitInteraction(attachedInteraction);
+      this.state.configuration.onSuccess(attachedInteraction);
       this.updateState({
-        completedResult: result,
+        completedPaymentSource: selectedSource,
         paymentEntryMode: 'list',
       });
     } catch (error) {
@@ -512,21 +505,15 @@ export class CommerceHubConnectWidgetController {
         throw new Error('Payment source creation completed without returning a source id.');
       }
 
-      const interaction = await this.api.attachPaymentMethod(paymentSourceId);
+      const attachedInteraction = await this.api.attachPaymentMethod(paymentSourceId);
       const createdSource: PaymentSource = {
         ...cardSource,
         id: paymentSourceId,
       };
-      this.commitInteraction(withUpsertedSource(interaction, createdSource));
-      const result: CommerceHubSuccessResult = {
-        interaction: this.state.interaction,
-        paymentSourceId,
-        paymentSource: createdSource,
-        tenderType: createdSource.tenderType,
-      };
-      this.state.configuration.onSuccess(result);
+      this.commitInteraction(withUpsertedSource(attachedInteraction, createdSource));
+      this.state.configuration.onSuccess(attachedInteraction);
       this.updateState({
-        completedResult: result,
+        completedPaymentSource: createdSource,
         paymentEntryMode: 'list',
         cardDraft: defaultCardDraft(),
         cardEncryption: defaultCardEncryptionState(),
@@ -594,19 +581,12 @@ export class CommerceHubConnectWidgetController {
                 throw new Error('Pay by Bank completed but no bank payment source was returned by /customer.');
               }
 
-              const interaction = await this.api.attachPaymentMethod(paymentSourceId);
-              const nextInteraction = withUpsertedSource(interaction, bankSource);
+              const attachedInteraction = await this.api.attachPaymentMethod(paymentSourceId);
+              const nextInteraction = withUpsertedSource(attachedInteraction, bankSource);
               this.commitInteraction(nextInteraction);
-              const result: CommerceHubSuccessResult = {
-                interaction: nextInteraction,
-                paymentSourceId,
-                paymentSource: bankSource,
-                tenderType: bankSource.tenderType,
-                bankLinkResponse: event,
-              };
-              this.state.configuration.onSuccess(result);
+              this.state.configuration.onSuccess(attachedInteraction);
               this.updateState({
-                completedResult: result,
+                completedPaymentSource: bankSource,
                 paymentEntryMode: 'list',
               });
               settled = true;
@@ -636,15 +616,17 @@ export class CommerceHubConnectWidgetController {
     const selectedTenderType = resolveSelectedTenderType(interaction, previous?.selectedTenderType);
     const paymentEntryMode = previous?.paymentEntryMode === 'add' ? 'add' : 'list';
     const email = configuration.email?.trim() || interaction.email?.trim() || previous?.email || '';
-    const completedResult =
-      previous?.interaction.interactionId === interaction.interactionId ? previous.completedResult : null;
+    const completedPaymentSource =
+      previous?.interaction.interactionId === interaction.interactionId
+        ? previous.completedPaymentSource
+        : null;
 
     return {
       interaction,
       configuration,
       environment,
       apiBaseUrl,
-      displayStep: deriveDisplayStep(interaction, paymentEntryMode, completedResult),
+      displayStep: deriveDisplayStep(interaction, paymentEntryMode, completedPaymentSource),
       currentStep: deriveCurrentStep(interaction),
       loading: false,
       submitting: false,
@@ -661,7 +643,7 @@ export class CommerceHubConnectWidgetController {
         previous?.interaction.interactionId === interaction.interactionId
           ? previous?.selectedSourceId ?? interaction.selectedSource?.id ?? null
           : interaction.selectedSource?.id ?? null,
-      completedResult,
+      completedPaymentSource,
       billingAddresses:
         previous?.interaction.interactionId === interaction.interactionId ? previous.billingAddresses : [],
       cardDraft:
@@ -776,7 +758,7 @@ export class CommerceHubConnectWidgetController {
     const nextDisplayStep = deriveDisplayStep(
       interaction,
       nextCurrentStep === 'payment' ? this.state.paymentEntryMode : 'list',
-      this.state.completedResult,
+      this.state.completedPaymentSource,
     );
 
     this.updateState({
@@ -805,7 +787,7 @@ export class CommerceHubConnectWidgetController {
     this.state.displayStep = deriveDisplayStep(
       this.state.interaction,
       this.state.paymentEntryMode,
-      this.state.completedResult,
+      this.state.completedPaymentSource,
     );
     this.state.availableSources = resolveAvailableSources(this.state.interaction);
     this.state.selectedSource = resolveSelectedSource(this.state.interaction, this.state.selectedSourceId);
@@ -843,9 +825,9 @@ function deriveCurrentStep(interaction: InteractionResponse): CommerceHubSdkFlow
 function deriveDisplayStep(
   interaction: InteractionResponse,
   paymentEntryMode: 'list' | 'add',
-  completedResult: CommerceHubSuccessResult | null,
+  completedPaymentSource: PaymentSource | null,
 ): CommerceHubSdkFlowStep {
-  if (completedResult) {
+  if (completedPaymentSource) {
     return 'success';
   }
 

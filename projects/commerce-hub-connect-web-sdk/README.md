@@ -44,8 +44,8 @@ const interaction: InteractionResponse = {
 };
 
 const configuration: CommerceHubSdkConfiguration = {
-  onSuccess(result) {
-    console.log('success', result);
+  onSuccess(interaction) {
+    console.log('success', interaction);
   },
   onError(error) {
     console.error('error', error);
@@ -76,8 +76,8 @@ console.log(resolveApiBaseUrl('qa'));
   await window.CommerceHubConnectWebSdk.mount('#payment-container', {
     interaction,
     configuration: {
-      onSuccess(result) {
-        console.log('success', result);
+      onSuccess(interaction) {
+        console.log('success', interaction);
       },
       onError(error) {
         console.error('error', error);
