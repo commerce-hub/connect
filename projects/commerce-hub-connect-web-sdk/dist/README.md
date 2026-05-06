@@ -85,6 +85,16 @@ console.log(resolveApiBaseUrl('qa'));
       wallet: true,
       whiteLabel: {
         primaryColor: '#0a5dff',
+        emailEntry: {
+          title: 'Access your wallet',
+          subtitle: 'Enter the email address for your customer account.',
+          primaryButtonText: 'Continue',
+        },
+        savedSource: {
+          title: 'Choose payment',
+          subtitle: 'Select a saved method or add a new one.',
+          primaryButtonText: 'Use this method',
+        },
       },
     },
   }, 'qa');

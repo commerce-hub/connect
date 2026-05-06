@@ -385,7 +385,11 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     primaryColor: "#084acc",
     secondaryColor: "#667085",
     textColor: "#101828",
-    fontFamily: '"Open Sans", sans-serif'
+    fontFamily: '"Open Sans", sans-serif',
+    emailEntry: {},
+    otpVerification: {},
+    savedSource: {},
+    addCard: {}
   };
   var NEW_BILLING_ADDRESS_VALUE = "__new__";
   var CommerceHubConnectWidgetController = class {
@@ -396,7 +400,13 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       __publicField(this, "autoSubmittedInteractionId", null);
       __publicField(this, "state");
       this.api = new CommerceHubConnectApiClient(apiBaseUrl, interaction.interactionId);
-      this.state = this.createSnapshot(interaction, configuration, whiteLabel, environment, apiBaseUrl);
+      this.state = this.createSnapshot(
+        interaction,
+        configuration,
+        whiteLabel,
+        environment,
+        apiBaseUrl
+      );
       void this.initialize();
     }
     subscribe(listener) {
@@ -410,7 +420,14 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     }
     async update(interaction, configuration, whiteLabel, environment, apiBaseUrl) {
       this.api = new CommerceHubConnectApiClient(apiBaseUrl, interaction.interactionId);
-      this.state = this.createSnapshot(interaction, configuration, whiteLabel, environment, apiBaseUrl, this.state);
+      this.state = this.createSnapshot(
+        interaction,
+        configuration,
+        whiteLabel,
+        environment,
+        apiBaseUrl,
+        this.state
+      );
       this.notify();
       await this.initialize();
     }
@@ -509,7 +526,10 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         const nextNormalizedValue = normalizeSensitiveCardFieldValue(field, value);
         this.state.cardEncryption = {
           ...this.state.cardEncryption,
-          [field]: resolveDirtyCardEncryptionState(this.state.cardEncryption[field], nextNormalizedValue)
+          [field]: resolveDirtyCardEncryptionState(
+            this.state.cardEncryption[field],
+            nextNormalizedValue
+          )
         };
       }
       if (options?.notify) {
@@ -538,7 +558,10 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
           },
           cardEncryption: {
             ...this.state.cardEncryption,
-            [field]: resolveDirtyCardEncryptionState(this.state.cardEncryption[field], normalizedValue)
+            [field]: resolveDirtyCardEncryptionState(
+              this.state.cardEncryption[field],
+              normalizedValue
+            )
           }
         });
         return;
@@ -684,7 +707,11 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
           normalizedDraft.cardNumber,
           this.state.cardEncryption
         );
-        const maskedCvv = resolveEncryptedCardFieldValue("cvc", normalizedDraft.cvc, this.state.cardEncryption);
+        const maskedCvv = resolveEncryptedCardFieldValue(
+          "cvc",
+          normalizedDraft.cvc,
+          this.state.cardEncryption
+        );
         const { month, year } = parseExpiration(normalizedDraft.expiration);
         if (!month || !year) {
           this.updateState({
@@ -754,7 +781,10 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         const existingBankSourceIds = await this.getExistingBankSourceIds();
         const session = await this.api.createPayByBankSession();
         const { aggregatorSessionId, accessToken, pToken, publicKey } = resolvePayByBankSession(session);
-        const payByBank = resolvePayByBankOptions(this.state.environment, this.state.configuration.payByBank);
+        const payByBank = resolvePayByBankOptions(
+          this.state.environment,
+          this.state.configuration.payByBank
+        );
         await loadPaymentSdkScript(payByBank.paymentSdkUrl);
         const paymentSdk = window.PaymentSDK;
         if (!paymentSdk?.init) {
@@ -789,7 +819,9 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
                 const bankSource = resolveAttachedBankSource(profile, existingBankSourceIds);
                 const paymentSourceId = bankSource.id?.trim();
                 if (!paymentSourceId) {
-                  throw new Error("Pay by Bank completed but no bank payment source was returned by /customer.");
+                  throw new Error(
+                    "Pay by Bank completed but no bank payment source was returned by /customer."
+                  );
                 }
                 const attachedInteraction = await this.api.attachPaymentMethod(paymentSourceId);
                 const nextInteraction = withUpsertedSource(attachedInteraction, bankSource);
@@ -846,12 +878,11 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         cardDraftErrors: {},
         cardDraftMessage: null,
         requestedOtpMode: previous?.requestedOtpMode ?? "default",
-        whiteLabel: {
-          ...DEFAULT_WHITE_LABEL,
-          ...configuration.whiteLabel,
-          ...whiteLabel
-        },
-        payByBankMountId: `commerce-hub-banklink-${interaction.interactionId}`.replace(/[^a-zA-Z0-9-_]/g, "-"),
+        whiteLabel: resolveWhiteLabel(configuration.whiteLabel, whiteLabel),
+        payByBankMountId: `commerce-hub-banklink-${interaction.interactionId}`.replace(
+          /[^a-zA-Z0-9-_]/g,
+          "-"
+        ),
         pendingPayByBankLaunch: false
       };
     }
@@ -957,7 +988,10 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         this.state.completedPaymentSource
       );
       this.state.availableSources = resolveAvailableSources(this.state.interaction);
-      this.state.selectedSource = resolveSelectedSource(this.state.interaction, this.state.selectedSourceId);
+      this.state.selectedSource = resolveSelectedSource(
+        this.state.interaction,
+        this.state.selectedSourceId
+      );
       this.notify();
     }
     notify() {
@@ -969,6 +1003,33 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       }
     }
   };
+  function resolveWhiteLabel(configurationWhiteLabel, instanceWhiteLabel) {
+    return {
+      ...DEFAULT_WHITE_LABEL,
+      ...configurationWhiteLabel,
+      ...instanceWhiteLabel,
+      emailEntry: {
+        ...DEFAULT_WHITE_LABEL.emailEntry,
+        ...configurationWhiteLabel?.emailEntry,
+        ...instanceWhiteLabel?.emailEntry
+      },
+      otpVerification: {
+        ...DEFAULT_WHITE_LABEL.otpVerification,
+        ...configurationWhiteLabel?.otpVerification,
+        ...instanceWhiteLabel?.otpVerification
+      },
+      savedSource: {
+        ...DEFAULT_WHITE_LABEL.savedSource,
+        ...configurationWhiteLabel?.savedSource,
+        ...instanceWhiteLabel?.savedSource
+      },
+      addCard: {
+        ...DEFAULT_WHITE_LABEL.addCard,
+        ...configurationWhiteLabel?.addCard,
+        ...instanceWhiteLabel?.addCard
+      }
+    };
+  }
   function deriveCurrentStep(interaction) {
     switch (interaction.status) {
       case "OTP_VALIDATION_PENDING":
@@ -1207,12 +1268,18 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       const sourceId = source.id?.trim();
       return sourceId ? !existingBankSourceIds.has(sourceId) : false;
     }) ?? bankSources.at(0) ?? (() => {
-      throw new Error("Pay by Bank completed but no bank payment source was returned by /customer.");
+      throw new Error(
+        "Pay by Bank completed but no bank payment source was returned by /customer."
+      );
     })();
   }
   function withUpsertedSource(interaction, source) {
     const paymentSources = interaction.paymentSources ?? [];
-    const nextPaymentSources = paymentSources.some((existingSource) => existingSource.id === source.id) ? paymentSources.map((existingSource) => existingSource.id === source.id ? source : existingSource) : [source, ...paymentSources];
+    const nextPaymentSources = paymentSources.some(
+      (existingSource) => existingSource.id === source.id
+    ) ? paymentSources.map(
+      (existingSource) => existingSource.id === source.id ? source : existingSource
+    ) : [source, ...paymentSources];
     return {
       ...interaction,
       paymentSources: nextPaymentSources,
@@ -1600,35 +1667,35 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
     const title = (() => {
       switch (snapshot.displayStep) {
         case "otp":
-          return "Enter code";
+          return snapshot.whiteLabel.otpVerification.title?.trim() || "Enter code";
         case "payment":
-          return snapshot.paymentEntryMode === "add" ? snapshot.selectedTenderType === "CARD" ? "Add card" : "Connect bank" : snapshot.configuration.paymentSelectionTitle?.trim() || "Payment method";
+          return snapshot.paymentEntryMode === "add" ? snapshot.selectedTenderType === "CARD" ? snapshot.whiteLabel.addCard.title?.trim() || "Add card" : "Connect bank" : snapshot.whiteLabel.savedSource.title?.trim() || snapshot.configuration.paymentSelectionTitle?.trim() || "Payment method";
         case "success":
           return "Payment method saved";
         case "email":
         default:
-          return "Sign in";
+          return snapshot.whiteLabel.emailEntry.title?.trim() || "Sign in";
       }
     })();
     const subtitle = (() => {
       switch (snapshot.displayStep) {
         case "otp":
-          return `We sent a six-digit code to ${escapeHtml(formatOtpDestination(snapshot))}.`;
+          return snapshot.whiteLabel.otpVerification.subtitle?.trim() || `We sent a six-digit code to ${formatOtpDestination(snapshot)}.`;
         case "payment":
-          return snapshot.paymentEntryMode === "add" ? snapshot.selectedTenderType === "CARD" ? "Save a new credit or debit card to this wallet." : "Continue in the secure bank-link frame." : "Choose a saved payment method or add a new one.";
+          return snapshot.paymentEntryMode === "add" ? snapshot.selectedTenderType === "CARD" ? snapshot.whiteLabel.addCard.subtitle?.trim() || "Save a new credit or debit card to this wallet." : "Continue in the secure bank-link frame." : snapshot.whiteLabel.savedSource.subtitle?.trim() || "Choose a saved payment method or add a new one.";
         case "success": {
           const source = snapshot.completedPaymentSource ?? snapshot.selectedSource;
-          return source ? `${escapeHtml(formatSourcePrimaryLabel(source))} is ready to use.` : "Payment source linked successfully.";
+          return source ? `${formatSourcePrimaryLabel(source)} is ready to use.` : "Payment source linked successfully.";
         }
         case "email":
         default:
-          return "Enter the email address linked to this customer wallet.";
+          return snapshot.whiteLabel.emailEntry.subtitle?.trim() || "Enter the email address linked to this customer wallet.";
       }
     })();
     return `
     <div class="ch-sdk-title-block">
       <h2>${escapeHtml(title)}</h2>
-      <p>${subtitle}</p>
+      <p>${escapeHtml(subtitle)}</p>
     </div>
   `;
   }
@@ -1655,7 +1722,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
         <span>Email address</span>
         <input name="email" type="email" value="${escapeHtml(snapshot.email)}" autocomplete="email" ${snapshot.interaction.allowEmailChange === false && snapshot.email ? "disabled" : ""} required />
       </label>
-      <button class="ch-sdk-button${snapshot.submitting ? " is-loading" : ""}" type="submit" ${snapshot.submitting ? 'disabled aria-busy="true"' : ""}>${renderButtonLabel(snapshot.submitting ? "Sending..." : "Continue", "arrow", snapshot.submitting)}</button>
+      <button class="ch-sdk-button${snapshot.submitting ? " is-loading" : ""}" type="submit" ${snapshot.submitting ? 'disabled aria-busy="true"' : ""}>${renderButtonLabel(snapshot.submitting ? "Sending..." : snapshot.whiteLabel.emailEntry.primaryButtonText?.trim() || "Continue", "arrow", snapshot.submitting)}</button>
     </form>
   `;
   }
@@ -1684,7 +1751,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
             `
     ).join("")}
       </div>
-      <button class="ch-sdk-button${snapshot.submitting ? " is-loading" : ""}" type="submit" ${snapshot.submitting ? 'disabled aria-busy="true"' : ""}>${renderButtonLabel(snapshot.submitting ? "Verifying..." : "Verify", "check", snapshot.submitting)}</button>
+      <button class="ch-sdk-button${snapshot.submitting ? " is-loading" : ""}" type="submit" ${snapshot.submitting ? 'disabled aria-busy="true"' : ""}>${renderButtonLabel(snapshot.submitting ? "Verifying..." : snapshot.whiteLabel.otpVerification.primaryButtonText?.trim() || "Verify", "check", snapshot.submitting)}</button>
       <div class="ch-sdk-inline-actions ch-sdk-inline-actions--centered">
         <button class="ch-sdk-link-button" data-action="otp-alternate" type="button" ${snapshot.submitting ? "disabled" : ""}>${snapshot.interaction.phone?.phoneNumber && snapshot.requestedOtpMode !== "email" ? "Send code to email instead" : "Use another email"}</button>
         <span class="ch-sdk-inline-separator" aria-hidden="true">\u2022</span>
@@ -1708,7 +1775,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       ${sourceActionsListMarkup}
       <button class="ch-sdk-button${snapshot.submitting ? " is-loading" : ""}" data-action="attach-selected-source" type="button" ${snapshot.submitting || !snapshot.selectedSource ? "disabled" : ""} ${snapshot.submitting ? 'aria-busy="true"' : ""}>
         ${renderButtonLabel(
-      snapshot.submitting ? "Saving..." : snapshot.configuration.paymentSelectionConfirmLabel?.trim() || "Confirm",
+      snapshot.submitting ? "Saving..." : snapshot.whiteLabel.savedSource.primaryButtonText?.trim() || snapshot.configuration.paymentSelectionConfirmLabel?.trim() || "Confirm",
       "arrow",
       snapshot.submitting
     )}
@@ -1788,7 +1855,7 @@ globalThis.__commerceHubConnectWebSdkInlineCss = ":host,\n.commerce-hub-connect-
       ${useNewBillingAddress ? billingAddressControl : ""}
       ${useNewBillingAddress ? renderNewBillingAddressFields(draft, snapshot.cardDraftErrors) : ""}
       <div class="ch-sdk-button-row">
-        <button class="ch-sdk-button${snapshot.submitting ? " is-loading" : ""}" type="submit" ${canSubmitCard(snapshot) ? "" : "disabled"} ${snapshot.submitting ? 'aria-busy="true"' : ""}>${renderButtonLabel(snapshot.submitting ? "Saving..." : "Save payment method", "arrow", snapshot.submitting)}</button>
+        <button class="ch-sdk-button${snapshot.submitting ? " is-loading" : ""}" type="submit" ${canSubmitCard(snapshot) ? "" : "disabled"} ${snapshot.submitting ? 'aria-busy="true"' : ""}>${renderButtonLabel(snapshot.submitting ? "Saving..." : snapshot.whiteLabel.addCard.primaryButtonText?.trim() || "Save payment method", "arrow", snapshot.submitting)}</button>
         <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button" ${snapshot.submitting ? "disabled" : ""}>Back</button>
       </div>
     </form>

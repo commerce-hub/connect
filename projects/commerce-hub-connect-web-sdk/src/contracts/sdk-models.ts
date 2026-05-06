@@ -17,7 +17,25 @@ export interface CommerceHubWhiteLabelOptions {
   textColor?: string;
   logoUrl?: string;
   fontFamily?: string;
+  emailEntry?: EmailEntryWhiteLabelOptions;
+  otpVerification?: OtpVerificationWhiteLabelOptions;
+  savedSource?: SavedSourceWhiteLabelOptions;
+  addCard?: AddCardWhiteLabelOptions;
 }
+
+export interface CommerceHubFlowWhiteLabelOptions {
+  title?: string;
+  subtitle?: string;
+  primaryButtonText?: string;
+}
+
+export interface EmailEntryWhiteLabelOptions extends CommerceHubFlowWhiteLabelOptions {}
+
+export interface OtpVerificationWhiteLabelOptions extends CommerceHubFlowWhiteLabelOptions {}
+
+export interface SavedSourceWhiteLabelOptions extends CommerceHubFlowWhiteLabelOptions {}
+
+export interface AddCardWhiteLabelOptions extends CommerceHubFlowWhiteLabelOptions {}
 
 export interface CommerceHubPayByBankOptions {
   apiKey?: string;
@@ -55,4 +73,14 @@ export interface ResolvedCommerceHubWhiteLabelOptions {
   textColor: string;
   logoUrl?: string;
   fontFamily: string;
+  emailEntry: ResolvedCommerceHubFlowWhiteLabelOptions;
+  otpVerification: ResolvedCommerceHubFlowWhiteLabelOptions;
+  savedSource: ResolvedCommerceHubFlowWhiteLabelOptions;
+  addCard: ResolvedCommerceHubFlowWhiteLabelOptions;
+}
+
+export interface ResolvedCommerceHubFlowWhiteLabelOptions {
+  title?: string;
+  subtitle?: string;
+  primaryButtonText?: string;
 }

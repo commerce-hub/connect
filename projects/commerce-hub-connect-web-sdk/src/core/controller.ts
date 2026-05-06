@@ -40,6 +40,10 @@ const DEFAULT_WHITE_LABEL: ResolvedCommerceHubWhiteLabelOptions = {
   secondaryColor: '#667085',
   textColor: '#101828',
   fontFamily: '"Open Sans", sans-serif',
+  emailEntry: {},
+  otpVerification: {},
+  savedSource: {},
+  addCard: {},
 };
 const NEW_BILLING_ADDRESS_VALUE = '__new__';
 
@@ -119,7 +123,13 @@ export class CommerceHubConnectWidgetController {
     apiBaseUrl: string,
   ) {
     this.api = new CommerceHubConnectApiClient(apiBaseUrl, interaction.interactionId);
-    this.state = this.createSnapshot(interaction, configuration, whiteLabel, environment, apiBaseUrl);
+    this.state = this.createSnapshot(
+      interaction,
+      configuration,
+      whiteLabel,
+      environment,
+      apiBaseUrl,
+    );
     void this.initialize();
   }
 
@@ -142,7 +152,14 @@ export class CommerceHubConnectWidgetController {
     apiBaseUrl: string,
   ): Promise<void> {
     this.api = new CommerceHubConnectApiClient(apiBaseUrl, interaction.interactionId);
-    this.state = this.createSnapshot(interaction, configuration, whiteLabel, environment, apiBaseUrl, this.state);
+    this.state = this.createSnapshot(
+      interaction,
+      configuration,
+      whiteLabel,
+      environment,
+      apiBaseUrl,
+      this.state,
+    );
     this.notify();
     await this.initialize();
   }
@@ -260,7 +277,10 @@ export class CommerceHubConnectWidgetController {
       const nextNormalizedValue = normalizeSensitiveCardFieldValue(field, value);
       this.state.cardEncryption = {
         ...this.state.cardEncryption,
-        [field]: resolveDirtyCardEncryptionState(this.state.cardEncryption[field], nextNormalizedValue),
+        [field]: resolveDirtyCardEncryptionState(
+          this.state.cardEncryption[field],
+          nextNormalizedValue,
+        ),
       };
     }
 
@@ -294,18 +314,27 @@ export class CommerceHubConnectWidgetController {
         },
         cardEncryption: {
           ...this.state.cardEncryption,
-          [field]: resolveDirtyCardEncryptionState(this.state.cardEncryption[field], normalizedValue),
+          [field]: resolveDirtyCardEncryptionState(
+            this.state.cardEncryption[field],
+            normalizedValue,
+          ),
         },
       });
       return;
     }
 
     const currentFieldState = this.state.cardEncryption[field];
-    if (currentFieldState.status === 'encrypting' && currentFieldState.normalizedValue === normalizedValue) {
+    if (
+      currentFieldState.status === 'encrypting' &&
+      currentFieldState.normalizedValue === normalizedValue
+    ) {
       return;
     }
 
-    if (currentFieldState.status === 'encrypted' && currentFieldState.normalizedValue === normalizedValue) {
+    if (
+      currentFieldState.status === 'encrypted' &&
+      currentFieldState.normalizedValue === normalizedValue
+    ) {
       return;
     }
 
@@ -324,7 +353,9 @@ export class CommerceHubConnectWidgetController {
 
     try {
       const encryptedValue = await this.maskSensitiveCardValue(field, value);
-      if (normalizeSensitiveCardFieldValue(field, this.state.cardDraft[field]) !== normalizedValue) {
+      if (
+        normalizeSensitiveCardFieldValue(field, this.state.cardDraft[field]) !== normalizedValue
+      ) {
         return;
       }
 
@@ -341,7 +372,9 @@ export class CommerceHubConnectWidgetController {
         },
       });
     } catch (error) {
-      if (normalizeSensitiveCardFieldValue(field, this.state.cardDraft[field]) !== normalizedValue) {
+      if (
+        normalizeSensitiveCardFieldValue(field, this.state.cardDraft[field]) !== normalizedValue
+      ) {
         return;
       }
 
@@ -456,7 +489,11 @@ export class CommerceHubConnectWidgetController {
         normalizedDraft.cardNumber,
         this.state.cardEncryption,
       );
-      const maskedCvv = resolveEncryptedCardFieldValue('cvc', normalizedDraft.cvc, this.state.cardEncryption);
+      const maskedCvv = resolveEncryptedCardFieldValue(
+        'cvc',
+        normalizedDraft.cvc,
+        this.state.cardEncryption,
+      );
       const { month, year } = parseExpiration(normalizedDraft.expiration);
 
       if (!month || !year) {
@@ -494,8 +531,7 @@ export class CommerceHubConnectWidgetController {
             maskedCardNumber !== normalizeCardNumber(normalizedDraft.cardNumber)
               ? maskedCardNumber
               : undefined,
-          cvvEncrypted:
-            maskedCvv !== normalizeCvv(normalizedDraft.cvc) ? maskedCvv : undefined,
+          cvvEncrypted: maskedCvv !== normalizeCvv(normalizedDraft.cvc) ? maskedCvv : undefined,
         },
       };
 
@@ -538,8 +574,12 @@ export class CommerceHubConnectWidgetController {
     try {
       const existingBankSourceIds = await this.getExistingBankSourceIds();
       const session = await this.api.createPayByBankSession();
-      const { aggregatorSessionId, accessToken, pToken, publicKey } = resolvePayByBankSession(session);
-      const payByBank = resolvePayByBankOptions(this.state.environment, this.state.configuration.payByBank);
+      const { aggregatorSessionId, accessToken, pToken, publicKey } =
+        resolvePayByBankSession(session);
+      const payByBank = resolvePayByBankOptions(
+        this.state.environment,
+        this.state.configuration.payByBank,
+      );
 
       await loadPaymentSdkScript(payByBank.paymentSdkUrl);
       const paymentSdk = window.PaymentSDK;
@@ -580,7 +620,9 @@ export class CommerceHubConnectWidgetController {
               const bankSource = resolveAttachedBankSource(profile, existingBankSourceIds);
               const paymentSourceId = bankSource.id?.trim();
               if (!paymentSourceId) {
-                throw new Error('Pay by Bank completed but no bank payment source was returned by /customer.');
+                throw new Error(
+                  'Pay by Bank completed but no bank payment source was returned by /customer.',
+                );
               }
 
               const attachedInteraction = await this.api.attachPaymentMethod(paymentSourceId);
@@ -636,7 +678,8 @@ export class CommerceHubConnectWidgetController {
       bankLinkLoading: false,
       error: null,
       email,
-      otpCode: previous?.interaction.interactionId === interaction.interactionId ? previous.otpCode : '',
+      otpCode:
+        previous?.interaction.interactionId === interaction.interactionId ? previous.otpCode : '',
       paymentEntryMode,
       supportedTenderTypes: resolveSupportedTenderTypes(interaction),
       selectedTenderType,
@@ -644,11 +687,13 @@ export class CommerceHubConnectWidgetController {
       selectedSource: resolveSelectedSource(interaction, previous?.selectedSourceId),
       selectedSourceId:
         previous?.interaction.interactionId === interaction.interactionId
-          ? previous?.selectedSourceId ?? interaction.selectedSource?.id ?? null
-          : interaction.selectedSource?.id ?? null,
+          ? (previous?.selectedSourceId ?? interaction.selectedSource?.id ?? null)
+          : (interaction.selectedSource?.id ?? null),
       completedPaymentSource,
       billingAddresses:
-        previous?.interaction.interactionId === interaction.interactionId ? previous.billingAddresses : [],
+        previous?.interaction.interactionId === interaction.interactionId
+          ? previous.billingAddresses
+          : [],
       cardDraft:
         previous?.interaction.interactionId === interaction.interactionId
           ? previous.cardDraft
@@ -660,12 +705,11 @@ export class CommerceHubConnectWidgetController {
       cardDraftErrors: {},
       cardDraftMessage: null,
       requestedOtpMode: previous?.requestedOtpMode ?? 'default',
-      whiteLabel: {
-        ...DEFAULT_WHITE_LABEL,
-        ...configuration.whiteLabel,
-        ...whiteLabel,
-      },
-      payByBankMountId: `commerce-hub-banklink-${interaction.interactionId}`.replace(/[^a-zA-Z0-9-_]/g, '-'),
+      whiteLabel: resolveWhiteLabel(configuration.whiteLabel, whiteLabel),
+      payByBankMountId: `commerce-hub-banklink-${interaction.interactionId}`.replace(
+        /[^a-zA-Z0-9-_]/g,
+        '-',
+      ),
       pendingPayByBankLaunch: false,
     };
   }
@@ -793,7 +837,10 @@ export class CommerceHubConnectWidgetController {
       this.state.completedPaymentSource,
     );
     this.state.availableSources = resolveAvailableSources(this.state.interaction);
-    this.state.selectedSource = resolveSelectedSource(this.state.interaction, this.state.selectedSourceId);
+    this.state.selectedSource = resolveSelectedSource(
+      this.state.interaction,
+      this.state.selectedSourceId,
+    );
     this.notify();
   }
 
@@ -806,6 +853,37 @@ export class CommerceHubConnectWidgetController {
       listener();
     }
   }
+}
+
+function resolveWhiteLabel(
+  configurationWhiteLabel: CommerceHubWhiteLabelOptions | undefined,
+  instanceWhiteLabel: CommerceHubWhiteLabelOptions | undefined,
+): ResolvedCommerceHubWhiteLabelOptions {
+  return {
+    ...DEFAULT_WHITE_LABEL,
+    ...configurationWhiteLabel,
+    ...instanceWhiteLabel,
+    emailEntry: {
+      ...DEFAULT_WHITE_LABEL.emailEntry,
+      ...configurationWhiteLabel?.emailEntry,
+      ...instanceWhiteLabel?.emailEntry,
+    },
+    otpVerification: {
+      ...DEFAULT_WHITE_LABEL.otpVerification,
+      ...configurationWhiteLabel?.otpVerification,
+      ...instanceWhiteLabel?.otpVerification,
+    },
+    savedSource: {
+      ...DEFAULT_WHITE_LABEL.savedSource,
+      ...configurationWhiteLabel?.savedSource,
+      ...instanceWhiteLabel?.savedSource,
+    },
+    addCard: {
+      ...DEFAULT_WHITE_LABEL.addCard,
+      ...configurationWhiteLabel?.addCard,
+      ...instanceWhiteLabel?.addCard,
+    },
+  };
 }
 
 function deriveCurrentStep(interaction: InteractionResponse): CommerceHubSdkFlowStep {
@@ -876,7 +954,9 @@ function resolveSelectedSource(
   const effectiveId = selectedSourceId ?? interactionSelectedId;
 
   return (
-    availableSources.find((source) => source.id === effectiveId) ?? interaction.selectedSource ?? null
+    availableSources.find((source) => source.id === effectiveId) ??
+    interaction.selectedSource ??
+    null
   );
 }
 
@@ -1128,7 +1208,12 @@ function resolvePayByBankSession(session: {
 }
 
 function isTerminalPaymentSdkEvent(event: PaymentSdkEvent): boolean {
-  return event.type === 'success' || event.type === 'cancel' || event.type === 'failure' || event.type === 'error';
+  return (
+    event.type === 'success' ||
+    event.type === 'cancel' ||
+    event.type === 'failure' ||
+    event.type === 'error'
+  );
 }
 
 function describePaymentSdkTerminalEvent(event: PaymentSdkEvent): string {
@@ -1147,7 +1232,10 @@ function describePaymentSdkTerminalEvent(event: PaymentSdkEvent): string {
   return 'Pay by Bank did not complete successfully.';
 }
 
-function resolveAttachedBankSource(profile: Profile, existingBankSourceIds: Set<string>): PaymentSource {
+function resolveAttachedBankSource(
+  profile: Profile,
+  existingBankSourceIds: Set<string>,
+): PaymentSource {
   const bankSources = (profile.sources ?? []).filter(
     (source): source is PaymentSource => source.tenderType === 'BANK_ACCOUNT',
   );
@@ -1159,15 +1247,24 @@ function resolveAttachedBankSource(profile: Profile, existingBankSourceIds: Set<
     }) ??
     bankSources.at(0) ??
     (() => {
-      throw new Error('Pay by Bank completed but no bank payment source was returned by /customer.');
+      throw new Error(
+        'Pay by Bank completed but no bank payment source was returned by /customer.',
+      );
     })()
   );
 }
 
-function withUpsertedSource(interaction: InteractionResponse, source: PaymentSource): InteractionResponse {
+function withUpsertedSource(
+  interaction: InteractionResponse,
+  source: PaymentSource,
+): InteractionResponse {
   const paymentSources = interaction.paymentSources ?? [];
-  const nextPaymentSources = paymentSources.some((existingSource) => existingSource.id === source.id)
-    ? paymentSources.map((existingSource) => (existingSource.id === source.id ? source : existingSource))
+  const nextPaymentSources = paymentSources.some(
+    (existingSource) => existingSource.id === source.id,
+  )
+    ? paymentSources.map((existingSource) =>
+        existingSource.id === source.id ? source : existingSource,
+      )
     : [source, ...paymentSources];
 
   return {
@@ -1226,7 +1323,11 @@ function maskEmail(email: string): string {
 
 export function formatSourcePrimaryLabel(source: PaymentSource): string {
   if (source.tenderType === 'CARD') {
-    return source.name?.trim() || source.card.nameOnCard?.trim() || `${source.card.network ?? 'Card'} card`;
+    return (
+      source.name?.trim() ||
+      source.card.nameOnCard?.trim() ||
+      `${source.card.network ?? 'Card'} card`
+    );
   }
 
   return source.bankAccount.bankName?.trim() || source.name?.trim() || 'Bank account';

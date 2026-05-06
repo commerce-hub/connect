@@ -214,7 +214,9 @@ describe('web sdk', () => {
     );
     expect(sourceScroll?.querySelector('.ch-sdk-source-actions-list')).toBeNull();
     expect(
-      instance.hostElement.querySelector('.ch-sdk-stack--payment-list > .ch-sdk-source-actions-list'),
+      instance.hostElement.querySelector(
+        '.ch-sdk-stack--payment-list > .ch-sdk-source-actions-list',
+      ),
     ).not.toBeNull();
     expect(instance.hostElement.querySelector('[data-action="add-card"] svg')).not.toBeNull();
     expect(instance.hostElement.querySelector('[data-action="add-bank"] svg')).not.toBeNull();
@@ -225,6 +227,119 @@ describe('web sdk', () => {
 
     instance.destroy();
     expect(mountTarget.querySelector('.commerce-hub-connect-web-sdk-mount')).toBeNull();
+  });
+
+  it('renders nested white-label copy for visible flow titles, subtitles, and primary buttons', async () => {
+    const namespace = await registerCommerceHubConnectWebSdk();
+    const savedCard = createSavedCardSource('card-1');
+    const configuration = createConfiguration({
+      paymentSelectionTitle: 'Legacy saved title',
+      paymentSelectionConfirmLabel: 'Legacy saved confirm',
+      whiteLabel: {
+        emailEntry: {
+          title: 'Config email title',
+          subtitle: 'Config email subtitle',
+          primaryButtonText: 'Config email button',
+        },
+        otpVerification: {
+          title: 'Config OTP title',
+          subtitle: 'Config OTP subtitle',
+          primaryButtonText: 'Config OTP button',
+        },
+        savedSource: {
+          title: 'Config saved title',
+          subtitle: 'Config saved subtitle',
+          primaryButtonText: 'Config saved button',
+        },
+        addCard: {
+          title: 'Config card title',
+          subtitle: 'Config card subtitle',
+          primaryButtonText: 'Config card button',
+        },
+      },
+    });
+    const whiteLabel: CommerceHubConnectWebSdkMountOptions['whiteLabel'] = {
+      emailEntry: {
+        title: 'Merchant email title',
+      },
+      savedSource: {
+        primaryButtonText: 'Merchant saved button',
+      },
+    };
+
+    const instance = await namespace.mount('#mount-target', {
+      interaction: createInteraction(),
+      configuration,
+      whiteLabel,
+    });
+
+    expect(instance.hostElement.textContent).toContain('Merchant email title');
+    expect(instance.hostElement.textContent).toContain('Config email subtitle');
+    expect(instance.hostElement.textContent).toContain('Config email button');
+
+    await instance.update({
+      interaction: createInteraction({
+        status: 'OTP_VALIDATION_PENDING',
+      }),
+      configuration,
+      whiteLabel,
+    });
+
+    expect(instance.hostElement.textContent).toContain('Config OTP title');
+    expect(instance.hostElement.textContent).toContain('Config OTP subtitle');
+    expect(instance.hostElement.textContent).toContain('Config OTP button');
+
+    await instance.update({
+      interaction: createInteraction(
+        {
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          selectedSource: savedCard,
+        },
+        [savedCard],
+      ),
+      configuration,
+      whiteLabel,
+    });
+    await flushTasks();
+
+    expect(instance.hostElement.textContent).toContain('Config saved title');
+    expect(instance.hostElement.textContent).toContain('Config saved subtitle');
+    expect(instance.hostElement.textContent).toContain('Merchant saved button');
+    expect(instance.hostElement.textContent).not.toContain('Legacy saved title');
+    expect(instance.hostElement.textContent).not.toContain('Legacy saved confirm');
+
+    clickRequired(instance.hostElement, '[data-action="add-card"]');
+
+    expect(instance.hostElement.textContent).toContain('Config card title');
+    expect(instance.hostElement.textContent).toContain('Config card subtitle');
+    expect(instance.hostElement.textContent).toContain('Config card button');
+
+    instance.destroy();
+  });
+
+  it('keeps legacy saved-source copy fallbacks when nested white-label copy is absent', async () => {
+    const namespace = await registerCommerceHubConnectWebSdk();
+    const savedCard = createSavedCardSource('card-1');
+
+    const instance = await namespace.mount('#mount-target', {
+      interaction: createInteraction(
+        {
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          selectedSource: savedCard,
+        },
+        [savedCard],
+      ),
+      configuration: createConfiguration({
+        paymentSelectionTitle: 'Legacy saved methods',
+        paymentSelectionConfirmLabel: 'Legacy confirm',
+      }),
+    });
+    await flushTasks();
+
+    expect(instance.hostElement.textContent).toContain('Legacy saved methods');
+    expect(instance.hostElement.textContent).toContain('Legacy confirm');
+
+    instance.destroy();
   });
 
   it('preserves the saved payment method scroll position when selecting a lower source', async () => {
@@ -363,7 +478,9 @@ describe('web sdk', () => {
     expect(instance.hostElement.querySelector('.ch-sdk-bank-status')).toBeNull();
     expect(instance.hostElement.textContent).not.toContain('Connecting to bank');
     expect(instance.hostElement.textContent).not.toContain('Connect bank');
-    expect(instance.hostElement.textContent).not.toContain('Continue in the secure bank-link frame.');
+    expect(instance.hostElement.textContent).not.toContain(
+      'Continue in the secure bank-link frame.',
+    );
 
     instance.destroy();
   });

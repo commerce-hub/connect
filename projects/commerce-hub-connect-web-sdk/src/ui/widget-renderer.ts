@@ -366,47 +366,57 @@ function renderStatus(
   const title = (() => {
     switch (snapshot.displayStep) {
       case 'otp':
-        return 'Enter code';
+        return snapshot.whiteLabel.otpVerification.title?.trim() || 'Enter code';
       case 'payment':
         return snapshot.paymentEntryMode === 'add'
           ? snapshot.selectedTenderType === 'CARD'
-            ? 'Add card'
+            ? snapshot.whiteLabel.addCard.title?.trim() || 'Add card'
             : 'Connect bank'
-          : snapshot.configuration.paymentSelectionTitle?.trim() || 'Payment method';
+          : snapshot.whiteLabel.savedSource.title?.trim() ||
+              snapshot.configuration.paymentSelectionTitle?.trim() ||
+              'Payment method';
       case 'success':
         return 'Payment method saved';
       case 'email':
       default:
-        return 'Sign in';
+        return snapshot.whiteLabel.emailEntry.title?.trim() || 'Sign in';
     }
   })();
 
   const subtitle = (() => {
     switch (snapshot.displayStep) {
       case 'otp':
-        return `We sent a six-digit code to ${escapeHtml(formatOtpDestination(snapshot))}.`;
+        return (
+          snapshot.whiteLabel.otpVerification.subtitle?.trim() ||
+          `We sent a six-digit code to ${formatOtpDestination(snapshot)}.`
+        );
       case 'payment':
         return snapshot.paymentEntryMode === 'add'
           ? snapshot.selectedTenderType === 'CARD'
-            ? 'Save a new credit or debit card to this wallet.'
+            ? snapshot.whiteLabel.addCard.subtitle?.trim() ||
+              'Save a new credit or debit card to this wallet.'
             : 'Continue in the secure bank-link frame.'
-          : 'Choose a saved payment method or add a new one.';
+          : snapshot.whiteLabel.savedSource.subtitle?.trim() ||
+              'Choose a saved payment method or add a new one.';
       case 'success': {
         const source = snapshot.completedPaymentSource ?? snapshot.selectedSource;
         return source
-          ? `${escapeHtml(formatSourcePrimaryLabel(source))} is ready to use.`
+          ? `${formatSourcePrimaryLabel(source)} is ready to use.`
           : 'Payment source linked successfully.';
       }
       case 'email':
       default:
-        return 'Enter the email address linked to this customer wallet.';
+        return (
+          snapshot.whiteLabel.emailEntry.subtitle?.trim() ||
+          'Enter the email address linked to this customer wallet.'
+        );
     }
   })();
 
   return `
     <div class="ch-sdk-title-block">
       <h2>${escapeHtml(title)}</h2>
-      <p>${subtitle}</p>
+      <p>${escapeHtml(subtitle)}</p>
     </div>
   `;
 }
@@ -444,7 +454,7 @@ function renderEmailStep(
         <span>Email address</span>
         <input name="email" type="email" value="${escapeHtml(snapshot.email)}" autocomplete="email" ${snapshot.interaction.allowEmailChange === false && snapshot.email ? 'disabled' : ''} required />
       </label>
-      <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" type="submit" ${snapshot.submitting ? 'disabled aria-busy="true"' : ''}>${renderButtonLabel(snapshot.submitting ? 'Sending...' : 'Continue', 'arrow', snapshot.submitting)}</button>
+      <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" type="submit" ${snapshot.submitting ? 'disabled aria-busy="true"' : ''}>${renderButtonLabel(snapshot.submitting ? 'Sending...' : snapshot.whiteLabel.emailEntry.primaryButtonText?.trim() || 'Continue', 'arrow', snapshot.submitting)}</button>
     </form>
   `;
 }
@@ -479,7 +489,7 @@ function renderOtpStep(
           )
           .join('')}
       </div>
-      <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" type="submit" ${snapshot.submitting ? 'disabled aria-busy="true"' : ''}>${renderButtonLabel(snapshot.submitting ? 'Verifying...' : 'Verify', 'check', snapshot.submitting)}</button>
+      <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" type="submit" ${snapshot.submitting ? 'disabled aria-busy="true"' : ''}>${renderButtonLabel(snapshot.submitting ? 'Verifying...' : snapshot.whiteLabel.otpVerification.primaryButtonText?.trim() || 'Verify', 'check', snapshot.submitting)}</button>
       <div class="ch-sdk-inline-actions ch-sdk-inline-actions--centered">
         <button class="ch-sdk-link-button" data-action="otp-alternate" type="button" ${snapshot.submitting ? 'disabled' : ''}>${snapshot.interaction.phone?.phoneNumber && snapshot.requestedOtpMode !== 'email' ? 'Send code to email instead' : 'Use another email'}</button>
         <span class="ch-sdk-inline-separator" aria-hidden="true">•</span>
@@ -522,7 +532,9 @@ function renderPaymentListStep(
         ${renderButtonLabel(
           snapshot.submitting
             ? 'Saving...'
-            : snapshot.configuration.paymentSelectionConfirmLabel?.trim() || 'Confirm',
+            : snapshot.whiteLabel.savedSource.primaryButtonText?.trim() ||
+                snapshot.configuration.paymentSelectionConfirmLabel?.trim() ||
+                'Confirm',
           'arrow',
           snapshot.submitting,
         )}
@@ -618,7 +630,7 @@ function renderCardStep(
       ${useNewBillingAddress ? billingAddressControl : ''}
       ${useNewBillingAddress ? renderNewBillingAddressFields(draft, snapshot.cardDraftErrors) : ''}
       <div class="ch-sdk-button-row">
-        <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" type="submit" ${canSubmitCard(snapshot) ? '' : 'disabled'} ${snapshot.submitting ? 'aria-busy="true"' : ''}>${renderButtonLabel(snapshot.submitting ? 'Saving...' : 'Save payment method', 'arrow', snapshot.submitting)}</button>
+        <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" type="submit" ${canSubmitCard(snapshot) ? '' : 'disabled'} ${snapshot.submitting ? 'aria-busy="true"' : ''}>${renderButtonLabel(snapshot.submitting ? 'Saving...' : snapshot.whiteLabel.addCard.primaryButtonText?.trim() || 'Save payment method', 'arrow', snapshot.submitting)}</button>
         <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button" ${snapshot.submitting ? 'disabled' : ''}>Back</button>
       </div>
     </form>
