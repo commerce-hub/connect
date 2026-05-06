@@ -227,6 +227,51 @@ describe('web sdk', () => {
     expect(mountTarget.querySelector('.commerce-hub-connect-web-sdk-mount')).toBeNull();
   });
 
+  it('preserves the saved payment method scroll position when selecting a lower source', async () => {
+    const restoreScrollTop = installUnclampedScrollTopForSpec();
+    const namespace = await registerCommerceHubConnectWebSdk();
+    const savedSources = Array.from({ length: 8 }, (_value, index) => ({
+      ...createSavedCardSource(`card-${index + 1}`),
+      name: `Saved Visa ${index + 1}`,
+    }));
+    let instance: Awaited<ReturnType<typeof namespace.mount>> | undefined;
+
+    try {
+      instance = await namespace.mount('#mount-target', {
+        interaction: createInteraction(
+          {
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            selectedSource: savedSources[0],
+          },
+          savedSources,
+        ),
+        configuration: createConfiguration(),
+      });
+
+      const sourceScroll = instance.hostElement.querySelector('.ch-sdk-source-scroll');
+      if (!(sourceScroll instanceof HTMLElement)) {
+        fail('Unable to find saved payment method scroll container.');
+        return;
+      }
+
+      sourceScroll.scrollTop = 128;
+      clickRequired(instance.hostElement, '[data-source-id="card-8"]');
+
+      const nextSourceScroll = instance.hostElement.querySelector('.ch-sdk-source-scroll');
+      expect(nextSourceScroll).not.toBe(sourceScroll);
+      expect(nextSourceScroll).toEqual(jasmine.any(HTMLElement));
+      expect((nextSourceScroll as HTMLElement).scrollTop).toBe(128);
+      expect(
+        instance.hostElement
+          .querySelector('[data-source-id="card-8"]')
+          ?.classList.contains('is-selected'),
+      ).toBeTrue();
+    } finally {
+      restoreScrollTop();
+      instance?.destroy();
+    }
+  });
+
   it('renders the host-mounted custom element with inline properties', async () => {
     const namespace = await registerCommerceHubConnectWebSdk();
     const element = namespace.createElement(
@@ -531,6 +576,35 @@ function readCardDraft(hostElement: HTMLElement) {
     city: getRequiredInput(hostElement, 'city').value,
     state: getRequiredInput(hostElement, 'state').value,
     zip: getRequiredInput(hostElement, 'zip').value,
+  };
+}
+
+function installUnclampedScrollTopForSpec(): () => void {
+  const scrollTopValues = new WeakMap<Element, number>();
+  const scrollTopDescriptor =
+    Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop') ??
+    Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollTop');
+  const scrollTopOwner =
+    Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop') !== undefined
+      ? Element.prototype
+      : HTMLElement.prototype;
+
+  Object.defineProperty(scrollTopOwner, 'scrollTop', {
+    configurable: true,
+    get(this: Element): number {
+      return scrollTopValues.get(this) ?? 0;
+    },
+    set(this: Element, value: number): void {
+      scrollTopValues.set(this, value);
+    },
+  });
+
+  return () => {
+    if (scrollTopDescriptor) {
+      Object.defineProperty(scrollTopOwner, 'scrollTop', scrollTopDescriptor);
+    } else {
+      Reflect.deleteProperty(scrollTopOwner, 'scrollTop');
+    }
   };
 }
 

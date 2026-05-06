@@ -1542,6 +1542,7 @@ var CommerceHubConnectWidgetRenderer = class {
     const snapshot = this.controller.getSnapshot();
     applyTheme(this.hostElement, snapshot.whiteLabel);
     const stepKey = getStepRenderKey(snapshot);
+    const renderState = captureRenderState(this.hostElement, this.lastRenderedStepKey, stepKey);
     const isStepEntering = this.lastRenderedStepKey !== null && this.lastRenderedStepKey !== stepKey;
     this.lastRenderedStepKey = stepKey;
     const cardClass = snapshot.displayStep === "payment" && snapshot.paymentEntryMode === "add" && snapshot.selectedTenderType === "CARD" ? " ch-sdk-card--wide" : "";
@@ -1562,6 +1563,7 @@ var CommerceHubConnectWidgetRenderer = class {
         </div>
       </section>
     `;
+    restoreRenderState(this.hostElement, renderState);
     if (snapshot.pendingPayByBankLaunch && snapshot.displayStep === "payment" && snapshot.paymentEntryMode === "add" && snapshot.selectedTenderType === "BANK_ACCOUNT") {
       queueMicrotask(() => {
         void this.controller.launchPayByBank(snapshot.payByBankMountId);
@@ -1569,6 +1571,22 @@ var CommerceHubConnectWidgetRenderer = class {
     }
   }
 };
+function captureRenderState(hostElement, previousStepKey, nextStepKey) {
+  if (previousStepKey !== nextStepKey) {
+    return {};
+  }
+  const sourceScroll = hostElement.querySelector(".ch-sdk-source-scroll");
+  return sourceScroll ? { sourceScrollTop: sourceScroll.scrollTop } : {};
+}
+function restoreRenderState(hostElement, renderState) {
+  if (renderState.sourceScrollTop === void 0) {
+    return;
+  }
+  const sourceScroll = hostElement.querySelector(".ch-sdk-source-scroll");
+  if (sourceScroll) {
+    sourceScroll.scrollTop = renderState.sourceScrollTop;
+  }
+}
 function getStepRenderKey(snapshot) {
   return [snapshot.displayStep, snapshot.paymentEntryMode, snapshot.selectedTenderType].join(":");
 }
