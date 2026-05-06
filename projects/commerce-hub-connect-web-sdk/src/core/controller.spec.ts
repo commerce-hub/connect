@@ -168,7 +168,10 @@ describe('CommerceHubConnectWidgetController', () => {
     expect(
       'paymentSourceId' in (successInteraction as unknown as Record<string, unknown>),
     ).toBeFalse();
-    expect(controller.getSnapshot().completedPaymentSource).toEqual(selectedSource);
+    expect(controller.getSnapshot().completedPaymentSource).toBeNull();
+    expect(controller.getSnapshot().displayStep).toBe('payment');
+    expect(controller.getSnapshot().paymentEntryMode).toBe('list');
+    expect(controller.getSnapshot().selectedSource).toEqual(selectedSource);
 
     controller.destroy();
   });

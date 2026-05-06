@@ -92,6 +92,8 @@ describe('web sdk', () => {
     );
     expect(commerceHubConnectWebSdkInlineCss).toContain('background: var(--ch-sdk-action);');
     expect(commerceHubConnectWebSdkInlineCss).toContain('border: 1px solid var(--ch-sdk-action);');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-source-action');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('box-shadow: none;');
     expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-spinner');
     expect(commerceHubConnectWebSdkInlineCss).toContain('@media (prefers-reduced-motion: reduce)');
   });
@@ -159,6 +161,10 @@ describe('web sdk', () => {
     expect(instance.hostElement.style.getPropertyValue('--ch-sdk-primary').trim()).toBe('#1d4ed8');
     expect(instance.hostElement.querySelector('.ch-sdk-source-option.is-selected')).not.toBeNull();
     expect(instance.hostElement.querySelector('.ch-sdk-source-check')).not.toBeNull();
+    expect(instance.hostElement.querySelectorAll('.ch-sdk-source-action').length).toBe(2);
+    expect(instance.hostElement.querySelector('[data-action="add-card"] svg')).not.toBeNull();
+    expect(instance.hostElement.querySelector('[data-action="add-bank"] svg')).not.toBeNull();
+    expect(instance.hostElement.querySelector('.ch-sdk-pill-actions')).toBeNull();
     expect(
       instance.hostElement.querySelector('.ch-sdk-source-option')?.getAttribute('aria-pressed'),
     ).toBe('true');
@@ -240,6 +246,29 @@ describe('web sdk', () => {
     instance.destroy();
   });
 
+  it('renders bank handoff without a title block inside the widget shell', async () => {
+    const namespace = await registerCommerceHubConnectWebSdk();
+    const instance = await namespace.mount('#mount-target', {
+      interaction: createInteraction({
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        allowedTenderTypes: ['BANK_ACCOUNT'],
+      }),
+      configuration: createConfiguration(),
+    });
+
+    await flushTasks();
+    clickRequired(instance.hostElement, '[data-action="add-bank"]');
+
+    expect(instance.hostElement.querySelector('.ch-sdk-title-block')).toBeNull();
+    expect(instance.hostElement.querySelector('.ch-sdk-bank-mount')).not.toBeNull();
+    expect(instance.hostElement.querySelector('.ch-sdk-bank-status')).toBeNull();
+    expect(instance.hostElement.textContent).not.toContain('Connecting to bank');
+    expect(instance.hostElement.textContent).not.toContain('Connect bank');
+    expect(instance.hostElement.textContent).not.toContain('Continue in the secure bank-link frame.');
+
+    instance.destroy();
+  });
+
   it('encrypts sensitive card fields only on blur, blocks save until both succeed, and avoids duplicate blur calls', async () => {
     const namespace = await registerCommerceHubConnectWebSdk();
     const configuration = createConfiguration();
@@ -295,6 +324,14 @@ describe('web sdk', () => {
     expect(onSuccessSpy.calls.count()).toBe(1);
     expect(fetchHarness.lastSourceBody?.card.cardNumber).toBe('enc-card-1');
     expect(fetchHarness.lastSourceBody?.card.cvv).toBe('enc-cvv-1');
+    expect(controller.getSnapshot().displayStep).toBe('payment');
+    expect(controller.getSnapshot().paymentEntryMode).toBe('list');
+    expect(controller.getSnapshot().completedPaymentSource).toBeNull();
+    expect(instance.hostElement.textContent).toContain('Payment method');
+    expect(instance.hostElement.textContent).toContain('Primary Visa');
+    expect(instance.hostElement.textContent).not.toContain('Payment method saved');
+    expect(instance.hostElement.textContent).not.toContain('Manage payment methods');
+    expect(instance.hostElement.querySelectorAll('.ch-sdk-source-action').length).toBe(2);
     const successInteraction = onSuccessSpy.calls.mostRecent().args[0] as InteractionResponse;
     expect(successInteraction).toEqual(
       jasmine.objectContaining({

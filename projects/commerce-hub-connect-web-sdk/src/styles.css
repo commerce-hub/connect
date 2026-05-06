@@ -12,7 +12,6 @@
   --ch-sdk-border: #cbd5e1;
   --ch-sdk-border-strong: var(--ch-sdk-text, #101828);
   --ch-sdk-badge-border: #e4e7ec;
-  --ch-sdk-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   --ch-sdk-danger: #b42318;
   --ch-sdk-danger-soft: rgba(180, 35, 24, 0.08);
   --ch-sdk-success: #047857;
@@ -40,10 +39,10 @@
   max-width: 386px;
   margin: 0 auto;
   padding: 20px;
-  border: 1px solid var(--ch-sdk-border);
+  border: 0;
   border-radius: 12px;
   background: #fff;
-  box-shadow: var(--ch-sdk-shadow);
+  box-shadow: none;
 }
 
 .ch-sdk-card--wide {
@@ -138,9 +137,9 @@
 .ch-sdk-field select:focus,
 .ch-sdk-otp-digit:focus,
 .ch-sdk-source-option:focus-visible,
+.ch-sdk-source-action:focus-visible,
 .ch-sdk-button:focus-visible,
-.ch-sdk-link-button:focus-visible,
-.ch-sdk-pill-button:focus-visible {
+.ch-sdk-link-button:focus-visible {
   outline: 0;
   border-color: var(--ch-sdk-primary, #084acc);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ch-sdk-primary, #084acc) 16%, white);
@@ -166,12 +165,11 @@
 .ch-sdk-button,
 .ch-sdk-link-button,
 .ch-sdk-source-option,
-.ch-sdk-pill-button {
+.ch-sdk-source-action {
   font: inherit;
 }
 
-.ch-sdk-button,
-.ch-sdk-pill-button {
+.ch-sdk-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -201,8 +199,7 @@
 }
 
 .ch-sdk-button:disabled,
-.ch-sdk-link-button:disabled,
-.ch-sdk-pill-button:disabled {
+.ch-sdk-link-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -229,15 +226,13 @@
   animation: ch-sdk-spin 700ms linear infinite;
 }
 
-.ch-sdk-button--secondary,
-.ch-sdk-pill-button {
+.ch-sdk-button--secondary {
   border: 1px solid var(--ch-sdk-border);
   background: #fff;
   color: var(--ch-sdk-text, #101828);
 }
 
-.ch-sdk-button--secondary:hover:not(:disabled),
-.ch-sdk-pill-button:hover:not(:disabled) {
+.ch-sdk-button--secondary:hover:not(:disabled) {
   background: #f9fafb;
   border-color: var(--ch-sdk-border-strong);
 }
@@ -287,16 +282,6 @@
   text-align: center;
 }
 
-.ch-sdk-pill-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.ch-sdk-pill-button {
-  padding: 0 18px;
-}
-
 .ch-sdk-alert {
   padding: 12px;
   border-radius: 8px;
@@ -337,8 +322,7 @@
   color: var(--ch-sdk-success);
 }
 
-.ch-sdk-success-icon span,
-.ch-sdk-source-check {
+.ch-sdk-success-icon span {
   display: block;
   width: 7px;
   height: 11px;
@@ -349,12 +333,22 @@
   animation: ch-sdk-check-enter 150ms ease-out both;
 }
 
+.ch-sdk-source-check {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: ch-sdk-dot-enter 150ms ease-out both;
+}
+
 .ch-sdk-source-list {
   display: grid;
   gap: 18px;
 }
 
 .ch-sdk-source-option,
+.ch-sdk-source-action,
 .ch-sdk-success-summary {
   box-sizing: border-box;
   display: grid;
@@ -370,7 +364,8 @@
   color: inherit;
 }
 
-.ch-sdk-source-option {
+.ch-sdk-source-option,
+.ch-sdk-source-action {
   cursor: pointer;
   text-align: left;
   transition:
@@ -379,8 +374,25 @@
     box-shadow 120ms ease;
 }
 
-.ch-sdk-source-option:hover:not(:disabled) {
+.ch-sdk-source-option:hover:not(:disabled),
+.ch-sdk-source-action:hover:not(:disabled) {
   background: #f9fafb;
+}
+
+.ch-sdk-source-action {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 50px;
+  color: var(--ch-sdk-primary, #084acc);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.ch-sdk-source-action-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  color: currentColor;
 }
 
 .ch-sdk-source-option.is-selected {
@@ -402,8 +414,8 @@
 
 .ch-sdk-source-option.is-selected .ch-sdk-source-radio {
   border-color: var(--ch-sdk-border-strong);
-  background: var(--ch-sdk-action);
-  color: #fff;
+  background: #fff;
+  color: var(--ch-sdk-action);
 }
 
 .ch-sdk-source-radio--success {
@@ -581,6 +593,18 @@
   }
 }
 
+@keyframes ch-sdk-dot-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes ch-sdk-bank-loading {
   from {
     background-position: 100% 50%;
@@ -629,6 +653,10 @@
 
   .ch-sdk-source-option,
   .ch-sdk-success-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ch-sdk-source-action {
     grid-template-columns: auto minmax(0, 1fr);
   }
 

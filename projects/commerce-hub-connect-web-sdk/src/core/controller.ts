@@ -406,11 +406,12 @@ export class CommerceHubConnectWidgetController {
 
     try {
       const attachedInteraction = await this.api.attachPaymentMethod(selectedSource.id);
-      this.commitInteraction(attachedInteraction);
+      this.commitInteraction(withUpsertedSource(attachedInteraction, selectedSource));
       this.state.configuration.onSuccess(attachedInteraction);
       this.updateState({
-        completedPaymentSource: selectedSource,
+        completedPaymentSource: null,
         paymentEntryMode: 'list',
+        selectedSourceId: selectedSource.id,
       });
     } catch (error) {
       this.failWith('payment_source', error);
@@ -513,8 +514,9 @@ export class CommerceHubConnectWidgetController {
       this.commitInteraction(withUpsertedSource(attachedInteraction, createdSource));
       this.state.configuration.onSuccess(attachedInteraction);
       this.updateState({
-        completedPaymentSource: createdSource,
+        completedPaymentSource: null,
         paymentEntryMode: 'list',
+        selectedSourceId: paymentSourceId,
         cardDraft: defaultCardDraft(),
         cardEncryption: defaultCardEncryptionState(),
       });
@@ -586,8 +588,9 @@ export class CommerceHubConnectWidgetController {
               this.commitInteraction(nextInteraction);
               this.state.configuration.onSuccess(attachedInteraction);
               this.updateState({
-                completedPaymentSource: bankSource,
+                completedPaymentSource: null,
                 paymentEntryMode: 'list',
+                selectedSourceId: paymentSourceId,
               });
               settled = true;
               resolve();

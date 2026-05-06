@@ -315,6 +315,14 @@ function getStepRenderKey(
 function renderStatus(
   snapshot: ReturnType<CommerceHubConnectWidgetController['getSnapshot']>,
 ): string {
+  if (
+    snapshot.displayStep === 'payment' &&
+    snapshot.paymentEntryMode === 'add' &&
+    snapshot.selectedTenderType === 'BANK_ACCOUNT'
+  ) {
+    return '';
+  }
+
   const title = (() => {
     switch (snapshot.displayStep) {
       case 'otp':
@@ -450,14 +458,18 @@ function renderPaymentListStep(
           .map((source) => renderSourceOption(source, snapshot.selectedSource?.id ?? null))
           .join('')
       : '<div class="ch-sdk-empty-state">No saved payment methods are available yet.</div>';
+  const sourceActionsMarkup = [
+    snapshot.supportedTenderTypes.includes('CARD')
+      ? renderSourceAction('add-card', 'Add card', renderAddCardIcon())
+      : '',
+    snapshot.supportedTenderTypes.includes('BANK_ACCOUNT')
+      ? renderSourceAction('add-bank', 'Add bank account', renderAddBankIcon())
+      : '',
+  ].join('');
 
   return `
     <div class="ch-sdk-stack">
-      <div class="ch-sdk-source-list">${sourcesMarkup}</div>
-      <div class="ch-sdk-pill-actions">
-        ${snapshot.supportedTenderTypes.includes('CARD') ? '<button class="ch-sdk-pill-button" data-action="add-card" type="button">Add card</button>' : ''}
-        ${snapshot.supportedTenderTypes.includes('BANK_ACCOUNT') ? '<button class="ch-sdk-pill-button" data-action="add-bank" type="button">Add bank account</button>' : ''}
-      </div>
+      <div class="ch-sdk-source-list">${sourcesMarkup}${sourceActionsMarkup}</div>
       <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" data-action="attach-selected-source" type="button" ${snapshot.submitting || !snapshot.selectedSource ? 'disabled' : ''} ${snapshot.submitting ? 'aria-busy="true"' : ''}>
         ${renderButtonLabel(
           snapshot.submitting
@@ -482,6 +494,35 @@ function renderSourceOption(source: PaymentSource, selectedSourceId: string | nu
         <small>${escapeHtml(formatSourceSecondaryLabel(source))}</small>
       </span>
     </button>
+  `;
+}
+
+function renderSourceAction(action: 'add-card' | 'add-bank', label: string, icon: string): string {
+  return `
+    <button class="ch-sdk-source-action" data-action="${action}" type="button">
+      ${icon}
+      <span>${escapeHtml(label)}</span>
+    </button>
+  `;
+}
+
+function renderAddCardIcon(): string {
+  return `
+    <svg class="ch-sdk-source-action-icon" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+      <rect x="1.7" y="3.5" width="10.6" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" />
+      <path d="M3 5.7h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+      <path d="M5.4 8.6h3.2M7 7v3.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+    </svg>
+  `;
+}
+
+function renderAddBankIcon(): string {
+  return `
+    <svg class="ch-sdk-source-action-icon" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+      <path d="M2.2 5.4h9.6L7 2.2 2.2 5.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
+      <path d="M3 11.4h8M3.6 6.5v3.8M7 6.5v3.8M10.4 6.5v3.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+      <path d="M10 1.6v3M8.5 3.1h3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
+    </svg>
   `;
 }
 
@@ -575,7 +616,6 @@ function renderBankStep(
   const isBankLoading = snapshot.pendingPayByBankLaunch || snapshot.bankLinkLoading;
   return `
     <div class="ch-sdk-stack">
-      ${isBankLoading ? '<div class="ch-sdk-bank-status" role="status" aria-live="polite"><span class="ch-sdk-spinner" aria-hidden="true"></span><span>Connecting to bank...</span></div>' : ''}
       <div id="${escapeHtml(snapshot.payByBankMountId)}" class="ch-sdk-bank-mount${isBankLoading ? ' is-loading' : ''}" ${isBankLoading ? 'aria-busy="true"' : ''}></div>
       <div class="ch-sdk-button-row">
         <button class="ch-sdk-button ch-sdk-button--secondary" data-action="back-payment-list" type="button" ${snapshot.bankLinkLoading ? 'disabled' : ''}>Back</button>
