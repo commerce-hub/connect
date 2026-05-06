@@ -94,6 +94,10 @@ describe('web sdk', () => {
     expect(commerceHubConnectWebSdkInlineCss).toContain('border: 1px solid var(--ch-sdk-action);');
     expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-source-action');
     expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-source-actions-list');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-source-scroll');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('max-height: 201px;');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('overflow-y: auto;');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('scrollbar-width: thin;');
     expect(commerceHubConnectWebSdkInlineCss).toContain('min-height: 36px;');
     expect(commerceHubConnectWebSdkInlineCss).toContain('box-shadow: none;');
     expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-spinner');
@@ -115,6 +119,44 @@ describe('web sdk', () => {
         network: 'Visa',
       },
     };
+    const savedSources: PaymentSource[] = [
+      savedCard,
+      {
+        id: 'card-2',
+        name: 'Commerce National Bank',
+        tenderType: 'BANK_ACCOUNT',
+        bankAccount: {
+          bankName: 'Commerce National Bank',
+          routingNumber: '011000015',
+          accountNumber: '0000001234',
+          accountType: 'CHECKING',
+        },
+      },
+      {
+        id: 'card-3',
+        name: 'Amex corporate card',
+        tenderType: 'CARD',
+        card: {
+          cardNumber: '3782822463108000',
+          cvv: '***',
+          expirationMonth: '08',
+          expirationYear: '31',
+          nameOnCard: 'Smoke Tester',
+          network: 'AmericanExpress',
+        },
+      },
+      {
+        id: 'card-4',
+        name: 'Business checking',
+        tenderType: 'BANK_ACCOUNT',
+        bankAccount: {
+          bankName: 'Business checking',
+          routingNumber: '021000021',
+          accountNumber: '0000002288',
+          accountType: 'CHECKING',
+        },
+      },
+    ];
 
     const stylesheetCountBeforeMount = document.head.querySelectorAll(
       '[data-commerce-hub-connect-web-sdk-style="true"]',
@@ -147,7 +189,7 @@ describe('web sdk', () => {
           status: 'PAYMENT_SOURCE_REQUESTED',
           selectedSource: savedCard,
         },
-        [savedCard],
+        savedSources,
       ),
       configuration: createConfiguration({ paymentSelectionTitle: 'Saved methods' }),
       whiteLabel: {
@@ -165,6 +207,15 @@ describe('web sdk', () => {
     expect(instance.hostElement.querySelector('.ch-sdk-source-check')).not.toBeNull();
     expect(instance.hostElement.querySelectorAll('.ch-sdk-source-action').length).toBe(2);
     expect(instance.hostElement.querySelector('.ch-sdk-source-actions-list')).not.toBeNull();
+    const sourceScroll = instance.hostElement.querySelector('.ch-sdk-source-scroll');
+    expect(sourceScroll).not.toBeNull();
+    expect(sourceScroll?.querySelectorAll('.ch-sdk-source-option').length).toBe(
+      savedSources.length,
+    );
+    expect(sourceScroll?.querySelector('.ch-sdk-source-actions-list')).toBeNull();
+    expect(
+      instance.hostElement.querySelector('.ch-sdk-stack--payment-list > .ch-sdk-source-actions-list'),
+    ).not.toBeNull();
     expect(instance.hostElement.querySelector('[data-action="add-card"] svg')).not.toBeNull();
     expect(instance.hostElement.querySelector('[data-action="add-bank"] svg')).not.toBeNull();
     expect(instance.hostElement.querySelector('.ch-sdk-pill-actions')).toBeNull();

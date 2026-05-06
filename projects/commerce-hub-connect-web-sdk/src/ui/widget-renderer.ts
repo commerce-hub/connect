@@ -280,11 +280,21 @@ export class CommerceHubConnectWidgetRenderer {
       snapshot.selectedTenderType === 'CARD'
         ? ' ch-sdk-card--wide'
         : '';
+    const cardBodyClass = [
+      'ch-sdk-card-body',
+      isStepEntering ? 'is-step-entering' : '',
+      snapshot.displayStep === 'payment' && snapshot.paymentEntryMode === 'list'
+        ? 'ch-sdk-card-body--payment-list'
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
     this.hostElement.innerHTML = `
       <section class="ch-sdk-shell">
         ${snapshot.whiteLabel.logoUrl ? `<header class="ch-sdk-header"><img src="${escapeHtml(snapshot.whiteLabel.logoUrl)}" alt="Merchant logo" class="ch-sdk-logo" /></header>` : ''}
         <div class="ch-sdk-card${cardClass}">
-          <div class="ch-sdk-card-body${isStepEntering ? ' is-step-entering' : ''}" data-step="${escapeHtml(stepKey)}">
+          <div class="${cardBodyClass}" data-step="${escapeHtml(stepKey)}">
             ${renderStatus(snapshot)}
             ${snapshot.error ? renderError(snapshot.error.message) : ''}
             ${renderStep(snapshot)}
@@ -473,8 +483,11 @@ function renderPaymentListStep(
     : '';
 
   return `
-    <div class="ch-sdk-stack">
-      <div class="ch-sdk-source-list">${sourcesMarkup}${sourceActionsListMarkup}</div>
+    <div class="ch-sdk-stack ch-sdk-stack--payment-list">
+      <div class="ch-sdk-source-scroll" role="region" aria-label="Saved payment methods" tabindex="0">
+        <div class="ch-sdk-source-list">${sourcesMarkup}</div>
+      </div>
+      ${sourceActionsListMarkup}
       <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" data-action="attach-selected-source" type="button" ${snapshot.submitting || !snapshot.selectedSource ? 'disabled' : ''} ${snapshot.submitting ? 'aria-busy="true"' : ''}>
         ${renderButtonLabel(
           snapshot.submitting

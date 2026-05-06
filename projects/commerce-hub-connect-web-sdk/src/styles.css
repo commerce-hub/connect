@@ -54,6 +54,10 @@
   gap: 18px;
 }
 
+.ch-sdk-card-body--payment-list {
+  gap: 12px;
+}
+
 .ch-sdk-card-body.is-step-entering {
   animation: ch-sdk-step-enter 160ms ease-out;
 }
@@ -83,6 +87,10 @@
 .ch-sdk-stack {
   display: grid;
   gap: 18px;
+}
+
+.ch-sdk-stack--payment-list {
+  gap: 8px;
 }
 
 .ch-sdk-grid {
@@ -344,7 +352,36 @@
 
 .ch-sdk-source-list {
   display: grid;
-  gap: 18px;
+  gap: 8px;
+}
+
+.ch-sdk-source-scroll {
+  box-sizing: border-box;
+  max-height: 201px;
+  overflow-y: auto;
+  padding-right: 10px;
+  scrollbar-color: var(--ch-sdk-border) #eef2f7;
+  scrollbar-width: thin;
+}
+
+.ch-sdk-source-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ch-sdk-source-scroll::-webkit-scrollbar-track {
+  border-radius: 2px;
+  background: #eef2f7;
+}
+
+.ch-sdk-source-scroll::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: var(--ch-sdk-border);
+}
+
+.ch-sdk-source-scroll:focus-visible {
+  outline: 0;
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ch-sdk-primary, #084acc) 16%, white);
 }
 
 .ch-sdk-source-actions-list {
