@@ -465,11 +465,16 @@ function renderPaymentListStep(
     snapshot.supportedTenderTypes.includes('BANK_ACCOUNT')
       ? renderSourceAction('add-bank', 'Add bank account', renderAddBankIcon())
       : '',
-  ].join('');
+  ]
+    .filter(Boolean)
+    .join('');
+  const sourceActionsListMarkup = sourceActionsMarkup
+    ? `<div class="ch-sdk-source-actions-list">${sourceActionsMarkup}</div>`
+    : '';
 
   return `
     <div class="ch-sdk-stack">
-      <div class="ch-sdk-source-list">${sourcesMarkup}${sourceActionsMarkup}</div>
+      <div class="ch-sdk-source-list">${sourcesMarkup}${sourceActionsListMarkup}</div>
       <button class="ch-sdk-button${snapshot.submitting ? ' is-loading' : ''}" data-action="attach-selected-source" type="button" ${snapshot.submitting || !snapshot.selectedSource ? 'disabled' : ''} ${snapshot.submitting ? 'aria-busy="true"' : ''}>
         ${renderButtonLabel(
           snapshot.submitting

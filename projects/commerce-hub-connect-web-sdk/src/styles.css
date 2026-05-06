@@ -347,8 +347,12 @@
   gap: 18px;
 }
 
+.ch-sdk-source-actions-list {
+  display: grid;
+  gap: 8px;
+}
+
 .ch-sdk-source-option,
-.ch-sdk-source-action,
 .ch-sdk-success-summary {
   box-sizing: border-box;
   display: grid;
@@ -380,8 +384,17 @@
 }
 
 .ch-sdk-source-action {
+  box-sizing: border-box;
+  display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  min-height: 50px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 36px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
   color: var(--ch-sdk-primary, #084acc);
   font-size: 13px;
   font-weight: 600;

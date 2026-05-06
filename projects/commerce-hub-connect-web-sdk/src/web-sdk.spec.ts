@@ -93,6 +93,8 @@ describe('web sdk', () => {
     expect(commerceHubConnectWebSdkInlineCss).toContain('background: var(--ch-sdk-action);');
     expect(commerceHubConnectWebSdkInlineCss).toContain('border: 1px solid var(--ch-sdk-action);');
     expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-source-action');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-source-actions-list');
+    expect(commerceHubConnectWebSdkInlineCss).toContain('min-height: 36px;');
     expect(commerceHubConnectWebSdkInlineCss).toContain('box-shadow: none;');
     expect(commerceHubConnectWebSdkInlineCss).toContain('.ch-sdk-spinner');
     expect(commerceHubConnectWebSdkInlineCss).toContain('@media (prefers-reduced-motion: reduce)');
@@ -162,6 +164,7 @@ describe('web sdk', () => {
     expect(instance.hostElement.querySelector('.ch-sdk-source-option.is-selected')).not.toBeNull();
     expect(instance.hostElement.querySelector('.ch-sdk-source-check')).not.toBeNull();
     expect(instance.hostElement.querySelectorAll('.ch-sdk-source-action').length).toBe(2);
+    expect(instance.hostElement.querySelector('.ch-sdk-source-actions-list')).not.toBeNull();
     expect(instance.hostElement.querySelector('[data-action="add-card"] svg')).not.toBeNull();
     expect(instance.hostElement.querySelector('[data-action="add-bank"] svg')).not.toBeNull();
     expect(instance.hostElement.querySelector('.ch-sdk-pill-actions')).toBeNull();
