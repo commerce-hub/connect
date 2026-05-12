@@ -1,172 +1,68 @@
-# Commerce Hub Connect Wallet SDK
+# Commerce Hub Connect wallet SDK workspace
 
-Angular 20 workspace containing:
+This workspace includes three local example surfaces for the Commerce Hub Connect integration:
 
-- `projects/commerce-hub-connect-sdk`: reusable standalone SDK library
-- `projects/commerce-hub-connect-web-sdk`: browser bundle that exposes `window.CommerceHubConnectWebSdk`
-- `src/app`: Angular demo host application
+- **Web SDK example** — plain browser host in `projects/commerce-hub-connect-web-sdk/example/index.html`
+- **Angular binding example** — standalone Angular host in `projects/commerce-hub-connect-angular-app/example/example-app.component.ts`
+- **React binding example** — Vite host app in `projects/commerce-hub-connect-react-app/src/example-app.tsx`
 
-## Features
+## Run the examples
 
-- OTP-based interaction flow over the Commerce Hub APIs
-- External interaction creation, with the created `InteractionResponse` passed into SDK initialization
-- Card capture with validation, masking, and PCI-vault integration hooks
-- Optional bank account capture and Pay By Bank support
-- White-label theming through shared SDK configuration
-- Framework-agnostic web bundle with `mount(target, options, environment?)`
-
-## Run Demo
-```bash
-npm run build:web-sdk-widget #if the bundle is stale
-npm run start:web-sdk-example
-```
-
-## Run Locally
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Start the Angular demo application with the local `/api` proxy:
-
-```bash
-npm start
-```
-
-## Build
-
-Build the Angular demo application:
-
-```bash
-npm run build
-```
-
-Build the Angular SDK library:
-
-```bash
-npm run build:sdk
-```
-
-Build the embeddable web SDK bundle:
+### Web SDK example
 
 ```bash
 npm run build:web-sdk-widget
+npm run start:web-sdk-example
 ```
 
-That command writes:
-
-- `projects/commerce-hub-connect-web-sdk/dist/CommerceHubConnectSDK.js`
-- `projects/commerce-hub-connect-web-sdk/dist/CommerceHubConnectSDK.d.ts`
-
-## Optional Generator
-
-Generate a low-level browser API client scaffold without the widget wrapper:
+### Angular binding example
 
 ```bash
-npm run generate:web-sdk-client
+npm run start:angular-binding-example
 ```
 
-## Browser Integration
+This serves the Angular host on port `4500` with local proxy routing for `/commerce-hub-proxy/<environment>`.
 
-```html
-<script src="/path/to/CommerceHubConnectSDK.js"></script>
-<div id="wallet-sdk"></div>
-<script>
-  async function startWallet() {
-    const environment = 'prod';
-    const apiBaseUrl = window.CommerceHubConnectWebSdk.resolveApiBaseUrl(environment);
+### React binding example
 
-    const createResponse = await fetch(`${apiBaseUrl}/merchant/interaction/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        sessionReferenceId: 'merchant-session-001',
-        merchantTransactionId: 'txn-10001',
-        merchantOrderId: 'order-20002',
-        merchantInvoiceNumber: 'invoice-30003',
-        authType: 'FINAL_SALE',
-        expiryMinutes: 10,
-        email: 'merchant@example.com',
-        allowedTenderTypes: ['CARD'],
-        allowEmailChange: false,
-        merchantData: {
-          clientId: 'laika',
-          merchantId: '100014000315473',
-          terminalId: '10000001',
-        },
-        wallet: true,
-      }),
-    }).then((response) => response.json());
-
-    await window.CommerceHubConnectWebSdk.mount(
-      '#wallet-sdk',
-      {
-        interaction: createResponse,
-        configuration: {
-          email: 'merchant@example.com',
-          wallet: true,
-          onSuccess(result) {
-            console.log(result);
-          },
-          onError(error) {
-            console.error(error);
-          },
-        },
-        whiteLabel: {
-          primaryColor: '#0a5dff',
-          secondaryColor: '#627d98',
-        },
-      },
-      environment,
-    );
-  }
-
-  startWallet().catch((error) => console.error(error));
-</script>
+```bash
+npm run start:react-binding-example
 ```
 
-`environment` accepts `dev`, `qa`, `cat`, or `prod` and defaults to `prod` when omitted.
+This starts the Vite host on port `4173` with local proxy routing for `/commerce-hub-proxy/<environment>`.
 
-The SDK resolves its backend URL internally from `environment`. Use
-`window.CommerceHubConnectWebSdk.resolveApiBaseUrl(environment)` for the external
-`interaction/create` request so the host page matches the same environment mapping. On local browser
-origins such as `localhost` and `127.0.0.1`, that resolver returns a same-origin
-`/commerce-hub-proxy/<environment>` path; otherwise it returns the configured Commerce Hub origin
-for that environment.
+## React binding library
 
-## Initialize Boundary
+```bash
+npm run build:react-binding
+npm run pack:react-binding
+npm run test:react-binding
+```
 
-Parameters moved out of `CommerceHubSdkConfiguration` and into the external `interaction/create`
-request because the SDK no longer uses them after creation:
+`build:react-binding` writes the distributable package files to
+`projects/commerce-hub-connect-react-app/dist`, and `pack:react-binding` creates a tarball you can
+hand to another app team.
 
-- `sessionReferenceId`
-- `merchantTransactionId`
-- `merchantOrderId`
-- `merchantInvoiceNumber`
-- `authType`
-- `expiryMinutes`
-- `allowEmailChange`
-- `allowedTenderTypes`
-- `merchantData.clientId`
-- `merchantData.merchantId`
-- `merchantData.terminalId`
+## Angular binding library
 
-Parameters that remain in `CommerceHubSdkConfiguration` because the mounted SDK still uses them
-after creation:
+```bash
+npm run build:angular-binding
+npm run test:angular-binding
+npm run build:angular-binding-example
+npm run test:angular-binding-example
+npm run test:angular-binding-smoke
+```
 
-- `onSuccess`
-- `onError`
-- `email` for `otp/send` when the interaction response does not carry the raw address
-- `paymentSelectionTitle`
-- `paymentSelectionConfirmLabel`
-- `wallet`
-- `whiteLabel`
-- `payByBank`
+## Verification commands
 
-Previously exposed `region`, `language`, and `mountElementId` were not used by the current SDK
-flow and are no longer part of the initialization contract.
+```bash
+npm run build
+npm run test
+npm run test:angular-binding-smoke
+npm run typecheck:react-binding
+npm run build:react-binding
+npm run pack:react-binding
+npm run test:react-binding
+npm run test:web-sdk-smoke
+npm run verify:framework-bindings
+```

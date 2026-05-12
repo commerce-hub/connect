@@ -1,9 +1,9 @@
+import type { CommerceHubConnectEnvironment } from './contracts/environment';
 import type {
-  CommerceHubConnectEnvironment,
   CommerceHubSdkConfiguration,
-  InteractionResponse,
   CommerceHubWhiteLabelOptions,
-} from 'commerce-hub-connect-sdk';
+} from './contracts/sdk-models';
+import type { InteractionResponse } from './contracts/api-models';
 
 export interface CommerceHubConnectWebSdkMountOptions {
   interaction: InteractionResponse;

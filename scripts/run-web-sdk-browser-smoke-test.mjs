@@ -11,6 +11,11 @@ const chromeExecutable =
 const smokeEntryUrlPath = '/smoke/index.html';
 const smokeServerPort = 8080;
 const smokeServerHost = 'localhost';
+const expectedMerchantData = {
+  clientId: 'marriot',
+  merchantId: '101475000000009',
+  terminalId: '10000001',
+};
 
 const CONTENT_TYPES = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -25,9 +30,11 @@ const CONTENT_TYPES = new Map([
 
 const smokeState = {
   counters: Object.create(null),
-  requests: {
-    createInteraction: [],
-  },
+  interactionHeaders: Object.create(null),
+  interactions: new Map(),
+  interactionOrder: [],
+  currentInteractionId: null,
+  nextInteractionNumber: 1,
 };
 
 await assertFileExists(chromeExecutable, 'Chrome executable');
@@ -47,7 +54,16 @@ try {
 
   if (!dumpedDom.includes('data-smoke-status="passed"')) {
     console.error('Smoke test DOM did not report success.');
-    console.error(JSON.stringify(smokeState, null, 2));
+    console.error(
+      JSON.stringify(
+        {
+          counters: smokeState.counters,
+          interactionOrder: smokeState.interactionOrder,
+        },
+        null,
+        2,
+      ),
+    );
     console.error(dumpedDom);
     process.exitCode = 1;
   }
@@ -68,52 +84,175 @@ function createSmokeServer(rootDir, state) {
       const normalizedPath = normalizeApiPath(requestUrl.pathname);
 
       if (requestUrl.pathname === '/__smoke__/state') {
-        writeJson(response, 200, state);
+        writeJson(response, 200, {
+          counters: state.counters,
+          interactionHeaders: state.interactionHeaders,
+          interactions: state.interactionOrder,
+          currentInteractionId: state.currentInteractionId,
+        });
         return;
       }
+
+      recordInteractionHeader(state, request, normalizedPath);
 
       if (normalizedPath === '/merchant/interaction/create' && request.method === 'POST') {
         incrementCounter(state, 'POST /merchant/interaction/create');
         const requestBody = await readJsonBody(request);
-
-        state.requests.createInteraction.push(requestBody);
-
-        writeJson(response, 200, {
-          interactionId: `interaction-${state.requests.createInteraction.length}`,
-          status: 'EMAIL_REQUESTED',
-          email: requestBody?.email || '',
-          allowedTenderTypes: requestBody?.allowedTenderTypes || ['CARD'],
-          paymentSources: [],
-          allowEmailChange: requestBody?.allowEmailChange ?? false,
-        });
+        const interaction = createInteractionRecord(state, requestBody);
+        writeJson(response, 200, interaction.snapshot);
         return;
       }
 
       if (normalizedPath === '/interaction/otp/send' && request.method === 'POST') {
         incrementCounter(state, 'POST /interaction/otp/send');
-        writeJson(response, 200, {
-          interactionId: `interaction-${state.requests.createInteraction.length || 1}`,
+        const interaction = requireCurrentInteraction(state);
+        interaction.snapshot = {
+          ...interaction.snapshot,
           status: 'OTP_VALIDATION_PENDING',
-          allowedTenderTypes: state.requests.createInteraction.at(-1)?.allowedTenderTypes || ['CARD'],
-          paymentSources: [],
-          allowEmailChange: state.requests.createInteraction.at(-1)?.allowEmailChange ?? false,
-        });
+        };
+        writeJson(response, 200, interaction.snapshot);
         return;
       }
 
       if (normalizedPath === '/interaction/otp/send/email' && request.method === 'POST') {
         incrementCounter(state, 'POST /interaction/otp/send/email');
-        writeJson(response, 200, {
-          interactionId: `interaction-${state.requests.createInteraction.length || 1}`,
+        const interaction = requireCurrentInteraction(state);
+        interaction.snapshot = {
+          ...interaction.snapshot,
           status: 'OTP_VALIDATION_PENDING',
-          allowedTenderTypes: state.requests.createInteraction.at(-1)?.allowedTenderTypes || ['CARD'],
-          paymentSources: [],
-          allowEmailChange: state.requests.createInteraction.at(-1)?.allowEmailChange ?? false,
+        };
+        writeJson(response, 200, interaction.snapshot);
+        return;
+      }
+
+      if (normalizedPath === '/interaction/otp/validate' && request.method === 'POST') {
+        incrementCounter(state, 'POST /interaction/otp/validate');
+        const interaction = requireCurrentInteraction(state);
+        interaction.snapshot = buildPostOtpInteraction(interaction);
+        writeJson(response, 200, interaction.snapshot);
+        return;
+      }
+
+      if (normalizedPath === '/interaction' && request.method === 'GET') {
+        incrementCounter(state, 'GET /interaction');
+        const interaction = requireCurrentInteraction(state);
+        writeJson(response, 200, interaction.snapshot);
+        return;
+      }
+
+      if (
+        normalizedPath.startsWith('/interaction/payment-source/') &&
+        normalizedPath.endsWith('/attach') &&
+        request.method === 'POST'
+      ) {
+        incrementCounter(state, `${request.method} ${normalizedPath}`);
+        const interaction = requireCurrentInteraction(state);
+        const paymentSourceId = normalizedPath
+          .replace('/interaction/payment-source/', '')
+          .replace('/attach', '')
+          .split('/')[0];
+        const source = findSource(interaction, paymentSourceId);
+
+        interaction.snapshot = {
+          ...interaction.snapshot,
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: source,
+          paymentSources: interaction.snapshot.paymentSources ?? [],
+        };
+        writeJson(response, 200, interaction.snapshot);
+        return;
+      }
+
+      if (normalizedPath === '/customer' && request.method === 'GET') {
+        incrementCounter(state, 'GET /customer');
+        const interaction = requireCurrentInteraction(state);
+        writeJson(response, 200, interaction.profile);
+        return;
+      }
+
+      if (normalizedPath === '/customer/billing-address' && request.method === 'POST') {
+        incrementCounter(state, 'POST /customer/billing-address');
+        const interaction = requireCurrentInteraction(state);
+        const requestBody = await readJsonBody(request);
+        interaction.profile.billingAddress.push(requestBody);
+        writeJson(response, 204, undefined);
+        return;
+      }
+
+      if (normalizedPath === '/customer/source' && request.method === 'POST') {
+        incrementCounter(state, 'POST /customer/source');
+        const interaction = requireCurrentInteraction(state);
+        const requestBody = await readJsonBody(request);
+        interaction.createdCardCount += 1;
+        const paymentSourceId = `card-created-${interaction.createdCardCount}`;
+        const source = {
+          ...requestBody,
+          id: paymentSourceId,
+        };
+        interaction.profile.sources.unshift(source);
+        interaction.snapshot = {
+          ...interaction.snapshot,
+          paymentSources: [source, ...(interaction.snapshot.paymentSources ?? [])],
+        };
+        writeJson(response, 200, { paymentSourceId });
+        return;
+      }
+
+      if (
+        normalizedPath.startsWith('/customer/mask/') &&
+        request.method === 'POST'
+      ) {
+        incrementCounter(state, `${request.method} ${normalizedPath}`);
+        const requestBody = await readJsonBody(request);
+        writeJson(response, 200, {
+          value: requestBody?.value ?? '',
         });
         return;
       }
 
-      if (normalizedPath.startsWith('/merchant/') || normalizedPath.startsWith('/interaction/')) {
+      if (normalizedPath === '/pbb/session' && request.method === 'GET') {
+        incrementCounter(state, 'GET /pbb/session');
+        writeJson(response, 200, {
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        });
+        return;
+      }
+
+      if (
+        normalizedPath === '/pbb/session/agg-session-1/p-token-1' &&
+        request.method === 'PUT'
+      ) {
+        incrementCounter(state, 'PUT /pbb/session/agg-session-1/p-token-1');
+        const interaction = requireCurrentInteraction(state);
+        const bankSource = {
+          id: 'bank-created-1',
+          name: 'Connected checking',
+          tenderType: 'BANK_ACCOUNT',
+          bankAccount: {
+            bankName: 'Smoke National Bank',
+            routingNumber: '110000000',
+            accountNumber: '00001234',
+            accountType: 'CHECKING',
+          },
+        };
+        interaction.profile.sources.unshift(bankSource);
+        interaction.snapshot = {
+          ...interaction.snapshot,
+          paymentSources: [bankSource, ...(interaction.snapshot.paymentSources ?? [])],
+        };
+        writeJson(response, 204, undefined);
+        return;
+      }
+
+      if (
+        normalizedPath.startsWith('/merchant/') ||
+        normalizedPath.startsWith('/interaction/') ||
+        normalizedPath.startsWith('/customer/') ||
+        normalizedPath.startsWith('/pbb/')
+      ) {
         incrementCounter(state, `${request.method || 'GET'} ${normalizedPath}`);
         writeJson(response, 404, {
           message: `No smoke stub is defined for ${request.method || 'GET'} ${normalizedPath}.`,
@@ -128,6 +267,125 @@ function createSmokeServer(rootDir, state) {
       });
     }
   });
+}
+
+function createInteractionRecord(state, requestBody) {
+  assertExpectedMerchantData(requestBody?.merchantData);
+
+  const scenario = String(requestBody?.sessionReferenceId ?? 'default').trim() || 'default';
+  const interactionId = `interaction-${state.nextInteractionNumber++}`;
+  const allowedTenderTypes = requestBody?.allowedTenderTypes?.length
+    ? requestBody.allowedTenderTypes
+    : ['CARD'];
+  const email = requestBody?.email || '';
+
+  const baseSnapshot =
+    scenario === 'saved-source'
+      ? {
+          interactionId,
+          status: 'EMAIL_REQUESTED',
+          email,
+          paymentSources: [],
+          allowedTenderTypes,
+          allowEmailChange: true,
+        }
+      : {
+          interactionId,
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          email,
+          paymentSources: [],
+          allowedTenderTypes,
+          allowEmailChange: true,
+        };
+
+  const record = {
+    scenario,
+    interactionId,
+    snapshot: baseSnapshot,
+    profile: {
+      email,
+      billingAddress: [],
+      sources: [],
+    },
+    createdCardCount: 0,
+  };
+
+  state.interactions.set(interactionId, record);
+  state.interactionOrder.push(interactionId);
+  state.currentInteractionId = interactionId;
+  return record;
+}
+
+function assertExpectedMerchantData(merchantData) {
+  if (
+    merchantData?.clientId === expectedMerchantData.clientId &&
+    merchantData?.merchantId === expectedMerchantData.merchantId &&
+    merchantData?.terminalId === expectedMerchantData.terminalId
+  ) {
+    return;
+  }
+
+  throw new Error(
+    `Smoke create request missing expected merchantData: ${JSON.stringify(merchantData)}`,
+  );
+}
+
+function buildPostOtpInteraction(interaction) {
+  if (interaction.scenario === 'saved-source') {
+    const source = {
+      id: 'card-saved-1',
+      name: 'Visa saved card',
+      tenderType: 'CARD',
+      card: {
+        cardNumber: '4111111111111111',
+        nameOnCard: 'Smoke Tester',
+        expirationMonth: '12',
+        expirationYear: '30',
+        cvv: '***',
+        network: 'Visa',
+      },
+    };
+    interaction.profile.sources = [source];
+    return {
+      ...interaction.snapshot,
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [source],
+      selectedSource: source,
+    };
+  }
+
+  return {
+    ...interaction.snapshot,
+    status: 'PAYMENT_SOURCE_REQUESTED',
+  };
+}
+
+function findSource(interaction, paymentSourceId) {
+  return (
+    interaction.profile.sources.find((source) => source.id === paymentSourceId) ||
+    interaction.snapshot.paymentSources?.find((source) => source.id === paymentSourceId) || {
+      id: paymentSourceId,
+      name: 'Attached source',
+      tenderType: 'CARD',
+      card: {
+        cardNumber: '4111111111111111',
+        nameOnCard: 'Attached source',
+        expirationMonth: '12',
+        expirationYear: '30',
+        cvv: '***',
+        network: 'Visa',
+      },
+    }
+  );
+}
+
+function requireCurrentInteraction(state) {
+  const interaction = state.interactions.get(state.currentInteractionId);
+  if (!interaction) {
+    throw new Error('No active smoke interaction is available.');
+  }
+
+  return interaction;
 }
 
 function normalizeApiPath(pathname) {
@@ -225,7 +483,7 @@ async function runChromeSmoke(url, executablePath) {
     '--disable-default-apps',
     '--disable-sync',
     '--dump-dom',
-    '--virtual-time-budget=20000',
+    '--virtual-time-budget=25000',
     url,
   ];
 
@@ -255,39 +513,58 @@ function incrementCounter(state, key) {
   state.counters[key] = (state.counters[key] || 0) + 1;
 }
 
+function recordInteractionHeader(state, request, normalizedPath) {
+  if (!normalizedPath.startsWith('/')) {
+    return;
+  }
+
+  const requestKey = `${request.method || 'GET'} ${normalizedPath}`;
+  if (
+    requestKey !== 'GET /pbb/session' &&
+    requestKey !== 'PUT /pbb/session/agg-session-1/p-token-1'
+  ) {
+    return;
+  }
+
+  state.interactionHeaders[requestKey] = request.headers['x-interaction-id'] ?? null;
+}
+
 function readJsonBody(request) {
   return new Promise((resolve, reject) => {
     const chunks = [];
 
-    request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
-    request.on('end', () => {
-      const text = Buffer.concat(chunks).toString('utf8').trim();
+    request.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
 
-      if (!text) {
+    request.on('end', () => {
+      const buffer = Buffer.concat(chunks);
+      if (!buffer.length) {
         resolve({});
         return;
       }
 
       try {
-        resolve(JSON.parse(text));
+        resolve(JSON.parse(buffer.toString('utf8')));
       } catch (error) {
         reject(error);
       }
     });
+
     request.on('error', reject);
   });
 }
 
-function writeJson(response, statusCode, body) {
-  response.writeHead(statusCode, {
+function writeJson(response, status, body) {
+  response.writeHead(status, {
     'Cache-Control': 'no-store',
     'Content-Type': 'application/json; charset=utf-8',
   });
-  response.end(JSON.stringify(body));
+  response.end(body === undefined ? '' : JSON.stringify(body));
 }
 
-function writePlainText(response, statusCode, body) {
-  response.writeHead(statusCode, {
+function writePlainText(response, status, body) {
+  response.writeHead(status, {
     'Cache-Control': 'no-store',
     'Content-Type': 'text/plain; charset=utf-8',
   });
@@ -298,35 +575,34 @@ async function assertFileExists(filePath, label) {
   try {
     await fs.access(filePath);
   } catch {
-    throw new Error(`${label} was not found at ${filePath}`);
+    throw new Error(`${label} was not found at ${filePath}.`);
   }
 }
 
+function isEnoent(error) {
+  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT');
+}
+
 function runCommand(command, args, options = {}) {
-  const { pipeStdout = true, pipeStderr = true } = options;
-
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: workspaceRoot,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
     let stdout = '';
     let stderr = '';
+    const child = spawn(command, args, {
+      cwd: workspaceRoot,
+      stdio: options.pipeStdout === false ? ['ignore', 'pipe', 'inherit'] : ['ignore', 'pipe', 'pipe'],
+    });
 
-    child.stdout.on('data', (chunk) => {
-      const text = chunk.toString();
-      stdout += text;
-      if (pipeStdout) {
-        process.stdout.write(text);
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk.toString();
+      if (options.pipeStdout === false) {
+        process.stdout.write(chunk);
       }
     });
 
-    child.stderr.on('data', (chunk) => {
-      const text = chunk.toString();
-      stderr += text;
-      if (pipeStderr) {
-        process.stderr.write(text);
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk.toString();
+      if (options.pipeStdout !== false) {
+        process.stderr.write(chunk);
       }
     });
 
@@ -340,8 +616,4 @@ function runCommand(command, args, options = {}) {
       reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'unknown'}.`));
     });
   });
-}
-
-function isEnoent(error) {
-  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT');
 }

@@ -1,0 +1,31 @@
+{
+  "name": "commerce-hub-connect-web-sdk",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "types": "./CommerceHubConnectSDK.d.ts",
+  "files": [
+    "index.js",
+    "CommerceHubConnectSDK.js",
+    "CommerceHubConnectSDK.d.ts",
+    "contracts",
+    "web-sdk-types.d.ts",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./CommerceHubConnectSDK.d.ts",
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./browser": {
+      "types": "./CommerceHubConnectSDK.d.ts",
+      "default": "./CommerceHubConnectSDK.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "./CommerceHubConnectSDK.js"
+  ]
+}

@@ -1,21 +1,42 @@
 {
-  "name": "commerce-hub-connect-react-app",
-  "private": true,
+  "name": "commerce-hub-connect-react-binding",
   "version": "0.0.1",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "node ../../scripts/build-react-binding-library.mjs",
+    "build:example": "vite build --mode example",
+    "build:library:bundle": "vite build --mode library",
+    "build:library:types": "tsc -p tsconfig.build.json",
+    "preview": "vite preview --mode example",
+    "prepack": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {
-    "react": "latest",
-    "react-dom": "latest"
+  "peerDependencies": {
+    "commerce-hub-connect-web-sdk": "^0.0.1",
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "devDependencies": {
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
     "typescript": "latest",
     "vite": "latest"
   }

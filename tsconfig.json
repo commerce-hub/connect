@@ -5,7 +5,10 @@
   "compilerOptions": {
     "paths": {
       "commerce-hub-connect-sdk": [
-        "./projects/commerce-hub-connect-sdk/src/public-api.ts"
+        "./projects/commerce-hub-connect-angular-app/src/public-api.ts"
+      ],
+      "commerce-hub-connect-web-sdk": [
+        "./projects/commerce-hub-connect-web-sdk/src/public-api.ts"
       ]
     },
     "strict": true,
@@ -30,16 +33,16 @@
   "files": [],
   "references": [
     {
-      "path": "./tsconfig.app.json"
+      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.lib.json"
     },
     {
-      "path": "./tsconfig.spec.json"
+      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.spec.json"
     },
     {
-      "path": "./projects/commerce-hub-connect-sdk/tsconfig.lib.json"
+      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.example.app.json"
     },
     {
-      "path": "./projects/commerce-hub-connect-sdk/tsconfig.spec.json"
+      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.example.spec.json"
     },
     {
       "path": "./projects/commerce-hub-connect-web-sdk/tsconfig.app.json"
