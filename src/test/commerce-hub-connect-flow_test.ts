@@ -1,10 +1,7 @@
 import {fixture, assert, html as testingHtml} from '@open-wc/testing';
 
 import '../commerce-hub-connect.js';
-import {
-  type InteractionError,
-  type InteractionResponse,
-} from '../commerce-hub-connect.js';
+import {type InteractionResponse} from '../commerce-hub-connect.js';
 import type {CommerceHubConnect} from '../commerce-hub-connect.js';
 
 interface CapturedRequest {
@@ -55,17 +52,19 @@ const clickAction = async (el: CommerceHubConnect, action: string) => {
   await flushElement(el);
 };
 
-const eventOnce = <Detail>(
-  el: Element,
-  name: string
-): Promise<CustomEvent<Detail>> =>
-  new Promise((resolve) => {
-    el.addEventListener(
-      name,
-      (event) => resolve(event as CustomEvent<Detail>),
-      {once: true}
-    );
+const recordOutputEvents = (el: Element) => {
+  const successEvents: CustomEvent<InteractionResponse>[] = [];
+  const errorEvents: CustomEvent<unknown>[] = [];
+
+  el.addEventListener('onSuccess', (event) => {
+    successEvents.push(event as CustomEvent<InteractionResponse>);
   });
+  el.addEventListener('onError', (event) => {
+    errorEvents.push(event as CustomEvent<unknown>);
+  });
+
+  return {successEvents, errorEvents};
+};
 
 suite('commerce-hub-connect flow', () => {
   const originalFetch = window.fetch;
@@ -325,7 +324,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(requests[0].bodyText, '');
   });
 
-  test('continue with selected method attaches source and emits onSuccess', async () => {
+  test('continue with selected method attaches source without emitting onSuccess', async () => {
     const requests: CapturedRequest[] = [];
     const apiResponse: InteractionResponse = {
       interactionId: 'interaction-payment',
@@ -368,10 +367,9 @@ suite('commerce-hub-connect flow', () => {
         },
       ],
     });
-    const success = eventOnce<InteractionResponse>(el, 'onSuccess');
+    const {successEvents, errorEvents} = recordOutputEvents(el);
 
     await clickAction(el, 'attach-payment-source');
-    const successEvent = await success;
 
     assert.lengthOf(requests, 1);
     assert.equal(
@@ -384,10 +382,11 @@ suite('commerce-hub-connect flow', () => {
       'interaction-payment'
     );
     assert.deepEqual(el.interactionResponse, apiResponse);
-    assert.deepEqual(successEvent.detail, apiResponse);
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
   });
 
-  test('missing interactionId emits onError and keeps the current screen stable', async () => {
+  test('missing interactionId does not emit onError and keeps the current screen stable', async () => {
     let calls = 0;
 
     window.fetch = async () => {
@@ -399,14 +398,14 @@ suite('commerce-hub-connect flow', () => {
       status: 'OTP_VALIDATION_PENDING',
       email: 'wallet@example.com',
     });
-    const error = eventOnce<InteractionError>(el, 'onError');
+    const {successEvents, errorEvents} = recordOutputEvents(el);
 
     await setOtpValue(el, '123456');
     await clickAction(el, 'verify-otp');
-    const errorEvent = await error;
 
     assert.equal(calls, 0);
-    assert.equal(errorEvent.detail.code, 'MISSING_INTERACTION_ID');
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Verify your email'
@@ -425,11 +424,14 @@ suite('commerce-hub-connect flow', () => {
       status: 'OTP_VALIDATION_PENDING',
       email: 'wallet@example.com',
     });
+    const {successEvents, errorEvents} = recordOutputEvents(el);
 
     await setOtpValue(el, '123456');
     await clickAction(el, 'verify-otp');
 
     assert.equal(el.interactionResponse?.status, 'OTP_VALIDATION_FAILED');
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
     assert.exists(el.shadowRoot!.querySelector('[role="alert"]'));
     assert.equal(
       el

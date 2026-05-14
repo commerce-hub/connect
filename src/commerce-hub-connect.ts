@@ -72,8 +72,6 @@ const demoPaymentMethods: PaymentMethod[] = [
  * @cssprop --chc-copy - Secondary copy color.
  * @cssprop --chc-muted - Muted helper text color.
  * @cssprop --chc-border - Control border color.
- * @fires onSuccess - Emits an InteractionResponse object to the host.
- * @fires onError - Emits an InteractionError object to the host.
  */
 @customElement('commerce-hub-connect')
 export class CommerceHubConnect extends LitElement {
@@ -94,10 +92,6 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private otpErrorMessage?: string;
 
-  private sdkInteractionResponse?: InteractionResponse;
-
-  private sdkSuccessResponse?: InteractionResponse;
-
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (
       changedProperties.has('interactionResponse') &&
@@ -107,31 +101,6 @@ export class CommerceHubConnect extends LitElement {
         this.interactionResponse,
         this.selectedPaymentSourceId
       );
-    }
-  }
-
-  protected override updated(changedProperties: PropertyValues<this>) {
-    if (
-      changedProperties.has('interactionResponse') &&
-      this.interactionResponse
-    ) {
-      const isSdkUpdate =
-        this.sdkInteractionResponse === this.interactionResponse;
-      const shouldEmitSdkSuccess =
-        this.sdkSuccessResponse === this.interactionResponse;
-
-      this.sdkInteractionResponse = undefined;
-      this.sdkSuccessResponse = undefined;
-
-      if (isSdkUpdate) {
-        if (shouldEmitSdkSuccess) {
-          this.emitSuccess(this.interactionResponse);
-        }
-
-        return;
-      }
-
-      this.emitSuccess(this.interactionResponse);
     }
   }
 
@@ -329,10 +298,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'add-bank-account' || action === 'add-card') {
-      this.emitError({
-        code: 'ACTION_NOT_AVAILABLE',
-        message: 'This payment method action is not available in this flow.',
-      });
+      return;
     }
   };
 
@@ -403,11 +369,6 @@ export class CommerceHubConnect extends LitElement {
         ...this.interactionResponse,
         status: 'OTP_VALIDATION_FAILED',
       });
-      this.emitError({
-        code: 'OTP_VALIDATION_FAILED',
-        message: this.otpErrorMessage,
-        cause,
-      });
     } finally {
       this.pendingAction = undefined;
     }
@@ -431,11 +392,7 @@ export class CommerceHubConnect extends LitElement {
       this.otpErrorMessage = undefined;
       this.setInteractionResponseFromSdk(interactionResponse);
     } catch (cause) {
-      this.emitError({
-        code: 'OTP_RESEND_FAILED',
-        message: 'Unable to resend the verification code.',
-        cause,
-      });
+      void cause;
     } finally {
       this.pendingAction = undefined;
     }
@@ -449,10 +406,6 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (!this.selectedPaymentSourceId) {
-      this.emitError({
-        code: 'MISSING_PAYMENT_SOURCE',
-        message: 'Select a payment method to continue.',
-      });
       return;
     }
 
@@ -469,15 +422,9 @@ export class CommerceHubConnect extends LitElement {
       );
       const interactionResponse = interactionResponseFromApi(response);
 
-      this.setInteractionResponseFromSdk(interactionResponse, {
-        emitSuccess: true,
-      });
+      this.setInteractionResponseFromSdk(interactionResponse);
     } catch (cause) {
-      this.emitError({
-        code: 'PAYMENT_SOURCE_ATTACH_FAILED',
-        message: 'Unable to continue with the selected payment method.',
-        cause,
-      });
+      void cause;
     } finally {
       this.pendingAction = undefined;
     }
@@ -490,12 +437,6 @@ export class CommerceHubConnect extends LitElement {
       return interactionId;
     }
 
-    this.emitError({
-      code: 'MISSING_INTERACTION_ID',
-      message:
-        'CommerceHub Connect requires interactionResponse.interactionId to continue.',
-    });
-
     return undefined;
   }
 
@@ -506,32 +447,9 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private setInteractionResponseFromSdk(
-    interactionResponse: InteractionResponse,
-    options: {emitSuccess?: boolean} = {}
+    interactionResponse: InteractionResponse
   ) {
-    this.sdkInteractionResponse = interactionResponse;
-    this.sdkSuccessResponse = options.emitSuccess
-      ? interactionResponse
-      : undefined;
     this.interactionResponse = interactionResponse;
-  }
-
-  protected emitSuccess(interactionResponse: InteractionResponse) {
-    this.dispatchOutputEvent(ON_SUCCESS_EVENT, interactionResponse);
-  }
-
-  protected emitError(interactionError: InteractionError) {
-    this.dispatchOutputEvent(ON_ERROR_EVENT, interactionError);
-  }
-
-  private dispatchOutputEvent<Detail>(name: string, detail: Detail) {
-    this.dispatchEvent(
-      new CustomEvent<Detail>(name, {
-        detail,
-        bubbles: true,
-        composed: true,
-      })
-    );
   }
 }
 

@@ -31,8 +31,9 @@ no-saved-payment-methods variant.
 Hosts pass an `InteractionResponse` into `.interactionResponse`. When the SDK
 handles OTP validation, OTP resend, or saved payment-source attach actions, it
 uses `interactionResponse.interactionId` as the `x-interaction-id` header. If
-`interactionId` is missing, the widget emits `onError` and does not call the
-CommerceHub API.
+`interactionId` is missing, the widget does not call the CommerceHub API and
+keeps the current screen stable. This flow slice does not emit `onSuccess` or
+`onError` events.
 
 ## Theming
 

@@ -125,13 +125,8 @@
         </article>
 
         <article class="payload-card">
-          <h2>Output: onSuccess event.detail</h2>
-          <pre id="success-output">Waiting for widget success output...</pre>
-        </article>
-
-        <article class="payload-card">
-          <h2>Output: onError event.detail</h2>
-          <pre id="error-output">Waiting for widget error output...</pre>
+          <h2>Events</h2>
+          <pre>This SDK slice does not emit onSuccess or onError.</pre>
         </article>
       </section>
     </main>
@@ -196,24 +191,13 @@
 
       const widget = document.querySelector('#connect-widget');
       const input = document.querySelector('#interaction-input');
-      const successOutput = document.querySelector('#success-output');
-      const errorOutput = document.querySelector('#error-output');
       const scenarioControls = document.querySelector('#scenario-controls');
       const format = (value) => JSON.stringify(value, null, 2);
-
-      widget.addEventListener('onSuccess', (event) => {
-        successOutput.textContent = format(event.detail);
-      });
-      widget.addEventListener('onError', (event) => {
-        errorOutput.textContent = format(event.detail);
-      });
 
       const setScenario = (name) => {
         const interactionResponse = structuredClone(scenarios[name]);
 
         input.textContent = format(interactionResponse);
-        successOutput.textContent = 'Waiting for widget success output...';
-        errorOutput.textContent = 'Waiting for widget error output...';
         widget.interactionResponse = interactionResponse;
 
         scenarioControls.querySelectorAll('button').forEach((button) => {

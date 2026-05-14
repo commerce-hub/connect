@@ -69,8 +69,9 @@ When `<commerce-hub-connect>` performs SDK-managed interaction calls, it uses
 `https://dev.openfx-nonprod.aws.fisv.cloud` by default and sends
 `interactionResponse.interactionId` as the `x-interaction-id` header. OTP
 validation, OTP resend, and saved payment-source attach actions require that
-`interactionId`; if it is missing, the widget emits `onError` and keeps the
-current screen stable.
+`interactionId`; if it is missing, the widget keeps the current screen stable
+and does not call the API. This flow slice does not emit `onSuccess` or
+`onError` events.
 
 Pass an `InteractionResponse` into the component with a property binding when
 the host app owns the API call:
