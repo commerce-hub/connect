@@ -132,6 +132,8 @@
     </main>
 
     <script type="module">
+      import {createCommerceHubClient} from '../commerce-hub-connect.js';
+
       const savedSources = [
         {
           tenderType: 'Card',
@@ -194,18 +196,88 @@
       const scenarioControls = document.querySelector('#scenario-controls');
       const format = (value) => JSON.stringify(value, null, 2);
 
-      const setScenario = (name) => {
-        const interactionResponse = structuredClone(scenarios[name]);
+      const initialInteractionRequest = {
+        email: 'wallet@example.com',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+        merchantData: {
+          clientId: 'demo-client',
+          merchantId: 'demo-merchant',
+          terminalId: 'demo-terminal',
+        },
+        entityData: {
+          firstName: 'Demo',
+          lastName: 'Customer',
+        },
+        advancedVerification: false,
+      };
 
+      const createInitialInteractionResponse = async () => {
+        const response = await createCommerceHubClient({}).POST(
+          '/merchant/interaction/create',
+          {body: initialInteractionRequest}
+        );
+
+        if (response.data) {
+          return response.data;
+        }
+
+        throw new Error(apiErrorMessage(response.error));
+      };
+
+      const setInteractionResponse = (interactionResponse) => {
         input.textContent = format(interactionResponse);
         widget.interactionResponse = interactionResponse;
+      };
 
+      const setActiveScenario = (name) => {
         scenarioControls.querySelectorAll('button').forEach((button) => {
           button.setAttribute(
             'aria-pressed',
             button.dataset.scenario === name ? 'true' : 'false'
           );
         });
+      };
+
+      const setScenario = (name) => {
+        const interactionResponse = structuredClone(scenarios[name]);
+
+        setInteractionResponse(interactionResponse);
+        setActiveScenario(name);
+      };
+
+      const apiErrorMessage = (error) => {
+        if (typeof error === 'string') {
+          return error;
+        }
+
+        if (
+          error &&
+          typeof error === 'object' &&
+          'message' in error &&
+          typeof error.message === 'string'
+        ) {
+          return error.message;
+        }
+
+        return 'CommerceHub API request failed.';
+      };
+
+      const initializeDemo = async () => {
+        input.textContent = 'Creating merchant interaction...';
+        setActiveScenario();
+
+        try {
+          const interactionResponse = await createInitialInteractionResponse();
+
+          setInteractionResponse(interactionResponse);
+        } catch (error) {
+          input.textContent = format({
+            message:
+              error instanceof Error
+                ? error.message
+                : 'CommerceHub API request failed.',
+          });
+        }
       };
 
       scenarioControls.addEventListener('click', (event) => {
@@ -216,7 +288,7 @@
         }
       });
 
-      setScenario('otpPending');
+      void initializeDemo();
     </script>
   </body>
 </html>
