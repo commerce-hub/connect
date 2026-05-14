@@ -19,9 +19,17 @@ export {
 export type {components, operations, paths} from './generated/openapi.js';
 
 export type InteractionResponse = components['schemas']['InteractionResponse'];
-export type InteractionResponseEvent = CustomEvent<InteractionResponse>;
+export interface InteractionError {
+  code?: string;
+  message: string;
+  cause?: unknown;
+}
 
-export const INTERACTION_RESPONSE_EVENT = 'interaction-response';
+export type OnSuccessEvent = CustomEvent<InteractionResponse>;
+export type OnErrorEvent = CustomEvent<InteractionError>;
+
+export const ON_SUCCESS_EVENT = 'onSuccess';
+export const ON_ERROR_EVENT = 'onError';
 
 type PaymentSource = NonNullable<InteractionResponse['paymentSources']>[number];
 
@@ -55,7 +63,8 @@ const demoPaymentMethods: PaymentMethod[] = [
  * @cssprop --chc-copy - Secondary copy color.
  * @cssprop --chc-muted - Muted helper text color.
  * @cssprop --chc-border - Control border color.
- * @fires interaction-response - Emits an InteractionResponse object to the host.
+ * @fires onSuccess - Emits an InteractionResponse object to the host.
+ * @fires onError - Emits an InteractionError object to the host.
  */
 @customElement('commerce-hub-connect')
 export class CommerceHubConnect extends LitElement {
@@ -69,7 +78,7 @@ export class CommerceHubConnect extends LitElement {
       changedProperties.has('interactionResponse') &&
       this.interactionResponse
     ) {
-      this.dispatchInteractionResponse(this.interactionResponse);
+      this.emitSuccess(this.interactionResponse);
     }
   }
 
@@ -112,10 +121,18 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
-  private dispatchInteractionResponse(interactionResponse: InteractionResponse) {
+  protected emitSuccess(interactionResponse: InteractionResponse) {
+    this.dispatchOutputEvent(ON_SUCCESS_EVENT, interactionResponse);
+  }
+
+  protected emitError(interactionError: InteractionError) {
+    this.dispatchOutputEvent(ON_ERROR_EVENT, interactionError);
+  }
+
+  private dispatchOutputEvent<Detail>(name: string, detail: Detail) {
     this.dispatchEvent(
-      new CustomEvent<InteractionResponse>(INTERACTION_RESPONSE_EVENT, {
-        detail: interactionResponse,
+      new CustomEvent<Detail>(name, {
+        detail,
         bubbles: true,
         composed: true,
       })
@@ -208,7 +225,8 @@ const verificationStatusToPaymentMethodStatus = (
 
 declare global {
   interface HTMLElementEventMap {
-    [INTERACTION_RESPONSE_EVENT]: InteractionResponseEvent;
+    [ON_SUCCESS_EVENT]: OnSuccessEvent;
+    [ON_ERROR_EVENT]: OnErrorEvent;
   }
 
   interface HTMLElementTagNameMap {

@@ -3,6 +3,7 @@ import {html, nothing, TemplateResult} from 'lit';
 
 import {
   CommerceHubConnect,
+  type InteractionError,
   type InteractionResponse,
 } from '../commerce-hub-connect.js';
 import {
@@ -28,6 +29,14 @@ class PrimitiveHarness extends HTMLElement {
 }
 
 customElements.define('primitive-harness', PrimitiveHarness);
+
+class EventHarness extends CommerceHubConnect {
+  emitErrorForTest(error: InteractionError) {
+    this.emitError(error);
+  }
+}
+
+customElements.define('commerce-hub-connect-event-harness', EventHarness);
 
 const renderHarness = async (template: TemplateResult) => {
   const el = (await fixture(
@@ -145,7 +154,7 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
-  test('emits interaction response changes to the host', async () => {
+  test('emits interaction response changes to the host onSuccess output', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect></commerce-hub-connect>`
     )) as CommerceHubConnect;
@@ -160,7 +169,7 @@ suite('commerce-hub-connect primitives', () => {
     };
     const events: CustomEvent<InteractionResponse>[] = [];
 
-    el.addEventListener('interaction-response', (event) => {
+    el.addEventListener('onSuccess', (event) => {
       events.push(event as CustomEvent<InteractionResponse>);
     });
 
@@ -169,6 +178,28 @@ suite('commerce-hub-connect primitives', () => {
 
     assert.lengthOf(events, 1);
     assert.strictEqual(events[0].detail, interactionResponse);
+    assert.equal(events[0].bubbles, true);
+    assert.equal(events[0].composed, true);
+  });
+
+  test('emits errors to the host onError output', async () => {
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect-event-harness></commerce-hub-connect-event-harness>`
+    )) as EventHarness;
+    const interactionError: InteractionError = {
+      code: 'DEMO_ERROR',
+      message: 'Unable to continue the interaction.',
+    };
+    const events: CustomEvent<InteractionError>[] = [];
+
+    el.addEventListener('onError', (event) => {
+      events.push(event as CustomEvent<InteractionError>);
+    });
+
+    el.emitErrorForTest(interactionError);
+
+    assert.lengthOf(events, 1);
+    assert.strictEqual(events[0].detail, interactionError);
     assert.equal(events[0].bubbles, true);
     assert.equal(events[0].composed, true);
   });
