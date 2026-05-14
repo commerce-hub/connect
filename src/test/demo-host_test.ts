@@ -14,7 +14,9 @@ suite('demo host page', () => {
     const apiResponseIndex = html.indexOf(
       'await createInitialInteractionResponse()'
     );
-    const widgetInitIndex = html.indexOf('initializeWidget(interactionResponse)');
+    const widgetInitIndex = html.lastIndexOf(
+      'await initializeWidget(interactionResponse)'
+    );
 
     assert.isAtLeast(
       createInteractionIndex,

@@ -6,7 +6,6 @@
     <title>CommerceHub Connect Demo</title>
     <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../node_modules/lit/polyfill-support.js"></script>
-    <script type="module" src="../commerce-hub-connect.js"></script>
     <style>
       body {
         margin: 0;
@@ -99,7 +98,7 @@
   <body>
     <main class="demo-layout">
       <section class="demo-widget-panel">
-        <commerce-hub-connect id="connect-widget"></commerce-hub-connect>
+        <div id="connect-widget-host"></div>
 
         <article class="payload-card">
           <h2>Scenario</h2>
@@ -132,8 +131,6 @@
     </main>
 
     <script type="module">
-      import {createCommerceHubClient} from '../commerce-hub-connect.js';
-
       const savedSources = [
         {
           tenderType: 'Card',
@@ -191,10 +188,11 @@
         },
       };
 
-      const widget = document.querySelector('#connect-widget');
+      const widgetHost = document.querySelector('#connect-widget-host');
       const input = document.querySelector('#interaction-input');
       const scenarioControls = document.querySelector('#scenario-controls');
       const format = (value) => JSON.stringify(value, null, 2);
+      let widget;
 
       const initialInteractionRequest = {
         email: 'wallet@example.com',
@@ -210,23 +208,47 @@
         },
         advancedVerification: false,
       };
+      const commerceHubApiBaseUrl =
+        new URLSearchParams(window.location.search).get('apiBaseUrl') ??
+        'https://dev.openfx-nonprod.aws.fisv.cloud';
+
+      const createApiUrl = (path) =>
+        new URL(path, commerceHubApiBaseUrl).toString();
 
       const createInitialInteractionResponse = async () => {
-        const response = await createCommerceHubClient({}).POST(
-          '/merchant/interaction/create',
-          {body: initialInteractionRequest}
+        const response = await fetch(
+          createApiUrl('/merchant/interaction/create'),
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(initialInteractionRequest),
+          }
         );
+        const responseBody = await readJson(response);
 
-        if (response.data) {
-          return response.data;
+        if (response.ok) {
+          return responseBody;
         }
 
-        throw new Error(apiErrorMessage(response.error));
+        throw new Error(apiErrorMessage(responseBody));
+      };
+
+      const initializeWidget = async (interactionResponse) => {
+        await import('../commerce-hub-connect.js');
+
+        widget = document.createElement('commerce-hub-connect');
+        widget.id = 'connect-widget';
+        widget.interactionResponse = interactionResponse;
+        widgetHost.replaceChildren(widget);
+        input.textContent = format(interactionResponse);
       };
 
       const setInteractionResponse = (interactionResponse) => {
         input.textContent = format(interactionResponse);
-        widget.interactionResponse = interactionResponse;
+
+        if (widget) {
+          widget.interactionResponse = interactionResponse;
+        }
       };
 
       const setActiveScenario = (name) => {
@@ -238,11 +260,22 @@
         });
       };
 
-      const setScenario = (name) => {
+      const setScenario = async (name) => {
         const interactionResponse = structuredClone(scenarios[name]);
 
-        setInteractionResponse(interactionResponse);
+        if (widget) {
+          setInteractionResponse(interactionResponse);
+        } else {
+          await initializeWidget(interactionResponse);
+        }
+
         setActiveScenario(name);
+      };
+
+      const readJson = async (response) => {
+        const text = await response.text();
+
+        return text ? JSON.parse(text) : undefined;
       };
 
       const apiErrorMessage = (error) => {
@@ -269,7 +302,7 @@
         try {
           const interactionResponse = await createInitialInteractionResponse();
 
-          setInteractionResponse(interactionResponse);
+          await initializeWidget(interactionResponse);
         } catch (error) {
           input.textContent = format({
             message:
@@ -284,7 +317,7 @@
         const button = event.target.closest('[data-scenario]');
 
         if (button) {
-          setScenario(button.dataset.scenario);
+          void setScenario(button.dataset.scenario);
         }
       });
 
