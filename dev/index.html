@@ -11,15 +11,128 @@
       body {
         margin: 0;
         min-height: 100vh;
-        display: grid;
-        place-items: start center;
         background: #edf2f7;
         padding: 32px;
         font-family: 'Open Sans', Arial, sans-serif;
+        color: #101828;
+      }
+
+      .demo-layout {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(360px, 480px) minmax(320px, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+
+      .payload-panel {
+        display: grid;
+        gap: 16px;
+      }
+
+      .payload-card {
+        background: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        box-shadow: 0 12px 24px rgba(16, 24, 40, 0.08);
+        overflow: hidden;
+      }
+
+      .payload-card h2 {
+        margin: 0;
+        padding: 14px 16px;
+        border-bottom: 1px solid #e4e7ec;
+        font-size: 15px;
+        line-height: 1.4;
+      }
+
+      pre {
+        margin: 0;
+        padding: 16px;
+        max-height: 360px;
+        overflow: auto;
+        background: #0f172a;
+        color: #e2e8f0;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas,
+          monospace;
+        white-space: pre-wrap;
+      }
+
+      @media (max-width: 860px) {
+        .demo-layout {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
   <body>
-    <commerce-hub-connect></commerce-hub-connect>
+    <main class="demo-layout">
+      <commerce-hub-connect id="connect-widget"></commerce-hub-connect>
+
+      <section class="payload-panel" aria-label="Host integration payloads">
+        <article class="payload-card">
+          <h2>Input: interactionResponse</h2>
+          <pre id="interaction-input"></pre>
+        </article>
+
+        <article class="payload-card">
+          <h2>Output: interaction-response event.detail</h2>
+          <pre id="interaction-output">Waiting for widget output...</pre>
+        </article>
+      </section>
+    </main>
+
+    <script type="module">
+      const interactionResponse = {
+        interactionId: 'demo-interaction-001',
+        status: 'PAYMENT_SOURCE_ATTACHED',
+        email: 'wallet@example.com',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+        selectedSource: {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'card-1',
+            name: 'Corporate card',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Visa',
+              cardNumber: '4111111111114242',
+            },
+          },
+          {
+            tenderType: 'BankAccount',
+            id: 'bank-1',
+            name: 'Operating account',
+            verificationInfo: {status: 'UNDER_REVIEW'},
+            bankAccount: {
+              bankName: 'Commerce National Bank',
+              accountNumber: '9876543210',
+            },
+          },
+        ],
+      };
+
+      const widget = document.querySelector('#connect-widget');
+      const input = document.querySelector('#interaction-input');
+      const output = document.querySelector('#interaction-output');
+      const format = (value) => JSON.stringify(value, null, 2);
+
+      input.textContent = format(interactionResponse);
+      widget.addEventListener('interaction-response', (event) => {
+        output.textContent = format(event.detail);
+      });
+      widget.interactionResponse = interactionResponse;
+    </script>
   </body>
 </html>
