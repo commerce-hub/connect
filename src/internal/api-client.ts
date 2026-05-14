@@ -4,8 +4,11 @@ import type {paths} from '../generated/openapi.js';
 
 export type CommerceHubClient = Client<paths>;
 
+export const DEFAULT_COMMERCE_HUB_BASE_URL =
+  'https://dev.openfx-nonprod.aws.fisv.cloud';
+
 export interface CommerceHubClientOptions {
-  baseUrl: string;
+  baseUrl?: string;
   headers?: HeadersInit;
   getHeaders?: () => HeadersInit | Promise<HeadersInit>;
 }
@@ -13,7 +16,9 @@ export interface CommerceHubClientOptions {
 export const createCommerceHubClient = (
   options: CommerceHubClientOptions
 ): CommerceHubClient => {
-  const client = createClient<paths>({baseUrl: options.baseUrl});
+  const client = createClient<paths>({
+    baseUrl: options.baseUrl ?? DEFAULT_COMMERCE_HUB_BASE_URL,
+  });
 
   const headersMiddleware: Middleware = {
     async onRequest({request}) {

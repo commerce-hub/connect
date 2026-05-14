@@ -26,6 +26,11 @@
         align-items: start;
       }
 
+      .demo-widget-panel {
+        display: grid;
+        gap: 16px;
+      }
+
       .payload-panel {
         display: grid;
         gap: 16px;
@@ -47,6 +52,32 @@
         line-height: 1.4;
       }
 
+      .scenario-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 16px;
+      }
+
+      .scenario-controls button {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 8px 12px;
+        background: #fff;
+        color: #101828;
+        font: inherit;
+        font-size: 13px;
+        line-height: 18px;
+        cursor: pointer;
+      }
+
+      .scenario-controls button[aria-pressed='true'] {
+        border-color: #003de6;
+        background: #eff4ff;
+        color: #003de6;
+        font-weight: 700;
+      }
+
       pre {
         margin: 0;
         padding: 16px;
@@ -54,8 +85,7 @@
         overflow: auto;
         background: #0f172a;
         color: #e2e8f0;
-        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas,
-          monospace;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         white-space: pre-wrap;
       }
 
@@ -68,7 +98,25 @@
   </head>
   <body>
     <main class="demo-layout">
-      <commerce-hub-connect id="connect-widget"></commerce-hub-connect>
+      <section class="demo-widget-panel">
+        <commerce-hub-connect id="connect-widget"></commerce-hub-connect>
+
+        <article class="payload-card">
+          <h2>Scenario</h2>
+          <div class="scenario-controls" id="scenario-controls">
+            <button type="button" data-scenario="otpPending">
+              OTP pending
+            </button>
+            <button type="button" data-scenario="otpFailed">OTP failed</button>
+            <button type="button" data-scenario="savedPaymentMethods">
+              Saved methods
+            </button>
+            <button type="button" data-scenario="noSavedPaymentMethods">
+              No saved methods
+            </button>
+          </div>
+        </article>
+      </section>
 
       <section class="payload-panel" aria-label="Host integration payloads">
         <article class="payload-card">
@@ -89,12 +137,8 @@
     </main>
 
     <script type="module">
-      const interactionResponse = {
-        interactionId: 'demo-interaction-001',
-        status: 'PAYMENT_SOURCE_ATTACHED',
-        email: 'wallet@example.com',
-        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
-        selectedSource: {
+      const savedSources = [
+        {
           tenderType: 'Card',
           id: 'card-1',
           name: 'Corporate card',
@@ -104,44 +148,91 @@
             cardNumber: '4111111111114242',
           },
         },
-        paymentSources: [
-          {
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ];
+
+      const scenarios = {
+        otpPending: {
+          interactionId: 'demo-interaction-otp-pending',
+          status: 'OTP_VALIDATION_PENDING',
+          email: 'wallet@example.com',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+        },
+        otpFailed: {
+          interactionId: 'demo-interaction-otp-failed',
+          status: 'OTP_VALIDATION_FAILED',
+          email: 'wallet@example.com',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+        },
+        savedPaymentMethods: {
+          interactionId: 'demo-interaction-saved-methods',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          email: 'wallet@example.com',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+          selectedSource: {
             tenderType: 'Card',
             id: 'card-1',
             name: 'Corporate card',
-            verificationInfo: {status: 'VERIFIED'},
-            card: {
-              network: 'Visa',
-              cardNumber: '4111111111114242',
-            },
           },
-          {
-            tenderType: 'BankAccount',
-            id: 'bank-1',
-            name: 'Operating account',
-            verificationInfo: {status: 'UNDER_REVIEW'},
-            bankAccount: {
-              bankName: 'Commerce National Bank',
-              accountNumber: '9876543210',
-            },
-          },
-        ],
+          paymentSources: savedSources,
+        },
+        noSavedPaymentMethods: {
+          interactionId: 'demo-interaction-no-saved-methods',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          email: 'wallet@example.com',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+          paymentSources: [],
+        },
       };
 
       const widget = document.querySelector('#connect-widget');
       const input = document.querySelector('#interaction-input');
       const successOutput = document.querySelector('#success-output');
       const errorOutput = document.querySelector('#error-output');
+      const scenarioControls = document.querySelector('#scenario-controls');
       const format = (value) => JSON.stringify(value, null, 2);
 
-      input.textContent = format(interactionResponse);
       widget.addEventListener('onSuccess', (event) => {
         successOutput.textContent = format(event.detail);
       });
       widget.addEventListener('onError', (event) => {
         errorOutput.textContent = format(event.detail);
       });
-      widget.interactionResponse = interactionResponse;
+
+      const setScenario = (name) => {
+        const interactionResponse = structuredClone(scenarios[name]);
+
+        input.textContent = format(interactionResponse);
+        successOutput.textContent = 'Waiting for widget success output...';
+        errorOutput.textContent = 'Waiting for widget error output...';
+        widget.interactionResponse = interactionResponse;
+
+        scenarioControls.querySelectorAll('button').forEach((button) => {
+          button.setAttribute(
+            'aria-pressed',
+            button.dataset.scenario === name ? 'true' : 'false'
+          );
+        });
+      };
+
+      scenarioControls.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-scenario]');
+
+        if (button) {
+          setScenario(button.dataset.scenario);
+        }
+      });
+
+      setScenario('otpPending');
     </script>
   </body>
 </html>

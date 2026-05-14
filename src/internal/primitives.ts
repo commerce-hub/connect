@@ -5,8 +5,10 @@ import type {
   AlertOptions,
   ButtonOptions,
   DetailItem,
+  EmptyStateOptions,
   LoadingRowOptions,
   OtpGroupOptions,
+  OtpResendOptions,
   PaymentMethod,
   SourceActionOptions,
   StatusPillOptions,
@@ -108,6 +110,7 @@ export const renderOtpGroup = ({
               inputmode="numeric"
               maxlength="1"
               pattern="[0-9]*"
+              data-otp-index=${index}
               .value=${digit}
               ?disabled=${disabled}
             />
@@ -123,6 +126,31 @@ export const renderAlert = ({
   message,
 }: AlertOptions): TemplateResult => html`
   <div class="alert alert-${variant}" role="alert">${message}</div>
+`;
+
+export const renderOtpResend = ({
+  label,
+  action,
+  disabled = false,
+}: OtpResendOptions): TemplateResult => html`
+  <button
+    class="otp-resend"
+    type="button"
+    data-action=${action}
+    ?disabled=${disabled}
+  >
+    ${label}
+  </button>
+`;
+
+export const renderEmptyState = ({
+  title,
+  message,
+}: EmptyStateOptions): TemplateResult => html`
+  <div class="empty-state">
+    <p class="empty-state-title">${title}</p>
+    <p class="empty-state-message">${message}</p>
+  </div>
 `;
 
 export const renderStatusPill = ({

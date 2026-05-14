@@ -5,9 +5,9 @@ title: <commerce-hub-connect> ⌲ Home
 
 # &lt;commerce-hub-connect>
 
-`<commerce-hub-connect>` is the public Web SDK widget shell. The first SDK slice
-ships internal primitives that match the CommerceHub Connect Figma source of
-truth and can later be composed into the full payment-method flow.
+`<commerce-hub-connect>` is the public Web SDK widget shell. The first SDK flow
+slice renders OTP verification, saved payment-method selection, and the
+no-saved-payment-methods variant.
 
 ## Basic usage
 
@@ -25,6 +25,14 @@ truth and can later be composed into the full payment-method flow.
 
   </div>
 </section>
+
+## Interaction calls
+
+Hosts pass an `InteractionResponse` into `.interactionResponse`. When the SDK
+handles OTP validation, OTP resend, or saved payment-source attach actions, it
+uses `interactionResponse.interactionId` as the `x-interaction-id` header. If
+`interactionId` is missing, the widget emits `onError` and does not call the
+CommerceHub API.
 
 ## Theming
 

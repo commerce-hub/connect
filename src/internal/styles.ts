@@ -105,6 +105,42 @@ export const primitiveStyles = css`
     margin-top: 24px;
   }
 
+  .otp-flow,
+  .payment-flow {
+    display: grid;
+    gap: 18px;
+  }
+
+  .otp-resend-row {
+    display: flex;
+    min-height: 28px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--chc-muted);
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  .otp-resend-prefix {
+    color: var(--chc-copy);
+  }
+
+  .otp-resend {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--chc-primary);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .otp-resend:disabled {
+    color: var(--chc-muted);
+    cursor: not-allowed;
+  }
+
   .button {
     min-height: var(--chc-button-height);
     border: 1px solid var(--chc-primary);
@@ -388,6 +424,12 @@ export const primitiveStyles = css`
     cursor: pointer;
   }
 
+  .source-action:disabled {
+    background: var(--chc-surface);
+    color: var(--chc-placeholder);
+    cursor: not-allowed;
+  }
+
   .source-action-icon {
     width: 52px;
     height: 52px;
@@ -435,6 +477,31 @@ export const primitiveStyles = css`
     background: #fff;
     overflow: hidden;
     text-align: left;
+  }
+
+  .empty-state {
+    display: grid;
+    gap: 8px;
+    border: 1px dashed var(--chc-border-strong);
+    border-radius: var(--chc-radius-card);
+    padding: 28px 24px;
+    background: var(--chc-surface);
+    text-align: left;
+  }
+
+  .empty-state-title {
+    margin: 0;
+    color: var(--chc-text);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 30px;
+  }
+
+  .empty-state-message {
+    margin: 0;
+    color: var(--chc-muted);
+    font-size: 16px;
+    line-height: 24px;
   }
 
   .detail-row {

@@ -2,8 +2,8 @@
 
 This package provides the CommerceHub Connect widget as a Lit-based web
 component. The current implementation establishes the internal primitive
-foundation from the Figma source of truth so future SDK flow work can compose a
-single public `<commerce-hub-connect>` element.
+foundation from the Figma source of truth and includes the first SDK-owned flow
+slice for OTP verification and saved payment-method selection.
 
 ## Current scope
 
@@ -11,8 +11,8 @@ single public `<commerce-hub-connect>` element.
 - Typed CommerceHub API client generated from `swagger.json`
 - Internal primitives for widget shell, buttons, fields, OTP inputs, alerts,
   status pills, payment method rows, source actions, detail rows, and form grids
+- SDK-owned OTP validation and saved payment-source attach actions
 - CSS custom property tokens for merchant-safe theming
-- No payment flow state machine yet
 
 ## Development
 
@@ -64,6 +64,13 @@ const client = createCommerceHubClient({
 
 const {data, error} = await client.GET('/customer');
 ```
+
+When `<commerce-hub-connect>` performs SDK-managed interaction calls, it uses
+`https://dev.openfx-nonprod.aws.fisv.cloud` by default and sends
+`interactionResponse.interactionId` as the `x-interaction-id` header. OTP
+validation, OTP resend, and saved payment-source attach actions require that
+`interactionId`; if it is missing, the widget emits `onError` and keeps the
+current screen stable.
 
 Pass an `InteractionResponse` into the component with a property binding when
 the host app owns the API call:

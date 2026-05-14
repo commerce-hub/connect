@@ -1,5 +1,43 @@
 import type {TemplateResult} from 'lit';
 
+import type {components} from '../generated/openapi.js';
+
+export type InteractionFlowStatus = NonNullable<
+  components['schemas']['InteractionResponse']['status']
+>;
+
+export type FlowActionName =
+  | 'verify-otp'
+  | 'resend-otp'
+  | 'attach-payment-source'
+  | 'add-bank-account'
+  | 'add-card'
+  | 'close';
+
+export type OtpFormStatus = 'idle' | 'submitting' | 'resending' | 'failed';
+
+export interface OtpFormState {
+  value: string;
+  status: OtpFormStatus;
+  errorMessage?: string;
+}
+
+export interface OtpScreenModel {
+  status: Extract<
+    InteractionFlowStatus,
+    'OTP_VALIDATION_PENDING' | 'OTP_VALIDATION_FAILED'
+  >;
+  email?: string;
+  form: OtpFormState;
+}
+
+export interface PaymentMethodsScreenModel {
+  status: Extract<InteractionFlowStatus, 'PAYMENT_SOURCE_REQUESTED'>;
+  methods: PaymentMethod[];
+  selectedPaymentMethodId?: string;
+  attaching?: boolean;
+}
+
 export type ButtonVariant = 'primary' | 'secondary';
 
 export type ButtonType = 'button' | 'submit' | 'reset';
@@ -96,9 +134,20 @@ export type SourceActionIcon = 'card' | 'bank';
 export interface SourceActionOptions {
   label: string;
   subtitle?: string;
-  action: string;
+  action: FlowActionName;
   icon: SourceActionIcon;
   disabled?: boolean;
+}
+
+export interface OtpResendOptions {
+  label: string;
+  action: FlowActionName;
+  disabled?: boolean;
+}
+
+export interface EmptyStateOptions {
+  title: string;
+  message: string;
 }
 
 export interface UploadRowOptions {
