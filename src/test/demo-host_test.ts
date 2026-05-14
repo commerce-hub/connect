@@ -1,7 +1,7 @@
 import {assert} from '@open-wc/testing';
 
 suite('demo host page', () => {
-  test('creates the merchant interaction only when the request form is submitted', async () => {
+  test('creates the merchant interaction from the structured request builder only when the request form is submitted', async () => {
     const response = await fetch('/dev/index.html');
     const html = await response.text();
 
@@ -15,16 +15,26 @@ suite('demo host page', () => {
       'expected demo host to call /merchant/interaction/create'
     );
     assert.include(html, '<form id="interaction-create-form">');
-    assert.include(html, '<textarea id="interaction-request"');
+    assert.include(html, 'id="interaction-email"');
+    assert.include(html, 'id="interaction-merchant-id"');
+    assert.include(html, 'id="interaction-terminal-id"');
+    assert.include(html, 'id="interaction-client-id"');
+    assert.include(html, 'id="interaction-first-name"');
+    assert.include(html, 'id="interaction-last-name"');
+    assert.include(html, 'id="interaction-advanced-verification"');
+    assert.include(html, 'name="allowedTenderTypes"');
+    assert.include(html, '<pre id="interaction-request-preview"');
     assert.include(html, 'type="submit"');
     assert.include(html, "createForm.addEventListener('submit'");
-    assert.include(html, 'JSON.parse(requestInput.value)');
+    assert.include(html, 'requestForm.addEventListener(');
     assert.include(
       html,
-      'const interactionRequest = JSON.parse(requestInput.value)'
+      'const interactionRequest = buildInteractionRequest(requestFormState)'
     );
     assert.include(html, 'createInitialInteractionResponse(');
     assert.include(html, 'body: JSON.stringify(interactionRequest)');
+    assert.notInclude(html, '<textarea id="interaction-request"');
+    assert.notInclude(html, 'JSON.parse(requestInput.value)');
     assert.notInclude(
       html,
       '<commerce-hub-connect id="connect-widget">',
@@ -37,21 +47,17 @@ suite('demo host page', () => {
     );
   });
 
-  test('uses the Angular binding example payload for the create interaction request', async () => {
+  test('uses service-aligned default values for the structured create interaction request', async () => {
     const response = await fetch('/dev/index.html');
     const html = await response.text();
 
-    assert.include(
-      html,
-      "sessionReferenceId: 'angular-binding-example-1778790276183'"
-    );
-    assert.include(html, "authType: 'FINAL_SALE'");
-    assert.include(html, "email: 'neer.patel@fiserv.com'");
-    assert.include(html, "allowedTenderTypes: ['CARD', 'BANK_ACCOUNT']");
-    assert.include(html, "clientId: 'marriot'");
-    assert.include(html, "merchantId: '101475000000009'");
+    assert.include(html, "email: 'wallet@example.com'");
+    assert.include(html, "clientId: 'laika'");
+    assert.include(html, "merchantId: '100014000315473'");
     assert.include(html, "terminalId: '10000001'");
-    assert.include(html, 'wallet: true');
-    assert.include(html, 'allowEmailChange: true');
+    assert.include(html, 'advancedVerification: false');
+    assert.include(html, 'allowCard: true');
+    assert.include(html, 'allowBankAccount: true');
+    assert.include(html, 'allowDynamicSessionCard: false');
   });
 });

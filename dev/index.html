@@ -53,7 +53,7 @@
 
       .form-body {
         display: grid;
-        gap: 12px;
+        gap: 16px;
         padding: 16px;
       }
 
@@ -63,20 +63,81 @@
         line-height: 18px;
       }
 
-      textarea {
-        min-height: 300px;
-        resize: vertical;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        padding: 12px;
-        background: #ffffff;
-        color: #101828;
-        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      .field-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      textarea:focus {
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field-input {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #ffffff;
+        color: #101828;
+        font: inherit;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .field-input:focus {
         border-color: #003de6;
         outline: 3px solid #dbe7ff;
+      }
+
+      .control-group {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+        padding: 12px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+      }
+
+      .control-group legend {
+        padding: 0 4px;
+      }
+
+      .checkbox-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+
+      .checkbox-field {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .checkbox-field input {
+        width: 16px;
+        height: 16px;
+        accent-color: #003de6;
+      }
+
+      .request-preview-group {
+        display: grid;
+        gap: 8px;
+      }
+
+      .request-preview {
+        max-height: 320px;
+        border-radius: 8px;
+      }
+
+      .helper-text {
+        margin: 0;
+        color: #475467;
+        font-size: 13px;
+        line-height: 18px;
       }
 
       .form-actions {
@@ -151,6 +212,12 @@
           grid-template-columns: 1fr;
         }
       }
+
+      @media (max-width: 640px) {
+        .field-grid {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -180,10 +247,131 @@
           <h2>Create interaction request</h2>
           <form id="interaction-create-form">
             <div class="form-body">
-              <label class="field-label" for="interaction-request">
-                Request body
+              <div class="field-grid">
+                <label class="field" for="interaction-email">
+                  <span class="field-label">Email</span>
+                  <input
+                    class="field-input"
+                    id="interaction-email"
+                    type="email"
+                    autocomplete="email"
+                    required
+                  />
+                </label>
+
+                <label class="field" for="interaction-client-id">
+                  <span class="field-label">Client ID</span>
+                  <input
+                    class="field-input"
+                    id="interaction-client-id"
+                    type="text"
+                    required
+                  />
+                </label>
+
+                <label class="field" for="interaction-merchant-id">
+                  <span class="field-label">Merchant ID</span>
+                  <input
+                    class="field-input"
+                    id="interaction-merchant-id"
+                    type="text"
+                    required
+                  />
+                </label>
+
+                <label class="field" for="interaction-terminal-id">
+                  <span class="field-label">Terminal ID</span>
+                  <input
+                    class="field-input"
+                    id="interaction-terminal-id"
+                    type="text"
+                    required
+                  />
+                </label>
+              </div>
+
+              <fieldset class="control-group">
+                <legend class="field-label">Entity data</legend>
+                <div class="field-grid">
+                  <label class="field" for="interaction-first-name">
+                    <span class="field-label">First name</span>
+                    <input
+                      class="field-input"
+                      id="interaction-first-name"
+                      type="text"
+                      autocomplete="given-name"
+                    />
+                  </label>
+
+                  <label class="field" for="interaction-last-name">
+                    <span class="field-label">Last name</span>
+                    <input
+                      class="field-input"
+                      id="interaction-last-name"
+                      type="text"
+                      autocomplete="family-name"
+                    />
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="control-group">
+                <legend class="field-label">Allowed tender types</legend>
+                <div class="checkbox-grid">
+                  <label class="checkbox-field" for="interaction-allow-card">
+                    <input
+                      id="interaction-allow-card"
+                      name="allowedTenderTypes"
+                      type="checkbox"
+                    />
+                    <span>Card</span>
+                  </label>
+
+                  <label
+                    class="checkbox-field"
+                    for="interaction-allow-bank-account"
+                  >
+                    <input
+                      id="interaction-allow-bank-account"
+                      name="allowedTenderTypes"
+                      type="checkbox"
+                    />
+                    <span>Bank account</span>
+                  </label>
+
+                  <label
+                    class="checkbox-field"
+                    for="interaction-allow-dynamic-session-card"
+                  >
+                    <input
+                      id="interaction-allow-dynamic-session-card"
+                      name="allowedTenderTypes"
+                      type="checkbox"
+                    />
+                    <span>Dynamic session card</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <label
+                class="checkbox-field"
+                for="interaction-advanced-verification"
+              >
+                <input id="interaction-advanced-verification" type="checkbox" />
+                <span>Advanced verification</span>
               </label>
-              <textarea id="interaction-request" spellcheck="false"></textarea>
+
+              <div class="request-preview-group">
+                <span class="field-label">Request body</span>
+                <p class="helper-text">
+                  The JSON preview updates from the form controls and is sent to
+                  <code>/merchant/interaction/create</code>.
+                </p>
+                <pre
+                  id="interaction-request-preview"
+                  class="request-preview"
+                ></pre>
+              </div>
               <div class="error-message" id="interaction-request-error"></div>
               <div class="form-actions">
                 <button
@@ -271,25 +459,45 @@
       const widgetHost = document.querySelector('#connect-widget-host');
       const input = document.querySelector('#interaction-input');
       const createForm = document.querySelector('#interaction-create-form');
-      const requestInput = document.querySelector('#interaction-request');
+      const requestForm = createForm;
+      const requestPreview = document.querySelector(
+        '#interaction-request-preview'
+      );
       const requestError = document.querySelector('#interaction-request-error');
       const createButton = document.querySelector('#create-interaction-button');
       const scenarioControls = document.querySelector('#scenario-controls');
+      const requestFields = {
+        email: document.querySelector('#interaction-email'),
+        clientId: document.querySelector('#interaction-client-id'),
+        merchantId: document.querySelector('#interaction-merchant-id'),
+        terminalId: document.querySelector('#interaction-terminal-id'),
+        firstName: document.querySelector('#interaction-first-name'),
+        lastName: document.querySelector('#interaction-last-name'),
+        advancedVerification: document.querySelector(
+          '#interaction-advanced-verification'
+        ),
+        allowCard: document.querySelector('#interaction-allow-card'),
+        allowBankAccount: document.querySelector(
+          '#interaction-allow-bank-account'
+        ),
+        allowDynamicSessionCard: document.querySelector(
+          '#interaction-allow-dynamic-session-card'
+        ),
+      };
       const format = (value) => JSON.stringify(value, null, 2);
       let widget;
 
-      const initialInteractionRequest = {
-        sessionReferenceId: 'angular-binding-example-1778790276183',
-        authType: 'FINAL_SALE',
-        email: 'neer.patel@fiserv.com',
-        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
-        merchantData: {
-          clientId: 'marriot',
-          merchantId: '101475000000009',
-          terminalId: '10000001',
-        },
-        wallet: true,
-        allowEmailChange: true,
+      const initialRequestFormState = {
+        email: 'wallet@example.com',
+        clientId: 'laika',
+        merchantId: '100014000315473',
+        terminalId: '10000001',
+        firstName: '',
+        lastName: '',
+        advancedVerification: false,
+        allowCard: true,
+        allowBankAccount: true,
+        allowDynamicSessionCard: false,
       };
       const commerceHubApiBaseUrl =
         new URLSearchParams(window.location.search).get('apiBaseUrl') ??
@@ -297,6 +505,91 @@
 
       const createApiUrl = (path) =>
         new URL(path, commerceHubApiBaseUrl).toString();
+
+      const resolveAllowedTenderTypes = (requestFormState) => {
+        const allowedTenderTypes = [];
+
+        if (requestFormState.allowCard) {
+          allowedTenderTypes.push('CARD');
+        }
+
+        if (requestFormState.allowBankAccount) {
+          allowedTenderTypes.push('BANK_ACCOUNT');
+        }
+
+        if (requestFormState.allowDynamicSessionCard) {
+          allowedTenderTypes.push('DYNAMIC_SESSION_CARD');
+        }
+
+        return allowedTenderTypes;
+      };
+
+      const buildInteractionRequest = (requestFormState) => {
+        const requestEntityData = {};
+        const firstName = requestFormState.firstName.trim();
+        const lastName = requestFormState.lastName.trim();
+
+        if (firstName) {
+          requestEntityData.firstName = firstName;
+        }
+
+        if (lastName) {
+          requestEntityData.lastName = lastName;
+        }
+
+        const interactionRequest = {
+          email: requestFormState.email.trim(),
+          allowedTenderTypes: resolveAllowedTenderTypes(requestFormState),
+          merchantData: {
+            clientId: requestFormState.clientId.trim(),
+            merchantId: requestFormState.merchantId.trim(),
+            terminalId: requestFormState.terminalId.trim(),
+          },
+          advancedVerification: requestFormState.advancedVerification,
+        };
+
+        if (Object.keys(requestEntityData).length > 0) {
+          interactionRequest.entityData = requestEntityData;
+        }
+
+        return interactionRequest;
+      };
+
+      const readRequestFormState = () => ({
+        email: requestFields.email.value,
+        clientId: requestFields.clientId.value,
+        merchantId: requestFields.merchantId.value,
+        terminalId: requestFields.terminalId.value,
+        firstName: requestFields.firstName.value,
+        lastName: requestFields.lastName.value,
+        advancedVerification: requestFields.advancedVerification.checked,
+        allowCard: requestFields.allowCard.checked,
+        allowBankAccount: requestFields.allowBankAccount.checked,
+        allowDynamicSessionCard: requestFields.allowDynamicSessionCard.checked,
+      });
+
+      const writeRequestFormState = (requestFormState) => {
+        requestFields.email.value = requestFormState.email;
+        requestFields.clientId.value = requestFormState.clientId;
+        requestFields.merchantId.value = requestFormState.merchantId;
+        requestFields.terminalId.value = requestFormState.terminalId;
+        requestFields.firstName.value = requestFormState.firstName;
+        requestFields.lastName.value = requestFormState.lastName;
+        requestFields.advancedVerification.checked =
+          requestFormState.advancedVerification;
+        requestFields.allowCard.checked = requestFormState.allowCard;
+        requestFields.allowBankAccount.checked =
+          requestFormState.allowBankAccount;
+        requestFields.allowDynamicSessionCard.checked =
+          requestFormState.allowDynamicSessionCard;
+      };
+
+      const syncRequestPreview = () => {
+        const requestFormState = readRequestFormState();
+        requestPreview.textContent = format(
+          buildInteractionRequest(requestFormState)
+        );
+      };
 
       const createInitialInteractionResponse = async (interactionRequest) => {
         const response = await fetch(
@@ -389,11 +682,24 @@
         event.preventDefault();
 
         requestError.textContent = '';
+        if (!createForm.reportValidity()) {
+          return;
+        }
+
+        const requestFormState = readRequestFormState();
+        const interactionRequest = buildInteractionRequest(requestFormState);
+
+        if (interactionRequest.allowedTenderTypes.length === 0) {
+          const message = 'Select at least one allowed tender type.';
+          requestError.textContent = message;
+          input.textContent = format({message});
+          return;
+        }
+
         input.textContent = 'Creating merchant interaction...';
         setCreatePending(true);
 
         try {
-          const interactionRequest = JSON.parse(requestInput.value);
           const interactionResponse = await createInitialInteractionResponse(
             interactionRequest
           );
@@ -402,9 +708,7 @@
           setActiveScenario();
         } catch (error) {
           const message =
-            error instanceof SyntaxError
-              ? 'Request body must be valid JSON.'
-              : error instanceof Error
+            error instanceof Error
               ? error.message
               : 'CommerceHub API request failed.';
 
@@ -416,12 +720,23 @@
       };
 
       const initializeDemo = () => {
-        requestInput.value = format(initialInteractionRequest);
+        writeRequestFormState(initialRequestFormState);
+        syncRequestPreview();
         input.textContent = format({
           message: 'Submit the create request to see the interactionResponse.',
         });
         setActiveScenario();
       };
+
+      requestForm.addEventListener('input', () => {
+        requestError.textContent = '';
+        syncRequestPreview();
+      });
+
+      requestForm.addEventListener('change', () => {
+        requestError.textContent = '';
+        syncRequestPreview();
+      });
 
       createForm.addEventListener('submit', (event) => {
         void handleCreateSubmit(event);
