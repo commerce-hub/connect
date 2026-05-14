@@ -63,6 +63,7 @@ export interface OtpGroupOptions {
   value?: string;
   length?: number;
   disabled?: boolean;
+  error?: boolean;
 }
 
 export type AlertVariant = 'success' | 'danger' | 'warning';
@@ -81,6 +82,8 @@ export interface StatusPillOptions {
 export interface PaymentMethod {
   id: string;
   label: string;
+  type?: 'bank' | 'card';
+  eyebrow?: string;
   brand: string;
   last4: string;
   status: PaymentMethodStatus;
@@ -92,8 +95,24 @@ export type SourceActionIcon = 'card' | 'bank';
 
 export interface SourceActionOptions {
   label: string;
+  subtitle?: string;
   action: string;
   icon: SourceActionIcon;
+  disabled?: boolean;
+}
+
+export interface UploadRowOptions {
+  label: string;
+  requirements: string;
+  actionLabel: string;
+  action?: string;
+  error?: boolean;
+  disabled?: boolean;
+}
+
+export interface LoadingRowOptions {
+  title: string;
+  helper: string;
 }
 
 export interface DetailItem {
@@ -107,4 +126,7 @@ export interface WidgetShellOptions {
   content: TemplateResult;
   width?: 'default' | 'wide';
   ariaLabel?: string;
+  closeAction?: string;
+  showClose?: boolean;
+  showFooter?: boolean;
 }

@@ -36,7 +36,8 @@ type PaymentSource = NonNullable<InteractionResponse['paymentSources']>[number];
 const demoPaymentMethods: PaymentMethod[] = [
   {
     id: 'visa-1111',
-    label: 'Visa saved card',
+    label: 'James Anderson',
+    type: 'card',
     brand: 'VISA',
     last4: '1111',
     status: 'verified',
@@ -44,7 +45,8 @@ const demoPaymentMethods: PaymentMethod[] = [
   },
   {
     id: 'amex-8000',
-    label: 'Amex corporate card',
+    label: 'James Anderson',
+    type: 'card',
     brand: 'AMEX',
     last4: '8000',
     status: 'unverified',
@@ -88,8 +90,9 @@ export class CommerceHubConnect extends LitElement {
     );
 
     return renderWidgetShell({
-      title: 'Payment method',
-      subtitle: 'Choose a saved payment method or add a new one.',
+      title: 'Payment methods',
+      subtitle:
+        'Use a saved bank account or credit card, or add a new payment method.',
       content: html`
         <div
           class="primitive-stack"
@@ -100,19 +103,21 @@ export class CommerceHubConnect extends LitElement {
         </div>
         <div class="primitive-actions">
           ${renderSourceAction({
-            label: 'Add card',
-            action: 'add-card',
-            icon: 'card',
-          })}
-          ${renderSourceAction({
-            label: 'Add bank account',
+            label: 'Add new bank account',
+            subtitle: 'Connect a different account',
             action: 'add-bank-account',
             icon: 'bank',
+          })}
+          ${renderSourceAction({
+            label: 'Add credit card',
+            subtitle: 'Use card number and CVV',
+            action: 'add-card',
+            icon: 'card',
           })}
         </div>
         <div class="primitive-footer">
           ${renderButton({
-            label: 'Confirm',
+            label: 'Continue with selected method',
             variant: 'primary',
             action: 'confirm',
           })}
@@ -162,6 +167,7 @@ const paymentSourceToPaymentMethod = (
 ): PaymentMethod => ({
   id: source.id ?? source.name ?? source.tenderType,
   label: source.name ?? paymentSourceLabel(source),
+  type: source.tenderType === 'BankAccount' ? 'bank' : 'card',
   brand: paymentSourceBrand(source),
   last4: paymentSourceLast4(source),
   status: verificationStatusToPaymentMethodStatus(

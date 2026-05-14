@@ -5,68 +5,40 @@ import type {
   AlertOptions,
   ButtonOptions,
   DetailItem,
+  LoadingRowOptions,
   OtpGroupOptions,
   PaymentMethod,
-  SourceActionIcon,
   SourceActionOptions,
   StatusPillOptions,
   TextFieldOptions,
+  UploadRowOptions,
   WidgetShellOptions,
 } from './types.js';
 
 const titleCase = (value: string) =>
   `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 
-const iconSvg = (icon: SourceActionIcon) => {
-  if (icon === 'card') {
-    return html`
-      <svg
-        class="source-action-icon"
-        viewBox="0 0 14 14"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <rect
-          x="1"
-          y="3"
-          width="12"
-          height="8"
-          rx="2"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.4"
-        ></rect>
-        <path d="M3 5.5h8" stroke="currentColor" stroke-width="1.2"></path>
-        <path
-          d="M5.2 8.7h3.6M7 6.9v3.6"
-          stroke="currentColor"
-          stroke-width="1.1"
-          stroke-linecap="round"
-        ></path>
-      </svg>
-    `;
+const paymentMethodEyebrow = ({type, eyebrow}: PaymentMethod): string => {
+  if (eyebrow) {
+    return eyebrow;
   }
 
-  return html`
-    <svg
-      class="source-action-icon"
-      viewBox="0 0 14 14"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M2 5h10L7 2 2 5Z" fill="currentColor"></path>
-      <path
-        d="M3 6h1.5v4H3V6Zm3.25 0h1.5v4h-1.5V6ZM10 6h1.5v4H10V6Z"
-        fill="currentColor"
-      ></path>
-      <path
-        d="M2.2 11h9.6"
-        stroke="currentColor"
-        stroke-width="1.3"
-        stroke-linecap="round"
-      ></path>
-    </svg>
-  `;
+  return type === 'bank' ? 'Saved bank account' : 'Saved credit card';
+};
+
+const paymentMethodTitle = ({brand, last4}: PaymentMethod): string =>
+  `${brand} •••• ${last4}`;
+
+const paymentMethodStatusLabel = (status: PaymentMethod['status']): string => {
+  if (status === 'verified') {
+    return 'Verified';
+  }
+
+  if (status === 'pending') {
+    return 'Further info required';
+  }
+
+  return 'Not verified';
 };
 
 export const renderButton = ({
@@ -117,11 +89,15 @@ export const renderOtpGroup = ({
   value = '',
   length = 6,
   disabled = false,
+  error = false,
 }: OtpGroupOptions): TemplateResult => {
   const digits = Array.from({length}, (_, index) => value[index] ?? '');
 
   return html`
-    <fieldset class="otp-group" aria-label=${label}>
+    <fieldset
+      class="otp-group ${error ? 'otp-group-error' : ''}"
+      aria-label=${label}
+    >
       <legend class="otp-label">${label}</legend>
       <div class="otp-inputs">
         ${digits.map(
@@ -158,39 +134,71 @@ export const renderStatusPill = ({
 export const renderPaymentMethodRow = ({
   id,
   label,
+  status,
+  type,
+  eyebrow,
   brand,
   last4,
-  status,
   selected = false,
   disabled = false,
-}: PaymentMethod): TemplateResult => html`
-  <button
-    class="payment-method-row"
-    type="button"
-    role="radio"
-    aria-checked=${selected ? 'true' : 'false'}
-    aria-disabled=${disabled ? 'true' : 'false'}
-    data-payment-method-id=${id}
-    ?disabled=${disabled}
-  >
-    <span class="payment-method-radio" aria-hidden="true"></span>
-    <span class="payment-method-brand">${brand}</span>
-    <span class="payment-method-text">
-      <span class="payment-method-label">${label}</span>
-      <span class="payment-method-meta">•••• ${last4}</span>
-    </span>
-    ${renderStatusPill({status})}
-  </button>
-`;
+}: PaymentMethod): TemplateResult => {
+  const method: PaymentMethod = {
+    id,
+    label,
+    status,
+    type,
+    eyebrow,
+    brand,
+    last4,
+    selected,
+    disabled,
+  };
+
+  return html`
+    <button
+      class="payment-method-row"
+      type="button"
+      role="radio"
+      aria-checked=${selected ? 'true' : 'false'}
+      aria-disabled=${disabled ? 'true' : 'false'}
+      data-payment-method-id=${id}
+      ?disabled=${disabled}
+    >
+      <span class="payment-method-text">
+        <span class="payment-method-eyebrow"
+          >${paymentMethodEyebrow(method)}</span
+        >
+        <span class="payment-method-title">${paymentMethodTitle(method)}</span>
+        <span class="payment-method-holder">${label}</span>
+        <span class="payment-method-status status-text-${status}">
+          ${paymentMethodStatusLabel(status)}
+        </span>
+      </span>
+      <span class="payment-method-chevron" aria-hidden="true">›</span>
+    </button>
+  `;
+};
 
 export const renderSourceAction = ({
   label,
+  subtitle,
   action,
   icon,
+  disabled = false,
 }: SourceActionOptions): TemplateResult => html`
-  <button class="source-action" type="button" data-action=${action}>
-    ${iconSvg(icon)}
-    <span>${label}</span>
+  <button
+    class="source-action source-action-${icon}"
+    type="button"
+    data-action=${action}
+    ?disabled=${disabled}
+  >
+    <span class="source-action-icon" aria-hidden="true">+</span>
+    <span class="source-action-copy">
+      <span class="source-action-title">${label}</span>
+      ${subtitle
+        ? html`<span class="source-action-subtitle">${subtitle}</span>`
+        : ''}
+    </span>
   </button>
 `;
 
@@ -207,6 +215,49 @@ export const renderDetailList = (items: DetailItem[]): TemplateResult => html`
   </div>
 `;
 
+export const renderUploadRow = ({
+  label,
+  requirements,
+  actionLabel,
+  action,
+  error = false,
+  disabled = false,
+}: UploadRowOptions): TemplateResult => html`
+  <button
+    class="upload-row ${error ? 'upload-row-error' : ''}"
+    type="button"
+    data-action=${ifDefined(action)}
+    ?disabled=${disabled}
+  >
+    <span class="upload-copy">
+      <span class="upload-icon" aria-hidden="true">↑</span>
+      <span class="upload-row-label">${label}</span>
+      <span class="upload-row-requirements">${requirements}</span>
+    </span>
+    <span class="upload-row-action">${actionLabel}</span>
+  </button>
+`;
+
+export const renderLoadingRow = ({
+  title,
+  helper,
+}: LoadingRowOptions): TemplateResult => html`
+  <div class="loading-row" role="status" aria-live="polite">
+    <span class="loading-spinner" aria-hidden="true"></span>
+    <span class="loading-row-copy">
+      <span class="loading-row-title">${title}</span>
+      <span class="loading-row-helper">${helper}</span>
+    </span>
+  </div>
+`;
+
+export const renderPoweredByFooter = (): TemplateResult => html`
+  <footer class="powered-by-footer">
+    <span>Powered by</span>
+    <strong class="powered-by-brand">CommerceHub Connect</strong>
+  </footer>
+`;
+
 export const renderFormGrid = (fields: TemplateResult[]): TemplateResult =>
   html` <div class="form-grid">${fields}</div> `;
 
@@ -216,13 +267,29 @@ export const renderWidgetShell = ({
   content,
   width = 'default',
   ariaLabel = 'CommerceHub Connect',
+  closeAction = 'close',
+  showClose = true,
+  showFooter = true,
 }: WidgetShellOptions): TemplateResult => html`
   <section
     class="widget-shell ${width === 'wide' ? 'widget-shell-wide' : ''}"
     aria-label=${ariaLabel}
   >
+    ${showClose
+      ? html`
+          <button
+            class="widget-close"
+            type="button"
+            aria-label="Close CommerceHub Connect"
+            data-action=${closeAction}
+          >
+            ×
+          </button>
+        `
+      : ''}
     <h2 class="widget-title">${title}</h2>
     ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
     <div class="widget-content">${content}</div>
+    ${showFooter ? renderPoweredByFooter() : ''}
   </section>
 `;

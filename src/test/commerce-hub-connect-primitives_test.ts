@@ -11,11 +11,14 @@ import {
   renderButton,
   renderDetailList,
   renderFormGrid,
+  renderLoadingRow,
   renderOtpGroup,
   renderPaymentMethodRow,
+  renderPoweredByFooter,
   renderSourceAction,
   renderStatusPill,
   renderTextField,
+  renderUploadRow,
   renderWidgetShell,
 } from '../internal/primitives.js';
 import type {PaymentMethod} from '../internal/types.js';
@@ -56,7 +59,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.isUndefined(customElements.get('chc-text-field'));
   });
 
-  test('renders the widget shell with Figma token defaults and overrideable custom properties', async () => {
+  test('renders the widget shell with SDK v2 token defaults and shell affordances', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect></commerce-hub-connect>`
     )) as CommerceHubConnect;
@@ -68,11 +71,23 @@ suite('commerce-hub-connect primitives', () => {
         .getPropertyValue('--chc-primary')
         .trim()
         .toUpperCase(),
-      '#084ACC'
+      '#003DE6'
+    );
+    assert.equal(
+      getComputedStyle(el).getPropertyValue('--chc-text').trim().toUpperCase(),
+      '#06103A'
     );
     assert.equal(getComputedStyle(el).fontFamily.includes('Open Sans'), true);
     assert.equal(
       el.shadowRoot!.querySelector('.widget-shell')?.getAttribute('aria-label'),
+      'CommerceHub Connect'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-close')?.getAttribute('aria-label'),
+      'Close CommerceHub Connect'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.powered-by-brand')?.textContent?.trim(),
       'CommerceHub Connect'
     );
   });
@@ -132,25 +147,21 @@ suite('commerce-hub-connect primitives', () => {
       ['card-1', 'bank-1']
     );
     assert.equal(
-      rows[0].querySelector('.payment-method-label')?.textContent?.trim(),
+      rows[0].querySelector('.payment-method-holder')?.textContent?.trim(),
       'Corporate card'
     );
     assert.equal(
-      rows[0].querySelector('.payment-method-brand')?.textContent?.trim(),
-      'Visa'
-    );
-    assert.equal(
-      rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 4242'
+      rows[0].querySelector('.payment-method-title')?.textContent?.trim(),
+      'Visa •••• 4242'
     );
     assert.equal(rows[0].getAttribute('aria-checked'), 'true');
     assert.equal(
-      rows[1].querySelector('.payment-method-brand')?.textContent?.trim(),
-      'Commerce National Bank'
+      rows[1].querySelector('.payment-method-title')?.textContent?.trim(),
+      'Commerce National Bank •••• 3210'
     );
     assert.equal(
-      rows[1].querySelector('.status-pill')?.textContent?.trim(),
-      'Pending'
+      rows[1].querySelector('.payment-method-status')?.textContent?.trim(),
+      'Further info required'
     );
   });
 
@@ -223,7 +234,16 @@ suite('commerce-hub-connect primitives', () => {
         variant: 'success',
         message: 'This bank account is verified.',
       })}
-      ${renderStatusPill({status: 'unverified'})}
+      ${renderUploadRow({
+        label: 'Bank statement',
+        requirements: 'PDF, PNG or JPG - Last 90 days',
+        actionLabel: 'Upload file',
+      })}
+      ${renderLoadingRow({
+        title: 'Verifying code',
+        helper: 'Validating the 6-digit OTP',
+      })}
+      ${renderStatusPill({status: 'unverified'})} ${renderPoweredByFooter()}
     `);
 
     assert.equal(
@@ -247,16 +267,29 @@ suite('commerce-hub-connect primitives', () => {
       'This bank account is verified.'
     );
     assert.equal(
+      root.querySelector('.upload-row-label')?.textContent?.trim(),
+      'Bank statement'
+    );
+    assert.equal(
+      root.querySelector('.loading-row-title')?.textContent?.trim(),
+      'Verifying code'
+    );
+    assert.equal(
       root.querySelector('.status-pill')?.textContent?.trim(),
       'Unverified'
     );
+    assert.equal(
+      root.querySelector('.powered-by-brand')?.textContent?.trim(),
+      'CommerceHub Connect'
+    );
   });
 
-  test('renders payment method, source action, and detail primitives with disabled state semantics', async () => {
+  test('renders v2 payment method, source action, and detail primitives with disabled state semantics', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',
-      label: 'Commerce National Bank',
-      brand: 'CNB',
+      label: 'James Anderson',
+      type: 'bank',
+      brand: 'Checking',
       last4: '1234',
       status: 'pending',
       selected: false,
@@ -266,7 +299,8 @@ suite('commerce-hub-connect primitives', () => {
     const root = await renderHarness(html`
       ${renderPaymentMethodRow(method)}
       ${renderSourceAction({
-        label: 'Add bank account',
+        label: 'Add new bank account',
+        subtitle: 'Connect a different account',
         action: 'add-bank-account',
         icon: 'bank',
       })}
@@ -282,14 +316,23 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(row?.disabled, true);
     assert.equal(row?.getAttribute('aria-disabled'), 'true');
     assert.equal(
-      root.querySelector('.payment-method-brand')?.textContent?.trim(),
-      'CNB'
+      root.querySelector('.payment-method-eyebrow')?.textContent?.trim(),
+      'Saved bank account'
+    );
+    assert.equal(
+      root.querySelector('.payment-method-title')?.textContent?.trim(),
+      'Checking •••• 1234'
     );
     assert.equal(
       root
         .querySelector('[data-action="add-bank-account"]')
+        ?.querySelector('.source-action-title')
         ?.textContent?.trim(),
-      'Add bank account'
+      'Add new bank account'
+    );
+    assert.equal(
+      root.querySelector('.source-action-subtitle')?.textContent?.trim(),
+      'Connect a different account'
     );
     assert.deepEqual(
       [...root.querySelectorAll('.detail-label')].map((item) =>
@@ -305,6 +348,7 @@ suite('commerce-hub-connect primitives', () => {
         title: 'Add card',
         subtitle: 'Save a new credit or debit card to this wallet.',
         width: 'wide',
+        closeAction: 'close-card',
         content: renderFormGrid([
           renderTextField({id: 'card-label', label: 'Card label'}),
           renderTextField({id: 'name-on-card', label: 'Name on card'}),
@@ -326,6 +370,17 @@ suite('commerce-hub-connect primitives', () => {
         .querySelector('.widget-shell')
         ?.classList.contains('widget-shell-wide'),
       true
+    );
+    assert.equal(
+      root.querySelector('.widget-close')?.getAttribute('data-action'),
+      'close-card'
+    );
+    assert.equal(
+      root
+        .querySelector('.powered-by-footer')
+        ?.textContent?.replace(/\s+/g, ' ')
+        .trim(),
+      'Powered by CommerceHub Connect'
     );
     assert.lengthOf(root.querySelectorAll('.field'), 3);
     assert.equal(
