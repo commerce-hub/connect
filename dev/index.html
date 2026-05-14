@@ -51,6 +51,64 @@
         line-height: 1.4;
       }
 
+      .form-body {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+      }
+
+      .field-label {
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 18px;
+      }
+
+      textarea {
+        min-height: 300px;
+        resize: vertical;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 12px;
+        background: #ffffff;
+        color: #101828;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      textarea:focus {
+        border-color: #003de6;
+        outline: 3px solid #dbe7ff;
+      }
+
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .primary-button {
+        border: 1px solid #003de6;
+        border-radius: 8px;
+        padding: 9px 14px;
+        background: #003de6;
+        color: #ffffff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 18px;
+        cursor: pointer;
+      }
+
+      .primary-button:disabled {
+        cursor: wait;
+        opacity: 0.72;
+      }
+
+      .error-message {
+        min-height: 18px;
+        color: #b42318;
+        font-size: 13px;
+        line-height: 18px;
+      }
+
       .scenario-controls {
         display: flex;
         flex-wrap: wrap;
@@ -118,6 +176,28 @@
       </section>
 
       <section class="payload-panel" aria-label="Host integration payloads">
+        <article class="payload-card">
+          <h2>Create interaction request</h2>
+          <form id="interaction-create-form">
+            <div class="form-body">
+              <label class="field-label" for="interaction-request">
+                Request body
+              </label>
+              <textarea id="interaction-request" spellcheck="false"></textarea>
+              <div class="error-message" id="interaction-request-error"></div>
+              <div class="form-actions">
+                <button
+                  class="primary-button"
+                  id="create-interaction-button"
+                  type="submit"
+                >
+                  Create interaction
+                </button>
+              </div>
+            </div>
+          </form>
+        </article>
+
         <article class="payload-card">
           <h2>Input: interactionResponse</h2>
           <pre id="interaction-input"></pre>
@@ -190,23 +270,26 @@
 
       const widgetHost = document.querySelector('#connect-widget-host');
       const input = document.querySelector('#interaction-input');
+      const createForm = document.querySelector('#interaction-create-form');
+      const requestInput = document.querySelector('#interaction-request');
+      const requestError = document.querySelector('#interaction-request-error');
+      const createButton = document.querySelector('#create-interaction-button');
       const scenarioControls = document.querySelector('#scenario-controls');
       const format = (value) => JSON.stringify(value, null, 2);
       let widget;
 
       const initialInteractionRequest = {
-        email: 'wallet@example.com',
-        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+        sessionReferenceId: 'angular-binding-example-1778790276183',
+        authType: 'FINAL_SALE',
+        email: 'neer.patel@fiserv.com',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
         merchantData: {
-          clientId: 'demo-client',
-          merchantId: 'demo-merchant',
-          terminalId: 'demo-terminal',
+          clientId: 'marriot',
+          merchantId: '101475000000009',
+          terminalId: '10000001',
         },
-        entityData: {
-          firstName: 'Demo',
-          lastName: 'Customer',
-        },
-        advancedVerification: false,
+        wallet: true,
+        allowEmailChange: true,
       };
       const commerceHubApiBaseUrl =
         new URLSearchParams(window.location.search).get('apiBaseUrl') ??
@@ -215,13 +298,13 @@
       const createApiUrl = (path) =>
         new URL(path, commerceHubApiBaseUrl).toString();
 
-      const createInitialInteractionResponse = async () => {
+      const createInitialInteractionResponse = async (interactionRequest) => {
         const response = await fetch(
           createApiUrl('/merchant/interaction/create'),
           {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(initialInteractionRequest),
+            body: JSON.stringify(interactionRequest),
           }
         );
         const responseBody = await readJson(response);
@@ -295,23 +378,54 @@
         return 'CommerceHub API request failed.';
       };
 
-      const initializeDemo = async () => {
+      const setCreatePending = (isPending) => {
+        createButton.disabled = isPending;
+        createButton.textContent = isPending
+          ? 'Creating...'
+          : 'Create interaction';
+      };
+
+      const handleCreateSubmit = async (event) => {
+        event.preventDefault();
+
+        requestError.textContent = '';
         input.textContent = 'Creating merchant interaction...';
-        setActiveScenario();
+        setCreatePending(true);
 
         try {
-          const interactionResponse = await createInitialInteractionResponse();
+          const interactionRequest = JSON.parse(requestInput.value);
+          const interactionResponse = await createInitialInteractionResponse(
+            interactionRequest
+          );
 
           await initializeWidget(interactionResponse);
+          setActiveScenario();
         } catch (error) {
-          input.textContent = format({
-            message:
-              error instanceof Error
-                ? error.message
-                : 'CommerceHub API request failed.',
-          });
+          const message =
+            error instanceof SyntaxError
+              ? 'Request body must be valid JSON.'
+              : error instanceof Error
+              ? error.message
+              : 'CommerceHub API request failed.';
+
+          requestError.textContent = message;
+          input.textContent = format({message});
+        } finally {
+          setCreatePending(false);
         }
       };
+
+      const initializeDemo = () => {
+        requestInput.value = format(initialInteractionRequest);
+        input.textContent = format({
+          message: 'Submit the create request to see the interactionResponse.',
+        });
+        setActiveScenario();
+      };
+
+      createForm.addEventListener('submit', (event) => {
+        void handleCreateSubmit(event);
+      });
 
       scenarioControls.addEventListener('click', (event) => {
         const button = event.target.closest('[data-scenario]');
@@ -321,7 +435,7 @@
         }
       });
 
-      void initializeDemo();
+      initializeDemo();
     </script>
   </body>
 </html>
