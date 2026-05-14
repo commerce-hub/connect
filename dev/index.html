@@ -293,7 +293,7 @@
       };
       const commerceHubApiBaseUrl =
         new URLSearchParams(window.location.search).get('apiBaseUrl') ??
-        'https://dev.openfx-nonprod.aws.fisv.cloud';
+        'http://localhost:8080';
 
       const createApiUrl = (path) =>
         new URL(path, commerceHubApiBaseUrl).toString();

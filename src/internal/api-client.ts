@@ -5,7 +5,7 @@ import type {paths} from '../generated/openapi.js';
 export type CommerceHubClient = Client<paths>;
 
 export const DEFAULT_COMMERCE_HUB_BASE_URL =
-  'https://dev.openfx-nonprod.aws.fisv.cloud';
+  'http://localhost:8080';
 
 export interface CommerceHubClientOptions {
   baseUrl?: string;
