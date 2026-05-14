@@ -2,16 +2,23 @@ import {LitElement, html, type PropertyValues, type TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 
 import type {components} from './generated/openapi.js';
-import {createCommerceHubClient} from './internal/api-client.js';
+import {
+  createCommerceHubClient,
+  DEFAULT_COMMERCE_HUB_BASE_URL,
+} from './internal/api-client.js';
 import {primitiveStyles} from './internal/styles.js';
 import {
   renderAlert,
   renderButton,
   renderEmptyState,
+  renderOutcomeShell,
   renderOtpGroup,
   renderOtpResend,
   renderPaymentMethodRow,
+  renderProviderFrame,
   renderSourceAction,
+  renderTextLinkButton,
+  renderVerificationDetails,
   renderWidgetShell,
 } from './internal/primitives.js';
 import type {FlowActionName, PaymentMethod} from './internal/types.js';
@@ -38,8 +45,42 @@ export const ON_SUCCESS_EVENT = 'onSuccess';
 export const ON_ERROR_EVENT = 'onError';
 
 type PaymentSource = NonNullable<InteractionResponse['paymentSources']>[number];
+type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
+type CustomerProfile = components['schemas']['Profile'];
+type PayByBankSession = components['schemas']['SessionData'] & {
+  accessToken?: string;
+};
+
+type PaymentSdkEvent = {
+  type?: 'success' | 'failure' | 'cancel' | 'error' | string;
+  payload?: unknown;
+  [key: string]: unknown;
+};
+
+type PaymentSdkInitConfiguration = {
+  apiKey: string;
+  accessToken: string;
+  configId: string;
+  containerId: string;
+  onEvent: (event: PaymentSdkEvent) => void | Promise<void>;
+  environment?: string;
+  locale?: string;
+  aggregatorSessionId?: string;
+  publicKey?: string;
+  pToken?: string;
+};
 
 const OTP_LENGTH = 6;
+const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
+
+const DEFAULT_PAY_BY_BANK_OPTIONS = {
+  apiKey: 'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A',
+  configId: 'cce84049-0940-4926-9a54-9eaca0c09830',
+  environment: 'qa',
+  locale: 'en-US',
+  paymentSdkUrl:
+    'https://connect-qa.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js',
+} satisfies Required<DesignConfigPayByBank>;
 
 const demoPaymentMethods: PaymentMethod[] = [
   {
@@ -89,6 +130,21 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private otpErrorMessage?: string;
 
+  @state()
+  private bankFlowScreen?: 'provider' | 'provider-error' | 'outcome';
+
+  @state()
+  private bankLinkLoading = false;
+
+  @state()
+  private bankProviderError?: string;
+
+  @state()
+  private bankOutcomeSource?: BankPaymentSource;
+
+  @state()
+  private bankTerminalEvent?: PaymentSdkEvent;
+
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (
       changedProperties.has('interactionResponse') &&
@@ -115,7 +171,25 @@ export class CommerceHubConnect extends LitElement {
     `;
   }
 
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removePayByBankProviderContainer();
+    destroyPaymentSdk();
+  }
+
   private renderCurrentScreen(): TemplateResult {
+    if (this.bankFlowScreen === 'provider') {
+      return this.renderBankProviderScreen();
+    }
+
+    if (this.bankFlowScreen === 'provider-error') {
+      return this.renderBankProviderErrorScreen();
+    }
+
+    if (this.bankFlowScreen === 'outcome') {
+      return this.renderBankOutcomeScreen();
+    }
+
     const status = this.interactionResponse?.status;
 
     if (
@@ -268,6 +342,86 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
+  private renderBankProviderScreen(): TemplateResult {
+    return renderWidgetShell({
+      title: 'Add bank account',
+      subtitle: 'Connect your bank account through a secure provider.',
+      width: 'wide',
+      content: renderProviderFrame({
+        containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
+        title: 'Secure bank provider',
+        loadingLabel: this.bankLinkLoading
+          ? 'Connecting to your bank...'
+          : undefined,
+      }),
+    });
+  }
+
+  private renderBankProviderErrorScreen(): TemplateResult {
+    return renderWidgetShell({
+      title: 'Bank connection unavailable',
+      subtitle:
+        this.bankProviderError ??
+        'We could not connect to your bank provider right now.',
+      content: renderOutcomeShell({
+        variant: 'danger',
+        message: describePaymentSdkTerminalEvent(this.bankTerminalEvent),
+        actions: html`
+          ${renderButton({
+            label: 'Retry',
+            action: 'retry-bank-provider',
+            disabled: this.bankLinkLoading,
+          })}
+          ${renderTextLinkButton({
+            label: 'Back',
+            action: 'back-to-payment-methods',
+            disabled: this.bankLinkLoading,
+          })}
+        `,
+      }),
+    });
+  }
+
+  private renderBankOutcomeScreen(): TemplateResult {
+    const outcome = resolveBankOutcome(this.bankOutcomeSource);
+
+    return renderWidgetShell({
+      title: outcome.title,
+      subtitle: outcome.message,
+      content: renderOutcomeShell({
+        variant: outcome.variant,
+        content: this.bankOutcomeSource
+          ? renderVerificationDetails(
+              bankSourceVerificationDetails(this.bankOutcomeSource)
+            )
+          : undefined,
+        actions:
+          outcome.kind === 'verified'
+            ? renderButton({
+                label: 'Continue',
+                action: 'continue-bank-outcome',
+              })
+            : outcome.kind === 'pending'
+            ? renderButton({
+                label: 'Done',
+                action: 'done-bank-outcome',
+              })
+            : html`
+                ${renderButton({
+                  label: 'Try again',
+                  action: 'retry-bank-provider',
+                  disabled: this.bankLinkLoading,
+                })}
+                ${renderTextLinkButton({
+                  label: 'Use a different account',
+                  action: 'use-different-bank-account',
+                  disabled: this.bankLinkLoading,
+                })}
+              `,
+      }),
+    });
+  }
+
   private handleClick = (event: Event) => {
     const paymentMethodId = findDatasetValue(event, 'paymentMethodId');
 
@@ -299,7 +453,26 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (action === 'add-bank-account' || action === 'add-card') {
+    if (
+      action === 'add-bank-account' ||
+      action === 'retry-bank-provider' ||
+      action === 'use-different-bank-account'
+    ) {
+      void this.startPayByBankFlow();
+      return;
+    }
+
+    if (action === 'back-to-payment-methods') {
+      this.resetBankFlow();
+      return;
+    }
+
+    if (action === 'continue-bank-outcome' || action === 'done-bank-outcome') {
+      this.resetBankFlow();
+      return;
+    }
+
+    if (action === 'add-card') {
       return;
     }
   };
@@ -433,6 +606,251 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
+  private async startPayByBankFlow() {
+    if (this.bankLinkLoading) {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId) {
+      return;
+    }
+
+    this.bankFlowScreen = 'provider';
+    this.bankProviderError = undefined;
+    this.bankOutcomeSource = undefined;
+    this.bankTerminalEvent = undefined;
+    this.bankLinkLoading = true;
+    this.ensurePayByBankProviderContainer(PAY_BY_BANK_PROVIDER_CONTAINER_ID);
+    await this.updateComplete;
+
+    try {
+      await this.launchPayByBankProvider(
+        interactionId,
+        PAY_BY_BANK_PROVIDER_CONTAINER_ID
+      );
+    } catch (cause) {
+      this.bankProviderError = apiErrorMessage(cause);
+      this.bankFlowScreen = 'provider-error';
+    } finally {
+      this.bankLinkLoading = false;
+    }
+  }
+
+  private async launchPayByBankProvider(
+    interactionId: string,
+    containerId: string
+  ) {
+    const existingBankSourceIds = await this.getExistingBankSourceIds(
+      interactionId
+    );
+    const session = await this.requestCommerceHubJson<PayByBankSession>(
+      '/pbb/session',
+      interactionId,
+      {method: 'GET', credentials: 'include'}
+    );
+    const {aggregatorSessionId, accessToken, pToken, publicKey} =
+      resolvePayByBankSession(session);
+    const payByBank = resolvePayByBankOptions(this.designConfig?.payByBank);
+
+    await loadPaymentSdkScript(payByBank.paymentSdkUrl);
+
+    const paymentSdk = window.PaymentSDK;
+
+    if (!paymentSdk?.init) {
+      throw new Error(
+        'PaymentSDK.js loaded but PaymentSDK.init is not available on window.'
+      );
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+
+      destroyPaymentSdk();
+
+      paymentSdk.init({
+        apiKey: payByBank.apiKey,
+        accessToken,
+        configId: payByBank.configId,
+        environment: payByBank.environment,
+        locale: payByBank.locale,
+        publicKey,
+        pToken,
+        aggregatorSessionId,
+        containerId,
+        onEvent: async (event) => {
+          if (settled || !isTerminalPaymentSdkEvent(event)) {
+            return;
+          }
+
+          this.bankTerminalEvent = event;
+          destroyPaymentSdk();
+
+          if (event.type !== 'success') {
+            settled = true;
+            reject(new Error(describePaymentSdkTerminalEvent(event)));
+            return;
+          }
+
+          try {
+            await this.finalizePayByBankSession(
+              interactionId,
+              aggregatorSessionId,
+              pToken
+            );
+            const profile = await this.getCustomerProfile(interactionId);
+            const bankSource = resolveAttachedBankSource(
+              profile,
+              existingBankSourceIds
+            );
+            const paymentSourceId = bankSource.id?.trim();
+
+            if (!paymentSourceId) {
+              throw new Error(
+                'Pay by Bank completed but no bank payment source was returned by /customer.'
+              );
+            }
+
+            const response = await this.createSdkClient(interactionId).POST(
+              '/interaction/payment-source/{paymentSourceId}/attach',
+              {
+                params: {
+                  path: {paymentSourceId},
+                },
+              }
+            );
+            const attachedInteraction = interactionResponseFromApi(response);
+
+            this.selectedPaymentSourceId = paymentSourceId;
+            this.bankOutcomeSource = bankSource;
+            this.bankFlowScreen = 'outcome';
+            this.setInteractionResponseFromSdk(
+              withUpsertedSource(attachedInteraction, bankSource)
+            );
+            settled = true;
+            resolve();
+          } catch (cause) {
+            settled = true;
+            reject(cause);
+          }
+        },
+      });
+    });
+  }
+
+  private async getExistingBankSourceIds(
+    interactionId: string
+  ): Promise<Set<string>> {
+    try {
+      const profile = await this.getCustomerProfile(interactionId);
+
+      return new Set(
+        (profile.sources ?? [])
+          .filter(isBankPaymentSource)
+          .map((source) => source.id?.trim())
+          .filter((sourceId): sourceId is string => Boolean(sourceId))
+      );
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private async getCustomerProfile(
+    interactionId: string
+  ): Promise<CustomerProfile> {
+    return this.requestCommerceHubJson<CustomerProfile>(
+      '/customer',
+      interactionId,
+      {method: 'GET', credentials: 'include'}
+    );
+  }
+
+  private async finalizePayByBankSession(
+    interactionId: string,
+    aggregatorSessionId: string,
+    pToken: string
+  ): Promise<void> {
+    await this.requestCommerceHubJson<unknown>(
+      `/pbb/session/${encodeURIComponent(
+        aggregatorSessionId
+      )}/${encodeURIComponent(pToken)}`,
+      interactionId,
+      {method: 'PUT', credentials: 'include'}
+    );
+  }
+
+  private async requestCommerceHubJson<T>(
+    path: string,
+    interactionId: string,
+    init: RequestInit
+  ): Promise<T> {
+    const headers = new Headers(init.headers);
+
+    if (!headers.has('Accept')) {
+      headers.set('Accept', 'application/json');
+    }
+
+    headers.set('x-interaction-id', interactionId);
+
+    const request = new Request(`${DEFAULT_COMMERCE_HUB_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+    const response = await fetch(request);
+    const contentType = response.headers.get('content-type') ?? '';
+    const body =
+      response.status === 204
+        ? undefined
+        : contentType.includes('application/json')
+        ? await response.json()
+        : await response.text();
+
+    if (!response.ok) {
+      throw new Error(apiErrorMessage(body) || response.statusText);
+    }
+
+    return body as T;
+  }
+
+  private resetBankFlow() {
+    this.bankFlowScreen = undefined;
+    this.bankProviderError = undefined;
+    this.bankOutcomeSource = undefined;
+    this.bankTerminalEvent = undefined;
+    this.bankLinkLoading = false;
+    this.removePayByBankProviderContainer();
+  }
+
+  private ensurePayByBankProviderContainer(containerId: string): HTMLElement {
+    const existing = [...this.children].find(
+      (child): child is HTMLElement =>
+        child instanceof HTMLElement && child.id === containerId
+    );
+    const container = existing ?? document.createElement('div');
+
+    container.id = containerId;
+    container.slot = containerId;
+    container.className = 'provider-frame-container';
+    container.replaceChildren();
+
+    if (!existing) {
+      this.appendChild(container);
+    }
+
+    return container;
+  }
+
+  private removePayByBankProviderContainer() {
+    [...this.children]
+      .filter(
+        (child): child is HTMLElement =>
+          child instanceof HTMLElement &&
+          child.id === PAY_BY_BANK_PROVIDER_CONTAINER_ID
+      )
+      .forEach((child) => child.remove());
+  }
+
   private requireInteractionId(): string | undefined {
     const interactionId = this.interactionResponse?.interactionId;
 
@@ -486,6 +904,15 @@ export interface DesignConfig {
   colors?: DesignConfigColors;
   baseFontSize?: string;
   copy?: DesignConfigCopy;
+  payByBank?: DesignConfigPayByBank;
+}
+
+export interface DesignConfigPayByBank {
+  apiKey?: string;
+  configId?: string;
+  paymentSdkUrl?: string;
+  environment?: string;
+  locale?: string;
 }
 
 export interface DesignConfigColors {
@@ -645,6 +1072,19 @@ const resolveNoSavedPaymentMethodsCopy = (
   };
 };
 
+const resolvePayByBankOptions = (
+  options?: DesignConfigPayByBank
+): Required<DesignConfigPayByBank> => {
+  const definedOverrides = Object.fromEntries(
+    Object.entries(options ?? {}).filter(([, value]) => value !== undefined)
+  ) as DesignConfigPayByBank;
+
+  return {
+    ...DEFAULT_PAY_BY_BANK_OPTIONS,
+    ...definedOverrides,
+  };
+};
+
 const designConfigColorProperties: {
   field: keyof DesignConfigColors;
   property: string;
@@ -701,7 +1141,7 @@ const paymentSourceToPaymentMethod = (
 ): PaymentMethod => ({
   id: source.id ?? source.name ?? source.tenderType,
   label: source.name ?? paymentSourceLabel(source),
-  type: source.tenderType === 'BankAccount' ? 'bank' : 'card',
+  type: isBankPaymentSource(source) ? 'bank' : 'card',
   brand: paymentSourceBrand(source),
   last4: paymentSourceLast4(source),
   status: verificationStatusToPaymentMethodStatus(
@@ -715,7 +1155,7 @@ const paymentSourceLabel = (source: PaymentSource): string => {
     return 'Saved card';
   }
 
-  if (source.tenderType === 'BankAccount') {
+  if (isBankPaymentSource(source)) {
     return 'Saved bank account';
   }
 
@@ -727,7 +1167,7 @@ const paymentSourceBrand = (source: PaymentSource): string => {
     return source.card?.network ?? 'Card';
   }
 
-  if (source.tenderType === 'BankAccount') {
+  if (isBankPaymentSource(source)) {
     return source.bankAccount?.bankName ?? 'Bank account';
   }
 
@@ -739,7 +1179,7 @@ const paymentSourceLast4 = (source: PaymentSource): string => {
     return lastFour(source.card?.cardNumber);
   }
 
-  if (source.tenderType === 'BankAccount') {
+  if (isBankPaymentSource(source)) {
     return lastFour(source.bankAccount?.accountNumber);
   }
 
@@ -825,7 +1265,240 @@ const verificationStatusToPaymentMethodStatus = (
   return 'unverified';
 };
 
+const resolvePayByBankSession = (
+  session: PayByBankSession
+): {
+  aggregatorSessionId: string;
+  accessToken: string;
+  pToken: string;
+  publicKey: string;
+} => {
+  const aggregatorSessionId = session.aggregatorSessionId?.trim();
+  const accessToken = session.tokenID?.trim() || session.accessToken?.trim();
+  const pToken = session.pToken?.trim();
+  const publicKey = session.publicKey?.trim();
+
+  if (!aggregatorSessionId || !accessToken || !pToken || !publicKey) {
+    throw new Error(
+      'The /pbb/session response is missing one or more required values.'
+    );
+  }
+
+  return {
+    aggregatorSessionId,
+    accessToken,
+    pToken,
+    publicKey,
+  };
+};
+
+const isTerminalPaymentSdkEvent = (event: PaymentSdkEvent): boolean =>
+  event.type === 'success' ||
+  event.type === 'cancel' ||
+  event.type === 'failure' ||
+  event.type === 'error';
+
+const describePaymentSdkTerminalEvent = (event?: PaymentSdkEvent): string => {
+  if (typeof event?.payload === 'string' && event.payload.trim()) {
+    return event.payload;
+  }
+
+  if (event?.type === 'cancel') {
+    return 'Pay by Bank was cancelled.';
+  }
+
+  if (event?.type === 'failure' || event?.type === 'error') {
+    return 'Pay by Bank failed.';
+  }
+
+  return 'Pay by Bank did not complete successfully.';
+};
+
+const resolveAttachedBankSource = (
+  profile: CustomerProfile,
+  existingBankSourceIds: Set<string>
+): BankPaymentSource => {
+  const bankSources = (profile.sources ?? []).filter(isBankPaymentSource);
+
+  const bankSource =
+    bankSources.find((source) => {
+      const sourceId = source.id?.trim();
+
+      return sourceId ? !existingBankSourceIds.has(sourceId) : false;
+    }) ?? bankSources[0];
+
+  if (!bankSource) {
+    throw new Error(
+      'Pay by Bank completed but no bank payment source was returned by /customer.'
+    );
+  }
+
+  return bankSource;
+};
+
+const withUpsertedSource = (
+  interactionResponse: InteractionResponse,
+  source: PaymentSource
+): InteractionResponse => {
+  const paymentSources = interactionResponse.paymentSources ?? [];
+  const nextPaymentSources = paymentSources.some(
+    (paymentSource) => paymentSource.id === source.id
+  )
+    ? paymentSources.map((paymentSource) =>
+        paymentSource.id === source.id ? source : paymentSource
+      )
+    : [source, ...paymentSources];
+
+  return {
+    ...interactionResponse,
+    selectedSource: source,
+    paymentSources: nextPaymentSources,
+  };
+};
+
+type BankOutcome = {
+  kind: 'verified' | 'pending' | 'failed';
+  variant: 'success' | 'warning' | 'danger';
+  title: string;
+  message: string;
+};
+
+const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
+  const status = source?.verificationInfo?.status;
+
+  if (status === 'VERIFIED') {
+    return {
+      kind: 'verified',
+      variant: 'success',
+      title: 'Bank account verified',
+      message: 'Your bank account is connected and ready to use.',
+    };
+  }
+
+  if (status === 'UNDER_REVIEW' || status === 'REQUIRE_INFO') {
+    return {
+      kind: 'pending',
+      variant: 'warning',
+      title: 'Verification pending review',
+      message: 'We will update this bank account after review is complete.',
+    };
+  }
+
+  return {
+    kind: 'failed',
+    variant: 'danger',
+    title: 'Bank account not verified',
+    message: 'This bank account could not be verified.',
+  };
+};
+
+const bankSourceVerificationDetails = (
+  source: BankPaymentSource
+): {label: string; value: string}[] => [
+  {label: 'Bank', value: source.bankAccount?.bankName ?? 'Bank account'},
+  {
+    label: 'Last 4 digits',
+    value: lastFour(source.bankAccount?.accountNumber),
+  },
+  {
+    label: 'Verification status',
+    value: verificationStatusLabel(source.verificationInfo?.status),
+  },
+];
+
+const verificationStatusLabel = (
+  status?: NonNullable<PaymentSource['verificationInfo']>['status']
+): string => {
+  if (status === 'VERIFIED') {
+    return 'Verified';
+  }
+
+  if (status === 'UNDER_REVIEW' || status === 'REQUIRE_INFO') {
+    return 'Pending review';
+  }
+
+  return 'Not verified';
+};
+
+const isBankPaymentSource = (
+  source: PaymentSource
+): source is BankPaymentSource =>
+  source.tenderType === 'BankAccount' ||
+  (source.tenderType as string) === 'BANK_ACCOUNT';
+
+let paymentSdkScriptPromise: Promise<void> | undefined;
+let paymentSdkScriptUrl: string | undefined;
+
+const loadPaymentSdkScript = async (scriptUrl: string): Promise<void> => {
+  if (window.PaymentSDK?.init) {
+    return;
+  }
+
+  if (paymentSdkScriptPromise && paymentSdkScriptUrl === scriptUrl) {
+    await paymentSdkScriptPromise;
+    return;
+  }
+
+  paymentSdkScriptUrl = scriptUrl;
+  paymentSdkScriptPromise = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[data-commerce-hub-pay-by-bank-sdk="true"][src="${scriptUrl}"]`
+    );
+    const script = existing ?? document.createElement('script');
+
+    const cleanup = () => {
+      script.removeEventListener('load', handleLoad);
+      script.removeEventListener('error', handleError);
+    };
+
+    const handleLoad = () => {
+      cleanup();
+      resolve();
+    };
+
+    const handleError = () => {
+      cleanup();
+      paymentSdkScriptPromise = undefined;
+      paymentSdkScriptUrl = undefined;
+      reject(new Error(`Unable to load Pay by Bank script: ${scriptUrl}`));
+    };
+
+    script.addEventListener('load', handleLoad, {once: true});
+    script.addEventListener('error', handleError, {once: true});
+
+    if (!existing) {
+      script.src = scriptUrl;
+      script.async = true;
+      script.dataset.commerceHubPayByBankSdk = 'true';
+      document.head.appendChild(script);
+    }
+  });
+
+  await paymentSdkScriptPromise;
+
+  if (!window.PaymentSDK?.init) {
+    throw new Error(
+      `Pay by Bank script loaded but window.PaymentSDK.init is unavailable: ${scriptUrl}`
+    );
+  }
+};
+
+const destroyPaymentSdk = () => {
+  try {
+    window.PaymentSDK?.destroy?.();
+  } catch {
+    // Ignore provider teardown errors.
+  }
+};
+
 declare global {
+  interface Window {
+    PaymentSDK?: {
+      init: (configuration: PaymentSdkInitConfiguration) => void;
+      destroy?: () => void;
+    };
+  }
+
   interface HTMLElementEventMap {
     [ON_SUCCESS_EVENT]: OnSuccessEvent;
     [ON_ERROR_EVENT]: OnErrorEvent;

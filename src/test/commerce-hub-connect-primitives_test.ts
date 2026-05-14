@@ -12,12 +12,16 @@ import {
   renderFormGrid,
   renderLoadingRow,
   renderOtpGroup,
+  renderOutcomeShell,
   renderPaymentMethodRow,
   renderPoweredByFooter,
+  renderProviderFrame,
   renderSourceAction,
   renderStatusPill,
   renderTextField,
+  renderTextLinkButton,
   renderUploadRow,
+  renderVerificationDetails,
   renderWidgetShell,
 } from '../internal/primitives.js';
 import type {PaymentMethod} from '../internal/types.js';
@@ -330,6 +334,64 @@ suite('commerce-hub-connect primitives', () => {
         item.textContent?.trim()
       ),
       ['Account holder name', 'Last 4 digits']
+    );
+  });
+
+  test('renders Pay by Bank provider, outcome, detail, and text-link primitives', async () => {
+    const root = await renderHarness(html`
+      ${renderProviderFrame({
+        containerId: 'provider-container',
+        title: 'Secure provider connection',
+        loadingLabel: 'Connecting to your bank...',
+      })}
+      ${renderOutcomeShell({
+        variant: 'success',
+        title: 'Bank account verified',
+        message: 'Your account is ready to use.',
+        content: renderVerificationDetails([
+          {label: 'Bank', value: 'Commerce National Bank'},
+          {label: 'Last 4 digits', value: '3210'},
+        ]),
+        actions: html`
+          ${renderButton({label: 'Continue', action: 'continue-bank-outcome'})}
+          ${renderTextLinkButton({
+            label: 'Use a different account',
+            action: 'use-different-bank-account',
+          })}
+        `,
+      })}
+    `);
+
+    assert.equal(
+      root.querySelector('.provider-frame-title')?.textContent?.trim(),
+      'Secure provider connection'
+    );
+    assert.exists(root.querySelector('#provider-container'));
+    assert.equal(
+      root.querySelector('.provider-frame-status')?.getAttribute('role'),
+      'status'
+    );
+    assert.equal(
+      root
+        .querySelector('.outcome-shell')
+        ?.classList.contains('outcome-success'),
+      true
+    );
+    assert.equal(
+      root.querySelector('.outcome-title')?.textContent?.trim(),
+      'Bank account verified'
+    );
+    assert.deepEqual(
+      [...root.querySelectorAll('.verification-detail-label')].map((item) =>
+        item.textContent?.trim()
+      ),
+      ['Bank', 'Last 4 digits']
+    );
+    assert.equal(
+      root
+        .querySelector('[data-action="use-different-bank-account"]')
+        ?.textContent?.trim(),
+      'Use a different account'
     );
   });
 

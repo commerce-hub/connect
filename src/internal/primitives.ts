@@ -9,9 +9,12 @@ import type {
   LoadingRowOptions,
   OtpGroupOptions,
   OtpResendOptions,
+  OutcomeShellOptions,
   PaymentMethod,
+  ProviderFrameOptions,
   SourceActionOptions,
   StatusPillOptions,
+  TextLinkButtonOptions,
   TextFieldOptions,
   UploadRowOptions,
   WidgetShellOptions,
@@ -277,6 +280,74 @@ export const renderLoadingRow = ({
       <span class="loading-row-helper">${helper}</span>
     </span>
   </div>
+`;
+
+export const renderProviderFrame = ({
+  containerId,
+  title,
+  loadingLabel,
+}: ProviderFrameOptions): TemplateResult => html`
+  <div class="provider-frame">
+    <div class="provider-frame-header">
+      <p class="provider-frame-title">${title}</p>
+      ${loadingLabel
+        ? html`
+            <p class="provider-frame-status" role="status" aria-live="polite">
+              ${loadingLabel}
+            </p>
+          `
+        : ''}
+    </div>
+    <slot class="provider-frame-slot" name=${containerId}>
+      <div class="provider-frame-container" id=${containerId}></div>
+    </slot>
+  </div>
+`;
+
+export const renderOutcomeShell = ({
+  variant,
+  title,
+  message,
+  content,
+  actions,
+}: OutcomeShellOptions): TemplateResult => html`
+  <div class="outcome-shell outcome-${variant}">
+    <span class="outcome-icon" aria-hidden="true"></span>
+    ${title ? html`<p class="outcome-title">${title}</p>` : ''}
+    ${message ? html`<p class="outcome-message">${message}</p>` : ''}
+    ${content ? html`<div class="outcome-content">${content}</div>` : ''}
+    ${actions ? html`<div class="outcome-actions">${actions}</div>` : ''}
+  </div>
+`;
+
+export const renderVerificationDetails = (
+  items: DetailItem[]
+): TemplateResult => html`
+  <div class="verification-details">
+    ${items.map(
+      (item) => html`
+        <div class="verification-detail-row">
+          <span class="verification-detail-label">${item.label}</span>
+          <span class="verification-detail-value">${item.value}</span>
+        </div>
+      `
+    )}
+  </div>
+`;
+
+export const renderTextLinkButton = ({
+  label,
+  action,
+  disabled = false,
+}: TextLinkButtonOptions): TemplateResult => html`
+  <button
+    class="text-link-button"
+    type="button"
+    data-action=${action}
+    ?disabled=${disabled}
+  >
+    ${label}
+  </button>
 `;
 
 export const renderPoweredByFooter = (): TemplateResult => html`

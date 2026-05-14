@@ -12,10 +12,26 @@ interface CapturedRequest {
   method: string;
   headers: Headers;
   bodyText: string;
+  credentials: RequestCredentials;
 }
 
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+const waitFor = async (
+  predicate: () => boolean,
+  message = 'condition was not met'
+) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await nextFrame();
+
+    if (predicate()) {
+      return;
+    }
+  }
+
+  throw new Error(message);
+};
 
 const flushElement = async (el: CommerceHubConnect) => {
   await el.updateComplete;
@@ -73,11 +89,42 @@ const recordOutputEvents = (el: Element) => {
   return {successEvents, errorEvents};
 };
 
+interface TestPaymentSdkEvent {
+  type?: string;
+  payload?: unknown;
+  [key: string]: unknown;
+}
+
+interface TestPaymentSdkInitConfiguration {
+  apiKey: string;
+  accessToken: string;
+  configId: string;
+  containerId: string;
+  environment?: string;
+  locale?: string;
+  aggregatorSessionId?: string;
+  publicKey?: string;
+  pToken?: string;
+  onEvent: (event: TestPaymentSdkEvent) => void | Promise<void>;
+}
+
+const paymentSdkWindow = window as Window & {
+  PaymentSDK?: {
+    init: (configuration: TestPaymentSdkInitConfiguration) => void;
+    destroy?: () => void;
+  };
+};
+
 suite('commerce-hub-connect flow', () => {
   const originalFetch = window.fetch;
+  const originalPaymentSdk = paymentSdkWindow.PaymentSDK;
 
   teardown(() => {
     window.fetch = originalFetch;
+    paymentSdkWindow.PaymentSDK = originalPaymentSdk;
+    document
+      .querySelectorAll('script[data-commerce-hub-pay-by-bank-sdk="true"]')
+      .forEach((script) => script.remove());
   });
 
   test('renders OTP pending as six inputs with resend copy and Verify code CTA', async () => {
@@ -299,15 +346,15 @@ suite('commerce-hub-connect flow', () => {
       'Select a saved method for this order.'
     );
     assert.deepEqual(
-      [
-        ...el.shadowRoot!.querySelectorAll('.source-action-title'),
-      ].map((item) => item.textContent?.trim()),
+      [...el.shadowRoot!.querySelectorAll('.source-action-title')].map((item) =>
+        item.textContent?.trim()
+      ),
       ['Use bank account', 'Use card']
     );
     assert.deepEqual(
-      [
-        ...el.shadowRoot!.querySelectorAll('.source-action-subtitle'),
-      ].map((item) => item.textContent?.trim()),
+      [...el.shadowRoot!.querySelectorAll('.source-action-subtitle')].map(
+        (item) => item.textContent?.trim()
+      ),
       ['Connect checking or savings', 'Add debit or credit card']
     );
     assert.equal(
@@ -376,9 +423,9 @@ suite('commerce-hub-connect flow', () => {
       'Add a payment method to keep going.'
     );
     assert.deepEqual(
-      [
-        ...el.shadowRoot!.querySelectorAll('.source-action-title'),
-      ].map((item) => item.textContent?.trim()),
+      [...el.shadowRoot!.querySelectorAll('.source-action-title')].map((item) =>
+        item.textContent?.trim()
+      ),
       ['Connect bank', 'Add card']
     );
   });
@@ -398,6 +445,7 @@ suite('commerce-hub-connect flow', () => {
         method: request.method,
         headers: new Headers(request.headers),
         bodyText: await request.clone().text(),
+        credentials: request.credentials,
       });
 
       return new Response(JSON.stringify(apiResponse), {
@@ -447,6 +495,7 @@ suite('commerce-hub-connect flow', () => {
         method: request.method,
         headers: new Headers(request.headers),
         bodyText: await request.clone().text(),
+        credentials: request.credentials,
       });
 
       return new Response(
@@ -502,6 +551,7 @@ suite('commerce-hub-connect flow', () => {
         method: request.method,
         headers: new Headers(request.headers),
         bodyText: await request.clone().text(),
+        credentials: request.credentials,
       });
 
       return new Response(JSON.stringify(apiResponse), {
@@ -597,6 +647,426 @@ suite('commerce-hub-connect flow', () => {
         .shadowRoot!.querySelector('[data-action="verify-otp"]')
         ?.textContent?.trim(),
       'Try again'
+    );
+  });
+
+  test('add bank account initializes PaymentSDK with mapped Pay by Bank session fields', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+    let providerContainer: HTMLElement | null = null;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+        providerContainer = document.getElementById(configuration.containerId);
+
+        if (!providerContainer) {
+          throw new Error(
+            `PaymentSDK: Container element not found: ${configuration.containerId}`
+          );
+        }
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (request.url.endsWith('/customer')) {
+        return new Response(
+          JSON.stringify({
+            sources: [
+              {
+                tenderType: 'BankAccount',
+                id: 'bank-existing',
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      {
+        payByBank: {
+          apiKey: 'override-api-key',
+          configId: 'override-config-id',
+          environment: 'sandbox',
+          locale: 'en-CA',
+        },
+      }
+    );
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add bank account'
+    );
+    assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
+    assert.equal(initConfig?.apiKey, 'override-api-key');
+    assert.equal(initConfig?.configId, 'override-config-id');
+    assert.equal(initConfig?.accessToken, 'access-token-1');
+    assert.equal(initConfig?.aggregatorSessionId, 'agg-session-1');
+    assert.equal(initConfig?.pToken, 'p-token-1');
+    assert.equal(initConfig?.publicKey, 'public-key-1');
+    assert.equal(initConfig?.environment, 'sandbox');
+    assert.equal(initConfig?.locale, 'en-CA');
+    assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
+    assert.exists(providerContainer);
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /customer', 'GET /pbb/session']
+    );
+    assert.equal(
+      requests[1].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(requests[1].credentials, 'include');
+  });
+
+  test('Pay by Bank success finalizes, attaches the new bank source, and renders verified outcome without events', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      const pathname = new URL(request.url).pathname;
+
+      if (
+        pathname === '/customer' &&
+        requests.filter((item) => new URL(item.url).pathname === '/customer')
+          .length === 1
+      ) {
+        return new Response(
+          JSON.stringify({
+            sources: [{tenderType: 'BankAccount', id: 'bank-existing'}],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/pbb/session/agg-session-1/p-token-1') {
+        return new Response('{}', {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (pathname === '/customer') {
+        return new Response(
+          JSON.stringify({
+            sources: [
+              {tenderType: 'BankAccount', id: 'bank-existing'},
+              {
+                tenderType: 'BankAccount',
+                id: 'bank-new',
+                name: 'Operating account',
+                verificationInfo: {status: 'VERIFIED'},
+                bankAccount: {
+                  bankName: 'Commerce National Bank',
+                  accountNumber: '9876543210',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: {
+            tenderType: 'BankAccount',
+            id: 'bank-new',
+            name: 'Operating account',
+          },
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+    const {successEvents, errorEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await initConfig!.onEvent({type: 'success'});
+    await flushElement(el);
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      [
+        'GET /customer',
+        'GET /pbb/session',
+        'PUT /pbb/session/agg-session-1/p-token-1',
+        'GET /customer',
+        'POST /interaction/payment-source/bank-new/attach',
+      ]
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank account verified'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.verification-detail-value')
+        ?.textContent?.trim(),
+      'Commerce National Bank'
+    );
+    assert.equal(el.interactionResponse?.paymentSources?.[0]?.id, 'bank-new');
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
+  });
+
+  test('Pay by Bank terminal failure events render the provider unavailable screen', async () => {
+    for (const terminalType of ['failure', 'cancel', 'error']) {
+      let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+      paymentSdkWindow.PaymentSDK = {
+        init: (configuration) => {
+          initConfig = configuration;
+        },
+        destroy: () => undefined,
+      };
+
+      window.fetch = async (input: RequestInfo | URL) => {
+        const request = input instanceof Request ? input : new Request(input);
+
+        if (request.url.endsWith('/customer')) {
+          return new Response(JSON.stringify({sources: []}), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      };
+
+      const el = await renderConnect({
+        interactionId: `interaction-${terminalType}`,
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      });
+
+      await clickAction(el, 'add-bank-account');
+      await waitFor(
+        () => Boolean(initConfig),
+        'PaymentSDK.init was not called'
+      );
+      await initConfig!.onEvent({type: terminalType});
+      await flushElement(el);
+
+      assert.equal(
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+        'Bank connection unavailable',
+        terminalType
+      );
+      assert.exists(
+        el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
+      );
+      assert.exists(
+        el.shadowRoot!.querySelector('[data-action="back-to-payment-methods"]')
+      );
+    }
+  });
+
+  test('Pay by Bank script load failure and incomplete session render provider unavailable', async () => {
+    paymentSdkWindow.PaymentSDK = undefined;
+    window.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+
+    const scriptFailureEl = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      {payByBank: {paymentSdkUrl: 'https://example.test/PaymentSDK.js'}}
+    );
+
+    await clickAction(scriptFailureEl, 'add-bank-account');
+    const script = document.querySelector<HTMLScriptElement>(
+      'script[data-commerce-hub-pay-by-bank-sdk="true"]'
+    );
+    assert.exists(script);
+    script!.dispatchEvent(new Event('error'));
+    await flushElement(scriptFailureEl);
+
+    assert.equal(
+      scriptFailureEl
+        .shadowRoot!.querySelector('.widget-title')
+        ?.textContent?.trim(),
+      'Bank connection unavailable'
+    );
+
+    paymentSdkWindow.PaymentSDK = {
+      init: () => undefined,
+      destroy: () => undefined,
+    };
+    window.fetch = async () =>
+      new Response(JSON.stringify({aggregatorSessionId: 'agg-session-1'}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+
+    const incompleteSessionEl = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(incompleteSessionEl, 'add-bank-account');
+    await flushElement(incompleteSessionEl);
+
+    assert.equal(
+      incompleteSessionEl
+        .shadowRoot!.querySelector('.widget-title')
+        ?.textContent?.trim(),
+      'Bank connection unavailable'
+    );
+  });
+
+  test('Pay by Bank retry reinitializes the provider and Back returns to payment methods', async () => {
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+    let initCount = 0;
+    let destroyCount = 0;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+        initCount += 1;
+      },
+      destroy: () => {
+        destroyCount += 1;
+      },
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (request.url.endsWith('/customer')) {
+        return new Response(JSON.stringify({sources: []}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => initCount === 1, 'PaymentSDK.init was not called');
+    await initConfig!.onEvent({type: 'failure'});
+    await flushElement(el);
+
+    await clickAction(el, 'retry-bank-provider');
+    await waitFor(
+      () => initCount === 2,
+      'PaymentSDK.init was not called again'
+    );
+
+    assert.isAtLeast(destroyCount, 2);
+
+    await initConfig!.onEvent({type: 'cancel'});
+    await flushElement(el);
+    await clickAction(el, 'back-to-payment-methods');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Payment methods'
     );
   });
 });

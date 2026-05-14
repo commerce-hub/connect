@@ -12,6 +12,11 @@ export type FlowActionName =
   | 'attach-payment-source'
   | 'add-bank-account'
   | 'add-card'
+  | 'retry-bank-provider'
+  | 'back-to-payment-methods'
+  | 'continue-bank-outcome'
+  | 'done-bank-outcome'
+  | 'use-different-bank-account'
   | 'close';
 
 export type OtpFormStatus = 'idle' | 'submitting' | 'resending' | 'failed';
@@ -162,6 +167,28 @@ export interface UploadRowOptions {
 export interface LoadingRowOptions {
   title: string;
   helper: string;
+}
+
+export interface ProviderFrameOptions {
+  containerId: string;
+  title: string;
+  loadingLabel?: string;
+}
+
+export type OutcomeVariant = 'success' | 'warning' | 'danger';
+
+export interface OutcomeShellOptions {
+  variant: OutcomeVariant;
+  title?: string;
+  message?: string;
+  content?: TemplateResult;
+  actions?: TemplateResult;
+}
+
+export interface TextLinkButtonOptions {
+  label: string;
+  action: FlowActionName;
+  disabled?: boolean;
 }
 
 export interface DetailItem {
