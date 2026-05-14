@@ -1,68 +1,92 @@
-# Commerce Hub Connect wallet SDK workspace
+# CommerceHub Connect Web SDK
 
-This workspace includes three local example surfaces for the Commerce Hub Connect integration:
+This package provides the CommerceHub Connect widget as a Lit-based web
+component. The current implementation establishes the internal primitive
+foundation from the Figma source of truth so future SDK flow work can compose a
+single public `<commerce-hub-connect>` element.
 
-- **Web SDK example** — plain browser host in `projects/commerce-hub-connect-web-sdk/example/index.html`
-- **Angular binding example** — standalone Angular host in `projects/commerce-hub-connect-angular-app/example/example-app.component.ts`
-- **React binding example** — Vite host app in `projects/commerce-hub-connect-react-app/src/example-app.tsx`
+## Current scope
 
-## Run the examples
+- Public web component: `<commerce-hub-connect>`
+- Typed CommerceHub API client generated from `swagger.json`
+- Internal primitives for widget shell, buttons, fields, OTP inputs, alerts,
+  status pills, payment method rows, source actions, detail rows, and form grids
+- CSS custom property tokens for merchant-safe theming
+- No payment flow state machine yet
 
-### Web SDK example
+## Development
 
-```bash
-npm run build:web-sdk-widget
-npm run start:web-sdk-example
-```
-
-### Angular binding example
-
-```bash
-npm run start:angular-binding-example
-```
-
-This serves the Angular host on port `4500` with local proxy routing for `/commerce-hub-proxy/<environment>`.
-
-### React binding example
+Install dependencies:
 
 ```bash
-npm run start:react-binding-example
+npm i
 ```
 
-This starts the Vite host on port `4173` with local proxy routing for `/commerce-hub-proxy/<environment>`.
-
-## React binding library
-
-```bash
-npm run build:react-binding
-npm run pack:react-binding
-npm run test:react-binding
-```
-
-`build:react-binding` writes the distributable package files to
-`projects/commerce-hub-connect-react-app/dist`, and `pack:react-binding` creates a tarball you can
-hand to another app team.
-
-## Angular binding library
-
-```bash
-npm run build:angular-binding
-npm run test:angular-binding
-npm run build:angular-binding-example
-npm run test:angular-binding-example
-npm run test:angular-binding-smoke
-```
-
-## Verification commands
+Build the component:
 
 ```bash
 npm run build
-npm run test
-npm run test:angular-binding-smoke
-npm run typecheck:react-binding
-npm run build:react-binding
-npm run pack:react-binding
-npm run test:react-binding
-npm run test:web-sdk-smoke
-npm run verify:framework-bindings
+```
+
+Regenerate the typed API client after `swagger.json` changes:
+
+```bash
+npm run generate:client
+```
+
+Run tests:
+
+```bash
+npm test
+```
+
+Start the local demo:
+
+```bash
+npm run serve
+```
+
+Then open `/dev/index.html`.
+
+## API client
+
+The SDK exports a typed `fetch` client for the CommerceHub OpenAPI surface.
+Generated schema types live in `src/generated/openapi.ts`; do not edit that
+file by hand.
+
+```ts
+import {createCommerceHubClient} from './commerce-hub-connect.js';
+
+const client = createCommerceHubClient({
+  baseUrl: 'https://api.example.com',
+  headers: {Authorization: `Bearer ${token}`},
+});
+
+const {data, error} = await client.GET('/customer');
+```
+
+Pass an `InteractionResponse` into the component with a property binding when
+the host app owns the API call:
+
+```ts
+import type {InteractionResponse} from './commerce-hub-connect.js';
+
+const interactionResponse: InteractionResponse = await loadInteraction();
+
+html`<commerce-hub-connect
+  .interactionResponse=${interactionResponse}
+></commerce-hub-connect>`;
+```
+
+## Theming
+
+The widget ships with Figma-aligned defaults and can be themed by setting CSS
+custom properties on the host element or an ancestor.
+
+```css
+commerce-hub-connect {
+  --chc-primary: #084acc;
+  --chc-text: #101828;
+  --chc-border: #cbd5e1;
+}
 ```
