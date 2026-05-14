@@ -11,6 +11,10 @@ suite('demo host page', () => {
     const initInteractionIndex = html.indexOf(
       'widget.interactionResponse = interactionResponse'
     );
+    const apiResponseIndex = html.indexOf(
+      'await createInitialInteractionResponse()'
+    );
+    const widgetInitIndex = html.indexOf('initializeWidget(interactionResponse)');
 
     assert.isAtLeast(
       createInteractionIndex,
@@ -26,6 +30,26 @@ suite('demo host page', () => {
       createInteractionIndex,
       initInteractionIndex,
       'expected create interaction call before widget response initialization'
+    );
+    assert.notInclude(
+      html,
+      '<commerce-hub-connect id="connect-widget">',
+      'expected demo host to create the widget after receiving the API response'
+    );
+    assert.isAtLeast(
+      apiResponseIndex,
+      0,
+      'expected demo host to await the initial interaction response'
+    );
+    assert.isAtLeast(
+      widgetInitIndex,
+      0,
+      'expected demo host to initialize the widget with the API response'
+    );
+    assert.isBelow(
+      apiResponseIndex,
+      widgetInitIndex,
+      'expected API response before widget initialization'
     );
   });
 });
