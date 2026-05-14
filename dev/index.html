@@ -387,7 +387,7 @@
         </article>
 
         <article class="payload-card">
-          <h2>Input: interactionResponse</h2>
+          <h2>Input: widget properties</h2>
           <pre id="interaction-input"></pre>
         </article>
 
@@ -453,6 +453,29 @@
           email: 'wallet@example.com',
           allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
           paymentSources: [],
+        },
+      };
+      const designConfig = {
+        colors: {
+          primary: '#084acc',
+          text: '#101828',
+          copy: '#344054',
+          border: '#cbd5e1',
+        },
+        baseFontSize: '16px',
+        copy: {
+          otp: {
+            title: 'Confirm your email',
+            verifyButton: 'Confirm code',
+          },
+          paymentMethods: {
+            title: 'Choose payment method',
+            continueButton: 'Use selected method',
+          },
+          noSavedPaymentMethods: {
+            title: 'Add payment method',
+            emptyTitle: 'No saved methods',
+          },
         },
       };
 
@@ -615,15 +638,17 @@
         widget = document.createElement('commerce-hub-connect');
         widget.id = 'connect-widget';
         widget.interactionResponse = interactionResponse;
+        widget.designConfig = designConfig;
         widgetHost.replaceChildren(widget);
-        input.textContent = format(interactionResponse);
+        input.textContent = format({interactionResponse, designConfig});
       };
 
       const setInteractionResponse = (interactionResponse) => {
-        input.textContent = format(interactionResponse);
+        input.textContent = format({interactionResponse, designConfig});
 
         if (widget) {
           widget.interactionResponse = interactionResponse;
+          widget.designConfig = designConfig;
         }
       };
 
@@ -723,7 +748,9 @@
         writeRequestFormState(initialRequestFormState);
         syncRequestPreview();
         input.textContent = format({
-          message: 'Submit the create request to see the interactionResponse.',
+          message:
+            'Submit the create request or choose a scenario to see the widget properties.',
+          designConfig,
         });
         setActiveScenario();
       };

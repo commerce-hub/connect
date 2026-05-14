@@ -18,7 +18,7 @@ module.exports = class Docs {
           module.declarations?.filter((dec) => dec.customElement) ?? []
         ),
       []
-    );
+    ).filter((element) => element.tagName === 'commerce-hub-connect');
     return `
      <h1>API</h1>
      ${elements
@@ -36,7 +36,9 @@ module.exports = class Docs {
        ${renderTable(
          'Properties',
          ['name', 'attribute', 'description', 'type.text', 'default'],
-         element.members.filter((m) => m.kind === 'field')
+         element.members.filter(
+           (m) => m.kind === 'field' && m.privacy !== 'private'
+         )
        )}  
        ${renderTable(
          'Methods',

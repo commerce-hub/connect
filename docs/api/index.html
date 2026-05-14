@@ -33,49 +33,8 @@
        <div>
          CommerceHub Connect Web SDK widget shell.
 
-The current implementation renders internal primitive examples from the
-Figma source of truth. Flow behavior and CommerceHub API integration will be
-layered on top of these primitives in later slices.
-       </div>
-       
-         
-       
-           
-         
-       
-       
-   <h3>CSS Custom Properties</h3>
-   <table>
-     <tr>
-       <th>Name</th><th>Description</th>
-     </tr>
-     
-       <tr>
-         <td>--chc-primary</td><td>Primary action color.</td>
-       </tr>
-     
-       <tr>
-         <td>--chc-text</td><td>Primary text color.</td>
-       </tr>
-     
-       <tr>
-         <td>--chc-copy</td><td>Secondary copy color.</td>
-       </tr>
-     
-       <tr>
-         <td>--chc-muted</td><td>Muted helper text color.</td>
-       </tr>
-     
-       <tr>
-         <td>--chc-border</td><td>Control border color.</td>
-       </tr>
-     
-   </table>
- 
-       
-       <h2>&lt;primitive-harness></h2>
-       <div>
-         
+Renders the SDK-owned interaction flow slice for OTP verification and saved
+payment-source selection.
        </div>
        
        
@@ -86,7 +45,11 @@ layered on top of these primitives in later slices.
      </tr>
      
        <tr>
-         <td>shadow</td><td></td><td></td><td></td><td></td>
+         <td>interactionResponse</td><td></td><td></td><td>InteractionResponse | undefined</td><td></td>
+       </tr>
+     
+       <tr>
+         <td>designConfig</td><td></td><td></td><td>DesignConfig | undefined</td><td></td>
        </tr>
      
    </table>

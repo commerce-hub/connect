@@ -1,7 +1,10 @@
 import {fixture, assert, html as testingHtml} from '@open-wc/testing';
 
 import '../commerce-hub-connect.js';
-import {type InteractionResponse} from '../commerce-hub-connect.js';
+import {
+  DEFAULT_COMMERCE_HUB_BASE_URL,
+  type InteractionResponse,
+} from '../commerce-hub-connect.js';
 import type {CommerceHubConnect} from '../commerce-hub-connect.js';
 
 interface CapturedRequest {
@@ -20,10 +23,14 @@ const flushElement = async (el: CommerceHubConnect) => {
   await el.updateComplete;
 };
 
-const renderConnect = async (interactionResponse: InteractionResponse) => {
+const renderConnect = async (
+  interactionResponse: InteractionResponse,
+  designConfig?: unknown
+) => {
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
       .interactionResponse=${interactionResponse}
+      .designConfig=${designConfig}
     ></commerce-hub-connect>`
   )) as CommerceHubConnect;
 
@@ -100,6 +107,52 @@ suite('commerce-hub-connect flow', () => {
         .shadowRoot!.querySelector('[data-action="verify-otp"]')
         ?.textContent?.trim(),
       'Verify code'
+    );
+  });
+
+  test('renders OTP copy from partial designConfig overrides', async () => {
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-otp',
+        status: 'OTP_VALIDATION_PENDING',
+        email: 'wallet@example.com',
+      },
+      {
+        copy: {
+          otp: {
+            title: 'Confirm account access',
+            subtitle: 'Use the code sent by Commerce Hub.',
+            resendPrefix: 'Need another code?',
+            resendButton: 'Send a new code',
+            verifyButton: 'Confirm code',
+          },
+        },
+      }
+    );
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Confirm account access'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
+      'Use the code sent by Commerce Hub.'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.otp-resend-prefix')?.textContent?.trim(),
+      'Need another code?'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="resend-otp"]')
+        ?.textContent?.trim(),
+      'Send a new code'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="verify-otp"]')
+        ?.textContent?.trim(),
+      'Confirm code'
     );
   });
 
@@ -204,6 +257,67 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('renders payment methods copy from partial designConfig overrides', async () => {
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        selectedSource: {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+        },
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'card-1',
+            name: 'Corporate card',
+          },
+        ],
+      },
+      {
+        copy: {
+          paymentMethods: {
+            title: 'Choose payment',
+            subtitle: 'Select a saved method for this order.',
+            addBankAccountTitle: 'Use bank account',
+            addBankAccountSubtitle: 'Connect checking or savings',
+            addCardTitle: 'Use card',
+            addCardSubtitle: 'Add debit or credit card',
+            continueButton: 'Pay with selected method',
+          },
+        },
+      }
+    );
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Choose payment'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
+      'Select a saved method for this order.'
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll('.source-action-title'),
+      ].map((item) => item.textContent?.trim()),
+      ['Use bank account', 'Use card']
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll('.source-action-subtitle'),
+      ].map((item) => item.textContent?.trim()),
+      ['Connect checking or savings', 'Add debit or credit card']
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="attach-payment-source"]')
+        ?.textContent?.trim(),
+      'Pay with selected method'
+    );
+  });
+
   test('renders no saved payment methods without a Continue CTA', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
@@ -221,6 +335,51 @@ suite('commerce-hub-connect flow', () => {
     assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="attach-payment-source"]')
+    );
+  });
+
+  test('renders no-saved-methods copy from partial designConfig overrides', async () => {
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      {
+        copy: {
+          noSavedPaymentMethods: {
+            title: 'Add payment',
+            subtitle: 'Start with a new payment method.',
+            emptyTitle: 'Nothing saved yet',
+            emptyMessage: 'Add a payment method to keep going.',
+            addBankAccountTitle: 'Connect bank',
+            addCardTitle: 'Add card',
+          },
+        },
+      }
+    );
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add payment'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
+      'Start with a new payment method.'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.empty-state-title')?.textContent?.trim(),
+      'Nothing saved yet'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.empty-state-message')?.textContent?.trim(),
+      'Add a payment method to keep going.'
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll('.source-action-title'),
+      ].map((item) => item.textContent?.trim()),
+      ['Connect bank', 'Add card']
     );
   });
 
@@ -259,7 +418,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(requests, 1);
     assert.equal(
       requests[0].url,
-      'https://dev.openfx-nonprod.aws.fisv.cloud/interaction/otp/validate'
+      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/otp/validate`
     );
     assert.equal(requests[0].method, 'POST');
     assert.equal(
@@ -314,7 +473,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(requests, 1);
     assert.equal(
       requests[0].url,
-      'https://dev.openfx-nonprod.aws.fisv.cloud/interaction/otp/send/email'
+      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/otp/send/email`
     );
     assert.equal(requests[0].method, 'POST');
     assert.equal(
@@ -374,7 +533,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(requests, 1);
     assert.equal(
       requests[0].url,
-      'https://dev.openfx-nonprod.aws.fisv.cloud/interaction/payment-source/card-1/attach'
+      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/payment-source/card-1/attach`
     );
     assert.equal(requests[0].method, 'POST');
     assert.equal(

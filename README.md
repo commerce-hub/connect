@@ -12,7 +12,7 @@ slice for OTP verification and saved payment-method selection.
 - Internal primitives for widget shell, buttons, fields, OTP inputs, alerts,
   status pills, payment method rows, source actions, detail rows, and form grids
 - SDK-owned OTP validation and saved payment-source attach actions
-- CSS custom property tokens for merchant-safe theming
+- Optional `designConfig` input for merchant-safe colors, typography, and copy
 
 ## Development
 
@@ -66,35 +66,46 @@ const {data, error} = await client.GET('/customer');
 ```
 
 When `<commerce-hub-connect>` performs SDK-managed interaction calls, it uses
-`https://dev.openfx-nonprod.aws.fisv.cloud` by default and sends
-`interactionResponse.interactionId` as the `x-interaction-id` header. OTP
-validation, OTP resend, and saved payment-source attach actions require that
-`interactionId`; if it is missing, the widget keeps the current screen stable
-and does not call the API. This flow slice does not emit `onSuccess` or
-`onError` events.
+`http://localhost:8080` by default and sends `interactionResponse.interactionId`
+as the `x-interaction-id` header. OTP validation, OTP resend, and saved
+payment-source attach actions require that `interactionId`; if it is missing,
+the widget keeps the current screen stable and does not call the API. This flow
+slice does not emit `onSuccess` or `onError` events.
 
 Pass an `InteractionResponse` into the component with a property binding when
 the host app owns the API call:
 
 ```ts
-import type {InteractionResponse} from './commerce-hub-connect.js';
+import type {
+  DesignConfig,
+  InteractionResponse,
+} from './commerce-hub-connect.js';
 
 const interactionResponse: InteractionResponse = await loadInteraction();
+const designConfig: DesignConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+  },
+  baseFontSize: '16px',
+  copy: {
+    otp: {
+      title: 'Confirm your email',
+      verifyButton: 'Confirm code',
+    },
+    paymentMethods: {
+      title: 'Choose payment',
+      continueButton: 'Use selected method',
+    },
+  },
+};
 
 html`<commerce-hub-connect
   .interactionResponse=${interactionResponse}
+  .designConfig=${designConfig}
 ></commerce-hub-connect>`;
 ```
 
-## Theming
-
-The widget ships with Figma-aligned defaults and can be themed by setting CSS
-custom properties on the host element or an ancestor.
-
-```css
-commerce-hub-connect {
-  --chc-primary: #084acc;
-  --chc-text: #101828;
-  --chc-border: #cbd5e1;
-}
-```
+`designConfig` and all nested fields are optional. Any omitted color,
+`baseFontSize`, title, subtitle, or button label falls back to the SDK default.

@@ -83,6 +83,31 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
+  test('applies partial designConfig color and typography without resizing controls', async () => {
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .designConfig=${{
+          colors: {
+            primary: '#0f766e',
+          },
+          baseFontSize: '20px',
+        }}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+
+    await el.updateComplete;
+
+    const title = el.shadowRoot!.querySelector<HTMLElement>('.widget-title')!;
+    const button = el.shadowRoot!.querySelector<HTMLElement>('.button')!;
+
+    assert.equal(
+      getComputedStyle(el).getPropertyValue('--chc-primary').trim(),
+      '#0f766e'
+    );
+    assert.equal(getComputedStyle(title).fontSize, '42.5px');
+    assert.equal(getComputedStyle(button).minHeight, '72px');
+  });
+
   test('renders payment sources from an interaction response input', async () => {
     const interactionResponse: InteractionResponse = {
       selectedSource: {

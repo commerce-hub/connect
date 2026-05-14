@@ -31,6 +31,7 @@ export const primitiveStyles = css`
     display: block;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
+    font-size: 16px;
   }
 
   *,
@@ -63,26 +64,26 @@ export const primitiveStyles = css`
     background: transparent;
     color: var(--chc-text);
     font: inherit;
-    font-size: 36px;
+    font-size: 2.25em;
     font-weight: 700;
-    line-height: 36px;
+    line-height: 1;
     cursor: pointer;
   }
 
   .widget-title {
     margin: 0;
     color: #000;
-    font-size: 34px;
+    font-size: 2.125em;
     font-weight: 700;
-    line-height: 41px;
+    line-height: 1.2059;
   }
 
   .widget-subtitle {
     margin: 18px 0 0;
     color: var(--chc-copy);
-    font-size: 20px;
+    font-size: 1.25em;
     font-weight: 400;
-    line-height: 30px;
+    line-height: 1.5;
   }
 
   .widget-content {
@@ -118,8 +119,8 @@ export const primitiveStyles = css`
     justify-content: center;
     gap: 6px;
     color: var(--chc-muted);
-    font-size: 16px;
-    line-height: 22px;
+    font-size: 1em;
+    line-height: 1.375;
   }
 
   .otp-resend-prefix {
@@ -147,9 +148,9 @@ export const primitiveStyles = css`
     border-radius: var(--chc-radius-control);
     padding: 0 24px;
     font: inherit;
-    font-size: 24px;
+    font-size: 1.5em;
     font-weight: 700;
-    line-height: 30px;
+    line-height: 1.25;
     cursor: pointer;
   }
 
@@ -184,9 +185,9 @@ export const primitiveStyles = css`
 
   .field-label {
     color: var(--chc-text);
-    font-size: 16px;
+    font-size: 1em;
     font-weight: 600;
-    line-height: 22px;
+    line-height: 1.375;
   }
 
   .field-input {
@@ -198,8 +199,8 @@ export const primitiveStyles = css`
     background: #fff;
     color: var(--chc-text);
     font: inherit;
-    font-size: 20px;
-    line-height: 28px;
+    font-size: 1.25em;
+    line-height: 1.4;
     text-align: center;
   }
 
@@ -243,9 +244,9 @@ export const primitiveStyles = css`
     border-radius: 10px;
     color: var(--chc-text);
     font: inherit;
-    font-size: 32px;
+    font-size: 2em;
     font-weight: 400;
-    line-height: 42px;
+    line-height: 1.3125;
     text-align: center;
   }
 
@@ -266,9 +267,9 @@ export const primitiveStyles = css`
     border: 1px solid;
     border-radius: var(--chc-radius-control);
     padding: 12px 24px;
-    font-size: 14px;
+    font-size: 0.875em;
     font-weight: 600;
-    line-height: 20px;
+    line-height: 1.4286;
     text-align: left;
   }
 
@@ -299,9 +300,9 @@ export const primitiveStyles = css`
     border: 1px solid;
     border-radius: 999px;
     padding: 1px 10px;
-    font-size: 11px;
+    font-size: 0.6875em;
     font-weight: 600;
-    line-height: 14px;
+    line-height: 1.2727;
   }
 
   .status-verified {
@@ -359,32 +360,32 @@ export const primitiveStyles = css`
 
   .payment-method-eyebrow {
     color: var(--chc-copy);
-    font-size: 16px;
+    font-size: 1em;
     font-weight: 400;
-    line-height: 22px;
+    line-height: 1.375;
   }
 
   .payment-method-title {
     overflow: hidden;
     color: var(--chc-text);
-    font-size: 23px;
+    font-size: 1.4375em;
     font-weight: 700;
-    line-height: 30px;
+    line-height: 1.3044;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .payment-method-holder {
     color: var(--chc-muted);
-    font-size: 18px;
+    font-size: 1.125em;
     font-weight: 400;
-    line-height: 25px;
+    line-height: 1.3889;
   }
 
   .payment-method-status {
-    font-size: 17px;
+    font-size: 1.0625em;
     font-weight: 400;
-    line-height: 22px;
+    line-height: 1.2941;
   }
 
   .status-text-verified {
@@ -401,9 +402,9 @@ export const primitiveStyles = css`
 
   .payment-method-chevron {
     color: var(--chc-text);
-    font-size: 34px;
+    font-size: 2.125em;
     font-weight: 700;
-    line-height: 34px;
+    line-height: 1;
     text-align: center;
   }
 
@@ -440,9 +441,9 @@ export const primitiveStyles = css`
     border-radius: 999px;
     background: var(--chc-soft-surface);
     color: var(--chc-primary);
-    font-size: 28px;
+    font-size: 1.75em;
     font-weight: 700;
-    line-height: 34px;
+    line-height: 1.2143;
   }
 
   .source-action-copy {
@@ -453,9 +454,9 @@ export const primitiveStyles = css`
   .source-action-title {
     overflow: hidden;
     color: var(--chc-text);
-    font-size: 23px;
+    font-size: 1.4375em;
     font-weight: 700;
-    line-height: 30px;
+    line-height: 1.3044;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -463,9 +464,9 @@ export const primitiveStyles = css`
   .source-action-subtitle {
     overflow: hidden;
     color: var(--chc-muted);
-    font-size: 17px;
+    font-size: 1.0625em;
     font-weight: 400;
-    line-height: 25px;
+    line-height: 1.4706;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -492,16 +493,16 @@ export const primitiveStyles = css`
   .empty-state-title {
     margin: 0;
     color: var(--chc-text);
-    font-size: 22px;
+    font-size: 1.375em;
     font-weight: 700;
-    line-height: 30px;
+    line-height: 1.3636;
   }
 
   .empty-state-message {
     margin: 0;
     color: var(--chc-muted);
-    font-size: 16px;
-    line-height: 24px;
+    font-size: 1em;
+    line-height: 1.5;
   }
 
   .detail-row {
@@ -517,16 +518,16 @@ export const primitiveStyles = css`
 
   .detail-label {
     color: var(--chc-muted);
-    font-size: 16px;
+    font-size: 1em;
     font-weight: 600;
-    line-height: 22px;
+    line-height: 1.375;
   }
 
   .detail-value {
     color: var(--chc-text);
-    font-size: 20px;
+    font-size: 1.25em;
     font-weight: 600;
-    line-height: 28px;
+    line-height: 1.4;
   }
 
   .upload-row {
@@ -561,9 +562,9 @@ export const primitiveStyles = css`
   .upload-icon {
     width: 32px;
     color: var(--chc-primary);
-    font-size: 24px;
+    font-size: 1.5em;
     font-weight: 700;
-    line-height: 24px;
+    line-height: 1;
     text-align: center;
   }
 
@@ -578,18 +579,18 @@ export const primitiveStyles = css`
 
   .upload-row-requirements {
     overflow: hidden;
-    font-size: 16px;
+    font-size: 1em;
     font-weight: 400;
-    line-height: 22px;
+    line-height: 1.375;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .upload-row-action {
     color: var(--chc-primary);
-    font-size: 18px;
+    font-size: 1.125em;
     font-weight: 700;
-    line-height: 24px;
+    line-height: 1.3333;
     white-space: nowrap;
   }
 
@@ -622,9 +623,9 @@ export const primitiveStyles = css`
   .loading-row-title {
     overflow: hidden;
     color: var(--chc-text);
-    font-size: 21px;
+    font-size: 1.3125em;
     font-weight: 700;
-    line-height: 28px;
+    line-height: 1.3333;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -632,9 +633,9 @@ export const primitiveStyles = css`
   .loading-row-helper {
     overflow: hidden;
     color: var(--chc-muted);
-    font-size: 16px;
+    font-size: 1em;
     font-weight: 400;
-    line-height: 24px;
+    line-height: 1.5;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -645,9 +646,9 @@ export const primitiveStyles = css`
     gap: 5px;
     margin-top: 28px;
     color: var(--chc-copy);
-    font-size: 16px;
+    font-size: 1em;
     font-weight: 400;
-    line-height: 22px;
+    line-height: 1.375;
     white-space: nowrap;
   }
 
@@ -667,13 +668,13 @@ export const primitiveStyles = css`
     }
 
     .widget-title {
-      font-size: 30px;
-      line-height: 36px;
+      font-size: 1.875em;
+      line-height: 1.2;
     }
 
     .widget-subtitle {
-      font-size: 18px;
-      line-height: 27px;
+      font-size: 1.125em;
+      line-height: 1.5;
     }
 
     .otp-inputs {

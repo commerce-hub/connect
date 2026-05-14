@@ -35,14 +35,34 @@ uses `interactionResponse.interactionId` as the `x-interaction-id` header. If
 keeps the current screen stable. This flow slice does not emit `onSuccess` or
 `onError` events.
 
-## Theming
+## Design configuration
 
-Host applications can override the SDK defaults with CSS custom properties.
+Host applications can pass an optional `.designConfig` object to override
+merchant-safe colors, the base text size, and current screen copy. The object
+and all nested fields are optional.
 
-```css
-commerce-hub-connect {
-  --chc-primary: #084acc;
-  --chc-text: #101828;
-  --chc-border: #cbd5e1;
-}
+```ts
+{% raw %}
+html`<commerce-hub-connect
+  .interactionResponse=${interactionResponse}
+  .designConfig=${{
+    colors: {
+      primary: '#084acc',
+      text: '#101828',
+      border: '#cbd5e1',
+    },
+    baseFontSize: '16px',
+    copy: {
+      otp: {
+        title: 'Confirm your email',
+        verifyButton: 'Confirm code',
+      },
+      paymentMethods: {
+        title: 'Choose payment',
+        continueButton: 'Use selected method',
+      },
+    },
+  }}
+></commerce-hub-connect>`;
+{% endraw %}
 ```
