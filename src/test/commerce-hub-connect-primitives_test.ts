@@ -16,6 +16,7 @@ import {
   renderPaymentMethodRow,
   renderPoweredByFooter,
   renderProviderFrame,
+  renderSelectField,
   renderSourceAction,
   renderStatusPill,
   renderTextField,
@@ -224,6 +225,15 @@ suite('commerce-hub-connect primitives', () => {
         value: 'wallet@example.com',
         type: 'email',
       })}
+      ${renderSelectField({
+        id: 'billing-address',
+        label: 'Billing address',
+        value: 'billing-1',
+        options: [
+          {value: 'billing-1', label: '1 Main St, New York, NY 10001'},
+          {value: '__new__', label: 'Add new billing address'},
+        ],
+      })}
       ${renderOtpGroup({label: 'Verification code', value: '123456'})}
       ${renderAlert({
         variant: 'success',
@@ -255,6 +265,18 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(
       root.querySelector<HTMLInputElement>('input#email')?.value,
       'wallet@example.com'
+    );
+    assert.equal(
+      root.querySelector<HTMLSelectElement>('select#billing-address')?.value,
+      'billing-1'
+    );
+    assert.deepEqual(
+      [
+        ...root.querySelectorAll<HTMLOptionElement>(
+          '#billing-address option'
+        ),
+      ].map((option) => option.textContent?.trim()),
+      ['1 Main St, New York, NY 10001', 'Add new billing address']
     );
     assert.lengthOf(root.querySelectorAll('.otp-input'), 6);
     assert.equal(
@@ -410,6 +432,12 @@ suite('commerce-hub-connect primitives', () => {
             label: 'Address line 1',
             span: 'full',
           }),
+          renderSelectField({
+            id: 'saved-addresses',
+            label: 'Billing address',
+            options: [{value: '__new__', label: 'Add new billing address'}],
+            span: 'full',
+          }),
         ]),
       })}
     `);
@@ -435,10 +463,17 @@ suite('commerce-hub-connect primitives', () => {
         .trim(),
       'Powered by CommerceHub Connect'
     );
-    assert.lengthOf(root.querySelectorAll('.field'), 3);
+    assert.lengthOf(root.querySelectorAll('.field'), 4);
     assert.equal(
       root
         .querySelector('#address-line-1')
+        ?.closest('.field')
+        ?.classList.contains('field-full'),
+      true
+    );
+    assert.equal(
+      root
+        .querySelector('#saved-addresses')
         ?.closest('.field')
         ?.classList.contains('field-full'),
       true

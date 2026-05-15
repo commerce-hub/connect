@@ -12,6 +12,7 @@ import type {
   OutcomeShellOptions,
   PaymentMethod,
   ProviderFrameOptions,
+  SelectFieldOptions,
   SourceActionOptions,
   StatusPillOptions,
   TextLinkButtonOptions,
@@ -66,6 +67,7 @@ export const renderButton = ({
 export const renderTextField = ({
   id,
   label,
+  name,
   value = '',
   placeholder,
   type = 'text',
@@ -73,19 +75,65 @@ export const renderTextField = ({
   autocomplete,
   inputmode,
   disabled = false,
+  dataField,
+  error,
 }: TextFieldOptions): TemplateResult => html`
   <div class="field ${span === 'full' ? 'field-full' : ''}">
     <label class="field-label" for=${id}>${label}</label>
     <input
       class="field-input"
       id=${id}
+      name=${ifDefined(name)}
       type=${type}
       .value=${value}
       placeholder=${ifDefined(placeholder)}
       autocomplete=${ifDefined(autocomplete)}
       inputmode=${ifDefined(inputmode)}
+      data-card-field=${ifDefined(dataField)}
+      aria-invalid=${error ? 'true' : 'false'}
+      aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
       ?disabled=${disabled}
     />
+    ${error
+      ? html`<p class="field-error" id=${`${id}-error`}>${error}</p>`
+      : ''}
+  </div>
+`;
+
+export const renderSelectField = ({
+  id,
+  label,
+  name,
+  value = '',
+  options,
+  span = 'default',
+  disabled = false,
+  dataField,
+  error,
+}: SelectFieldOptions): TemplateResult => html`
+  <div class="field ${span === 'full' ? 'field-full' : ''}">
+    <label class="field-label" for=${id}>${label}</label>
+    <select
+      class="field-input field-select"
+      id=${id}
+      name=${ifDefined(name)}
+      .value=${value}
+      data-card-field=${ifDefined(dataField)}
+      aria-invalid=${error ? 'true' : 'false'}
+      aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
+      ?disabled=${disabled}
+    >
+      ${options.map(
+        (option) => html`
+          <option value=${option.value} ?selected=${option.value === value}>
+            ${option.label}
+          </option>
+        `
+      )}
+    </select>
+    ${error
+      ? html`<p class="field-error" id=${`${id}-error`}>${error}</p>`
+      : ''}
   </div>
 `;
 

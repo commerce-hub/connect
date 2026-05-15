@@ -204,8 +204,25 @@ export const primitiveStyles = css`
     text-align: center;
   }
 
+  .field-select {
+    appearance: auto;
+    text-align: left;
+  }
+
   .field-input::placeholder {
     color: var(--chc-placeholder);
+  }
+
+  .field-input[aria-invalid='true'] {
+    border-color: var(--chc-danger);
+  }
+
+  .field-error {
+    margin: 0;
+    color: var(--chc-danger);
+    font-size: 0.875em;
+    font-weight: 600;
+    line-height: 1.4286;
   }
 
   .form-grid {

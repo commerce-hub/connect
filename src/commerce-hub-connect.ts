@@ -11,12 +11,15 @@ import {
   renderAlert,
   renderButton,
   renderEmptyState,
+  renderFormGrid,
   renderOutcomeShell,
   renderOtpGroup,
   renderOtpResend,
   renderPaymentMethodRow,
   renderProviderFrame,
+  renderSelectField,
   renderSourceAction,
+  renderTextField,
   renderTextLinkButton,
   renderVerificationDetails,
   renderWidgetShell,
@@ -46,10 +49,47 @@ export const ON_ERROR_EVENT = 'onError';
 
 type PaymentSource = NonNullable<InteractionResponse['paymentSources']>[number];
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
+type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
+type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
+  tenderType: 'CARD';
+};
+type Address = components['schemas']['Address'];
+type AddSourceResponse = components['schemas']['AddSourceResponse'] & {
+  sourceId?: string;
+  paymentSourceId?: string;
+};
 type CustomerProfile = components['schemas']['Profile'];
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
+type CardDraft = {
+  name: string;
+  fullName: string;
+  cardNumber: string;
+  expirationDate: string;
+  cvv: string;
+  billingAddressValue: string;
+  country: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+type SensitiveCardField = 'cardNumber' | 'cvv';
+type CardEncryptionStatus =
+  | 'idle'
+  | 'dirty'
+  | 'encrypting'
+  | 'encrypted'
+  | 'failed';
+type CardFieldEncryptionState = {
+  status: CardEncryptionStatus;
+  normalizedValue: string;
+  encryptedValue?: string;
+};
+type CardEncryptionState = Record<SensitiveCardField, CardFieldEncryptionState>;
+type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
 
 type PaymentSdkEvent = {
   type?: 'success' | 'failure' | 'cancel' | 'error' | string;
@@ -72,6 +112,7 @@ type PaymentSdkInitConfiguration = {
 
 const OTP_LENGTH = 6;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
+const NEW_BILLING_ADDRESS_VALUE = '__new__';
 
 const DEFAULT_PAY_BY_BANK_OPTIONS = {
   apiKey: 'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A',
@@ -145,6 +186,30 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private bankTerminalEvent?: PaymentSdkEvent;
 
+  @state()
+  private cardFlowScreen?: 'form' | 'error';
+
+  @state()
+  private cardDraft: CardDraft = createCardDraft();
+
+  @state()
+  private cardDraftErrors: CardDraftErrors = {};
+
+  @state()
+  private cardEncryption: CardEncryptionState = createCardEncryptionState();
+
+  @state()
+  private cardSubmitError?: string;
+
+  @state()
+  private billingAddresses: Address[] = [];
+
+  @state()
+  private billingAddressesLoadedForInteractionId?: string;
+
+  @state()
+  private billingAddressesLoading = false;
+
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (
       changedProperties.has('interactionResponse') &&
@@ -165,7 +230,13 @@ export class CommerceHubConnect extends LitElement {
 
   override render() {
     return html`
-      <div @click=${this.handleClick} @input=${this.handleInput}>
+      <div
+        @click=${this.handleClick}
+        @input=${this.handleInput}
+        @change=${this.handleChange}
+        @focusout=${this.handleFocusLost}
+        @blur=${this.handleFocusLost}
+      >
         ${this.renderCurrentScreen()}
       </div>
     `;
@@ -188,6 +259,14 @@ export class CommerceHubConnect extends LitElement {
 
     if (this.bankFlowScreen === 'outcome') {
       return this.renderBankOutcomeScreen();
+    }
+
+    if (this.cardFlowScreen === 'form') {
+      return this.renderAddCardScreen();
+    }
+
+    if (this.cardFlowScreen === 'error') {
+      return this.renderCardErrorScreen();
     }
 
     const status = this.interactionResponse?.status;
@@ -342,6 +421,226 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
+  private renderAddCardScreen(): TemplateResult {
+    const isSaving = this.pendingAction === 'save-card';
+    const isEncrypting =
+      this.cardEncryption.cardNumber.status === 'encrypting' ||
+      this.cardEncryption.cvv.status === 'encrypting';
+    const shouldRenderSavedBillingAddressSelect =
+      this.billingAddresses.length > 0;
+    const shouldRenderNewBillingAddressFields =
+      !shouldRenderSavedBillingAddressSelect ||
+      this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE;
+    const billingAddressFields: TemplateResult[] = [];
+
+    if (shouldRenderSavedBillingAddressSelect) {
+      billingAddressFields.push(
+        renderSelectField({
+          id: 'billing-address',
+          name: 'billingAddress',
+          label: 'Billing address',
+          value: this.cardDraft.billingAddressValue,
+          options: [
+            ...this.billingAddresses.map((address) => ({
+              value: address.id ?? '',
+              label: billingAddressLabel(address),
+            })),
+            {
+              value: NEW_BILLING_ADDRESS_VALUE,
+              label: 'Add new billing address',
+            },
+          ],
+          span: 'full',
+          dataField: 'billingAddressValue',
+          error: this.cardDraftErrors.billingAddressValue,
+          disabled: isSaving,
+        })
+      );
+    }
+
+    if (shouldRenderNewBillingAddressFields) {
+      billingAddressFields.push(
+        renderTextField({
+          id: 'billing-country',
+          name: 'country',
+          label: 'Country',
+          value: this.cardDraft.country,
+          placeholder: 'US',
+          autocomplete: 'country',
+          dataField: 'country',
+          error: this.cardDraftErrors.country,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-address-line-1',
+          name: 'addressLine1',
+          label: 'Address line 1',
+          value: this.cardDraft.addressLine1,
+          placeholder: 'Street address',
+          autocomplete: 'address-line1',
+          dataField: 'addressLine1',
+          error: this.cardDraftErrors.addressLine1,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-address-line-2',
+          name: 'addressLine2',
+          label: 'Address line 2',
+          value: this.cardDraft.addressLine2,
+          placeholder: 'Apartment, suite, unit',
+          autocomplete: 'address-line2',
+          dataField: 'addressLine2',
+          error: this.cardDraftErrors.addressLine2,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-city',
+          name: 'city',
+          label: 'City',
+          value: this.cardDraft.city,
+          autocomplete: 'address-level2',
+          dataField: 'city',
+          error: this.cardDraftErrors.city,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-state',
+          name: 'state',
+          label: 'State',
+          value: this.cardDraft.state,
+          autocomplete: 'address-level1',
+          dataField: 'state',
+          error: this.cardDraftErrors.state,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-zip',
+          name: 'zip',
+          label: 'ZIP',
+          value: this.cardDraft.zip,
+          placeholder: 'ZIP code',
+          autocomplete: 'postal-code',
+          inputmode: 'numeric',
+          dataField: 'zip',
+          error: this.cardDraftErrors.zip,
+          disabled: isSaving,
+        })
+      );
+    }
+
+    return renderWidgetShell({
+      title: 'Add credit card',
+      subtitle:
+        'Enter your card details to save a credit card for future payments.',
+      content: html`
+        <div class="payment-flow">
+          ${this.cardSubmitError
+            ? renderAlert({variant: 'danger', message: this.cardSubmitError})
+            : ''}
+          ${renderFormGrid([
+            renderTextField({
+              id: 'card-label',
+              name: 'name',
+              label: 'Card label',
+              value: this.cardDraft.name,
+              placeholder: 'Corporate card',
+              dataField: 'name',
+              error: this.cardDraftErrors.name,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'name-on-card',
+              name: 'fullName',
+              label: 'Name on card',
+              value: this.cardDraft.fullName,
+              placeholder: 'Name on card',
+              autocomplete: 'cc-name',
+              dataField: 'fullName',
+              error: this.cardDraftErrors.fullName,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'card-number',
+              name: 'cardNumber',
+              label: 'Card number',
+              value: this.cardDraft.cardNumber,
+              placeholder: '1234 1234 1234 1234',
+              autocomplete: 'cc-number',
+              inputmode: 'numeric',
+              dataField: 'cardNumber',
+              error: this.cardDraftErrors.cardNumber,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'expiration-date',
+              name: 'expirationDate',
+              label: 'Expiration date',
+              value: this.cardDraft.expirationDate,
+              placeholder: 'MM / YY',
+              autocomplete: 'cc-exp',
+              inputmode: 'numeric',
+              dataField: 'expirationDate',
+              error: this.cardDraftErrors.expirationDate,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'card-cvv',
+              name: 'cvv',
+              label: 'CVV',
+              value: this.cardDraft.cvv,
+              placeholder: '3 or 4 digits',
+              autocomplete: 'cc-csc',
+              inputmode: 'numeric',
+              dataField: 'cvv',
+              error: this.cardDraftErrors.cvv,
+              disabled: isSaving,
+            }),
+            ...billingAddressFields,
+          ])}
+          <div class="primitive-footer">
+            ${renderButton({
+              label: isSaving ? 'Saving credit card...' : 'Save credit card',
+              action: 'save-card',
+              disabled:
+                isSaving ||
+                isEncrypting ||
+                !isCardDraftReady(this.cardDraft, this.cardEncryption),
+            })}
+            ${renderTextLinkButton({
+              label: 'Use bank account instead',
+              action: 'use-bank-account-instead',
+              disabled: isSaving,
+            })}
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  private renderCardErrorScreen(): TemplateResult {
+    return renderWidgetShell({
+      title: 'Credit card not saved',
+      subtitle:
+        'We could not save this card. Check the card details or use a different payment method.',
+      content: renderOutcomeShell({
+        variant: 'danger',
+        content: this.cardSubmitError
+          ? renderAlert({variant: 'danger', message: this.cardSubmitError})
+          : undefined,
+        actions: html`
+          ${renderButton({
+            label: 'Edit card details',
+            action: 'edit-card-details',
+          })}
+          ${renderTextLinkButton({
+            label: 'Use a different method',
+            action: 'use-different-method',
+          })}
+        `,
+      }),
+    });
+  }
+
   private renderBankProviderScreen(): TemplateResult {
     return renderWidgetShell({
       title: 'Add bank account',
@@ -455,14 +754,17 @@ export class CommerceHubConnect extends LitElement {
 
     if (
       action === 'add-bank-account' ||
+      action === 'use-bank-account-instead' ||
       action === 'retry-bank-provider' ||
       action === 'use-different-bank-account'
     ) {
+      this.resetCardFlow();
       void this.startPayByBankFlow();
       return;
     }
 
     if (action === 'back-to-payment-methods') {
+      this.resetCardFlow();
       this.resetBankFlow();
       return;
     }
@@ -473,11 +775,42 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'add-card') {
+      this.showAddCardScreen();
+      return;
+    }
+
+    if (action === 'save-card') {
+      void this.saveCard();
+      return;
+    }
+
+    if (action === 'edit-card-details') {
+      this.cardFlowScreen = 'form';
+      return;
+    }
+
+    if (action === 'use-different-method') {
+      this.resetCardFlow();
       return;
     }
   };
 
   private handleInput = (event: Event) => {
+    const cardInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement && Boolean(item.dataset.cardField)
+      );
+
+    if (cardInput) {
+      this.updateCardDraftField(
+        cardInput.dataset.cardField as keyof CardDraft,
+        cardInput.value
+      );
+      return;
+    }
+
     const input = event
       .composedPath()
       .find(
@@ -509,6 +842,340 @@ export class CommerceHubConnect extends LitElement {
       nextInput.focus();
     }
   };
+
+  private handleChange = (event: Event) => {
+    const cardSelect = event
+      .composedPath()
+      .find(
+        (item): item is HTMLSelectElement =>
+          item instanceof HTMLSelectElement && Boolean(item.dataset.cardField)
+      );
+
+    if (!cardSelect) {
+      return;
+    }
+
+    this.updateCardDraftField(
+      cardSelect.dataset.cardField as keyof CardDraft,
+      cardSelect.value
+    );
+  };
+
+  private handleFocusLost = (event: Event) => {
+    const input = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          isSensitiveCardField(item.dataset.cardField)
+      );
+
+    if (!input) {
+      return;
+    }
+
+    void this.encryptCardField(
+      input.dataset.cardField as SensitiveCardField,
+      input.value
+    );
+  };
+
+  private showAddCardScreen() {
+    this.resetBankFlow();
+    this.cardFlowScreen = 'form';
+    this.cardSubmitError = undefined;
+    void this.loadBillingAddressesForInteraction();
+  }
+
+  private updateCardDraftField(field: keyof CardDraft, value: string) {
+    this.cardDraft = {
+      ...this.cardDraft,
+      [field]: value,
+    };
+
+    this.cardSubmitError = undefined;
+
+    if (isSensitiveCardField(field)) {
+      this.cardEncryption = {
+        ...this.cardEncryption,
+        [field]: resolveDirtyCardEncryptionState(
+          this.cardEncryption[field],
+          normalizeSensitiveCardFieldValue(field, value)
+        ),
+      };
+    }
+  }
+
+  private async encryptCardField(
+    field: SensitiveCardField,
+    value: string
+  ): Promise<void> {
+    this.updateCardDraftField(field, value);
+
+    const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
+    const validationError = validateSensitiveCardField(field, value);
+
+    if (!normalizedValue) {
+      this.cardDraftErrors = omitCardDraftError(this.cardDraftErrors, field);
+      this.cardEncryption = {
+        ...this.cardEncryption,
+        [field]: createCardEncryptionFieldState(),
+      };
+      return;
+    }
+
+    if (validationError) {
+      this.cardDraftErrors = {
+        ...omitCardDraftError(this.cardDraftErrors, field),
+        [field]: validationError,
+      };
+      this.cardEncryption = {
+        ...this.cardEncryption,
+        [field]: resolveDirtyCardEncryptionState(
+          this.cardEncryption[field],
+          normalizedValue
+        ),
+      };
+      return;
+    }
+
+    const currentFieldState = this.cardEncryption[field];
+
+    if (
+      (currentFieldState.status === 'encrypting' ||
+        currentFieldState.status === 'encrypted') &&
+      currentFieldState.normalizedValue === normalizedValue
+    ) {
+      return;
+    }
+
+    this.cardDraftErrors = omitCardDraftError(this.cardDraftErrors, field);
+    this.cardEncryption = {
+      ...this.cardEncryption,
+      [field]: {
+        status: 'encrypting',
+        normalizedValue,
+      },
+    };
+
+    try {
+      const encryptedValue = await this.maskSensitiveCardValue(
+        field,
+        normalizedValue
+      );
+
+      if (
+        normalizeSensitiveCardFieldValue(field, this.cardDraft[field]) !==
+        normalizedValue
+      ) {
+        return;
+      }
+
+      this.cardDraftErrors = omitCardDraftError(this.cardDraftErrors, field);
+      this.cardEncryption = {
+        ...this.cardEncryption,
+        [field]: {
+          status: 'encrypted',
+          normalizedValue,
+          encryptedValue,
+        },
+      };
+    } catch (cause) {
+      void cause;
+
+      if (
+        normalizeSensitiveCardFieldValue(field, this.cardDraft[field]) !==
+        normalizedValue
+      ) {
+        return;
+      }
+
+      this.cardDraftErrors = {
+        ...omitCardDraftError(this.cardDraftErrors, field),
+        [field]: buildCardEncryptionErrorMessage(field),
+      };
+      this.cardEncryption = {
+        ...this.cardEncryption,
+        [field]: {
+          status: 'failed',
+          normalizedValue,
+        },
+      };
+    }
+  }
+
+  private async maskSensitiveCardValue(
+    field: SensitiveCardField,
+    value: string
+  ): Promise<string> {
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId) {
+      throw new Error('An interaction id is required to encrypt card details.');
+    }
+
+    const type = field === 'cardNumber' ? 'card' : 'cvv';
+    const response = await this.requestCommerceHubJson<{value?: string}>(
+      `/customer/mask/${type}`,
+      interactionId,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({value}),
+        credentials: 'include',
+      }
+    );
+    const encryptedValue = response.value?.trim();
+
+    if (!encryptedValue) {
+      throw new Error('The card encryption response did not include a value.');
+    }
+
+    return encryptedValue;
+  }
+
+  private async saveCard() {
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId) {
+      return;
+    }
+
+    const normalizedDraft = normalizeCardDraft(this.cardDraft);
+    const errors = {
+      ...validateCardDraft(normalizedDraft),
+      ...validateCardEncryptionReadiness(normalizedDraft, this.cardEncryption),
+    };
+
+    if (Object.keys(errors).length > 0) {
+      this.cardDraft = normalizedDraft;
+      this.cardDraftErrors = errors;
+      this.cardSubmitError = undefined;
+      return;
+    }
+
+    this.pendingAction = 'save-card';
+    this.cardDraft = normalizedDraft;
+    this.cardDraftErrors = {};
+    this.cardSubmitError = undefined;
+
+    try {
+      const encryptedCardNumber = resolveEncryptedCardFieldValue(
+        'cardNumber',
+        normalizedDraft.cardNumber,
+        this.cardEncryption
+      );
+      const encryptedCvv = resolveEncryptedCardFieldValue(
+        'cvv',
+        normalizedDraft.cvv,
+        this.cardEncryption
+      );
+      const expiration = parseExpirationDate(normalizedDraft.expirationDate);
+
+      if (!expiration) {
+        this.cardDraftErrors = {
+          expirationDate: 'Enter a valid expiration date.',
+        };
+        return;
+      }
+
+      const billingAddressId = await this.resolveBillingAddressId(
+        interactionId,
+        normalizedDraft
+      );
+      const cardSource: CardSourcePayload = {
+        tenderType: 'CARD',
+        name: normalizedDraft.name,
+        billingAddressId,
+        card: {
+          nameOnCard: normalizedDraft.fullName,
+          cardNumber: encryptedCardNumber,
+          cvv: encryptedCvv,
+          cardNumberEncrypted: encryptedCardNumber,
+          cvvEncrypted: encryptedCvv,
+          expirationMonth: expiration.month,
+          expirationYear: expiration.year,
+          network: detectCardNetwork(normalizedDraft.cardNumber),
+        },
+      };
+      const sourceResponse = await this.requestCommerceHubJson<AddSourceResponse>(
+        '/customer/source',
+        interactionId,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(cardSource),
+          credentials: 'include',
+        }
+      );
+      const paymentSourceId = resolveCreatedPaymentSourceId(sourceResponse);
+      const attachedResponse =
+        await this.requestCommerceHubJson<InteractionResponse>(
+          `/interaction/payment-source/${encodeURIComponent(
+            paymentSourceId
+          )}/attach`,
+          interactionId,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+          }
+        );
+      const createdSource: CardPaymentSource = {
+        tenderType: 'Card',
+        id: paymentSourceId,
+        name: normalizedDraft.name,
+        billingAddressId,
+        card: {
+          nameOnCard: normalizedDraft.fullName,
+          cardNumber: normalizeCardNumber(normalizedDraft.cardNumber),
+          expirationMonth: expiration.month,
+          expirationYear: expiration.year,
+          network: detectCardNetwork(normalizedDraft.cardNumber),
+        },
+      };
+
+      this.cardFlowScreen = undefined;
+      this.cardDraft = createCardDraft();
+      this.cardDraftErrors = {};
+      this.cardEncryption = createCardEncryptionState();
+      this.cardSubmitError = undefined;
+      this.selectedPaymentSourceId = paymentSourceId;
+      this.setInteractionResponseFromSdk(
+        withUpsertedSource(attachedResponse, createdSource)
+      );
+      await this.loadBillingAddressesForInteraction({force: true});
+    } catch (cause) {
+      this.cardSubmitError = apiErrorMessage(cause);
+      this.cardFlowScreen = 'error';
+    } finally {
+      this.pendingAction = undefined;
+    }
+  }
+
+  private async resolveBillingAddressId(
+    interactionId: string,
+    draft: CardDraft
+  ): Promise<string> {
+    if (draft.billingAddressValue !== NEW_BILLING_ADDRESS_VALUE) {
+      return draft.billingAddressValue;
+    }
+
+    const billingAddress = billingAddressFromCardDraft(draft);
+
+    await this.requestCommerceHubJson<unknown>(
+      '/customer/billing-address',
+      interactionId,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(billingAddress),
+        credentials: 'include',
+      }
+    );
+
+    return billingAddress.id!;
+  }
 
   private async verifyOtp() {
     if (this.otpValue.length < OTP_LENGTH) {
@@ -759,6 +1426,51 @@ export class CommerceHubConnect extends LitElement {
     );
   }
 
+  private async loadBillingAddressesForInteraction(options?: {
+    force?: boolean;
+  }): Promise<void> {
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId || this.billingAddressesLoading) {
+      return;
+    }
+
+    if (
+      !options?.force &&
+      this.billingAddressesLoadedForInteractionId === interactionId
+    ) {
+      return;
+    }
+
+    this.billingAddressesLoading = true;
+
+    try {
+      const profile = await this.getCustomerProfile(interactionId);
+
+      if (this.requireInteractionId() !== interactionId) {
+        return;
+      }
+
+      this.billingAddresses = (profile.billingAddress ?? []).filter(
+        (address) => Boolean(address.id?.trim())
+      );
+      this.billingAddressesLoadedForInteractionId = interactionId;
+      this.cardDraft = reconcileCardDraftBillingAddress(
+        this.cardDraft,
+        this.billingAddresses
+      );
+    } catch {
+      this.billingAddresses = [];
+      this.billingAddressesLoadedForInteractionId = interactionId;
+      this.cardDraft = {
+        ...this.cardDraft,
+        billingAddressValue: NEW_BILLING_ADDRESS_VALUE,
+      };
+    } finally {
+      this.billingAddressesLoading = false;
+    }
+  }
+
   private async finalizePayByBankSession(
     interactionId: string,
     aggregatorSessionId: string,
@@ -813,6 +1525,14 @@ export class CommerceHubConnect extends LitElement {
     this.bankTerminalEvent = undefined;
     this.bankLinkLoading = false;
     this.removePayByBankProviderContainer();
+  }
+
+  private resetCardFlow() {
+    this.cardFlowScreen = undefined;
+    this.cardDraft = createCardDraft();
+    this.cardDraftErrors = {};
+    this.cardEncryption = createCardEncryptionState();
+    this.cardSubmitError = undefined;
   }
 
   private ensurePayByBankProviderContainer(containerId: string): HTMLElement {
@@ -1005,6 +1725,388 @@ interface ResolvedNoSavedPaymentMethodsCopy {
   addCardSubtitle: string;
 }
 
+const createCardDraft = (): CardDraft => ({
+  name: '',
+  fullName: '',
+  cardNumber: '',
+  expirationDate: '',
+  cvv: '',
+  billingAddressValue: NEW_BILLING_ADDRESS_VALUE,
+  country: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  zip: '',
+});
+
+const createCardEncryptionFieldState = (): CardFieldEncryptionState => ({
+  status: 'idle',
+  normalizedValue: '',
+});
+
+const createCardEncryptionState = (): CardEncryptionState => ({
+  cardNumber: createCardEncryptionFieldState(),
+  cvv: createCardEncryptionFieldState(),
+});
+
+const isSensitiveCardField = (field?: string): field is SensitiveCardField =>
+  field === 'cardNumber' || field === 'cvv';
+
+const normalizeCardNumber = (value: string): string => value.replace(/\D/g, '');
+
+const normalizeCvv = (value: string): string => value.replace(/\D/g, '');
+
+const normalizeSensitiveCardFieldValue = (
+  field: SensitiveCardField,
+  value: string
+): string =>
+  field === 'cardNumber' ? normalizeCardNumber(value) : normalizeCvv(value);
+
+const normalizeCardDraft = (draft: CardDraft): CardDraft => ({
+  name: draft.name.trim(),
+  fullName: draft.fullName.trim(),
+  cardNumber: draft.cardNumber.trim(),
+  expirationDate: draft.expirationDate.trim(),
+  cvv: draft.cvv.trim(),
+  billingAddressValue:
+    draft.billingAddressValue.trim() || NEW_BILLING_ADDRESS_VALUE,
+  country: draft.country.trim(),
+  addressLine1: draft.addressLine1.trim(),
+  addressLine2: draft.addressLine2.trim(),
+  city: draft.city.trim(),
+  state: draft.state.trim(),
+  zip: draft.zip.trim(),
+});
+
+const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
+  const errors: CardDraftErrors = {};
+
+  if (!draft.name) {
+    errors.name = 'Enter a card label.';
+  }
+
+  if (!draft.fullName) {
+    errors.fullName = 'Enter the name on card.';
+  }
+
+  if (!isValidCardNumber(draft.cardNumber)) {
+    errors.cardNumber = 'Enter a valid card number.';
+  }
+
+  if (!parseExpirationDate(draft.expirationDate)) {
+    errors.expirationDate = 'Enter a valid expiration date.';
+  }
+
+  if (!isValidCvv(draft.cvv)) {
+    errors.cvv = 'Enter a valid CVV.';
+  }
+
+  if (!draft.billingAddressValue) {
+    errors.billingAddressValue = 'Select a billing address.';
+  }
+
+  if (draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE) {
+    if (!draft.country) {
+      errors.country = 'Enter a country.';
+    }
+
+    if (!draft.addressLine1) {
+      errors.addressLine1 = 'Enter an address.';
+    }
+
+    if (!draft.city) {
+      errors.city = 'Enter a city.';
+    }
+
+    if (!draft.state) {
+      errors.state = 'Enter a state.';
+    }
+
+    if (!/^\d{5}(?:-\d{4})?$/.test(draft.zip)) {
+      errors.zip = 'Enter a valid ZIP.';
+    }
+  }
+
+  return errors;
+};
+
+const isCardDraftReady = (
+  draft: CardDraft,
+  encryption: CardEncryptionState
+): boolean =>
+  Object.keys(validateCardDraft(normalizeCardDraft(draft))).length === 0 &&
+  Object.keys(validateCardEncryptionReadiness(draft, encryption)).length === 0;
+
+const validateSensitiveCardField = (
+  field: SensitiveCardField,
+  value: string
+): string | undefined => {
+  if (field === 'cardNumber') {
+    return isValidCardNumber(value) ? undefined : 'Enter a valid card number.';
+  }
+
+  return isValidCvv(value) ? undefined : 'Enter a valid CVV.';
+};
+
+const buildCardEncryptionErrorMessage = (field: SensitiveCardField): string =>
+  field === 'cardNumber'
+    ? 'Unable to encrypt the card number. Try again.'
+    : 'Unable to encrypt the CVV. Try again.';
+
+const resolveDirtyCardEncryptionState = (
+  previous: CardFieldEncryptionState,
+  normalizedValue: string
+): CardFieldEncryptionState => {
+  if (!normalizedValue) {
+    return createCardEncryptionFieldState();
+  }
+
+  if (
+    previous.normalizedValue === normalizedValue &&
+    (previous.status === 'encrypting' || previous.status === 'encrypted')
+  ) {
+    return previous;
+  }
+
+  return {
+    status: 'dirty',
+    normalizedValue,
+  };
+};
+
+const omitCardDraftError = (
+  errors: CardDraftErrors,
+  field: keyof CardDraft
+): CardDraftErrors => {
+  const nextErrors = {...errors};
+
+  delete nextErrors[field];
+
+  return nextErrors;
+};
+
+const validateCardEncryptionReadiness = (
+  draft: CardDraft,
+  encryption: CardEncryptionState
+): CardDraftErrors => {
+  const errors: CardDraftErrors = {};
+
+  for (const field of ['cardNumber', 'cvv'] as const) {
+    const normalizedValue = normalizeSensitiveCardFieldValue(
+      field,
+      draft[field]
+    );
+    const encryptedField = encryption[field];
+
+    if (!normalizedValue) {
+      continue;
+    }
+
+    const isEncrypted =
+      encryptedField.status === 'encrypted' &&
+      encryptedField.normalizedValue === normalizedValue &&
+      Boolean(encryptedField.encryptedValue);
+
+    if (!isEncrypted) {
+      errors[field] =
+        encryptedField.status === 'failed'
+          ? buildCardEncryptionErrorMessage(field)
+          : field === 'cardNumber'
+          ? 'Encrypt the card number before saving.'
+          : 'Encrypt the CVV before saving.';
+    }
+  }
+
+  return errors;
+};
+
+const resolveEncryptedCardFieldValue = (
+  field: SensitiveCardField,
+  value: string,
+  encryption: CardEncryptionState
+): string => {
+  const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
+  const encryptedField = encryption[field];
+
+  if (
+    encryptedField.status !== 'encrypted' ||
+    encryptedField.normalizedValue !== normalizedValue ||
+    !encryptedField.encryptedValue
+  ) {
+    throw new Error(
+      field === 'cardNumber'
+        ? 'Card number encryption must complete before saving.'
+        : 'CVV encryption must complete before saving.'
+    );
+  }
+
+  return encryptedField.encryptedValue;
+};
+
+const isValidCardNumber = (value: string): boolean => {
+  const digits = normalizeCardNumber(value);
+
+  if (digits.length < 12 || digits.length > 19) {
+    return false;
+  }
+
+  let sum = 0;
+  let shouldDouble = false;
+
+  for (let index = digits.length - 1; index >= 0; index -= 1) {
+    let digit = Number(digits[index]);
+
+    if (shouldDouble) {
+      digit *= 2;
+
+      if (digit > 9) {
+        digit -= 9;
+      }
+    }
+
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+
+  return sum % 10 === 0;
+};
+
+const isValidCvv = (value: string): boolean =>
+  /^\d{3,4}$/.test(normalizeCvv(value));
+
+const parseExpirationDate = (
+  value: string
+): {month: string; year: string} | undefined => {
+  const digits = value.replace(/\D/g, '');
+  const month = digits.slice(0, 2);
+  const yearDigits = digits.slice(2);
+  const monthNumber = Number(month);
+
+  if (month.length !== 2 || monthNumber < 1 || monthNumber > 12) {
+    return undefined;
+  }
+
+  if (yearDigits.length === 2) {
+    return {month, year: `20${yearDigits}`};
+  }
+
+  if (yearDigits.length === 4) {
+    return {month, year: yearDigits};
+  }
+
+  return undefined;
+};
+
+const detectCardNetwork = (
+  value: string
+): NonNullable<CardPaymentSource['card']>['network'] | undefined => {
+  const digits = normalizeCardNumber(value);
+
+  if (/^4/.test(digits)) {
+    return 'Visa';
+  }
+
+  if (/^(5[1-5]|2[2-7])/.test(digits)) {
+    return 'Mastercard';
+  }
+
+  if (/^3[47]/.test(digits)) {
+    return 'AmericanExpress';
+  }
+
+  if (/^(6011|65|64[4-9])/.test(digits)) {
+    return 'Discover';
+  }
+
+  return undefined;
+};
+
+const reconcileCardDraftBillingAddress = (
+  draft: CardDraft,
+  billingAddresses: Address[]
+): CardDraft => {
+  const savedAddressIds = billingAddresses
+    .map((address) => address.id?.trim())
+    .filter((addressId): addressId is string => Boolean(addressId));
+
+  if (!savedAddressIds.length) {
+    return {
+      ...draft,
+      billingAddressValue: NEW_BILLING_ADDRESS_VALUE,
+    };
+  }
+
+  if (savedAddressIds.includes(draft.billingAddressValue)) {
+    return draft;
+  }
+
+  const hasNewBillingAddressInput = [
+    draft.country,
+    draft.addressLine1,
+    draft.addressLine2,
+    draft.city,
+    draft.state,
+    draft.zip,
+  ].some((value) => value.trim());
+
+  if (
+    draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE &&
+    hasNewBillingAddressInput
+  ) {
+    return draft;
+  }
+
+  return {
+    ...draft,
+    billingAddressValue: savedAddressIds[0],
+  };
+};
+
+const billingAddressLabel = (address: Address): string => {
+  const stateZip = [address.stateOrProvince, address.postalCode]
+    .filter(Boolean)
+    .join(' ');
+  const cityStateZip = [address.city, stateZip].filter(Boolean).join(', ');
+  const label = [address.street, cityStateZip].filter(Boolean).join(', ');
+
+  return label || address.id || 'Saved billing address';
+};
+
+const billingAddressFromCardDraft = (draft: CardDraft): Address => ({
+  id: createLocalBillingAddressId(),
+  recipientNameOrAddress: draft.fullName,
+  country: draft.country,
+  street: draft.addressLine1,
+  houseNumberOrName: draft.addressLine2 || undefined,
+  city: draft.city,
+  stateOrProvince: draft.state,
+  postalCode: draft.zip,
+});
+
+let billingAddressIdCounter = 0;
+
+const createLocalBillingAddressId = (): string => {
+  billingAddressIdCounter += 1;
+
+  return `billing-address-${Date.now().toString(
+    36
+  )}-${billingAddressIdCounter.toString(36)}`;
+};
+
+const resolveCreatedPaymentSourceId = (response?: AddSourceResponse): string => {
+  const paymentSourceId =
+    response?.id?.trim() ||
+    response?.sourceId?.trim() ||
+    response?.paymentSourceId?.trim();
+
+  if (!paymentSourceId) {
+    throw new Error('The card creation response did not include a source id.');
+  }
+
+  return paymentSourceId;
+};
+
 const defaultOtpSubtitle = (email?: string): string =>
   `Enter the 6-digit code sent to ${email ?? 'your email address'}.`;
 
@@ -1144,7 +2246,7 @@ const paymentSourceToPaymentMethod = (
 });
 
 const paymentSourceLabel = (source: PaymentSource): string => {
-  if (source.tenderType === 'Card') {
+  if (isCardPaymentSource(source)) {
     return 'Saved card';
   }
 
@@ -1156,7 +2258,7 @@ const paymentSourceLabel = (source: PaymentSource): string => {
 };
 
 const paymentSourceBrand = (source: PaymentSource): string => {
-  if (source.tenderType === 'Card') {
+  if (isCardPaymentSource(source)) {
     return source.card?.network ?? 'Card';
   }
 
@@ -1168,7 +2270,7 @@ const paymentSourceBrand = (source: PaymentSource): string => {
 };
 
 const paymentSourceLast4 = (source: PaymentSource): string => {
-  if (source.tenderType === 'Card') {
+  if (isCardPaymentSource(source)) {
     return lastFour(source.card?.cardNumber);
   }
 
@@ -1418,6 +2520,11 @@ const isBankPaymentSource = (
 ): source is BankPaymentSource =>
   source.tenderType === 'BankAccount' ||
   (source.tenderType as string) === 'BANK_ACCOUNT';
+
+const isCardPaymentSource = (
+  source: PaymentSource
+): source is CardPaymentSource =>
+  source.tenderType === 'Card' || (source.tenderType as string) === 'CARD';
 
 let paymentSdkScriptPromise: Promise<void> | undefined;
 let paymentSdkScriptUrl: string | undefined;

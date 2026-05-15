@@ -12,6 +12,10 @@ export type FlowActionName =
   | 'attach-payment-source'
   | 'add-bank-account'
   | 'add-card'
+  | 'save-card'
+  | 'use-bank-account-instead'
+  | 'edit-card-details'
+  | 'use-different-method'
   | 'retry-bank-provider'
   | 'back-to-payment-methods'
   | 'continue-bank-outcome'
@@ -58,6 +62,7 @@ export interface ButtonOptions {
 export interface TextFieldOptions {
   id: string;
   label: string;
+  name?: string;
   value?: string;
   placeholder?: string;
   type?: TextFieldType;
@@ -65,6 +70,25 @@ export interface TextFieldOptions {
   autocomplete?: TextFieldAutocomplete;
   inputmode?: TextFieldInputMode;
   disabled?: boolean;
+  dataField?: string;
+  error?: string;
+}
+
+export interface SelectFieldOption {
+  value: string;
+  label: string;
+}
+
+export interface SelectFieldOptions {
+  id: string;
+  label: string;
+  name?: string;
+  value?: string;
+  options: SelectFieldOption[];
+  span?: 'default' | 'full';
+  disabled?: boolean;
+  dataField?: string;
+  error?: string;
 }
 
 export type TextFieldType =
@@ -87,6 +111,7 @@ export type TextFieldAutocomplete =
   | 'cc-csc'
   | 'country'
   | 'address-line1'
+  | 'address-line2'
   | 'address-level1'
   | 'address-level2'
   | 'postal-code';
