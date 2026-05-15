@@ -751,7 +751,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(requests[1].credentials, 'include');
   });
 
-  test('Pay by Bank success finalizes, attaches the new bank source, and renders verified outcome without events', async () => {
+  test('Pay by Bank success finalizes without attaching the new bank source and renders verified outcome without events', async () => {
     const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
@@ -863,7 +863,6 @@ suite('commerce-hub-connect flow', () => {
         'GET /pbb/session',
         'PUT /pbb/session/agg-session-1/p-token-1',
         'GET /customer',
-        'POST /interaction/payment-source/bank-new/attach',
       ]
     );
     assert.equal(
@@ -877,6 +876,8 @@ suite('commerce-hub-connect flow', () => {
       'Commerce National Bank'
     );
     assert.equal(el.interactionResponse?.paymentSources?.[0]?.id, 'bank-new');
+    assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-new');
+    assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_REQUESTED');
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
   });

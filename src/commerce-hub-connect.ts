@@ -712,21 +712,14 @@ export class CommerceHubConnect extends LitElement {
               );
             }
 
-            const response = await this.createSdkClient(interactionId).POST(
-              '/interaction/payment-source/{paymentSourceId}/attach',
-              {
-                params: {
-                  path: {paymentSourceId},
-                },
-              }
-            );
-            const attachedInteraction = interactionResponseFromApi(response);
-
             this.selectedPaymentSourceId = paymentSourceId;
             this.bankOutcomeSource = bankSource;
             this.bankFlowScreen = 'outcome';
             this.setInteractionResponseFromSdk(
-              withUpsertedSource(attachedInteraction, bankSource)
+              withUpsertedSource(
+                this.interactionResponse ?? {interactionId},
+                bankSource
+              )
             );
             settled = true;
             resolve();
