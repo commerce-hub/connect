@@ -616,6 +616,64 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AbstractSource: {
+            id?: string;
+            name?: string;
+            /** @enum {string} */
+            tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD";
+            verificationInfo?: components["schemas"]["VerificationInfo"];
+        };
+        AddSourceResponse: {
+            id?: string;
+            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
+        };
+        BankAccount: {
+            tenderType: "BankAccount";
+        } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
+            bankAccount?: components["schemas"]["BankAccountDetail"];
+        });
+        BankAccountDetail: {
+            bankName?: string;
+            routingNumber?: string;
+            accountNumber?: string;
+            accountType?: string;
+            routingNumberEncrypted?: string;
+            accountNumberEncrypted?: string;
+        };
+        Card: {
+            tenderType: "Card";
+        } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
+            billingAddressId?: string;
+            card?: components["schemas"]["CardDetail"];
+        });
+        CardDetail: {
+            cardNumber?: string;
+            nameOnCard?: string;
+            expirationMonth?: string;
+            expirationYear?: string;
+            cvv?: string;
+            /** @enum {string} */
+            network?: "Visa" | "Mastercard" | "AmericanExpress" | "Discover";
+            cardNumberEncrypted?: string;
+            cvvEncrypted?: string;
+        };
+        DSCDisplayCard: {
+            tenderType: "DSCDisplayCard";
+        } & Omit<components["schemas"]["AbstractSource"], "tenderType">;
+        DocInfo: {
+            /** @enum {string} */
+            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
+            mandatory?: boolean;
+            value?: string;
+        };
+        VerificationInfo: {
+            token?: string;
+            /** @enum {string} */
+            status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
+            /** Format: int64 */
+            lastTimestamp?: number;
+            docs?: components["schemas"]["DocInfo"][];
+        };
         Address: {
             id?: string;
             street?: string;
@@ -692,52 +750,6 @@ export interface components {
             advancedVerification?: boolean;
             preAuthenticated?: boolean;
         };
-        AbstractSource: {
-            id?: string;
-            name?: string;
-            /** @enum {string} */
-            tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD";
-            verificationInfo?: components["schemas"]["VerificationInfo"];
-        };
-        BankAccount: {
-            tenderType: "BankAccount";
-        } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
-            bankAccount?: components["schemas"]["BankAccountDetail"];
-        });
-        BankAccountDetail: {
-            bankName?: string;
-            routingNumber?: string;
-            accountNumber?: string;
-            accountType?: string;
-            routingNumberEncrypted?: string;
-            accountNumberEncrypted?: string;
-        };
-        Card: {
-            tenderType: "Card";
-        } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
-            billingAddressId?: string;
-            card?: components["schemas"]["CardDetail"];
-        });
-        CardDetail: {
-            cardNumber?: string;
-            nameOnCard?: string;
-            expirationMonth?: string;
-            expirationYear?: string;
-            cvv?: string;
-            /** @enum {string} */
-            network?: "Visa" | "Mastercard" | "AmericanExpress" | "Discover";
-            cardNumberEncrypted?: string;
-            cvvEncrypted?: string;
-        };
-        DSCDisplayCard: {
-            tenderType: "DSCDisplayCard";
-        } & Omit<components["schemas"]["AbstractSource"], "tenderType">;
-        DocInfo: {
-            /** @enum {string} */
-            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
-            mandatory?: boolean;
-            value?: string;
-        };
         InteractionResponse: {
             interactionId?: string;
             /** @enum {string} */
@@ -747,14 +759,6 @@ export interface components {
             allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
             paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
             phone?: components["schemas"]["PhoneDetails"];
-        };
-        VerificationInfo: {
-            token?: string;
-            /** @enum {string} */
-            status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
-            /** Format: int64 */
-            lastTimestamp?: number;
-            docs?: components["schemas"]["DocInfo"][];
         };
         DocFieldValue: {
             value?: string;
@@ -766,9 +770,6 @@ export interface components {
             /** @enum {string} */
             status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
             docs?: components["schemas"]["DocInfo"][];
-        };
-        AddSourceResponse: {
-            id?: string;
         };
         DSCCreateRequest: {
             /** Format: double */
@@ -908,7 +909,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "*/*": components["schemas"]["AddSourceResponse"];
+                };
             };
         };
     };

@@ -2126,7 +2126,8 @@ const resolveCreatedPaymentSourceId = (response?: AddSourceResponse): string => 
   const paymentSourceId =
     response?.id?.trim() ||
     response?.sourceId?.trim() ||
-    response?.paymentSourceId?.trim();
+    response?.paymentSourceId?.trim() ||
+    response?.source?.id?.trim();
 
   if (!paymentSourceId) {
     throw new Error('The card creation response did not include a source id.');

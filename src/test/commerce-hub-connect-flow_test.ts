@@ -612,7 +612,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('creates a new billing address, creates a customer card, and attaches it', async () => {
+  test('creates a new billing address, creates a customer card from the returned source, and attaches it', async () => {
     const requests: CapturedRequest[] = [];
     const apiResponse: InteractionResponse = {
       interactionId: 'interaction-payment',
@@ -656,10 +656,18 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (request.url.endsWith('/customer/source')) {
-        return new Response(JSON.stringify({id: 'card-created-1'}), {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
+        return new Response(
+          JSON.stringify({
+            source: {
+              id: 'card-created-1',
+              tenderType: 'Card',
+            },
+          }),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
       }
 
       if (
@@ -767,7 +775,13 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.payment-method-title')
         ?.textContent?.trim(),
-      'Visa •••• 1111'
+      'Ada corporate card'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-meta')
+        ?.textContent?.trim(),
+      '•••• 1111'
     );
   });
 
