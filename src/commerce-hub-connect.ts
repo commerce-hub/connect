@@ -207,9 +207,6 @@ export class CommerceHubConnect extends LitElement {
   private billingAddresses: Address[] = [];
 
   @state()
-  private billingAddressesLoadedForInteractionId?: string;
-
-  @state()
   private billingAddressesLoading = false;
 
   protected override willUpdate(changedProperties: PropertyValues<this>) {
@@ -1178,7 +1175,7 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(
         withUpsertedSource(attachedResponse, createdSource)
       );
-      await this.loadBillingAddressesForInteraction({force: true});
+      await this.loadBillingAddressesForInteraction();
     } catch (cause) {
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
@@ -1421,19 +1418,10 @@ export class CommerceHubConnect extends LitElement {
     );
   }
 
-  private async loadBillingAddressesForInteraction(options?: {
-    force?: boolean;
-  }): Promise<void> {
+  private async loadBillingAddressesForInteraction(): Promise<void> {
     const interactionId = this.requireInteractionId();
 
     if (!interactionId || this.billingAddressesLoading) {
-      return;
-    }
-
-    if (
-      !options?.force &&
-      this.billingAddressesLoadedForInteractionId === interactionId
-    ) {
       return;
     }
 
@@ -1449,14 +1437,12 @@ export class CommerceHubConnect extends LitElement {
       this.billingAddresses = (profile.billingAddress ?? []).filter(
         (address) => Boolean(address.id?.trim())
       );
-      this.billingAddressesLoadedForInteractionId = interactionId;
       this.cardDraft = reconcileCardDraftBillingAddress(
         this.cardDraft,
         this.billingAddresses
       );
     } catch {
       this.billingAddresses = [];
-      this.billingAddressesLoadedForInteractionId = interactionId;
       this.cardDraft = {
         ...this.cardDraft,
         billingAddressValue: NEW_BILLING_ADDRESS_VALUE,

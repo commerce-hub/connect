@@ -555,11 +555,44 @@ suite('commerce-hub-connect flow', () => {
   });
 
   test('opens the add credit card screen from saved payment methods', async () => {
-    window.fetch = async () =>
-      new Response(JSON.stringify({billingAddress: []}), {
+    const requests: CapturedRequest[] = [];
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        void configuration.onEvent({type: 'cancel'});
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({billingAddress: []}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
       });
+    };
 
     const el = await renderConnect({
       interactionId: 'interaction-payment',
@@ -609,6 +642,26 @@ suite('commerce-hub-connect flow', () => {
         .shadowRoot!.querySelector('[data-action="use-bank-account-instead"]')
         ?.textContent?.trim(),
       'Use bank account instead'
+    );
+
+    await waitForRequest(requests, '/customer', 'GET');
+    await clickAction(el, 'use-bank-account-instead');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Bank connection unavailable',
+      'bank provider error screen was not rendered'
+    );
+    await clickAction(el, 'back-to-payment-methods');
+    await clickAction(el, 'add-card');
+    await waitFor(
+      () =>
+        requests.filter(
+          (request) =>
+            request.method === 'GET' &&
+            new URL(request.url).pathname === '/customer'
+        ).length === 2,
+      'second GET /customer was not requested'
     );
   });
 

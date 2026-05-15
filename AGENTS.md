@@ -31,3 +31,13 @@ Recent commits use short, direct subjects such as `SDK style updates`, `update m
 ## Security & Configuration Tips
 
 Do not commit secrets, merchant tokens, or real customer data. Keep API fixtures synthetic. The SDK has localhost-oriented defaults for local interaction flows; document any environment-specific URL or header assumptions in the PR.
+
+## Codex Learnings
+
+- 2026-05-15: Npm run build && `BROWSERS=chromium npm run test:dev -- --files test/commerce-hub-connect-flow_test`.js passed: 23 passed, 0 failed.
+
+- 2026-05-15: `BROWSERS=chromium npm run test:dev → 36 passed, 0 failed`.
+
+- 2026-05-15: A mountCommerceHubConnect(...) helper would only be a convenience SDK API for consumers who want a React/Stripe-like imperative entrypoint:.
+
+- 2026-05-15: If the helper is not intended to exist, then the concern is different: the tests are stale or were added ahead of an API decision and should be removed/rewritten to test the supported custom element API.
