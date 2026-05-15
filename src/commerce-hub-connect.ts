@@ -60,6 +60,7 @@ type AddSourceResponse = components['schemas']['AddSourceResponse'] & {
   paymentSourceId?: string;
 };
 type CustomerProfile = components['schemas']['Profile'];
+type VerificationResponse = components['schemas']['VerificationResponse'];
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
@@ -1328,9 +1329,6 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string,
     containerId: string
   ) {
-    const existingBankSourceIds = await this.getExistingBankSourceIds(
-      interactionId
-    );
     const session = await this.requestCommerceHubJson<PayByBankSession>(
       '/pbb/session',
       interactionId,
@@ -1380,31 +1378,26 @@ export class CommerceHubConnect extends LitElement {
           }
 
           try {
-            await this.finalizePayByBankSession(
+            const sourceResponse = await this.finalizePayByBankSession(
               interactionId,
               aggregatorSessionId,
               pToken
             );
-            const profile = await this.getCustomerProfile(interactionId);
-            const bankSource = resolveAttachedBankSource(
-              profile,
-              existingBankSourceIds
+            const bankSource =
+              resolvePayByBankSourceFromAddSourceResponse(sourceResponse);
+            const verifiedBankSource = await this.verifyPayByBankSource(
+              interactionId,
+              bankSource
             );
-            const paymentSourceId = bankSource.id?.trim();
-
-            if (!paymentSourceId) {
-              throw new Error(
-                'Pay by Bank completed but no bank payment source was returned by /customer.'
-              );
-            }
+            const paymentSourceId = verifiedBankSource.id;
 
             this.selectedPaymentSourceId = paymentSourceId;
-            this.bankOutcomeSource = bankSource;
+            this.bankOutcomeSource = verifiedBankSource;
             this.bankFlowScreen = 'outcome';
             this.setInteractionResponseFromSdk(
               withUpsertedSource(
                 this.interactionResponse ?? {interactionId},
-                bankSource
+                verifiedBankSource
               )
             );
             settled = true;
@@ -1416,23 +1409,6 @@ export class CommerceHubConnect extends LitElement {
         },
       });
     });
-  }
-
-  private async getExistingBankSourceIds(
-    interactionId: string
-  ): Promise<Set<string>> {
-    try {
-      const profile = await this.getCustomerProfile(interactionId);
-
-      return new Set(
-        (profile.sources ?? [])
-          .filter(isBankPaymentSource)
-          .map((source) => source.id?.trim())
-          .filter((sourceId): sourceId is string => Boolean(sourceId))
-      );
-    } catch {
-      return new Set<string>();
-    }
   }
 
   private async getCustomerProfile(
@@ -1494,14 +1470,39 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string,
     aggregatorSessionId: string,
     pToken: string
-  ): Promise<void> {
-    await this.requestCommerceHubJson<unknown>(
+  ): Promise<AddSourceResponse> {
+    return this.requestCommerceHubJson<AddSourceResponse>(
       `/pbb/session/${encodeURIComponent(
         aggregatorSessionId
       )}/${encodeURIComponent(pToken)}`,
       interactionId,
       {method: 'PUT', credentials: 'include'}
     );
+  }
+
+  private async verifyPayByBankSource(
+    interactionId: string,
+    source: BankPaymentSource
+  ): Promise<BankPaymentSource> {
+    const verificationResponse =
+      await this.requestCommerceHubJson<VerificationResponse>(
+        '/interaction/verify/step1',
+        interactionId,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({value: source.id}),
+          credentials: 'include',
+        }
+      );
+
+    return {
+      ...source,
+      verificationInfo: {
+        ...source.verificationInfo,
+        ...verificationResponse,
+      },
+    };
   }
 
   private async requestCommerceHubJson<T>(
@@ -2451,26 +2452,27 @@ const describePaymentSdkTerminalEvent = (event?: PaymentSdkEvent): string => {
   return 'Pay by Bank did not complete successfully.';
 };
 
-const resolveAttachedBankSource = (
-  profile: CustomerProfile,
-  existingBankSourceIds: Set<string>
+const resolvePayByBankSourceFromAddSourceResponse = (
+  response: AddSourceResponse
 ): BankPaymentSource => {
-  const bankSources = (profile.sources ?? []).filter(isBankPaymentSource);
-
-  const bankSource =
-    bankSources.find((source) => {
-      const sourceId = source.id?.trim();
-
-      return sourceId ? !existingBankSourceIds.has(sourceId) : false;
-    }) ?? bankSources[0];
-
-  if (!bankSource) {
+  if (!response.source || !isBankPaymentSource(response.source)) {
     throw new Error(
-      'Pay by Bank completed but no bank payment source was returned by /customer.'
+      'Pay by Bank completed but no bank payment source was returned by /pbb/session.'
     );
   }
 
-  return bankSource;
+  const paymentSourceId = response.source.id?.trim() || response.id?.trim();
+
+  if (!paymentSourceId) {
+    throw new Error(
+      'Pay by Bank completed but the returned bank payment source did not include an id.'
+    );
+  }
+
+  return {
+    ...response.source,
+    id: paymentSourceId,
+  };
 };
 
 const withUpsertedSource = (

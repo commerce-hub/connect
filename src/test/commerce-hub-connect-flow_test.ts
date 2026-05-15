@@ -1205,20 +1205,6 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (request.url.endsWith('/customer')) {
-        return new Response(
-          JSON.stringify({
-            sources: [
-              {
-                tenderType: 'BankAccount',
-                id: 'bank-existing',
-              },
-            ],
-          }),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
-        );
-      }
-
       return new Response(
         JSON.stringify({
           aggregatorSessionId: 'agg-session-1',
@@ -1273,16 +1259,16 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['GET /customer', 'GET /pbb/session']
+      ['GET /pbb/session']
     );
     assert.equal(
-      requests[1].headers.get('x-interaction-id'),
+      requests[0].headers.get('x-interaction-id'),
       'interaction-payment'
     );
-    assert.equal(requests[1].credentials, 'include');
+    assert.equal(requests[0].credentials, 'include');
   });
 
-  test('Pay by Bank success finalizes without attaching the new bank source and renders verified outcome without events', async () => {
+  test('Pay by Bank success verifies the finalized bank source and renders the verified outcome without events', async () => {
     const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
@@ -1305,19 +1291,6 @@ suite('commerce-hub-connect flow', () => {
 
       const pathname = new URL(request.url).pathname;
 
-      if (
-        pathname === '/customer' &&
-        requests.filter((item) => new URL(item.url).pathname === '/customer')
-          .length === 1
-      ) {
-        return new Response(
-          JSON.stringify({
-            sources: [{tenderType: 'BankAccount', id: 'bank-existing'}],
-          }),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
-        );
-      }
-
       if (pathname === '/pbb/session') {
         return new Response(
           JSON.stringify({
@@ -1331,28 +1304,28 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (pathname === '/pbb/session/agg-session-1/p-token-1') {
-        return new Response('{}', {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
-      }
-
-      if (pathname === '/customer') {
         return new Response(
           JSON.stringify({
-            sources: [
-              {tenderType: 'BankAccount', id: 'bank-existing'},
-              {
-                tenderType: 'BankAccount',
-                id: 'bank-new',
-                name: 'Operating account',
-                verificationInfo: {status: 'VERIFIED'},
-                bankAccount: {
-                  bankName: 'Commerce National Bank',
-                  accountNumber: '9876543210',
-                },
+            id: 'bank-new',
+            source: {
+              tenderType: 'BankAccount',
+              name: 'Operating account',
+              verificationInfo: {status: 'NOT_VERIFIED'},
+              bankAccount: {
+                bankName: 'Commerce National Bank',
+                accountNumber: '9876543210',
               },
-            ],
+            },
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/interaction/verify/step1') {
+        return new Response(
+          JSON.stringify({
+            status: 'UNDER_REVIEW',
+            docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
@@ -1390,27 +1363,236 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       [
-        'GET /customer',
         'GET /pbb/session',
         'PUT /pbb/session/agg-session-1/p-token-1',
-        'GET /customer',
+        'POST /interaction/verify/step1',
       ]
     );
+    const verifyRequest = requests[2];
+    assert.equal(verifyRequest.bodyText, JSON.stringify({value: 'bank-new'}));
+    assert.equal(
+      verifyRequest.headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(verifyRequest.credentials, 'include');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Bank account verified'
+      'Verification pending review'
     );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('.verification-detail-value')
-        ?.textContent?.trim(),
-      'Commerce National Bank'
-    );
+    const detailValues = [
+      ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
+    ].map((node) => node.textContent?.trim());
+    assert.deepEqual(detailValues, [
+      'Commerce National Bank',
+      '3210',
+      'Pending review',
+    ]);
     assert.equal(el.interactionResponse?.paymentSources?.[0]?.id, 'bank-new');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo,
+      {
+        status: 'UNDER_REVIEW',
+        docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+      }
+    );
     assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-new');
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_REQUESTED');
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
+  });
+
+  test('Pay by Bank success with no finalized bank source renders provider unavailable', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      const pathname = new URL(request.url).pathname;
+
+      if (pathname === '/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/pbb/session/agg-session-1/p-token-1') {
+        return new Response(
+          JSON.stringify({
+            id: 'card-new',
+            source: {
+              tenderType: 'Card',
+              id: 'card-new',
+            },
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/customer') {
+        return new Response(
+          JSON.stringify({
+            sources: [
+              {
+                tenderType: 'BankAccount',
+                id: 'bank-from-customer',
+                verificationInfo: {status: 'VERIFIED'},
+                bankAccount: {
+                  bankName: 'Customer Bank',
+                  accountNumber: '1111222233334444',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await initConfig!.onEvent({type: 'success'});
+    await flushElement(el);
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank connection unavailable'
+    );
+    assert.notInclude(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      'POST /interaction/verify/step1'
+    );
+  });
+
+  test('Pay by Bank success with no finalized bank source id renders provider unavailable', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      const pathname = new URL(request.url).pathname;
+
+      if (pathname === '/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/pbb/session/agg-session-1/p-token-1') {
+        return new Response(
+          JSON.stringify({
+            source: {
+              tenderType: 'BankAccount',
+              bankAccount: {
+                bankName: 'No Id Bank',
+                accountNumber: '0000111122223333',
+              },
+            },
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/customer') {
+        return new Response(
+          JSON.stringify({
+            sources: [
+              {
+                tenderType: 'BankAccount',
+                id: 'bank-from-customer',
+                verificationInfo: {status: 'VERIFIED'},
+                bankAccount: {
+                  bankName: 'Customer Bank',
+                  accountNumber: '1111222233334444',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await initConfig!.onEvent({type: 'success'});
+    await flushElement(el);
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank connection unavailable'
+    );
+    assert.notInclude(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      'POST /interaction/verify/step1'
+    );
   });
 
   test('Pay by Bank terminal failure events render the provider unavailable screen', async () => {
