@@ -41,13 +41,14 @@ export interface InteractionError {
   cause?: unknown;
 }
 
-export type OnSuccessEvent = CustomEvent<InteractionResponse>;
+export type PaymentSource =
+  NonNullable<InteractionResponse['paymentSources']>[number];
+export type OnSuccessEvent = CustomEvent<PaymentSource>;
 export type OnErrorEvent = CustomEvent<InteractionError>;
 
 export const ON_SUCCESS_EVENT = 'onSuccess';
 export const ON_ERROR_EVENT = 'onError';
 
-type PaymentSource = NonNullable<InteractionResponse['paymentSources']>[number];
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
 type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
@@ -370,7 +371,7 @@ export class CommerceHubConnect extends LitElement {
               action: 'add-card',
               icon: 'card',
               variant: 'link',
-              disabled: this.pendingAction === 'attach-payment-source',
+              disabled: this.pendingAction === 'confirm-payment-source',
             })}
             ${renderSourceAction({
               label: copy.addBankAccountTitle,
@@ -378,23 +379,23 @@ export class CommerceHubConnect extends LitElement {
               action: 'add-bank-account',
               icon: 'bank',
               variant: 'link',
-              disabled: this.pendingAction === 'attach-payment-source',
+              disabled: this.pendingAction === 'confirm-payment-source',
             })}
           </div>
           <div class="primitive-footer">
             ${renderButton({
               label:
-                this.pendingAction === 'attach-payment-source'
+                this.pendingAction === 'confirm-payment-source'
                   ? copy.continuingButton
                   : copy.continueButton,
               icon:
-                this.pendingAction === 'attach-payment-source'
+                this.pendingAction === 'confirm-payment-source'
                   ? undefined
                   : 'arrow-right',
               variant: 'primary',
-              action: 'attach-payment-source',
+              action: 'confirm-payment-source',
               disabled:
-                this.pendingAction === 'attach-payment-source' ||
+                this.pendingAction === 'confirm-payment-source' ||
                 !this.selectedPaymentSourceId,
             })}
           </div>
@@ -778,8 +779,8 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (action === 'attach-payment-source') {
-      void this.attachPaymentSource();
+    if (action === 'confirm-payment-source') {
+      this.confirmSelectedPaymentSource();
       return;
     }
 
@@ -1115,6 +1116,7 @@ export class CommerceHubConnect extends LitElement {
         normalizedDraft
       );
       const cardSource: CardSourcePayload = {
+        id: '',
         tenderType: 'CARD',
         name: normalizedDraft.name,
         billingAddressId,
@@ -1272,36 +1274,22 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private async attachPaymentSource() {
-    const interactionId = this.requireInteractionId();
-
-    if (!interactionId) {
-      return;
-    }
-
+  private confirmSelectedPaymentSource() {
     if (!this.selectedPaymentSourceId) {
       return;
     }
 
-    this.pendingAction = 'attach-payment-source';
+    const selectedSource = this.interactionResponse?.paymentSources?.find(
+      (source) => source.id === this.selectedPaymentSourceId
+    );
 
-    try {
-      const response = await this.createSdkClient(interactionId).POST(
-        '/interaction/payment-source/{paymentSourceId}/attach',
-        {
-          params: {
-            path: {paymentSourceId: this.selectedPaymentSourceId},
-          },
-        }
-      );
-      const interactionResponse = interactionResponseFromApi(response);
-
-      this.setInteractionResponseFromSdk(interactionResponse);
-    } catch (cause) {
-      void cause;
-    } finally {
-      this.pendingAction = undefined;
+    if (!selectedSource) {
+      return;
     }
+
+    this.dispatchEvent(
+      new CustomEvent(ON_SUCCESS_EVENT, {detail: selectedSource})
+    );
   }
 
   private async startPayByBankFlow() {

@@ -29,11 +29,16 @@ no-saved-payment-methods variant.
 ## Interaction calls
 
 Hosts pass an `InteractionResponse` into `.interactionResponse`. When the SDK
-handles OTP validation, OTP resend, or saved payment-source attach actions, it
-uses `interactionResponse.interactionId` as the `x-interaction-id` header. If
+handles OTP validation or OTP resend, it uses
+`interactionResponse.interactionId` as the `x-interaction-id` header. If
 `interactionId` is missing, the widget does not call the CommerceHub API and
-keeps the current screen stable. This flow slice does not emit `onSuccess` or
-`onError` events.
+keeps the current screen stable.
+
+Saved payment-method confirmation does not call
+`/interaction/payment-source/{paymentSourceId}/attach`. After a shopper selects
+a saved method and presses Continue, the widget emits `onSuccess` with the
+selected `PaymentSource` as `event.detail`. Initial `interactionResponse`
+hydration does not emit `onSuccess`.
 
 ## Design configuration
 

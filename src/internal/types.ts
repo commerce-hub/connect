@@ -9,7 +9,7 @@ export type InteractionFlowStatus = NonNullable<
 export type FlowActionName =
   | 'verify-otp'
   | 'resend-otp'
-  | 'attach-payment-source'
+  | 'confirm-payment-source'
   | 'add-bank-account'
   | 'add-card'
   | 'save-card'

@@ -4,6 +4,7 @@ import '../commerce-hub-connect.js';
 import {
   DEFAULT_COMMERCE_HUB_BASE_URL,
   type InteractionResponse,
+  type PaymentSource,
 } from '../commerce-hub-connect.js';
 import type {CommerceHubConnect} from '../commerce-hub-connect.js';
 
@@ -122,11 +123,11 @@ const waitForRequest = async (
 };
 
 const recordOutputEvents = (el: Element) => {
-  const successEvents: CustomEvent<InteractionResponse>[] = [];
+  const successEvents: CustomEvent<PaymentSource>[] = [];
   const errorEvents: CustomEvent<unknown>[] = [];
 
   el.addEventListener('onSuccess', (event) => {
-    successEvents.push(event as CustomEvent<InteractionResponse>);
+    successEvents.push(event as CustomEvent<PaymentSource>);
   });
   el.addEventListener('onError', (event) => {
     errorEvents.push(event as CustomEvent<unknown>);
@@ -402,13 +403,13 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el
-        .shadowRoot!.querySelector('[data-action="attach-payment-source"]')
+        .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
         ?.textContent?.trim(),
       'Confirm'
     );
     assert.exists(
       el.shadowRoot!.querySelector(
-        '[data-action="attach-payment-source"] .button-icon-arrow-right'
+        '[data-action="confirm-payment-source"] .button-icon-arrow-right'
       )
     );
   });
@@ -468,7 +469,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el
-        .shadowRoot!.querySelector('[data-action="attach-payment-source"]')
+        .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
         ?.textContent?.trim(),
       'Pay with selected method'
     );
@@ -496,7 +497,7 @@ suite('commerce-hub-connect flow', () => {
       ['Add a credit or debit card', 'Add bank account']
     );
     assert.notExists(
-      el.shadowRoot!.querySelector('[data-action="attach-payment-source"]')
+      el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
     );
   });
 
@@ -747,6 +748,7 @@ suite('commerce-hub-connect flow', () => {
     });
 
     const sourceBody = JSON.parse(requests[4].bodyText);
+    assert.equal(sourceBody.id, '');
     assert.equal(sourceBody.tenderType, 'CARD');
     assert.equal(sourceBody.name, 'Ada corporate card');
     assert.equal(sourceBody.billingAddressId, addressBody.id);
@@ -1065,16 +1067,12 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(requests[0].bodyText, '');
   });
 
-  test('continue with selected method attaches source without emitting onSuccess', async () => {
+  test('continue with selected method emits onSuccess with selected source without calling attach', async () => {
     const requests: CapturedRequest[] = [];
-    const apiResponse: InteractionResponse = {
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_ATTACHED',
-      selectedSource: {
-        tenderType: 'Card',
-        id: 'card-1',
-        name: 'Corporate card',
-      },
+    const selectedSource: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Corporate card',
     };
 
     window.fetch = async (input: RequestInfo | URL) => {
@@ -1087,7 +1085,7 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      return new Response(JSON.stringify(apiResponse), {
+      return new Response(JSON.stringify({}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
       });
@@ -1096,39 +1094,16 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      selectedSource: {
-        tenderType: 'Card',
-        id: 'card-1',
-        name: 'Corporate card',
-      },
-      paymentSources: [
-        {
-          tenderType: 'Card',
-          id: 'card-1',
-          name: 'Corporate card',
-        },
-      ],
+      selectedSource,
+      paymentSources: [selectedSource],
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
-    await clickAction(el, 'attach-payment-source');
-    await waitFor(
-      () => el.interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED',
-      'payment source was not attached'
-    );
+    await clickAction(el, 'confirm-payment-source');
 
-    assert.lengthOf(requests, 1);
-    assert.equal(
-      requests[0].url,
-      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/payment-source/card-1/attach`
-    );
-    assert.equal(requests[0].method, 'POST');
-    assert.equal(
-      requests[0].headers.get('x-interaction-id'),
-      'interaction-payment'
-    );
-    assert.deepEqual(el.interactionResponse, apiResponse);
-    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(requests, 0);
+    assert.lengthOf(successEvents, 1);
+    assert.deepEqual(successEvents[0].detail, selectedSource);
     assert.lengthOf(errorEvents, 0);
   });
 

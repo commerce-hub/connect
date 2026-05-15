@@ -1,6 +1,10 @@
 import {assert, fixture, html as testingHtml} from '@open-wc/testing';
 
-import {CommerceHubConnect, type InteractionResponse} from '../commerce-hub-connect.js';
+import {
+  CommerceHubConnect,
+  type InteractionResponse,
+  type PaymentSource,
+} from '../commerce-hub-connect.js';
 
 type CommerceHubSdkError = {
   message: string;
@@ -11,7 +15,7 @@ type CommerceHubSdkError = {
 
 type CommerceHubSdkConfiguration = {
   baseUrl: string;
-  onSuccess: (interaction: InteractionResponse) => void;
+  onSuccess: (paymentSource: PaymentSource) => void;
   onError: (error: CommerceHubSdkError) => void;
   paymentSelectionTitle?: string;
   paymentSelectionConfirmLabel?: string;
@@ -64,7 +68,7 @@ suite('commerce-hub-connect sdk mount helper', () => {
     window.fetch = originalFetch;
   });
 
-  test('does not call onSuccess on initial hydration and calls it after attach succeeds', async () => {
+  test('does not call onSuccess on initial hydration and calls it after saved source confirmation', async () => {
     const moduleNamespace = (await import('../commerce-hub-connect.js')) as Record<
       string,
       unknown
@@ -75,23 +79,19 @@ suite('commerce-hub-connect sdk mount helper', () => {
 
     assert.isFunction(mountCommerceHubConnect);
 
-    const attachedInteraction: InteractionResponse = {
-      interactionId: 'interaction-1',
-      status: 'PAYMENT_SOURCE_ATTACHED',
-      selectedSource: {
-        tenderType: 'Card',
-        id: 'card-1',
-        name: 'Corporate card',
-      },
+    const selectedSource: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Corporate card',
     };
-    const successCalls: InteractionResponse[] = [];
+    const successCalls: PaymentSource[] = [];
     const errorCalls: CommerceHubSdkError[] = [];
     let receivedRequest: Request | undefined;
 
     window.fetch = async (input: RequestInfo | URL) => {
       receivedRequest = input instanceof Request ? input : new Request(input);
 
-      return new Response(JSON.stringify(attachedInteraction), {
+      return new Response(JSON.stringify({}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
       });
@@ -104,18 +104,8 @@ suite('commerce-hub-connect sdk mount helper', () => {
       interaction: {
         interactionId: 'interaction-1',
         status: 'PAYMENT_SOURCE_REQUESTED',
-        selectedSource: {
-          tenderType: 'Card',
-          id: 'card-1',
-          name: 'Corporate card',
-        },
-        paymentSources: [
-          {
-            tenderType: 'Card',
-            id: 'card-1',
-            name: 'Corporate card',
-          },
-        ],
+        selectedSource,
+        paymentSources: [selectedSource],
       },
       configuration: {
         baseUrl: 'https://api.example.test',
@@ -129,24 +119,23 @@ suite('commerce-hub-connect sdk mount helper', () => {
     assert.lengthOf(successCalls, 0);
 
     instance.element.shadowRoot
-      ?.querySelector<HTMLButtonElement>('button[data-action="confirm"]')
+      ?.querySelector<HTMLButtonElement>(
+        'button[data-action="confirm-payment-source"]'
+      )
       ?.click();
     await instance.element.updateComplete;
     await waitFor(() => successCalls.length === 1);
 
-    assert.equal(
-      receivedRequest?.url,
-      'https://api.example.test/interaction/payment-source/card-1/attach'
-    );
+    assert.isUndefined(receivedRequest);
     assert.lengthOf(successCalls, 1);
-    assert.deepEqual(successCalls[0], attachedInteraction);
+    assert.deepEqual(successCalls[0], selectedSource);
     assert.lengthOf(errorCalls, 0);
 
     instance.destroy();
     host.remove();
   });
 
-  test('routes attach failures to onError', async () => {
+  test('does not route saved source confirmation through fetch errors', async () => {
     const moduleNamespace = (await import('../commerce-hub-connect.js')) as Record<
       string,
       unknown
@@ -157,14 +146,23 @@ suite('commerce-hub-connect sdk mount helper', () => {
 
     assert.isFunction(mountCommerceHubConnect);
 
-    const successCalls: InteractionResponse[] = [];
+    const selectedSource: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Corporate card',
+    };
+    const successCalls: PaymentSource[] = [];
     const errorCalls: CommerceHubSdkError[] = [];
+    let fetchCalls = 0;
 
-    window.fetch = async () =>
-      new Response(JSON.stringify({message: 'Attach failed'}), {
+    window.fetch = async () => {
+      fetchCalls += 1;
+
+      return new Response(JSON.stringify({message: 'Attach failed'}), {
         status: 500,
         headers: {'Content-Type': 'application/json'},
       });
+    };
 
     const host = (await fixture(
       testingHtml`<div id="sdk-host"></div>`
@@ -174,18 +172,8 @@ suite('commerce-hub-connect sdk mount helper', () => {
       interaction: {
         interactionId: 'interaction-1',
         status: 'PAYMENT_SOURCE_REQUESTED',
-        selectedSource: {
-          tenderType: 'Card',
-          id: 'card-1',
-          name: 'Corporate card',
-        },
-        paymentSources: [
-          {
-            tenderType: 'Card',
-            id: 'card-1',
-            name: 'Corporate card',
-          },
-        ],
+        selectedSource,
+        paymentSources: [selectedSource],
       },
       configuration: {
         baseUrl: 'https://api.example.test',
@@ -197,15 +185,17 @@ suite('commerce-hub-connect sdk mount helper', () => {
     await instance.element.updateComplete;
 
     instance.element.shadowRoot
-      ?.querySelector<HTMLButtonElement>('button[data-action="confirm"]')
+      ?.querySelector<HTMLButtonElement>(
+        'button[data-action="confirm-payment-source"]'
+      )
       ?.click();
     await instance.element.updateComplete;
-    await waitFor(() => errorCalls.length === 1);
+    await waitFor(() => successCalls.length === 1);
 
-    assert.lengthOf(successCalls, 0);
-    assert.lengthOf(errorCalls, 1);
-    assert.equal(errorCalls[0].stage, 'payment_source');
-    assert.equal(errorCalls[0].status, 500);
+    assert.equal(fetchCalls, 0);
+    assert.lengthOf(successCalls, 1);
+    assert.deepEqual(successCalls[0], selectedSource);
+    assert.lengthOf(errorCalls, 0);
 
     instance.destroy();
   });

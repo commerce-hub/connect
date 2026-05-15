@@ -11,7 +11,7 @@ slice for OTP verification and saved payment-method selection.
 - Typed CommerceHub API client generated from `swagger.json`
 - Internal primitives for widget shell, buttons, fields, OTP inputs, alerts,
   status pills, payment method rows, source actions, detail rows, and form grids
-- SDK-owned OTP validation and saved payment-source attach actions
+- SDK-owned OTP validation and saved payment-source confirmation actions
 - Optional `designConfig` input for merchant-safe colors, typography, and copy
 
 ## Development
@@ -67,10 +67,15 @@ const {data, error} = await client.GET('/customer');
 
 When `<commerce-hub-connect>` performs SDK-managed interaction calls, it uses
 `http://localhost:8080` by default and sends `interactionResponse.interactionId`
-as the `x-interaction-id` header. OTP validation, OTP resend, and saved
-payment-source attach actions require that `interactionId`; if it is missing,
-the widget keeps the current screen stable and does not call the API. This flow
-slice does not emit `onSuccess` or `onError` events.
+as the `x-interaction-id` header. OTP validation and OTP resend require that
+`interactionId`; if it is missing, the widget keeps the current screen stable
+and does not call the API.
+
+Saved payment-method confirmation is local: after the shopper selects a saved
+method and presses Continue, the widget does not call
+`/interaction/payment-source/{paymentSourceId}/attach`. Instead, it emits
+`onSuccess` with the selected `PaymentSource` as `event.detail`. Initial
+`interactionResponse` hydration does not emit `onSuccess`.
 
 Pass an `InteractionResponse` into the component with a property binding when
 the host app owns the API call:

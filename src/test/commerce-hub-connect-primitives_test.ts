@@ -4,6 +4,7 @@ import {html, nothing, TemplateResult} from 'lit';
 import {
   CommerceHubConnect,
   type InteractionResponse,
+  type PaymentSource,
 } from '../commerce-hub-connect.js';
 import {
   renderAlert,
@@ -237,10 +238,10 @@ suite('commerce-hub-connect primitives', () => {
         name: 'Corporate card',
       },
     };
-    const events: CustomEvent<InteractionResponse>[] = [];
+    const events: CustomEvent<PaymentSource>[] = [];
 
     el.addEventListener('onSuccess', (event) => {
-      events.push(event as CustomEvent<InteractionResponse>);
+      events.push(event as CustomEvent<PaymentSource>);
     });
 
     el.interactionResponse = interactionResponse;
