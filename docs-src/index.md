@@ -38,8 +38,8 @@ keeps the current screen stable. This flow slice does not emit `onSuccess` or
 ## Design configuration
 
 Host applications can pass an optional `.designConfig` object to override
-merchant-safe colors, the base text size, and current screen copy. The object
-and all nested fields are optional.
+merchant-safe colors, the base text size, the base font weight, and current
+screen copy. The object and all nested fields are optional.
 
 ```ts
 {% raw %}
@@ -52,10 +52,11 @@ html`<commerce-hub-connect
       border: '#cbd5e1',
     },
     baseFontSize: '16px',
+    baseFontWeight: '300',
     copy: {
       otp: {
         title: 'Confirm your email',
-        verifyButton: 'Confirm code',
+        verifyButton: 'Verify',
       },
       paymentMethods: {
         title: 'Choose payment',

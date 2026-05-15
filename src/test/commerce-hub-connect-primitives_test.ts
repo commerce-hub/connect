@@ -61,6 +61,13 @@ suite('commerce-hub-connect primitives', () => {
     )) as CommerceHubConnect;
 
     await el.updateComplete;
+    const title = el.shadowRoot!.querySelector<HTMLElement>('.widget-title')!;
+    const paymentMeta =
+      el.shadowRoot!.querySelector<HTMLElement>('.payment-method-meta')!;
+    const poweredByFooter =
+      el.shadowRoot!.querySelector<HTMLElement>('.powered-by-footer')!;
+    const poweredByBrand =
+      el.shadowRoot!.querySelector<HTMLElement>('.powered-by-brand')!;
 
     assert.equal(
       getComputedStyle(el)
@@ -71,21 +78,27 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-text').trim().toUpperCase(),
-      '#06103A'
+      '#101828'
     );
     assert.equal(getComputedStyle(el).fontFamily.includes('Open Sans'), true);
     assert.equal(
+      getComputedStyle(el).getPropertyValue('--chc-font-weight').trim(),
+      '300'
+    );
+    assert.equal(
       el.shadowRoot!.querySelector('.widget-shell')?.getAttribute('aria-label'),
-      'CommerceHub Connect'
+      'Commerce Hub Connect'
     );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
+    assert.equal(getComputedStyle(title).fontSize, '18.4px');
+    assert.equal(getComputedStyle(title).fontWeight, '700');
+    assert.equal(getComputedStyle(paymentMeta).fontWeight, '300');
+    assert.equal(getComputedStyle(poweredByFooter).justifyContent, 'center');
     assert.equal(
-      el.shadowRoot!.querySelector('.widget-close')?.getAttribute('aria-label'),
-      'Close CommerceHub Connect'
+      poweredByBrand.textContent?.trim(),
+      'Commerce Hub Connect'
     );
-    assert.equal(
-      el.shadowRoot!.querySelector('.powered-by-brand')?.textContent?.trim(),
-      'CommerceHub Connect'
-    );
+    assert.equal(getComputedStyle(poweredByBrand).color, 'rgb(16, 24, 40)');
   });
 
   test('applies partial designConfig color and typography without resizing controls', async () => {
@@ -94,8 +107,10 @@ suite('commerce-hub-connect primitives', () => {
         .designConfig=${{
           colors: {
             primary: '#0f766e',
+            surface: '#f4f7fb',
           },
           baseFontSize: '20px',
+          baseFontWeight: '350',
         }}
       ></commerce-hub-connect>`
     )) as CommerceHubConnect;
@@ -103,14 +118,29 @@ suite('commerce-hub-connect primitives', () => {
     await el.updateComplete;
 
     const title = el.shadowRoot!.querySelector<HTMLElement>('.widget-title')!;
+    const paymentMeta =
+      el.shadowRoot!.querySelector<HTMLElement>('.payment-method-meta')!;
     const button = el.shadowRoot!.querySelector<HTMLElement>('.button')!;
+    const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
 
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-primary').trim(),
       '#0f766e'
     );
-    assert.equal(getComputedStyle(title).fontSize, '42.5px');
-    assert.equal(getComputedStyle(button).minHeight, '72px');
+    assert.equal(
+      getComputedStyle(el).getPropertyValue('--chc-font-weight').trim(),
+      '350'
+    );
+    assert.equal(getComputedStyle(title).fontSize, '18.4px');
+    assert.equal(getComputedStyle(title).fontWeight, '700');
+    assert.equal(getComputedStyle(paymentMeta).fontWeight, '350');
+    assert.equal(getComputedStyle(button).paddingTop, '7px');
+    assert.equal(getComputedStyle(button).paddingBottom, '7px');
+    assert.equal(getComputedStyle(button).fontWeight, '500');
+    assert.equal(
+      getComputedStyle(shell).backgroundColor,
+      'rgb(244, 247, 251)'
+    );
   });
 
   test('renders payment sources from an interaction response input', async () => {
@@ -168,22 +198,30 @@ suite('commerce-hub-connect primitives', () => {
       ['card-1', 'bank-1']
     );
     assert.equal(
-      rows[0].querySelector('.payment-method-holder')?.textContent?.trim(),
+      rows[0].querySelector('.payment-method-title')?.textContent?.trim(),
       'Corporate card'
     );
     assert.equal(
-      rows[0].querySelector('.payment-method-title')?.textContent?.trim(),
-      'Visa •••• 4242'
+      rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
+      '•••• 4242'
     );
     assert.equal(rows[0].getAttribute('aria-checked'), 'true');
+    assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
+    assert.notExists(rows[0].querySelector('.payment-method-status'));
     assert.equal(
       rows[1].querySelector('.payment-method-title')?.textContent?.trim(),
-      'Commerce National Bank •••• 3210'
+      'Operating account'
+    );
+    assert.equal(
+      rows[1].querySelector('.payment-method-meta')?.textContent?.trim(),
+      '•••• 3210'
     );
     assert.equal(
       rows[1].querySelector('.payment-method-status')?.textContent?.trim(),
       'Further info required'
     );
+    assert.exists(rows[1].querySelector('[data-payment-method-icon="bank"]'));
+    assert.notExists(rows[1].querySelector('.payment-method-chevron'));
   });
 
   test('does not emit onSuccess when interaction response changes', async () => {
@@ -222,7 +260,7 @@ suite('commerce-hub-connect primitives', () => {
       ${renderTextField({
         id: 'email',
         label: 'Email address',
-        value: 'wallet@example.com',
+        value: 'gregory.jablonski@fiserv.com',
         type: 'email',
       })}
       ${renderSelectField({
@@ -264,7 +302,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(root.querySelector('label')?.getAttribute('for'), 'email');
     assert.equal(
       root.querySelector<HTMLInputElement>('input#email')?.value,
-      'wallet@example.com'
+      'gregory.jablonski@fiserv.com'
     );
     assert.equal(
       root.querySelector<HTMLSelectElement>('select#billing-address')?.value,
@@ -297,7 +335,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       root.querySelector('.powered-by-brand')?.textContent?.trim(),
-      'CommerceHub Connect'
+      'Commerce Hub Connect'
     );
   });
 
@@ -321,6 +359,12 @@ suite('commerce-hub-connect primitives', () => {
         action: 'add-bank-account',
         icon: 'bank',
       })}
+      ${renderSourceAction({
+        label: 'Add card',
+        action: 'add-card',
+        icon: 'card',
+        variant: 'link',
+      })}
       ${renderDetailList([
         {label: 'Account holder name', value: 'Alex Morgan'},
         {label: 'Last 4 digits', value: '2288'},
@@ -333,12 +377,16 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(row?.disabled, true);
     assert.equal(row?.getAttribute('aria-disabled'), 'true');
     assert.equal(
-      root.querySelector('.payment-method-eyebrow')?.textContent?.trim(),
-      'Saved bank account'
+      root.querySelector('.payment-method-title')?.textContent?.trim(),
+      'James Anderson'
     );
     assert.equal(
-      root.querySelector('.payment-method-title')?.textContent?.trim(),
-      'Checking •••• 1234'
+      root.querySelector('.payment-method-meta')?.textContent?.trim(),
+      '•••• 1234'
+    );
+    assert.equal(
+      root.querySelector('.payment-method-status')?.textContent?.trim(),
+      'Further info required'
     );
     assert.equal(
       root
@@ -350,6 +398,12 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(
       root.querySelector('.source-action-subtitle')?.textContent?.trim(),
       'Connect a different account'
+    );
+    assert.exists(
+      root.querySelector('[data-action="add-card"] .source-action-icon')
+    );
+    assert.notExists(
+      root.querySelector('[data-action="add-card"] .source-action-link-icon')
     );
     assert.deepEqual(
       [...root.querySelectorAll('.detail-label')].map((item) =>
@@ -423,6 +477,7 @@ suite('commerce-hub-connect primitives', () => {
         title: 'Add card',
         subtitle: 'Save a new credit or debit card to this wallet.',
         width: 'wide',
+        showClose: true,
         closeAction: 'close-card',
         content: renderFormGrid([
           renderTextField({id: 'card-label', label: 'Card label'}),
@@ -461,7 +516,7 @@ suite('commerce-hub-connect primitives', () => {
         .querySelector('.powered-by-footer')
         ?.textContent?.replace(/\s+/g, ' ')
         .trim(),
-      'Powered by CommerceHub Connect'
+      'Powered by Commerce Hub Connect'
     );
     assert.lengthOf(root.querySelectorAll('.field'), 4);
     assert.equal(

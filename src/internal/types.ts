@@ -51,11 +51,14 @@ export type ButtonVariant = 'primary' | 'secondary';
 
 export type ButtonType = 'button' | 'submit' | 'reset';
 
+export type ButtonIcon = 'check' | 'arrow-right';
+
 export interface ButtonOptions {
   label: string;
   variant?: ButtonVariant;
   action?: string;
   type?: ButtonType;
+  icon?: ButtonIcon;
   disabled?: boolean;
 }
 
@@ -160,12 +163,14 @@ export interface PaymentMethod {
 }
 
 export type SourceActionIcon = 'card' | 'bank';
+export type SourceActionVariant = 'card' | 'link';
 
 export interface SourceActionOptions {
   label: string;
   subtitle?: string;
   action: FlowActionName;
   icon: SourceActionIcon;
+  variant?: SourceActionVariant;
   disabled?: boolean;
 }
 
@@ -196,7 +201,7 @@ export interface LoadingRowOptions {
 
 export interface ProviderFrameOptions {
   containerId: string;
-  title: string;
+  title?: string;
   loadingLabel?: string;
 }
 
@@ -229,5 +234,6 @@ export interface WidgetShellOptions {
   ariaLabel?: string;
   closeAction?: string;
   showClose?: boolean;
+  showDivider?: boolean;
   showFooter?: boolean;
 }

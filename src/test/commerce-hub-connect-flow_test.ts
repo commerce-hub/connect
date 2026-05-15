@@ -173,33 +173,50 @@ suite('commerce-hub-connect flow', () => {
       .forEach((script) => script.remove());
   });
 
-  test('renders OTP pending as six inputs with resend copy and Verify code CTA', async () => {
+  test('renders OTP pending with no close, inline resend copy, and a Verify CTA icon', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'wallet@example.com',
+      email: 'gregory.jablonski@fiserv.com',
     });
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verify your email'
+      'Enter the code'
     );
     assert.include(
       el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
-      'wallet@example.com'
+      'We send a one-time code to gregory.jablonski@fiserv.com.'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
+    assert.equal(
+      el.shadowRoot!.querySelector('.otp-support-copy')?.textContent?.trim(),
+      "Didn't receive the code?"
+    );
+    assert.equal(
+      getComputedStyle(
+        el.shadowRoot!.querySelector<HTMLElement>('.otp-support')!
+      ).display,
+      'flex'
     );
     assert.lengthOf(el.shadowRoot!.querySelectorAll('.otp-input'), 6);
     assert.equal(
       el
         .shadowRoot!.querySelector('[data-action="resend-otp"]')
         ?.textContent?.trim(),
-      'Resend code in 30s'
+      'Resend code'
     );
     assert.equal(
       el
         .shadowRoot!.querySelector('[data-action="verify-otp"]')
         ?.textContent?.trim(),
-      'Verify code'
+      'Verify'
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector(
+        '[data-action="verify-otp"] .button-icon-check'
+      )
     );
   });
 
@@ -208,7 +225,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-otp',
         status: 'OTP_VALIDATION_PENDING',
-        email: 'wallet@example.com',
+        email: 'gregory.jablonski@fiserv.com',
       },
       {
         copy: {
@@ -253,14 +270,14 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'wallet@example.com',
+      email: 'gregory.jablonski@fiserv.com',
     });
 
     await setOtpValue(el, '987654');
     el.interactionResponse = {
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_FAILED',
-      email: 'wallet@example.com',
+      email: 'gregory.jablonski@fiserv.com',
     };
     await flushElement(el);
 
@@ -288,7 +305,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('renders payment methods with selectable rows, source actions, and Continue CTA', async () => {
+  test('renders payment methods with compact rows, link actions, and a Confirm CTA', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -331,22 +348,68 @@ suite('commerce-hub-connect flow', () => {
       rows.map((row) => row.dataset.paymentMethodId),
       ['card-1', 'bank-1']
     );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Pay with'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.equal(rows[0].getAttribute('aria-checked'), 'true');
+    assert.equal(
+      rows[0].querySelector('.payment-method-title')?.textContent?.trim(),
+      'Corporate card'
+    );
+    assert.equal(
+      rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
+      '•••• 4242'
+    );
+    assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
 
     rows[1].click();
     await flushElement(el);
 
     assert.equal(rows[0].getAttribute('aria-checked'), 'false');
     assert.equal(rows[1].getAttribute('aria-checked'), 'true');
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+    assert.notExists(el.shadowRoot!.querySelector('.source-action'));
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
+        (item) => item.textContent?.trim()
+      ),
+      ['Add a credit or debit card', 'Add bank account']
     );
-    assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    const addCardLink = el.shadowRoot!.querySelector<HTMLElement>(
+      '[data-action="add-card"]'
+    )!;
+    const addCardIcon =
+      addCardLink.querySelector<HTMLElement>('.source-action-icon')!;
+
+    assert.notExists(el.shadowRoot!.querySelector('.source-action-link-icon'));
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="add-card"] .source-action-icon')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector(
+        '[data-action="add-bank-account"] .source-action-icon'
+      )
+    );
+    assert.equal(getComputedStyle(addCardLink).alignItems, 'center');
+    assert.equal(getComputedStyle(addCardIcon).fontSize, '28px');
+    assert.equal(getComputedStyle(addCardIcon).fontWeight, '300');
+    assert.equal(getComputedStyle(addCardIcon).borderTopStyle, 'solid');
+    assert.equal(
+      getComputedStyle(addCardIcon).borderTopColor,
+      getComputedStyle(addCardIcon).backgroundColor
+    );
     assert.equal(
       el
         .shadowRoot!.querySelector('[data-action="attach-payment-source"]')
         ?.textContent?.trim(),
-      'Continue'
+      'Confirm'
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector(
+        '[data-action="attach-payment-source"] .button-icon-arrow-right'
+      )
     );
   });
 
@@ -392,16 +455,16 @@ suite('commerce-hub-connect flow', () => {
       'Select a saved method for this order.'
     );
     assert.deepEqual(
-      [...el.shadowRoot!.querySelectorAll('.source-action-title')].map((item) =>
-        item.textContent?.trim()
-      ),
-      ['Use bank account', 'Use card']
-    );
-    assert.deepEqual(
-      [...el.shadowRoot!.querySelectorAll('.source-action-subtitle')].map(
+      [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
         (item) => item.textContent?.trim()
       ),
-      ['Connect checking or savings', 'Add debit or credit card']
+      ['Use card', 'Use bank account']
+    );
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.source-action-link-subtitle')].map(
+        (item) => item.textContent?.trim()
+      ),
+      ['Add debit or credit card', 'Connect checking or savings']
     );
     assert.equal(
       el
@@ -419,13 +482,19 @@ suite('commerce-hub-connect flow', () => {
     });
 
     assert.equal(
-      el.shadowRoot!.querySelector('.empty-state-title')?.textContent?.trim(),
-      'No saved payment methods'
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add payment method'
     );
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+    assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
+    assert.notExists(el.shadowRoot!.querySelector('.empty-state'));
+    assert.notExists(el.shadowRoot!.querySelector('.source-action'));
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
+        (item) => item.textContent?.trim()
+      ),
+      ['Add a credit or debit card', 'Add bank account']
     );
-    assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="attach-payment-source"]')
     );
@@ -446,7 +515,9 @@ suite('commerce-hub-connect flow', () => {
             emptyTitle: 'Nothing saved yet',
             emptyMessage: 'Add a payment method to keep going.',
             addBankAccountTitle: 'Connect bank',
+            addBankAccountSubtitle: 'Connect checking or savings',
             addCardTitle: 'Add card',
+            addCardSubtitle: 'Use card number and CVV',
           },
         },
       }
@@ -469,10 +540,16 @@ suite('commerce-hub-connect flow', () => {
       'Add a payment method to keep going.'
     );
     assert.deepEqual(
-      [...el.shadowRoot!.querySelectorAll('.source-action-title')].map((item) =>
-        item.textContent?.trim()
+      [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
+        (item) => item.textContent?.trim()
       ),
-      ['Connect bank', 'Add card']
+      ['Add card', 'Connect bank']
+    );
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.source-action-link-subtitle')].map(
+        (item) => item.textContent?.trim()
+      ),
+      ['Use card number and CVV', 'Connect checking or savings']
     );
   });
 
@@ -913,7 +990,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'wallet@example.com',
+      email: 'gregory.jablonski@fiserv.com',
     });
 
     await setOtpValue(el, '123456');
@@ -931,13 +1008,13 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(JSON.parse(requests[0].bodyText), {
       otp: '123456',
-      email: 'wallet@example.com',
+      email: 'gregory.jablonski@fiserv.com',
       channel: 'EMAIL',
     });
     assert.deepEqual(el.interactionResponse, apiResponse);
     assert.equal(
-      el.shadowRoot!.querySelector('.empty-state-title')?.textContent?.trim(),
-      'No saved payment methods'
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add payment method'
     );
   });
 
@@ -958,7 +1035,7 @@ suite('commerce-hub-connect flow', () => {
         JSON.stringify({
           interactionId: 'interaction-otp',
           status: 'OTP_VALIDATION_PENDING',
-          email: 'wallet@example.com',
+          email: 'gregory.jablonski@fiserv.com',
         }),
         {
           status: 200,
@@ -970,7 +1047,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'wallet@example.com',
+      email: 'gregory.jablonski@fiserv.com',
     });
 
     await clickAction(el, 'resend-otp');
@@ -1065,7 +1142,7 @@ suite('commerce-hub-connect flow', () => {
 
     const el = await renderConnect({
       status: 'OTP_VALIDATION_PENDING',
-      email: 'wallet@example.com',
+      email: 'gregory.jablonski@fiserv.com',
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
@@ -1077,7 +1154,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(errorEvents, 0);
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verify your email'
+      'Enter the code'
     );
   });
 
@@ -1091,7 +1168,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'wallet@example.com',
+      email: 'gregory.jablonski@fiserv.com',
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
@@ -1187,7 +1264,12 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Add bank account'
     );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
+    assert.notExists(el.shadowRoot!.querySelector('.provider-frame-header'));
     assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="back-to-payment-methods"]')
+    );
     assert.equal(initConfig?.apiKey, 'override-api-key');
     assert.equal(initConfig?.configId, 'override-config-id');
     assert.equal(initConfig?.accessToken, 'access-token-1');
@@ -1527,7 +1609,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Payment methods'
+      'Add payment method'
     );
   });
 });

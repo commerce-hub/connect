@@ -43,12 +43,48 @@
         overflow: hidden;
       }
 
-      .payload-card h2 {
+      .payload-card > h2 {
         margin: 0;
         padding: 14px 16px;
         border-bottom: 1px solid #e4e7ec;
         font-size: 15px;
         line-height: 1.4;
+      }
+
+      .payload-card > summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .payload-card > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .payload-card > summary h2 {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.4;
+      }
+
+      .payload-card > summary::after {
+        content: '+';
+        color: #475467;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .payload-card[open] > summary {
+        border-bottom: 1px solid #e4e7ec;
+      }
+
+      .payload-card[open] > summary::after {
+        content: '−';
       }
 
       .form-body {
@@ -222,26 +258,6 @@
   </head>
   <body>
     <main class="demo-layout">
-      <section class="demo-widget-panel">
-        <div id="connect-widget-host"></div>
-
-        <article class="payload-card">
-          <h2>Scenario</h2>
-          <div class="scenario-controls" id="scenario-controls">
-            <button type="button" data-scenario="otpPending">
-              OTP pending
-            </button>
-            <button type="button" data-scenario="otpFailed">OTP failed</button>
-            <button type="button" data-scenario="savedPaymentMethods">
-              Saved methods
-            </button>
-            <button type="button" data-scenario="noSavedPaymentMethods">
-              No saved methods
-            </button>
-          </div>
-        </article>
-      </section>
-
       <section class="payload-panel" aria-label="Host integration payloads">
         <article class="payload-card">
           <h2>Create interaction request</h2>
@@ -373,17 +389,196 @@
                 ></pre>
               </div>
               <div class="error-message" id="interaction-request-error"></div>
-              <div class="form-actions">
-                <button
-                  class="primary-button"
-                  id="create-interaction-button"
-                  type="submit"
-                >
-                  Create interaction
-                </button>
-              </div>
             </div>
           </form>
+        </article>
+
+        <details class="payload-card" id="design-config-card">
+          <summary>
+            <h2>Design config</h2>
+          </summary>
+          <div class="form-body" id="design-config-form">
+            <p class="helper-text">
+              These values are passed to <code>widget.designConfig</code> and
+              update the mounted widget without recreating it.
+            </p>
+
+            <fieldset class="control-group">
+              <legend class="field-label">Theme</legend>
+              <div class="field-grid">
+                <label class="field" for="design-config-base-font-size">
+                  <span class="field-label">Base font size</span>
+                  <input
+                    class="field-input"
+                    id="design-config-base-font-size"
+                    type="text"
+                    placeholder="16px"
+                  />
+                </label>
+
+                <label class="field" for="design-config-base-font-weight">
+                  <span class="field-label">Base font weight</span>
+                  <input
+                    class="field-input"
+                    id="design-config-base-font-weight"
+                    type="text"
+                    placeholder="300"
+                  />
+                </label>
+
+                <label class="field" for="design-config-primary-color">
+                  <span class="field-label">Primary color</span>
+                  <input
+                    class="field-input"
+                    id="design-config-primary-color"
+                    type="text"
+                    placeholder="#084acc"
+                  />
+                </label>
+
+                <label class="field" for="design-config-text-color">
+                  <span class="field-label">Text color</span>
+                  <input
+                    class="field-input"
+                    id="design-config-text-color"
+                    type="text"
+                    placeholder="#101828"
+                  />
+                </label>
+
+                <label class="field" for="design-config-copy-color">
+                  <span class="field-label">Copy color</span>
+                  <input
+                    class="field-input"
+                    id="design-config-copy-color"
+                    type="text"
+                    placeholder="#344054"
+                  />
+                </label>
+
+                <label class="field" for="design-config-border-color">
+                  <span class="field-label">Border color</span>
+                  <input
+                    class="field-input"
+                    id="design-config-border-color"
+                    type="text"
+                    placeholder="#cbd5e1"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="control-group">
+              <legend class="field-label">OTP copy</legend>
+              <div class="field-grid">
+                <label class="field" for="design-config-otp-title">
+                  <span class="field-label">Title</span>
+                  <input
+                    class="field-input"
+                    id="design-config-otp-title"
+                    type="text"
+                  />
+                </label>
+
+                <label class="field" for="design-config-otp-verify-button">
+                  <span class="field-label">Verify button</span>
+                  <input
+                    class="field-input"
+                    id="design-config-otp-verify-button"
+                    type="text"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="control-group">
+              <legend class="field-label">Payment methods copy</legend>
+              <div class="field-grid">
+                <label class="field" for="design-config-payment-methods-title">
+                  <span class="field-label">Title</span>
+                  <input
+                    class="field-input"
+                    id="design-config-payment-methods-title"
+                    type="text"
+                  />
+                </label>
+
+                <label
+                  class="field"
+                  for="design-config-payment-methods-continue-button"
+                >
+                  <span class="field-label">Continue button</span>
+                  <input
+                    class="field-input"
+                    id="design-config-payment-methods-continue-button"
+                    type="text"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="control-group">
+              <legend class="field-label">No saved methods copy</legend>
+              <div class="field-grid">
+                <label class="field" for="design-config-no-saved-title">
+                  <span class="field-label">Title</span>
+                  <input
+                    class="field-input"
+                    id="design-config-no-saved-title"
+                    type="text"
+                  />
+                </label>
+
+                <label class="field" for="design-config-no-saved-empty-title">
+                  <span class="field-label">Empty title</span>
+                  <input
+                    class="field-input"
+                    id="design-config-no-saved-empty-title"
+                    type="text"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="request-preview-group">
+              <span class="field-label">Design config</span>
+              <p class="helper-text">
+                Empty fields are omitted so the SDK falls back to its defaults.
+              </p>
+              <pre id="design-config-preview" class="request-preview"></pre>
+            </div>
+          </div>
+        </details>
+
+        <div class="form-actions" id="create-interaction-actions">
+          <button
+            class="primary-button"
+            id="create-interaction-button"
+            type="submit"
+            form="interaction-create-form"
+          >
+            Create interaction
+          </button>
+        </div>
+      </section>
+
+      <section class="demo-widget-panel">
+        <div id="connect-widget-host"></div>
+
+        <article class="payload-card">
+          <h2>Scenario</h2>
+          <div class="scenario-controls" id="scenario-controls">
+            <button type="button" data-scenario="otpPending">
+              OTP pending
+            </button>
+            <button type="button" data-scenario="otpFailed">OTP failed</button>
+            <button type="button" data-scenario="savedPaymentMethods">
+              Saved methods
+            </button>
+            <button type="button" data-scenario="noSavedPaymentMethods">
+              No saved methods
+            </button>
+          </div>
         </article>
 
         <article class="payload-card">
@@ -426,19 +621,19 @@
         otpPending: {
           interactionId: 'demo-interaction-otp-pending',
           status: 'OTP_VALIDATION_PENDING',
-          email: 'wallet@example.com',
+          email: 'gregory.jablonski@fiserv.com',
           allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
         },
         otpFailed: {
           interactionId: 'demo-interaction-otp-failed',
           status: 'OTP_VALIDATION_FAILED',
-          email: 'wallet@example.com',
+          email: 'gregory.jablonski@fiserv.com',
           allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
         },
         savedPaymentMethods: {
           interactionId: 'demo-interaction-saved-methods',
           status: 'PAYMENT_SOURCE_REQUESTED',
-          email: 'wallet@example.com',
+          email: 'gregory.jablonski@fiserv.com',
           allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
           selectedSource: {
             tenderType: 'Card',
@@ -450,41 +645,21 @@
         noSavedPaymentMethods: {
           interactionId: 'demo-interaction-no-saved-methods',
           status: 'PAYMENT_SOURCE_REQUESTED',
-          email: 'wallet@example.com',
+          email: 'gregory.jablonski@fiserv.com',
           allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
           paymentSources: [],
         },
       };
-      const designConfig = {
-        colors: {
-          primary: '#084acc',
-          text: '#101828',
-          copy: '#344054',
-          border: '#cbd5e1',
-        },
-        baseFontSize: '16px',
-        copy: {
-          otp: {
-            title: 'Confirm your email',
-            verifyButton: 'Confirm code',
-          },
-          paymentMethods: {
-            title: 'Choose payment method',
-            continueButton: 'Use selected method',
-          },
-          noSavedPaymentMethods: {
-            title: 'Add payment method',
-            emptyTitle: 'No saved methods',
-          },
-        },
-      };
-
       const widgetHost = document.querySelector('#connect-widget-host');
       const input = document.querySelector('#interaction-input');
       const createForm = document.querySelector('#interaction-create-form');
       const requestForm = createForm;
       const requestPreview = document.querySelector(
         '#interaction-request-preview'
+      );
+      const designConfigForm = document.querySelector('#design-config-form');
+      const designConfigPreview = document.querySelector(
+        '#design-config-preview'
       );
       const requestError = document.querySelector('#interaction-request-error');
       const createButton = document.querySelector('#create-interaction-button');
@@ -507,11 +682,35 @@
           '#interaction-allow-dynamic-session-card'
         ),
       };
+      const designConfigFields = {
+        baseFontSize: document.querySelector('#design-config-base-font-size'),
+        baseFontWeight: document.querySelector('#design-config-base-font-weight'),
+        primaryColor: document.querySelector('#design-config-primary-color'),
+        textColor: document.querySelector('#design-config-text-color'),
+        copyColor: document.querySelector('#design-config-copy-color'),
+        borderColor: document.querySelector('#design-config-border-color'),
+        otpTitle: document.querySelector('#design-config-otp-title'),
+        otpVerifyButton: document.querySelector(
+          '#design-config-otp-verify-button'
+        ),
+        paymentMethodsTitle: document.querySelector(
+          '#design-config-payment-methods-title'
+        ),
+        paymentMethodsContinueButton: document.querySelector(
+          '#design-config-payment-methods-continue-button'
+        ),
+        noSavedTitle: document.querySelector('#design-config-no-saved-title'),
+        noSavedEmptyTitle: document.querySelector(
+          '#design-config-no-saved-empty-title'
+        ),
+      };
       const format = (value) => JSON.stringify(value, null, 2);
       let widget;
+      let latestInteractionResponse;
+      let latestWidgetPropertiesMessage;
 
       const initialRequestFormState = {
-        email: 'wallet@example.com',
+        email: 'gregory.jablonski@fiserv.com',
         clientId: 'laika',
         merchantId: '100014000315473',
         terminalId: '10000001',
@@ -522,6 +721,22 @@
         allowBankAccount: true,
         allowDynamicSessionCard: false,
       };
+      const initialDesignConfigFormState = {
+        baseFontSize: '16px',
+        baseFontWeight: '300',
+        primaryColor: '#084acc',
+        textColor: '#101828',
+        copyColor: '#344054',
+        borderColor: '#cbd5e1',
+        otpTitle: 'Confirm your email',
+        otpVerifyButton: 'Verify',
+        paymentMethodsTitle: 'Choose payment method',
+        paymentMethodsContinueButton: 'Use selected method',
+        noSavedTitle: 'Add payment method',
+        noSavedEmptyTitle: '',
+      };
+      const initialWidgetPropertiesMessage =
+        'Submit the create request or choose a scenario to see the widget properties.';
       const commerceHubApiBaseUrl =
         new URLSearchParams(window.location.search).get('apiBaseUrl') ??
         'http://localhost:8080';
@@ -578,6 +793,94 @@
         return interactionRequest;
       };
 
+      const setOptionalTextValue = (target, key, value) => {
+        const trimmedValue = value.trim();
+
+        if (trimmedValue) {
+          target[key] = trimmedValue;
+        }
+      };
+
+      const buildDesignConfig = (designConfigFormState) => {
+        const designConfig = {};
+        const colors = {};
+        const copy = {};
+        const otp = {};
+        const paymentMethods = {};
+        const noSavedPaymentMethods = {};
+
+        setOptionalTextValue(
+          designConfig,
+          'baseFontSize',
+          designConfigFormState.baseFontSize
+        );
+        setOptionalTextValue(
+          designConfig,
+          'baseFontWeight',
+          designConfigFormState.baseFontWeight
+        );
+        setOptionalTextValue(
+          colors,
+          'primary',
+          designConfigFormState.primaryColor
+        );
+        setOptionalTextValue(colors, 'text', designConfigFormState.textColor);
+        setOptionalTextValue(colors, 'copy', designConfigFormState.copyColor);
+        setOptionalTextValue(
+          colors,
+          'border',
+          designConfigFormState.borderColor
+        );
+        setOptionalTextValue(otp, 'title', designConfigFormState.otpTitle);
+        setOptionalTextValue(
+          otp,
+          'verifyButton',
+          designConfigFormState.otpVerifyButton
+        );
+        setOptionalTextValue(
+          paymentMethods,
+          'title',
+          designConfigFormState.paymentMethodsTitle
+        );
+        setOptionalTextValue(
+          paymentMethods,
+          'continueButton',
+          designConfigFormState.paymentMethodsContinueButton
+        );
+        setOptionalTextValue(
+          noSavedPaymentMethods,
+          'title',
+          designConfigFormState.noSavedTitle
+        );
+        setOptionalTextValue(
+          noSavedPaymentMethods,
+          'emptyTitle',
+          designConfigFormState.noSavedEmptyTitle
+        );
+
+        if (Object.keys(colors).length > 0) {
+          designConfig.colors = colors;
+        }
+
+        if (Object.keys(otp).length > 0) {
+          copy.otp = otp;
+        }
+
+        if (Object.keys(paymentMethods).length > 0) {
+          copy.paymentMethods = paymentMethods;
+        }
+
+        if (Object.keys(noSavedPaymentMethods).length > 0) {
+          copy.noSavedPaymentMethods = noSavedPaymentMethods;
+        }
+
+        if (Object.keys(copy).length > 0) {
+          designConfig.copy = copy;
+        }
+
+        return designConfig;
+      };
+
       const readRequestFormState = () => ({
         email: requestFields.email.value,
         clientId: requestFields.clientId.value,
@@ -589,6 +892,22 @@
         allowCard: requestFields.allowCard.checked,
         allowBankAccount: requestFields.allowBankAccount.checked,
         allowDynamicSessionCard: requestFields.allowDynamicSessionCard.checked,
+      });
+
+      const readDesignConfigFormState = () => ({
+        baseFontSize: designConfigFields.baseFontSize.value,
+        baseFontWeight: designConfigFields.baseFontWeight.value,
+        primaryColor: designConfigFields.primaryColor.value,
+        textColor: designConfigFields.textColor.value,
+        copyColor: designConfigFields.copyColor.value,
+        borderColor: designConfigFields.borderColor.value,
+        otpTitle: designConfigFields.otpTitle.value,
+        otpVerifyButton: designConfigFields.otpVerifyButton.value,
+        paymentMethodsTitle: designConfigFields.paymentMethodsTitle.value,
+        paymentMethodsContinueButton:
+          designConfigFields.paymentMethodsContinueButton.value,
+        noSavedTitle: designConfigFields.noSavedTitle.value,
+        noSavedEmptyTitle: designConfigFields.noSavedEmptyTitle.value,
       });
 
       const writeRequestFormState = (requestFormState) => {
@@ -607,11 +926,61 @@
           requestFormState.allowDynamicSessionCard;
       };
 
+      const writeDesignConfigFormState = (designConfigFormState) => {
+        designConfigFields.baseFontSize.value =
+          designConfigFormState.baseFontSize;
+        designConfigFields.baseFontWeight.value =
+          designConfigFormState.baseFontWeight;
+        designConfigFields.primaryColor.value =
+          designConfigFormState.primaryColor;
+        designConfigFields.textColor.value = designConfigFormState.textColor;
+        designConfigFields.copyColor.value = designConfigFormState.copyColor;
+        designConfigFields.borderColor.value =
+          designConfigFormState.borderColor;
+        designConfigFields.otpTitle.value = designConfigFormState.otpTitle;
+        designConfigFields.otpVerifyButton.value =
+          designConfigFormState.otpVerifyButton;
+        designConfigFields.paymentMethodsTitle.value =
+          designConfigFormState.paymentMethodsTitle;
+        designConfigFields.paymentMethodsContinueButton.value =
+          designConfigFormState.paymentMethodsContinueButton;
+        designConfigFields.noSavedTitle.value =
+          designConfigFormState.noSavedTitle;
+        designConfigFields.noSavedEmptyTitle.value =
+          designConfigFormState.noSavedEmptyTitle;
+      };
+
       const syncRequestPreview = () => {
         const requestFormState = readRequestFormState();
         requestPreview.textContent = format(
           buildInteractionRequest(requestFormState)
         );
+      };
+
+      const syncWidgetPropertiesPreview = (designConfig) => {
+        const payload = {designConfig};
+
+        if (latestInteractionResponse) {
+          payload.interactionResponse = latestInteractionResponse;
+        }
+
+        if (latestWidgetPropertiesMessage) {
+          payload.message = latestWidgetPropertiesMessage;
+        }
+
+        input.textContent = format(payload);
+      };
+
+      const applyDesignConfig = () => {
+        const designConfig = buildDesignConfig(readDesignConfigFormState());
+
+        designConfigPreview.textContent = format(designConfig);
+
+        if (widget) {
+          widget.designConfig = designConfig;
+        }
+
+        syncWidgetPropertiesPreview(designConfig);
       };
 
       const createInitialInteractionResponse = async (interactionRequest) => {
@@ -635,16 +1004,23 @@
       const initializeWidget = async (interactionResponse) => {
         await import('../commerce-hub-connect.js');
 
+        const designConfig = buildDesignConfig(readDesignConfigFormState());
+
         widget = document.createElement('commerce-hub-connect');
         widget.id = 'connect-widget';
         widget.interactionResponse = interactionResponse;
         widget.designConfig = designConfig;
         widgetHost.replaceChildren(widget);
-        input.textContent = format({interactionResponse, designConfig});
+        latestInteractionResponse = interactionResponse;
+        latestWidgetPropertiesMessage = undefined;
+        syncWidgetPropertiesPreview(designConfig);
       };
 
       const setInteractionResponse = (interactionResponse) => {
-        input.textContent = format({interactionResponse, designConfig});
+        const designConfig = buildDesignConfig(readDesignConfigFormState());
+        latestInteractionResponse = interactionResponse;
+        latestWidgetPropertiesMessage = undefined;
+        syncWidgetPropertiesPreview(designConfig);
 
         if (widget) {
           widget.interactionResponse = interactionResponse;
@@ -717,7 +1093,8 @@
         if (interactionRequest.allowedTenderTypes.length === 0) {
           const message = 'Select at least one allowed tender type.';
           requestError.textContent = message;
-          input.textContent = format({message});
+          latestWidgetPropertiesMessage = message;
+          applyDesignConfig();
           return;
         }
 
@@ -738,20 +1115,20 @@
               : 'CommerceHub API request failed.';
 
           requestError.textContent = message;
-          input.textContent = format({message});
+          latestWidgetPropertiesMessage = message;
+          applyDesignConfig();
         } finally {
           setCreatePending(false);
         }
       };
 
       const initializeDemo = () => {
+        latestInteractionResponse = undefined;
+        latestWidgetPropertiesMessage = initialWidgetPropertiesMessage;
         writeRequestFormState(initialRequestFormState);
+        writeDesignConfigFormState(initialDesignConfigFormState);
         syncRequestPreview();
-        input.textContent = format({
-          message:
-            'Submit the create request or choose a scenario to see the widget properties.',
-          designConfig,
-        });
+        applyDesignConfig();
         setActiveScenario();
       };
 
@@ -763,6 +1140,14 @@
       requestForm.addEventListener('change', () => {
         requestError.textContent = '';
         syncRequestPreview();
+      });
+
+      designConfigForm.addEventListener('input', () => {
+        applyDesignConfig();
+      });
+
+      designConfigForm.addEventListener('change', () => {
+        applyDesignConfig();
       });
 
       createForm.addEventListener('submit', (event) => {

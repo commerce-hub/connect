@@ -8,6 +8,14 @@ suite('demo host page', () => {
     const createInteractionIndex = html.indexOf(
       "'/merchant/interaction/create'"
     );
+    const payloadPanelIndex = html.indexOf('<section class="payload-panel"');
+    const widgetPanelIndex = html.indexOf(
+      '<section class="demo-widget-panel">'
+    );
+    const designConfigIndex = html.indexOf('id="design-config-card"');
+    const createInteractionActionsIndex = html.indexOf(
+      'id="create-interaction-actions"'
+    );
 
     assert.isAtLeast(
       createInteractionIndex,
@@ -24,15 +32,66 @@ suite('demo host page', () => {
     assert.include(html, 'id="interaction-advanced-verification"');
     assert.include(html, 'name="allowedTenderTypes"');
     assert.include(html, '<pre id="interaction-request-preview"');
+    assert.isAtLeast(
+      payloadPanelIndex,
+      0,
+      'expected payload panel markup to be present'
+    );
+    assert.isAtLeast(
+      widgetPanelIndex,
+      0,
+      'expected widget panel markup to be present'
+    );
+    assert.isBelow(
+      payloadPanelIndex,
+      widgetPanelIndex,
+      'expected create interaction and design config to appear in the first column'
+    );
+    assert.include(html, '<details class="payload-card" id="design-config-card">');
+    assert.notInclude(
+      html,
+      '<details class="payload-card" id="design-config-card" open'
+    );
+    assert.include(html, 'id="design-config-form"');
+    assert.include(html, 'id="design-config-base-font-size"');
+    assert.include(html, 'id="design-config-base-font-weight"');
+    assert.include(html, 'id="design-config-primary-color"');
+    assert.include(html, 'id="design-config-otp-title"');
+    assert.include(html, 'id="design-config-payment-methods-title"');
+    assert.include(html, 'id="design-config-no-saved-title"');
+    assert.include(html, '<pre id="design-config-preview"');
+    assert.isAtLeast(
+      designConfigIndex,
+      0,
+      'expected design config card markup to be present'
+    );
+    assert.isAtLeast(
+      createInteractionActionsIndex,
+      0,
+      'expected create interaction action row markup to be present'
+    );
+    assert.isBelow(
+      designConfigIndex,
+      createInteractionActionsIndex,
+      'expected the create interaction action row after the design config section'
+    );
+    assert.include(html, 'id="create-interaction-actions"');
     assert.include(html, 'type="submit"');
+    assert.include(html, 'form="interaction-create-form"');
     assert.include(html, "createForm.addEventListener('submit'");
     assert.include(html, 'requestForm.addEventListener(');
+    assert.include(html, 'designConfigForm.addEventListener(');
     assert.include(
       html,
       'const interactionRequest = buildInteractionRequest(requestFormState)'
     );
+    assert.include(
+      html,
+      'const designConfig = buildDesignConfig(readDesignConfigFormState())'
+    );
     assert.include(html, 'createInitialInteractionResponse(');
     assert.include(html, 'body: JSON.stringify(interactionRequest)');
+    assert.include(html, 'widget.designConfig = designConfig');
     assert.notInclude(html, '<textarea id="interaction-request"');
     assert.notInclude(html, 'JSON.parse(requestInput.value)');
     assert.notInclude(
@@ -51,7 +110,7 @@ suite('demo host page', () => {
     const response = await fetch('/dev/index.html');
     const html = await response.text();
 
-    assert.include(html, "email: 'wallet@example.com'");
+    assert.include(html, "email: 'gregory.jablonski@fiserv.com'");
     assert.include(html, "clientId: 'laika'");
     assert.include(html, "merchantId: '100014000315473'");
     assert.include(html, "terminalId: '10000001'");
@@ -59,5 +118,23 @@ suite('demo host page', () => {
     assert.include(html, 'allowCard: true');
     assert.include(html, 'allowBankAccount: true');
     assert.include(html, 'allowDynamicSessionCard: false');
+  });
+
+  test('uses editable default values for the design config passed to the SDK', async () => {
+    const response = await fetch('/dev/index.html');
+    const html = await response.text();
+
+    assert.include(html, "baseFontSize: '16px'");
+    assert.include(html, "baseFontWeight: '300'");
+    assert.include(html, "primaryColor: '#084acc'");
+    assert.include(html, "textColor: '#101828'");
+    assert.include(html, "copyColor: '#344054'");
+    assert.include(html, "borderColor: '#cbd5e1'");
+    assert.include(html, "otpTitle: 'Confirm your email'");
+    assert.include(html, "otpVerifyButton: 'Verify'");
+    assert.include(html, "paymentMethodsTitle: 'Choose payment method'");
+    assert.include(html, "paymentMethodsContinueButton: 'Use selected method'");
+    assert.include(html, "noSavedTitle: 'Add payment method'");
+    assert.include(html, "noSavedEmptyTitle: ''");
   });
 });

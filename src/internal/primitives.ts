@@ -1,6 +1,10 @@
 import {html, TemplateResult} from 'lit';
 import {ifDefined} from 'lit/directives/if-defined.js';
 
+import {
+  resolvePaymentMethodIconDataUri,
+  resolvePaymentMethodIconName,
+} from './payment-method-icons.js';
 import type {
   AlertOptions,
   ButtonOptions,
@@ -24,16 +28,8 @@ import type {
 const titleCase = (value: string) =>
   `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 
-const paymentMethodEyebrow = ({type, eyebrow}: PaymentMethod): string => {
-  if (eyebrow) {
-    return eyebrow;
-  }
-
-  return type === 'bank' ? 'Saved bank account' : 'Saved credit card';
-};
-
-const paymentMethodTitle = ({brand, last4}: PaymentMethod): string =>
-  `${brand} •••• ${last4}`;
+const paymentMethodAccountLabel = ({brand, last4}: PaymentMethod): string =>
+  last4 ? `•••• ${last4}` : brand;
 
 const paymentMethodStatusLabel = (status: PaymentMethod['status']): string => {
   if (status === 'verified') {
@@ -52,6 +48,7 @@ export const renderButton = ({
   variant = 'primary',
   action,
   type = 'button',
+  icon,
   disabled = false,
 }: ButtonOptions): TemplateResult => html`
   <button
@@ -60,7 +57,17 @@ export const renderButton = ({
     data-action=${ifDefined(action)}
     ?disabled=${disabled}
   >
-    ${label}
+    <span class="button-content">
+      ${icon
+        ? html`
+            <span
+              class="button-icon button-icon-${icon}"
+              aria-hidden="true"
+            ></span>
+          `
+        : ''}
+      <span class="button-label">${label}</span>
+    </span>
   </button>
 `;
 
@@ -243,17 +250,30 @@ export const renderPaymentMethodRow = ({
       data-payment-method-id=${id}
       ?disabled=${disabled}
     >
-      <span class="payment-method-text">
-        <span class="payment-method-eyebrow"
-          >${paymentMethodEyebrow(method)}</span
-        >
-        <span class="payment-method-title">${paymentMethodTitle(method)}</span>
-        <span class="payment-method-holder">${label}</span>
-        <span class="payment-method-status status-text-${status}">
-          ${paymentMethodStatusLabel(status)}
-        </span>
+      <span class="payment-method-radio" aria-hidden="true">
+        <span class="payment-method-radio-dot"></span>
       </span>
-      <span class="payment-method-chevron" aria-hidden="true">›</span>
+      <span class="payment-method-icon-chip" aria-hidden="true">
+        <img
+          class="payment-method-icon-image"
+          data-payment-method-icon=${resolvePaymentMethodIconName(method)}
+          src=${resolvePaymentMethodIconDataUri(method)}
+          alt=""
+        />
+      </span>
+      <span class="payment-method-copy">
+        <span class="payment-method-title">${label}</span>
+        <span class="payment-method-meta">
+          ${paymentMethodAccountLabel(method)}
+        </span>
+        ${status === 'verified'
+          ? ''
+          : html`
+              <span class="payment-method-status status-text-${status}">
+                ${paymentMethodStatusLabel(status)}
+              </span>
+            `}
+      </span>
     </button>
   `;
 };
@@ -263,23 +283,50 @@ export const renderSourceAction = ({
   subtitle,
   action,
   icon,
+  variant = 'card',
   disabled = false,
-}: SourceActionOptions): TemplateResult => html`
-  <button
-    class="source-action source-action-${icon}"
-    type="button"
-    data-action=${action}
-    ?disabled=${disabled}
-  >
-    <span class="source-action-icon" aria-hidden="true">+</span>
-    <span class="source-action-copy">
-      <span class="source-action-title">${label}</span>
-      ${subtitle
-        ? html`<span class="source-action-subtitle">${subtitle}</span>`
-        : ''}
-    </span>
-  </button>
-`;
+}: SourceActionOptions): TemplateResult =>
+  variant === 'link'
+    ? html`
+        <button
+          class="source-action-link source-action-link-${icon}"
+          type="button"
+          data-action=${action}
+          ?disabled=${disabled}
+        >
+          <span class="source-action-icon" aria-hidden="true">+</span>
+          <span class="source-action-link-copy">
+            <span class="source-action-link-title source-action-title">
+              ${label}
+            </span>
+            ${subtitle
+              ? html`
+                  <span
+                    class="source-action-link-subtitle source-action-subtitle"
+                  >
+                    ${subtitle}
+                  </span>
+                `
+              : ''}
+          </span>
+        </button>
+      `
+    : html`
+        <button
+          class="source-action source-action-${icon}"
+          type="button"
+          data-action=${action}
+          ?disabled=${disabled}
+        >
+          <span class="source-action-icon" aria-hidden="true">+</span>
+          <span class="source-action-copy">
+            <span class="source-action-title">${label}</span>
+            ${subtitle
+              ? html`<span class="source-action-subtitle">${subtitle}</span>`
+              : ''}
+          </span>
+        </button>
+      `;
 
 export const renderDetailList = (items: DetailItem[]): TemplateResult => html`
   <div class="detail-list">
@@ -336,16 +383,22 @@ export const renderProviderFrame = ({
   loadingLabel,
 }: ProviderFrameOptions): TemplateResult => html`
   <div class="provider-frame">
-    <div class="provider-frame-header">
-      <p class="provider-frame-title">${title}</p>
-      ${loadingLabel
-        ? html`
-            <p class="provider-frame-status" role="status" aria-live="polite">
-              ${loadingLabel}
-            </p>
-          `
-        : ''}
-    </div>
+    ${title || loadingLabel
+      ? html`
+          <div class="provider-frame-header">
+            ${title
+              ? html`<p class="provider-frame-title">${title}</p>`
+              : ''}
+            ${loadingLabel
+              ? html`
+                  <p class="provider-frame-status" role="status" aria-live="polite">
+                    ${loadingLabel}
+                  </p>
+                `
+              : ''}
+          </div>
+        `
+      : ''}
     <slot class="provider-frame-slot" name=${containerId}>
       <div class="provider-frame-container" id=${containerId}></div>
     </slot>
@@ -401,7 +454,7 @@ export const renderTextLinkButton = ({
 export const renderPoweredByFooter = (): TemplateResult => html`
   <footer class="powered-by-footer">
     <span>Powered by</span>
-    <strong class="powered-by-brand">CommerceHub Connect</strong>
+    <strong class="powered-by-brand">Commerce Hub Connect</strong>
   </footer>
 `;
 
@@ -413,9 +466,10 @@ export const renderWidgetShell = ({
   subtitle,
   content,
   width = 'default',
-  ariaLabel = 'CommerceHub Connect',
+  ariaLabel = 'Commerce Hub Connect',
   closeAction = 'close',
   showClose = true,
+  showDivider = true,
   showFooter = true,
 }: WidgetShellOptions): TemplateResult => html`
   <section
@@ -427,7 +481,7 @@ export const renderWidgetShell = ({
           <button
             class="widget-close"
             type="button"
-            aria-label="Close CommerceHub Connect"
+            aria-label="Close Commerce Hub Connect"
             data-action=${closeAction}
           >
             ×
@@ -436,6 +490,9 @@ export const renderWidgetShell = ({
       : ''}
     <h2 class="widget-title">${title}</h2>
     ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
+    ${showDivider
+      ? html`<div class="widget-divider" aria-hidden="true"></div>`
+      : ''}
     <div class="widget-content">${content}</div>
     ${showFooter ? renderPoweredByFooter() : ''}
   </section>

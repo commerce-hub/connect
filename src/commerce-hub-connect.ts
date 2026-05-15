@@ -288,11 +288,13 @@ export class CommerceHubConnect extends LitElement {
     const isFailed = status === 'OTP_VALIDATION_FAILED';
     const isSubmitting = this.pendingAction === 'verify-otp';
     const isResending = this.pendingAction === 'resend-otp';
-    const email = this.interactionResponse?.email;
+    const destination = resolveOtpDestination(this.interactionResponse);
 
     return renderWidgetShell({
       title: copy.title,
-      subtitle: copy.subtitle ?? defaultOtpSubtitle(email),
+      subtitle: copy.subtitle ?? defaultOtpSubtitle(destination),
+      showClose: false,
+      showDivider: false,
       content: html`
         <div class="otp-flow">
           ${isFailed
@@ -308,13 +310,15 @@ export class CommerceHubConnect extends LitElement {
             disabled: isSubmitting,
             error: isFailed,
           })}
-          <div class="otp-resend-row">
-            <span class="otp-resend-prefix">${copy.resendPrefix}</span>
-            ${renderOtpResend({
-              label: isResending ? copy.resendPendingButton : copy.resendButton,
-              action: 'resend-otp',
-              disabled: isSubmitting || isResending,
-            })}
+          <div class="otp-support">
+            <p class="otp-support-copy otp-resend-prefix">${copy.resendPrefix}</p>
+            <div class="otp-support-actions">
+              ${renderOtpResend({
+                label: isResending ? copy.resendPendingButton : copy.resendButton,
+                action: 'resend-otp',
+                disabled: isSubmitting || isResending,
+              })}
+            </div>
           </div>
           <div class="primitive-footer">
             ${renderButton({
@@ -323,6 +327,7 @@ export class CommerceHubConnect extends LitElement {
                 : isFailed
                 ? copy.tryAgainButton
                 : copy.verifyButton,
+              icon: !isSubmitting && !isFailed ? 'check' : undefined,
               variant: 'primary',
               action: 'verify-otp',
               disabled: isSubmitting || this.otpValue.length < OTP_LENGTH,
@@ -347,6 +352,8 @@ export class CommerceHubConnect extends LitElement {
     return renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
+      showClose: false,
+      showDivider: false,
       content: html`
         <div class="payment-flow">
           <div
@@ -356,19 +363,21 @@ export class CommerceHubConnect extends LitElement {
           >
             ${paymentMethods.map((method) => renderPaymentMethodRow(method))}
           </div>
-          <div class="primitive-actions">
-            ${renderSourceAction({
-              label: copy.addBankAccountTitle,
-              subtitle: copy.addBankAccountSubtitle,
-              action: 'add-bank-account',
-              icon: 'bank',
-              disabled: this.pendingAction === 'attach-payment-source',
-            })}
+          <div class="payment-action-links">
             ${renderSourceAction({
               label: copy.addCardTitle,
               subtitle: copy.addCardSubtitle,
               action: 'add-card',
               icon: 'card',
+              variant: 'link',
+              disabled: this.pendingAction === 'attach-payment-source',
+            })}
+            ${renderSourceAction({
+              label: copy.addBankAccountTitle,
+              subtitle: copy.addBankAccountSubtitle,
+              action: 'add-bank-account',
+              icon: 'bank',
+              variant: 'link',
               disabled: this.pendingAction === 'attach-payment-source',
             })}
           </div>
@@ -378,6 +387,10 @@ export class CommerceHubConnect extends LitElement {
                 this.pendingAction === 'attach-payment-source'
                   ? copy.continuingButton
                   : copy.continueButton,
+              icon:
+                this.pendingAction === 'attach-payment-source'
+                  ? undefined
+                  : 'arrow-right',
               variant: 'primary',
               action: 'attach-payment-source',
               disabled:
@@ -392,28 +405,35 @@ export class CommerceHubConnect extends LitElement {
 
   private renderNoSavedPaymentMethods(): TemplateResult {
     const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
+    const showHelperCopy = Boolean(copy.emptyTitle || copy.emptyMessage);
 
     return renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
+      showClose: false,
+      showDivider: false,
       content: html`
         <div class="payment-flow">
-          ${renderEmptyState({
-            title: copy.emptyTitle,
-            message: copy.emptyMessage,
-          })}
-          <div class="primitive-actions">
-            ${renderSourceAction({
-              label: copy.addBankAccountTitle,
-              subtitle: copy.addBankAccountSubtitle,
-              action: 'add-bank-account',
-              icon: 'bank',
-            })}
+          ${showHelperCopy
+            ? renderEmptyState({
+                title: copy.emptyTitle,
+                message: copy.emptyMessage,
+              })
+            : ''}
+          <div class="payment-action-links">
             ${renderSourceAction({
               label: copy.addCardTitle,
               subtitle: copy.addCardSubtitle,
               action: 'add-card',
               icon: 'card',
+              variant: 'link',
+            })}
+            ${renderSourceAction({
+              label: copy.addBankAccountTitle,
+              subtitle: copy.addBankAccountSubtitle,
+              action: 'add-bank-account',
+              icon: 'bank',
+              variant: 'link',
             })}
           </div>
         </div>
@@ -644,15 +664,24 @@ export class CommerceHubConnect extends LitElement {
   private renderBankProviderScreen(): TemplateResult {
     return renderWidgetShell({
       title: 'Add bank account',
-      subtitle: 'Connect your bank account through a secure provider.',
       width: 'wide',
-      content: renderProviderFrame({
-        containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
-        title: 'Secure bank provider',
-        loadingLabel: this.bankLinkLoading
-          ? 'Connecting to your bank...'
-          : undefined,
-      }),
+      showClose: false,
+      showDivider: false,
+      content: html`
+        <div class="bank-provider-flow">
+          ${renderProviderFrame({
+            containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
+          })}
+          <div class="primitive-footer">
+            ${renderButton({
+              label: 'Back',
+              variant: 'secondary',
+              action: 'back-to-payment-methods',
+              disabled: this.bankLinkLoading,
+            })}
+          </div>
+        </div>
+      `,
     });
   }
 
@@ -662,6 +691,7 @@ export class CommerceHubConnect extends LitElement {
       subtitle:
         this.bankProviderError ??
         'We could not connect to your bank provider right now.',
+      showClose: false,
       content: renderOutcomeShell({
         variant: 'danger',
         message: describePaymentSdkTerminalEvent(this.bankTerminalEvent),
@@ -687,6 +717,7 @@ export class CommerceHubConnect extends LitElement {
     return renderWidgetShell({
       title: outcome.title,
       subtitle: outcome.message,
+      showClose: false,
       content: renderOutcomeShell({
         variant: outcome.variant,
         content: this.bankOutcomeSource
@@ -1610,12 +1641,21 @@ export class CommerceHubConnect extends LitElement {
     } else {
       this.style.removeProperty('font-size');
     }
+
+    const baseFontWeight = this.designConfig?.baseFontWeight?.trim();
+
+    if (baseFontWeight) {
+      this.style.setProperty(DESIGN_CONFIG_FONT_WEIGHT_PROPERTY, baseFontWeight);
+    } else {
+      this.style.removeProperty(DESIGN_CONFIG_FONT_WEIGHT_PROPERTY);
+    }
   }
 }
 
 export interface DesignConfig {
   colors?: DesignConfigColors;
   baseFontSize?: string;
+  baseFontWeight?: string;
   copy?: DesignConfigCopy;
   payByBank?: DesignConfigPayByBank;
 }
@@ -2107,20 +2147,35 @@ const resolveCreatedPaymentSourceId = (response?: AddSourceResponse): string => 
   return paymentSourceId;
 };
 
-const defaultOtpSubtitle = (email?: string): string =>
-  `Enter the 6-digit code sent to ${email ?? 'your email address'}.`;
+const defaultOtpSubtitle = (destination?: string): string =>
+  `We send a one-time code to ${destination ?? 'your contact method'}.`;
+
+const resolveOtpDestination = (
+  interactionResponse?: InteractionResponse
+): string | undefined => {
+  const email = interactionResponse?.email?.trim();
+
+  if (email) {
+    return email;
+  }
+
+  const countryCode = interactionResponse?.phone?.countryCode?.trim();
+  const phoneNumber = interactionResponse?.phone?.phoneNumber?.trim();
+
+  return [countryCode, phoneNumber].filter(Boolean).join(' ') || undefined;
+};
 
 const resolveOtpCopy = (designConfig?: DesignConfig): ResolvedOtpCopy => {
   const copy = designConfig?.copy?.otp;
 
   return {
-    title: copy?.title ?? 'Verify your email',
+    title: copy?.title ?? 'Enter the code',
     subtitle: copy?.subtitle,
     failedMessage: copy?.failedMessage ?? 'The code does not match. Try again.',
-    resendPrefix: copy?.resendPrefix ?? 'Did not receive a code?',
-    resendButton: copy?.resendButton ?? 'Resend code in 30s',
+    resendPrefix: copy?.resendPrefix ?? "Didn't receive the code?",
+    resendButton: copy?.resendButton ?? 'Resend code',
     resendPendingButton: copy?.resendPendingButton ?? 'Sending code...',
-    verifyButton: copy?.verifyButton ?? 'Verify code',
+    verifyButton: copy?.verifyButton ?? 'Verify',
     verifyingButton: copy?.verifyingButton ?? 'Verifying...',
     tryAgainButton: copy?.tryAgainButton ?? 'Try again',
   };
@@ -2132,17 +2187,15 @@ const resolvePaymentMethodsCopy = (
   const copy = designConfig?.copy?.paymentMethods;
 
   return {
-    title: copy?.title ?? 'Payment methods',
-    subtitle:
-      copy?.subtitle ??
-      'Use a saved bank account or credit card, or add a new payment method.',
-    addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add new bank account',
-    addBankAccountSubtitle:
-      copy?.addBankAccountSubtitle ?? 'Connect a different account',
-    addCardTitle: copy?.addCardTitle ?? 'Add credit card',
-    addCardSubtitle: copy?.addCardSubtitle ?? 'Use card number and CVV',
-    continueButton: copy?.continueButton ?? 'Continue',
-    continuingButton: copy?.continuingButton ?? 'Continuing...',
+    title: copy?.title ?? 'Pay with',
+    subtitle: copy?.subtitle ?? '',
+    addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
+    addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
+    addCardTitle:
+      copy?.addCardTitle ?? 'Add a credit or debit card',
+    addCardSubtitle: copy?.addCardSubtitle ?? '',
+    continueButton: copy?.continueButton ?? 'Confirm',
+    continuingButton: copy?.continuingButton ?? 'Confirming...',
   };
 };
 
@@ -2152,18 +2205,15 @@ const resolveNoSavedPaymentMethodsCopy = (
   const copy = designConfig?.copy?.noSavedPaymentMethods;
 
   return {
-    title: copy?.title ?? 'Payment methods',
-    subtitle:
-      copy?.subtitle ?? 'Add a bank account or credit card to continue.',
-    emptyTitle: copy?.emptyTitle ?? 'No saved payment methods',
-    emptyMessage:
-      copy?.emptyMessage ??
-      'There are no reusable payment methods available for this interaction.',
-    addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add new bank account',
-    addBankAccountSubtitle:
-      copy?.addBankAccountSubtitle ?? 'Connect a different account',
-    addCardTitle: copy?.addCardTitle ?? 'Add credit card',
-    addCardSubtitle: copy?.addCardSubtitle ?? 'Use card number and CVV',
+    title: copy?.title ?? 'Add payment method',
+    subtitle: copy?.subtitle ?? '',
+    emptyTitle: copy?.emptyTitle ?? '',
+    emptyMessage: copy?.emptyMessage ?? '',
+    addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
+    addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
+    addCardTitle:
+      copy?.addCardTitle ?? 'Add a credit or debit card',
+    addCardSubtitle: copy?.addCardSubtitle ?? '',
   };
 };
 
@@ -2206,9 +2256,12 @@ const designConfigColorProperties: {
   {field: 'disabledSurface', property: '--chc-disabled-surface'},
 ];
 
-const designConfigStyleProperties = designConfigColorProperties.map(
-  ({property}) => property
-);
+const DESIGN_CONFIG_FONT_WEIGHT_PROPERTY = '--chc-font-weight';
+
+const designConfigStyleProperties = [
+  ...designConfigColorProperties.map(({property}) => property),
+  DESIGN_CONFIG_FONT_WEIGHT_PROPERTY,
+];
 
 const paymentMethodsFromInteractionResponse = (
   interactionResponse?: InteractionResponse,

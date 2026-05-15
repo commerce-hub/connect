@@ -15,7 +15,7 @@ suite('commerce-hub-connect api client', () => {
     window.fetch = async (input: RequestInfo | URL) => {
       receivedRequest = input instanceof Request ? input : new Request(input);
 
-      return new Response(JSON.stringify({email: 'wallet@example.com'}), {
+      return new Response(JSON.stringify({email: 'gregory.jablonski@fiserv.com'}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
       });
@@ -32,7 +32,7 @@ suite('commerce-hub-connect api client', () => {
 
     const response = await client.GET('/customer');
 
-    assert.equal(response.data?.email, 'wallet@example.com');
+    assert.equal(response.data?.email, 'gregory.jablonski@fiserv.com');
     assert.equal(
       receivedRequest?.url,
       'https://api.example.test/customer'
