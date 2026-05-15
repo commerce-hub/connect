@@ -196,7 +196,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/verify/docs": {
+    "/interaction/source": {
         parameters: {
             query?: never;
             header?: never;
@@ -205,7 +205,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["getVerificationDocs"];
+        post: operations["addSource"];
         delete?: never;
         options?: never;
         head?: never;
@@ -285,7 +285,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["addSource"];
+        post: operations["addSource_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -626,7 +626,7 @@ export interface components {
             postalCode?: string;
             country?: string;
         };
-        MPPSetupInfo: unknown;
+        MPPSetupInfo: Record<string, never>;
         MerchantData: {
             clientId?: string;
             merchantId?: string;
@@ -639,7 +639,7 @@ export interface components {
             mpp?: components["schemas"]["MPPSetupInfo"];
             disabled?: boolean;
         };
-        X402SetupInfo: unknown;
+        X402SetupInfo: Record<string, never>;
         OTPValidateRequest: {
             email?: string;
             otp?: string;
@@ -690,6 +690,7 @@ export interface components {
             merchantData?: components["schemas"]["MerchantData"];
             entityData?: components["schemas"]["EntityData"];
             advancedVerification?: boolean;
+            preAuthenticated?: boolean;
         };
         AbstractSource: {
             id?: string;
@@ -731,6 +732,12 @@ export interface components {
         DSCDisplayCard: {
             tenderType: "DSCDisplayCard";
         } & Omit<components["schemas"]["AbstractSource"], "tenderType">;
+        DocInfo: {
+            /** @enum {string} */
+            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
+            mandatory?: boolean;
+            value?: string;
+        };
         InteractionResponse: {
             interactionId?: string;
             /** @enum {string} */
@@ -747,9 +754,7 @@ export interface components {
             status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
             /** Format: int64 */
             lastTimestamp?: number;
-            docsProvided?: {
-                [key: string]: string;
-            };
+            docs?: components["schemas"]["DocInfo"][];
         };
         DocFieldValue: {
             value?: string;
@@ -760,11 +765,7 @@ export interface components {
         VerificationResponse: {
             /** @enum {string} */
             status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
-        };
-        DocInfo: {
-            /** @enum {string} */
-            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
-            mandatory?: boolean;
+            docs?: components["schemas"]["DocInfo"][];
         };
         AddSourceResponse: {
             id?: string;
@@ -855,6 +856,13 @@ export interface components {
             os?: string;
             device?: string;
         };
+        OTPInfo: {
+            referenceId?: string;
+            /** Format: int64 */
+            suspendedUntil?: number;
+            /** @enum {string} */
+            channel?: "EMAIL" | "PHONE";
+        };
         Profile: {
             email?: string;
             name?: string;
@@ -866,6 +874,12 @@ export interface components {
             machinePayments?: boolean;
             logins?: {
                 [key: string]: components["schemas"]["LoginInfo"];
+            };
+            otpInfo?: components["schemas"]["OTPInfo"];
+            associations?: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["VerificationInfo"];
+                };
             };
         };
     };
@@ -1200,7 +1214,7 @@ export interface operations {
             };
         };
     };
-    getVerificationDocs: {
+    addSource: {
         parameters: {
             query?: never;
             header?: never;
@@ -1209,7 +1223,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StringHolder"];
+                "application/json": components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
             };
         };
         responses: {
@@ -1219,7 +1233,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["DocInfo"][];
+                    "*/*": components["schemas"]["InteractionResponse"];
                 };
             };
         };
@@ -1310,7 +1324,7 @@ export interface operations {
             };
         };
     };
-    addSource: {
+    addSource_1: {
         parameters: {
             query?: never;
             header?: never;
