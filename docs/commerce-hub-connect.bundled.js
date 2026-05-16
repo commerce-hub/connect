@@ -209,7 +209,7 @@ const at={attribute:!0,type:String,converter:m,reflect:!1,hasChanged:y},ct=(t=at
 
   .field {
     display: grid;
-    gap: 8px;
+    gap: 3px;
     min-width: 0;
     text-align: left;
   }
@@ -517,7 +517,7 @@ const at={attribute:!0,type:String,converter:m,reflect:!1,hasChanged:y},ct=(t=at
 
   .empty-state {
     display: grid;
-    gap: 8px;
+    gap: 3px;
     border: 1px dashed var(--chc-border-strong);
     border-radius: var(--chc-radius-card);
     padding: 28px 24px;
@@ -714,7 +714,7 @@ const at={attribute:!0,type:String,converter:m,reflect:!1,hasChanged:y},ct=(t=at
 
     .otp-inputs {
       grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 8px;
+      gap: 3px;
     }
 
     .otp-input {

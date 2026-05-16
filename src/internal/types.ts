@@ -53,6 +53,8 @@ export type ButtonType = 'button' | 'submit' | 'reset';
 
 export type ButtonIcon = 'check' | 'arrow-right';
 
+export type FieldVariant = 'default' | 'card-form';
+
 export interface ButtonOptions {
   label: string;
   variant?: ButtonVariant;
@@ -70,6 +72,7 @@ export interface TextFieldOptions {
   placeholder?: string;
   type?: TextFieldType;
   span?: 'default' | 'full';
+  variant?: FieldVariant;
   autocomplete?: TextFieldAutocomplete;
   inputmode?: TextFieldInputMode;
   disabled?: boolean;
@@ -89,6 +92,7 @@ export interface SelectFieldOptions {
   value?: string;
   options: SelectFieldOption[];
   span?: 'default' | 'full';
+  variant?: FieldVariant;
   disabled?: boolean;
   dataField?: string;
   error?: string;

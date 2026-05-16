@@ -23,9 +23,9 @@ export const primitiveStyles = css`
     --chc-disabled-text: #ffffff;
     --chc-disabled-surface: #b6c3db;
     --chc-font-family: 'Open Sans', Arial, sans-serif;
-    --chc-radius-control: 10px;
+    --chc-radius-control: .55rem;;
     --chc-radius-card: 14px;
-    --chc-radius-shell: 20px;
+    --chc-radius-shell: .55rem;
     --chc-input-height: 46px;
     --chc-font-weight: 300;
     --chc-divider: #eaecf0;
@@ -75,7 +75,6 @@ export const primitiveStyles = css`
     font: inherit;
     font-size: 1.5em;
     font-weight: 700;
-    line-height: 1;
     cursor: pointer;
   }
 
@@ -85,15 +84,12 @@ export const primitiveStyles = css`
     font-size: 1.15rem;
     font-weight: 700;
     letter-spacing: -0.02em;
-    line-height: 1.2;
   }
 
   .widget-subtitle {
     margin: 8px 0 0;
     color: var(--chc-copy);
-    font-size: 1em;
     font-weight: inherit;
-    line-height: 1.5;
   }
 
   .widget-divider {
@@ -122,6 +118,44 @@ export const primitiveStyles = css`
     margin-top: 1rem;
   }
 
+  .card-form-footer {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .card-form-back {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .card-form-back .text-link-button {
+    color: var(--chc-text);
+  }
+
+  .card-form-back .text-link-button:disabled {
+    color: var(--chc-muted);
+  }
+
+  .card-form-back .text-link-button::before {
+    content: '←';
+    margin-right: 8px;
+  }
+
+  .card-form-primary {
+    display: grid;
+    justify-items: end;
+  }
+
+  .card-form-footer .button {
+    width: auto;
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
   .payment-action-links {
     display: grid;
     gap: 14px;
@@ -139,7 +173,7 @@ export const primitiveStyles = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 3px;
     flex-wrap: nowrap;
     text-align: center;
   }
@@ -147,14 +181,12 @@ export const primitiveStyles = css`
   .otp-support-copy {
     margin: 0;
     color: var(--chc-copy);
-    font-size: 0.9375em;
-    line-height: 1.4667;
   }
 
   .otp-support-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 3px;
   }
 
   .otp-resend-prefix {
@@ -167,9 +199,7 @@ export const primitiveStyles = css`
     background: transparent;
     color: var(--chc-primary);
     font: inherit;
-    font-size: 0.9375em;
     font-weight: 500;
-    line-height: 1.4667;
     cursor: pointer;
   }
 
@@ -187,9 +217,7 @@ export const primitiveStyles = css`
     border-radius: var(--chc-radius-control);
     padding: 7px 18px;
     font: inherit;
-    font-size: 1.0625em;
     font-weight: 500;
-    line-height: 1.2941;
     cursor: pointer;
   }
 
@@ -197,7 +225,7 @@ export const primitiveStyles = css`
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 3px;
   }
 
   .button-icon {
@@ -207,7 +235,6 @@ export const primitiveStyles = css`
     align-items: center;
     justify-content: center;
     font-size: 0.875em;
-    line-height: 1;
   }
 
   .button-icon-check::before {
@@ -243,34 +270,109 @@ export const primitiveStyles = css`
     text-align: left;
   }
 
+  .field-control {
+    min-width: 0;
+  }
+
+  .field-with-select {
+    position: relative;
+  }
+
   .field-full {
     grid-column: 1 / -1;
   }
 
   .field-label {
     color: var(--chc-text);
-    font-size: 0.9375em;
     font-weight: 600;
-    line-height: 1.4667;
   }
 
   .field-input {
     width: 100%;
-    height: var(--chc-input-height);
+    min-height: var(--chc-input-height);
     border: 1px solid var(--chc-border);
     border-radius: var(--chc-radius-control);
-    padding: 0 16px;
+    padding: .55rem;
     background: var(--chc-surface);
     color: var(--chc-text);
     font: inherit;
-    font-size: 1em;
-    line-height: 1.5;
     text-align: left;
+  }
+
+  .field-input:focus {
+    border-color: var(--chc-primary);
+    outline: 0;
+    box-shadow: 0 0 0 4px var(--chc-focus-ring);
   }
 
   .field-select {
     appearance: auto;
     text-align: left;
+  }
+
+  .field-card-form {
+    gap: 3px;
+  }
+
+  .field-label-card-form {
+    color: var(--chc-copy);
+    font-weight: 500;
+  }
+
+  .field-control-card-form {
+    width: 100%;
+    padding: .55rem;
+    border: 1px solid var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 70%,
+      var(--chc-surface)
+    );
+    transition: border-color 120ms ease, box-shadow 120ms ease,
+      background-color 120ms ease;
+  }
+
+  .field-control-card-form:focus-within {
+    border-color: var(--chc-primary);
+    background: var(--chc-surface);
+    box-shadow: 0 0 0 4px var(--chc-focus-ring);
+  }
+
+  .field-card-form.field-invalid .field-control-card-form {
+    border-color: var(--chc-danger);
+  }
+
+  .field-card-form .field-input {
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .field-card-form .field-input:focus {
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .field-control-card-form.field-with-select::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 18px;
+    width: 0.45rem;
+    aspect-ratio: 1;
+    border-right: 1.5px solid var(--chc-copy);
+    border-bottom: 1.5px solid var(--chc-copy);
+    transform: translateY(-65%) rotate(45deg);
+    pointer-events: none;
+  }
+
+  .field-card-form .field-select {
+    appearance: none;
+    padding-right: 1.5rem;
   }
 
   .field-input::placeholder {
@@ -284,15 +386,17 @@ export const primitiveStyles = css`
   .field-error {
     margin: 0;
     color: var(--chc-danger);
-    font-size: 0.875em;
     font-weight: 600;
-    line-height: 1.4286;
   }
 
   .form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .card-form-screen .form-grid {
+    gap: 14px 12px;
   }
 
   .otp-group {
@@ -318,21 +422,28 @@ export const primitiveStyles = css`
     width: min(100%, 332px);
     margin: 0 auto;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
+    gap: 3px;
   }
 
   .otp-input {
-    width: 100%;
-    height: 44px;
     border: 1px solid var(--chc-border);
     border-radius: 10px;
     background: var(--chc-surface);
     color: var(--chc-text);
-    font: inherit;
-    font-size: 1.25em;
-    font-weight: 600;
-    line-height: 1;
+    font-style: inherit;
+    font-variant: inherit;
+    font-stretch: inherit;
+    font-family: inherit;
+    font-optical-sizing: inherit;
+    font-variation-settings: inherit;
+    font-size: inherit;
+    font-size-adjust: inherit;
+    font-kerning: inherit;
+    font-language-override: inherit;
+    font-feature-settings: inherit;
+    font-weight: 300;
     text-align: center;
+    padding: 0.55rem;
   }
 
   .otp-input:focus {
@@ -352,10 +463,8 @@ export const primitiveStyles = css`
     align-items: center;
     border: 1px solid;
     border-radius: var(--chc-radius-control);
-    padding: 12px 16px;
-    font-size: 0.875em;
+    padding: .55rem;
     font-weight: 600;
-    line-height: 1.4286;
     text-align: left;
   }
 
@@ -386,9 +495,7 @@ export const primitiveStyles = css`
     border: 1px solid;
     border-radius: 999px;
     padding: 1px 10px;
-    font-size: 0.6875em;
     font-weight: 600;
-    line-height: 1.2727;
   }
 
   .status-verified {
@@ -494,22 +601,17 @@ export const primitiveStyles = css`
     color: var(--chc-text);
     font-size: 1em;
     font-weight: 700;
-    line-height: 1.25;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .payment-method-meta {
     color: var(--chc-muted);
-    font-size: 0.875em;
     font-weight: inherit;
-    line-height: 1.4286;
   }
 
   .payment-method-status {
-    font-size: 0.8125em;
     font-weight: inherit;
-    line-height: 1.3846;
   }
 
   .status-text-verified {
@@ -564,7 +666,6 @@ export const primitiveStyles = css`
     color: var(--chc-primary);
     font-size: 1.75rem;
     font-weight: 300;
-    line-height: 1;
   }
 
   .source-action-copy {
@@ -577,7 +678,6 @@ export const primitiveStyles = css`
     color: var(--chc-text);
     font-size: 1.0625em;
     font-weight: 700;
-    line-height: 1.4118;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -585,9 +685,7 @@ export const primitiveStyles = css`
   .source-action-subtitle {
     overflow: hidden;
     color: var(--chc-muted);
-    font-size: 0.9375em;
     font-weight: inherit;
-    line-height: 1.4667;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -632,13 +730,10 @@ export const primitiveStyles = css`
     color: currentColor;
     font-size: 1em;
     font-weight: 500;
-    line-height: 1.4;
   }
 
   .source-action-link-subtitle {
     color: var(--chc-copy);
-    font-size: 0.875em;
-    line-height: 1.4286;
   }
 
   .source-action-link:disabled .source-action-link-subtitle {
@@ -665,14 +760,11 @@ export const primitiveStyles = css`
     color: var(--chc-text);
     font-size: 1em;
     font-weight: 700;
-    line-height: 1.5;
   }
 
   .empty-state-message {
     margin: 0;
     color: var(--chc-copy);
-    font-size: 0.9375em;
-    line-height: 1.4667;
   }
 
   .detail-row {
@@ -688,16 +780,12 @@ export const primitiveStyles = css`
 
   .detail-label {
     color: var(--chc-muted);
-    font-size: 1em;
     font-weight: 600;
-    line-height: 1.375;
   }
 
   .detail-value {
     color: var(--chc-text);
-    font-size: 1.25em;
     font-weight: 600;
-    line-height: 1.4;
   }
 
   .upload-row {
@@ -734,7 +822,6 @@ export const primitiveStyles = css`
     color: var(--chc-primary);
     font-size: 1.5em;
     font-weight: 700;
-    line-height: 1;
     text-align: center;
   }
 
@@ -749,18 +836,14 @@ export const primitiveStyles = css`
 
   .upload-row-requirements {
     overflow: hidden;
-    font-size: 1em;
     font-weight: inherit;
-    line-height: 1.375;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .upload-row-action {
     color: var(--chc-primary);
-    font-size: 1.125em;
     font-weight: 700;
-    line-height: 1.3333;
     white-space: nowrap;
   }
 
@@ -795,7 +878,6 @@ export const primitiveStyles = css`
     color: var(--chc-text);
     font-size: 1.3125em;
     font-weight: 700;
-    line-height: 1.3333;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -803,9 +885,7 @@ export const primitiveStyles = css`
   .loading-row-helper {
     overflow: hidden;
     color: var(--chc-muted);
-    font-size: 1em;
     font-weight: inherit;
-    line-height: 1.5;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -831,14 +911,11 @@ export const primitiveStyles = css`
     color: var(--chc-text);
     font-size: 1.125em;
     font-weight: 700;
-    line-height: 1.3333;
   }
 
   .provider-frame-status {
     margin: 0;
     color: var(--chc-muted);
-    font-size: 0.9375em;
-    line-height: 1.4667;
   }
 
   .provider-frame-slot {
@@ -870,7 +947,6 @@ export const primitiveStyles = css`
     border-radius: 999px;
     font-size: 2.25em;
     font-weight: 700;
-    line-height: 1;
   }
 
   .outcome-success .outcome-icon {
@@ -908,14 +984,11 @@ export const primitiveStyles = css`
     color: var(--chc-text);
     font-size: 1.375em;
     font-weight: 700;
-    line-height: 1.3636;
   }
 
   .outcome-message {
     margin: 0;
     color: var(--chc-copy);
-    font-size: 1em;
-    line-height: 1.5;
   }
 
   .outcome-content,
@@ -951,16 +1024,12 @@ export const primitiveStyles = css`
 
   .verification-detail-label {
     color: var(--chc-muted);
-    font-size: 0.875em;
     font-weight: 600;
-    line-height: 1.4286;
   }
 
   .verification-detail-value {
     color: var(--chc-text);
-    font-size: 1.125em;
     font-weight: 700;
-    line-height: 1.3333;
   }
 
   .text-link-button {
@@ -970,9 +1039,7 @@ export const primitiveStyles = css`
     background: transparent;
     color: var(--chc-primary);
     font: inherit;
-    font-size: 0.9375em;
     font-weight: 500;
-    line-height: 1.4667;
     cursor: pointer;
   }
 
@@ -987,9 +1054,7 @@ export const primitiveStyles = css`
     gap: 5px;
     margin-top: 20px;
     color: var(--chc-copy);
-    font-size: 0.875em;
     font-weight: inherit;
-    line-height: 1.4286;
     white-space: nowrap;
   }
 
@@ -1012,12 +1077,20 @@ export const primitiveStyles = css`
       grid-template-columns: minmax(0, 1fr);
     }
 
-    .otp-inputs {
+    .card-form-footer {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .card-form-primary {
+      justify-items: stretch;
+    }
+
+    .card-form-footer .button {
       width: 100%;
     }
 
-    .otp-input {
-      height: 40px;
+    .otp-inputs {
+      width: 100%;
     }
 
     .payment-method-row,

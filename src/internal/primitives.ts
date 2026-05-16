@@ -28,6 +28,9 @@ import type {
 const titleCase = (value: string) =>
   `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 
+const joinClassNames = (...classNames: Array<string | false | undefined>) =>
+  classNames.filter(Boolean).join(' ');
+
 const paymentMethodAccountLabel = ({brand, last4}: PaymentMethod): string =>
   last4 ? `•••• ${last4}` : brand;
 
@@ -79,16 +82,30 @@ export const renderTextField = ({
   placeholder,
   type = 'text',
   span = 'default',
+  variant = 'default',
   autocomplete,
   inputmode,
   disabled = false,
   dataField,
   error,
-}: TextFieldOptions): TemplateResult => html`
-  <div class="field ${span === 'full' ? 'field-full' : ''}">
-    <label class="field-label" for=${id}>${label}</label>
+}: TextFieldOptions): TemplateResult => {
+  const fieldClasses = joinClassNames(
+    'field',
+    span === 'full' && 'field-full',
+    variant === 'card-form' && 'field-card-form',
+    error && 'field-invalid'
+  );
+  const labelClasses = joinClassNames(
+    'field-label',
+    variant === 'card-form' && 'field-label-card-form'
+  );
+  const inputClasses = joinClassNames(
+    'field-input',
+    variant === 'card-form' && 'field-input-card-form'
+  );
+  const input = html`
     <input
-      class="field-input"
+      class=${inputClasses}
       id=${id}
       name=${ifDefined(name)}
       type=${type}
@@ -101,11 +118,22 @@ export const renderTextField = ({
       aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
       ?disabled=${disabled}
     />
-    ${error
-      ? html`<p class="field-error" id=${`${id}-error`}>${error}</p>`
-      : ''}
-  </div>
-`;
+  `;
+
+  return html`
+    <div class=${fieldClasses}>
+      <label class=${labelClasses} for=${id}>${label}</label>
+      ${variant === 'card-form'
+        ? html`
+            <div class="field-control field-control-card-form">${input}</div>
+          `
+        : input}
+      ${error
+        ? html`<p class="field-error" id=${`${id}-error`}>${error}</p>`
+        : ''}
+    </div>
+  `;
+};
 
 export const renderSelectField = ({
   id,
@@ -114,14 +142,30 @@ export const renderSelectField = ({
   value = '',
   options,
   span = 'default',
+  variant = 'default',
   disabled = false,
   dataField,
   error,
-}: SelectFieldOptions): TemplateResult => html`
-  <div class="field ${span === 'full' ? 'field-full' : ''}">
-    <label class="field-label" for=${id}>${label}</label>
+}: SelectFieldOptions): TemplateResult => {
+  const fieldClasses = joinClassNames(
+    'field',
+    variant !== 'card-form' && 'field-with-select',
+    span === 'full' && 'field-full',
+    variant === 'card-form' && 'field-card-form',
+    error && 'field-invalid'
+  );
+  const labelClasses = joinClassNames(
+    'field-label',
+    variant === 'card-form' && 'field-label-card-form'
+  );
+  const selectClasses = joinClassNames(
+    'field-input',
+    'field-select',
+    variant === 'card-form' && 'field-input-card-form'
+  );
+  const select = html`
     <select
-      class="field-input field-select"
+      class=${selectClasses}
       id=${id}
       name=${ifDefined(name)}
       .value=${value}
@@ -138,11 +182,26 @@ export const renderSelectField = ({
         `
       )}
     </select>
-    ${error
-      ? html`<p class="field-error" id=${`${id}-error`}>${error}</p>`
-      : ''}
-  </div>
-`;
+  `;
+
+  return html`
+    <div class=${fieldClasses}>
+      <label class=${labelClasses} for=${id}>${label}</label>
+      ${variant === 'card-form'
+        ? html`
+            <div
+              class="field-control field-control-card-form field-with-select"
+            >
+              ${select}
+            </div>
+          `
+        : select}
+      ${error
+        ? html`<p class="field-error" id=${`${id}-error`}>${error}</p>`
+        : ''}
+    </div>
+  `;
+};
 
 export const renderOtpGroup = ({
   label,

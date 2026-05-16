@@ -115,6 +115,67 @@ type PaymentSdkInitConfiguration = {
 const OTP_LENGTH = 6;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NEW_BILLING_ADDRESS_VALUE = '__new__';
+const BILLING_COUNTRY_OPTIONS = [
+  {value: '', label: 'Select country or region'},
+  {value: 'US', label: 'United States'},
+];
+const BILLING_STATE_OPTIONS = [
+  ['AL', 'Alabama'],
+  ['AK', 'Alaska'],
+  ['AZ', 'Arizona'],
+  ['AR', 'Arkansas'],
+  ['CA', 'California'],
+  ['CO', 'Colorado'],
+  ['CT', 'Connecticut'],
+  ['DE', 'Delaware'],
+  ['FL', 'Florida'],
+  ['GA', 'Georgia'],
+  ['HI', 'Hawaii'],
+  ['ID', 'Idaho'],
+  ['IL', 'Illinois'],
+  ['IN', 'Indiana'],
+  ['IA', 'Iowa'],
+  ['KS', 'Kansas'],
+  ['KY', 'Kentucky'],
+  ['LA', 'Louisiana'],
+  ['ME', 'Maine'],
+  ['MD', 'Maryland'],
+  ['MA', 'Massachusetts'],
+  ['MI', 'Michigan'],
+  ['MN', 'Minnesota'],
+  ['MS', 'Mississippi'],
+  ['MO', 'Missouri'],
+  ['MT', 'Montana'],
+  ['NE', 'Nebraska'],
+  ['NV', 'Nevada'],
+  ['NH', 'New Hampshire'],
+  ['NJ', 'New Jersey'],
+  ['NM', 'New Mexico'],
+  ['NY', 'New York'],
+  ['NC', 'North Carolina'],
+  ['ND', 'North Dakota'],
+  ['OH', 'Ohio'],
+  ['OK', 'Oklahoma'],
+  ['OR', 'Oregon'],
+  ['PA', 'Pennsylvania'],
+  ['RI', 'Rhode Island'],
+  ['SC', 'South Carolina'],
+  ['SD', 'South Dakota'],
+  ['TN', 'Tennessee'],
+  ['TX', 'Texas'],
+  ['UT', 'Utah'],
+  ['VT', 'Vermont'],
+  ['VA', 'Virginia'],
+  ['WA', 'Washington'],
+  ['WV', 'West Virginia'],
+  ['WI', 'Wisconsin'],
+  ['WY', 'Wyoming'],
+  ['DC', 'District of Columbia'],
+].map(([value, label]) => ({value, label}));
+const BILLING_STATE_SELECT_OPTIONS = [
+  {value: '', label: 'Select state'},
+  ...BILLING_STATE_OPTIONS,
+];
 
 const DEFAULT_PAY_BY_BANK_OPTIONS = {
   apiKey: 'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A',
@@ -445,47 +506,45 @@ export class CommerceHubConnect extends LitElement {
     const isEncrypting =
       this.cardEncryption.cardNumber.status === 'encrypting' ||
       this.cardEncryption.cvv.status === 'encrypting';
-    const shouldRenderSavedBillingAddressSelect =
-      this.billingAddresses.length > 0;
+    const billingAddressOptions = [
+      ...this.billingAddresses.map((address) => ({
+        value: address.id ?? '',
+        label: billingAddressLabel(address),
+      })),
+      {
+        value: NEW_BILLING_ADDRESS_VALUE,
+        label: 'Add new billing address',
+      },
+    ];
     const shouldRenderNewBillingAddressFields =
-      !shouldRenderSavedBillingAddressSelect ||
       this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE;
     const billingAddressFields: TemplateResult[] = [];
 
-    if (shouldRenderSavedBillingAddressSelect) {
-      billingAddressFields.push(
-        renderSelectField({
-          id: 'billing-address',
-          name: 'billingAddress',
-          label: 'Billing address',
-          value: this.cardDraft.billingAddressValue,
-          options: [
-            ...this.billingAddresses.map((address) => ({
-              value: address.id ?? '',
-              label: billingAddressLabel(address),
-            })),
-            {
-              value: NEW_BILLING_ADDRESS_VALUE,
-              label: 'Add new billing address',
-            },
-          ],
-          span: 'full',
-          dataField: 'billingAddressValue',
-          error: this.cardDraftErrors.billingAddressValue,
-          disabled: isSaving,
-        })
-      );
-    }
+    billingAddressFields.push(
+      renderSelectField({
+        id: 'billing-address',
+        name: 'billingAddress',
+        label: 'Billing address',
+        value: this.cardDraft.billingAddressValue,
+        options: billingAddressOptions,
+        span: 'full',
+        variant: 'card-form',
+        dataField: 'billingAddressValue',
+        error: this.cardDraftErrors.billingAddressValue,
+        disabled: isSaving,
+      })
+    );
 
     if (shouldRenderNewBillingAddressFields) {
       billingAddressFields.push(
-        renderTextField({
+        renderSelectField({
           id: 'billing-country',
           name: 'country',
-          label: 'Country',
+          label: 'Country or region',
           value: this.cardDraft.country,
-          placeholder: 'US',
-          autocomplete: 'country',
+          options: BILLING_COUNTRY_OPTIONS,
+          span: 'full',
+          variant: 'card-form',
           dataField: 'country',
           error: this.cardDraftErrors.country,
           disabled: isSaving,
@@ -493,9 +552,11 @@ export class CommerceHubConnect extends LitElement {
         renderTextField({
           id: 'billing-address-line-1',
           name: 'addressLine1',
-          label: 'Address line 1',
+          label: 'Address',
           value: this.cardDraft.addressLine1,
           placeholder: 'Street address',
+          span: 'full',
+          variant: 'card-form',
           autocomplete: 'address-line1',
           dataField: 'addressLine1',
           error: this.cardDraftErrors.addressLine1,
@@ -507,6 +568,8 @@ export class CommerceHubConnect extends LitElement {
           label: 'Address line 2',
           value: this.cardDraft.addressLine2,
           placeholder: 'Apartment, suite, unit',
+          span: 'full',
+          variant: 'card-form',
           autocomplete: 'address-line2',
           dataField: 'addressLine2',
           error: this.cardDraftErrors.addressLine2,
@@ -517,17 +580,21 @@ export class CommerceHubConnect extends LitElement {
           name: 'city',
           label: 'City',
           value: this.cardDraft.city,
+          span: 'full',
+          variant: 'card-form',
           autocomplete: 'address-level2',
           dataField: 'city',
           error: this.cardDraftErrors.city,
           disabled: isSaving,
         }),
-        renderTextField({
+        renderSelectField({
           id: 'billing-state',
           name: 'state',
           label: 'State',
           value: this.cardDraft.state,
-          autocomplete: 'address-level1',
+          options: BILLING_STATE_SELECT_OPTIONS,
+          span: 'full',
+          variant: 'card-form',
           dataField: 'state',
           error: this.cardDraftErrors.state,
           disabled: isSaving,
@@ -535,9 +602,11 @@ export class CommerceHubConnect extends LitElement {
         renderTextField({
           id: 'billing-zip',
           name: 'zip',
-          label: 'ZIP',
+          label: 'ZIP code',
           value: this.cardDraft.zip,
           placeholder: 'ZIP code',
+          span: 'full',
+          variant: 'card-form',
           autocomplete: 'postal-code',
           inputmode: 'numeric',
           dataField: 'zip',
@@ -548,11 +617,12 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return renderWidgetShell({
-      title: 'Add credit card',
-      subtitle:
-        'Enter your card details to save a credit card for future payments.',
+      title: 'Add a credit card',
+      subtitle: 'Add a new payment method for this session.',
+      showClose: false,
+      showDivider: false,
       content: html`
-        <div class="payment-flow">
+        <div class="payment-flow card-form-screen">
           ${this.cardSubmitError
             ? renderAlert({variant: 'danger', message: this.cardSubmitError})
             : ''}
@@ -560,22 +630,13 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'card-label',
               name: 'name',
-              label: 'Card label',
+              label: 'Card Name',
               value: this.cardDraft.name,
               placeholder: 'Corporate card',
+              span: 'full',
+              variant: 'card-form',
               dataField: 'name',
               error: this.cardDraftErrors.name,
-              disabled: isSaving,
-            }),
-            renderTextField({
-              id: 'name-on-card',
-              name: 'fullName',
-              label: 'Name on card',
-              value: this.cardDraft.fullName,
-              placeholder: 'Name on card',
-              autocomplete: 'cc-name',
-              dataField: 'fullName',
-              error: this.cardDraftErrors.fullName,
               disabled: isSaving,
             }),
             renderTextField({
@@ -584,6 +645,8 @@ export class CommerceHubConnect extends LitElement {
               label: 'Card number',
               value: this.cardDraft.cardNumber,
               placeholder: '1234 1234 1234 1234',
+              span: 'full',
+              variant: 'card-form',
               autocomplete: 'cc-number',
               inputmode: 'numeric',
               dataField: 'cardNumber',
@@ -593,9 +656,10 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'expiration-date',
               name: 'expirationDate',
-              label: 'Expiration date',
+              label: 'Expiration',
               value: this.cardDraft.expirationDate,
               placeholder: 'MM / YY',
+              variant: 'card-form',
               autocomplete: 'cc-exp',
               inputmode: 'numeric',
               dataField: 'expirationDate',
@@ -605,31 +669,49 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'card-cvv',
               name: 'cvv',
-              label: 'CVV',
+              label: 'CVC',
               value: this.cardDraft.cvv,
               placeholder: '3 or 4 digits',
+              variant: 'card-form',
               autocomplete: 'cc-csc',
               inputmode: 'numeric',
               dataField: 'cvv',
               error: this.cardDraftErrors.cvv,
               disabled: isSaving,
             }),
+            renderTextField({
+              id: 'name-on-card',
+              name: 'fullName',
+              label: 'Full name',
+              value: this.cardDraft.fullName,
+              placeholder: 'Name on card',
+              span: 'full',
+              variant: 'card-form',
+              autocomplete: 'cc-name',
+              dataField: 'fullName',
+              error: this.cardDraftErrors.fullName,
+              disabled: isSaving,
+            }),
             ...billingAddressFields,
           ])}
-          <div class="primitive-footer">
-            ${renderButton({
-              label: isSaving ? 'Saving credit card...' : 'Save credit card',
-              action: 'save-card',
-              disabled:
-                isSaving ||
-                isEncrypting ||
-                !isCardDraftReady(this.cardDraft, this.cardEncryption),
-            })}
-            ${renderTextLinkButton({
-              label: 'Use bank account instead',
-              action: 'use-bank-account-instead',
-              disabled: isSaving,
-            })}
+          <div class="card-form-footer">
+            <div class="card-form-back">
+              ${renderTextLinkButton({
+                label: 'Back',
+                action: 'back-to-payment-methods',
+                disabled: isSaving,
+              })}
+            </div>
+            <div class="card-form-primary">
+              ${renderButton({
+                label: isSaving ? 'Saving card...' : 'Save card',
+                action: 'save-card',
+                disabled:
+                  isSaving ||
+                  isEncrypting ||
+                  !isCardDraftReady(this.cardDraft, this.cardEncryption),
+              })}
+            </div>
           </div>
         </div>
       `,
@@ -641,6 +723,8 @@ export class CommerceHubConnect extends LitElement {
       title: 'Credit card not saved',
       subtitle:
         'We could not save this card. Check the card details or use a different payment method.',
+      showClose: false,
+      showDivider: false,
       content: renderOutcomeShell({
         variant: 'danger',
         content: this.cardSubmitError
@@ -1046,7 +1130,7 @@ export class CommerceHubConnect extends LitElement {
 
     const type = field === 'cardNumber' ? 'card' : 'cvv';
     const response = await this.requestCommerceHubJson<{value?: string}>(
-      `/customer/mask/${type}`,
+      `/interaction/source/mask/${type}`,
       interactionId,
       {
         method: 'POST',
@@ -1130,7 +1214,7 @@ export class CommerceHubConnect extends LitElement {
         },
       };
       const sourceResponse = await this.requestCommerceHubJson<AddSourceResponse>(
-        '/customer/source',
+        '/interaction/source',
         interactionId,
         {
           method: 'POST',
@@ -1195,7 +1279,7 @@ export class CommerceHubConnect extends LitElement {
     const billingAddress = billingAddressFromCardDraft(draft);
 
     await this.requestCommerceHubJson<unknown>(
-      '/customer/billing-address',
+      '/interaction/billing-address',
       interactionId,
       {
         method: 'POST',
@@ -1798,11 +1882,11 @@ const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
   const errors: CardDraftErrors = {};
 
   if (!draft.name) {
-    errors.name = 'Enter a card label.';
+    errors.name = 'Enter a card name.';
   }
 
   if (!draft.fullName) {
-    errors.fullName = 'Enter the name on card.';
+    errors.fullName = 'Enter the full name.';
   }
 
   if (!isValidCardNumber(draft.cardNumber)) {
@@ -1814,7 +1898,7 @@ const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
   }
 
   if (!isValidCvv(draft.cvv)) {
-    errors.cvv = 'Enter a valid CVV.';
+    errors.cvv = 'Enter a valid CVC.';
   }
 
   if (!draft.billingAddressValue) {
@@ -1823,7 +1907,7 @@ const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
 
   if (draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE) {
     if (!draft.country) {
-      errors.country = 'Enter a country.';
+      errors.country = 'Select a country or region.';
     }
 
     if (!draft.addressLine1) {
@@ -1835,11 +1919,11 @@ const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
     }
 
     if (!draft.state) {
-      errors.state = 'Enter a state.';
+      errors.state = 'Select a state.';
     }
 
     if (!/^\d{5}(?:-\d{4})?$/.test(draft.zip)) {
-      errors.zip = 'Enter a valid ZIP.';
+      errors.zip = 'Enter a valid ZIP code.';
     }
   }
 
@@ -1861,13 +1945,13 @@ const validateSensitiveCardField = (
     return isValidCardNumber(value) ? undefined : 'Enter a valid card number.';
   }
 
-  return isValidCvv(value) ? undefined : 'Enter a valid CVV.';
+  return isValidCvv(value) ? undefined : 'Enter a valid CVC.';
 };
 
 const buildCardEncryptionErrorMessage = (field: SensitiveCardField): string =>
   field === 'cardNumber'
     ? 'Unable to encrypt the card number. Try again.'
-    : 'Unable to encrypt the CVV. Try again.';
+    : 'Unable to encrypt the CVC. Try again.';
 
 const resolveDirtyCardEncryptionState = (
   previous: CardFieldEncryptionState,
@@ -1929,7 +2013,7 @@ const validateCardEncryptionReadiness = (
           ? buildCardEncryptionErrorMessage(field)
           : field === 'cardNumber'
           ? 'Encrypt the card number before saving.'
-          : 'Encrypt the CVV before saving.';
+          : 'Encrypt the CVC before saving.';
     }
   }
 
@@ -1952,7 +2036,7 @@ const resolveEncryptedCardFieldValue = (
     throw new Error(
       field === 'cardNumber'
         ? 'Card number encryption must complete before saving.'
-        : 'CVV encryption must complete before saving.'
+        : 'CVC encryption must complete before saving.'
     );
   }
 

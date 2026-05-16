@@ -554,7 +554,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('opens the add credit card screen from saved payment methods', async () => {
+  test('opens the add credit card screen with the redesigned inline card-entry layout', async () => {
     const requests: CapturedRequest[] = [];
 
     paymentSdkWindow.PaymentSDK = {
@@ -610,38 +610,185 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add credit card'
+      'Add a credit card'
     );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
+      'Add a new payment method for this session.'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.deepEqual(
       [
         ...el.shadowRoot!.querySelectorAll<HTMLLabelElement>('.field-label'),
       ].map((label) => label.textContent?.trim()),
       [
-        'Card label',
-        'Name on card',
+        'Card Name',
         'Card number',
-        'Expiration date',
-        'CVV',
-        'Country',
-        'Address line 1',
+        'Expiration',
+        'CVC',
+        'Full name',
+        'Billing address',
+        'Country or region',
+        'Address',
         'Address line 2',
         'City',
         'State',
-        'ZIP',
+        'ZIP code',
       ]
     );
-    assert.notExists(el.shadowRoot!.querySelector('#billing-address'));
+    assert.exists(el.shadowRoot!.querySelector('#billing-address'));
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLOptionElement>(
+          '#billing-address option'
+        ),
+      ].map((option) => option.textContent?.trim()),
+      ['Add new billing address']
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#billing-country')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#billing-state')
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('#card-label')
+        ?.closest('.field')
+        ?.classList.contains('field-full'),
+      true
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('#card-number')
+        ?.closest('.field')
+        ?.classList.contains('field-full'),
+      true
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('#name-on-card')
+        ?.closest('.field')
+        ?.classList.contains('field-full'),
+      true
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('#expiration-date')
+        ?.closest('.field')
+        ?.classList.contains('field-full'),
+      false
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('#card-cvv')
+        ?.closest('.field')
+        ?.classList.contains('field-full'),
+      false
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="back-to-payment-methods"]')
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="use-bank-account-instead"]')
+    );
     assert.equal(
       el
         .shadowRoot!.querySelector('[data-action="save-card"]')
         ?.textContent?.trim(),
-      'Save credit card'
+      'Save card'
     );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('[data-action="use-bank-account-instead"]')
-        ?.textContent?.trim(),
-      'Use bank account instead'
+  });
+
+  test('renders the card error screen without a widget close button', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (request.url.endsWith('/customer')) {
+        return new Response(JSON.stringify({billingAddress: []}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/source/mask/card')) {
+        return new Response(JSON.stringify({value: 'enc-card-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/source/mask/cvv')) {
+        return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/billing-address')) {
+        return new Response(null, {status: 204});
+      }
+
+      if (request.url.endsWith('/interaction/source')) {
+        return new Response(JSON.stringify({message: 'Save failed'}), {
+          status: 500,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-card');
+    await waitForRequest(requests, '/customer', 'GET');
+    await setFieldValue(el, 'card-label', 'Ada corporate card');
+    await setFieldValue(el, 'name-on-card', 'Ada Lovelace');
+    await setFieldValue(el, 'card-number', '4111 1111 1111 1111');
+    await setFieldValue(el, 'expiration-date', '04/30');
+    await setFieldValue(el, 'card-cvv', '123');
+    await setSelectValue(el, 'billing-country', 'US');
+    await setFieldValue(el, 'billing-address-line-1', '1 Main St');
+    await setFieldValue(el, 'billing-address-line-2', 'Suite 100');
+    await setFieldValue(el, 'billing-city', 'New York');
+    await setSelectValue(el, 'billing-state', 'NY');
+    await setFieldValue(el, 'billing-zip', '10001');
+    await blurField(el, 'card-number');
+    await waitForRequest(requests, '/interaction/source/mask/card');
+    await blurField(el, 'card-cvv');
+    await waitForRequest(requests, '/interaction/source/mask/cvv');
+    await clickAction(el, 'save-card');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Credit card not saved',
+      'card error screen did not render'
+    );
+
+    assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="edit-card-details"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="use-different-method"]')
     );
 
     await waitForRequest(requests, '/customer', 'GET');
@@ -690,25 +837,25 @@ suite('commerce-hub-connect flow', () => {
         });
       }
 
-      if (request.url.endsWith('/customer/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card')) {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/customer/mask/cvv')) {
+      if (request.url.endsWith('/interaction/source/mask/cvv')) {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/customer/billing-address')) {
+      if (request.url.endsWith('/interaction/billing-address')) {
         return new Response(null, {status: 204});
       }
 
-      if (request.url.endsWith('/customer/source')) {
+      if (request.url.endsWith('/interaction/source')) {
         return new Response(
           JSON.stringify({
             source: {
@@ -753,17 +900,17 @@ suite('commerce-hub-connect flow', () => {
     await setFieldValue(el, 'card-number', '4111 1111 1111 1111');
     await setFieldValue(el, 'expiration-date', '04/30');
     await setFieldValue(el, 'card-cvv', '123');
-    await setFieldValue(el, 'billing-country', 'US');
+    await setSelectValue(el, 'billing-country', 'US');
     await setFieldValue(el, 'billing-address-line-1', '1 Main St');
     await setFieldValue(el, 'billing-address-line-2', 'Suite 100');
     await setFieldValue(el, 'billing-city', 'New York');
-    await setFieldValue(el, 'billing-state', 'NY');
+    await setSelectValue(el, 'billing-state', 'NY');
     await setFieldValue(el, 'billing-zip', '10001');
 
     await blurField(el, 'card-number');
-    await waitForRequest(requests, '/customer/mask/card');
+    await waitForRequest(requests, '/interaction/source/mask/card');
     await blurField(el, 'card-cvv');
-    await waitForRequest(requests, '/customer/mask/cvv');
+    await waitForRequest(requests, '/interaction/source/mask/cvv');
     await clickAction(el, 'save-card');
     await waitFor(
       () =>
@@ -778,10 +925,10 @@ suite('commerce-hub-connect flow', () => {
       ),
       [
         'GET /customer',
-        'POST /customer/mask/card',
-        'POST /customer/mask/cvv',
-        'POST /customer/billing-address',
-        'POST /customer/source',
+        'POST /interaction/source/mask/card',
+        'POST /interaction/source/mask/cvv',
+        'POST /interaction/billing-address',
+        'POST /interaction/source',
         'POST /interaction/payment-source/card-created-1/attach',
         'GET /customer',
       ]
@@ -878,21 +1025,21 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (request.url.endsWith('/customer/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card')) {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/customer/mask/cvv')) {
+      if (request.url.endsWith('/interaction/source/mask/cvv')) {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/customer/source')) {
+      if (request.url.endsWith('/interaction/source')) {
         return new Response(JSON.stringify({paymentSourceId: 'card-created-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -943,9 +1090,9 @@ suite('commerce-hub-connect flow', () => {
     await setFieldValue(el, 'card-cvv', '123');
     await setSelectValue(el, 'billing-address', 'billing-1');
     await blurField(el, 'card-number');
-    await waitForRequest(requests, '/customer/mask/card');
+    await waitForRequest(requests, '/interaction/source/mask/card');
     await blurField(el, 'card-cvv');
-    await waitForRequest(requests, '/customer/mask/cvv');
+    await waitForRequest(requests, '/interaction/source/mask/cvv');
     await clickAction(el, 'save-card');
     await waitFor(
       () => el.interactionResponse?.selectedSource?.id === 'card-created-1',
@@ -954,11 +1101,11 @@ suite('commerce-hub-connect flow', () => {
 
     assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),
-      '/customer/billing-address'
+      '/interaction/billing-address'
     );
 
     const sourceRequest = requests.find(
-      (request) => new URL(request.url).pathname === '/customer/source'
+      (request) => new URL(request.url).pathname === '/interaction/source'
     )!;
     const sourceBody = JSON.parse(sourceRequest.bodyText);
 
@@ -985,7 +1132,7 @@ suite('commerce-hub-connect flow', () => {
         });
       }
 
-      if (request.url.endsWith('/customer/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card')) {
         return new Response(JSON.stringify({message: 'Mask failed'}), {
           status: 500,
           headers: {'Content-Type': 'application/json'},
@@ -1011,10 +1158,10 @@ suite('commerce-hub-connect flow', () => {
     await setFieldValue(el, 'card-number', '4111 1111 1111 1111');
     await setFieldValue(el, 'expiration-date', '04/30');
     await setFieldValue(el, 'card-cvv', '123');
-    await setFieldValue(el, 'billing-country', 'US');
+    await setSelectValue(el, 'billing-country', 'US');
     await setFieldValue(el, 'billing-address-line-1', '1 Main St');
     await setFieldValue(el, 'billing-city', 'New York');
-    await setFieldValue(el, 'billing-state', 'NY');
+    await setSelectValue(el, 'billing-state', 'NY');
     await setFieldValue(el, 'billing-zip', '10001');
     await blurField(el, 'card-number');
     await blurField(el, 'card-cvv');
@@ -1028,7 +1175,7 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['GET /customer', 'POST /customer/mask/card', 'POST /customer/mask/cvv']
+      ['GET /customer', 'POST /interaction/source/mask/card', 'POST /interaction/source/mask/cvv']
     );
   });
 

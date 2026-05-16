@@ -26,6 +26,7 @@ import {
   renderVerificationDetails,
   renderWidgetShell,
 } from '../internal/primitives.js';
+import {primitiveStyles} from '../internal/styles.js';
 import type {PaymentMethod} from '../internal/types.js';
 
 class PrimitiveHarness extends HTMLElement {
@@ -54,6 +55,10 @@ suite('commerce-hub-connect primitives', () => {
     assert.instanceOf(el, CommerceHubConnect);
     assert.isUndefined(customElements.get('chc-button'));
     assert.isUndefined(customElements.get('chc-text-field'));
+  });
+
+  test('does not use explicit line-height declarations in shared styles', () => {
+    assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
 
   test('renders the widget shell with SDK v2 token defaults and shell affordances', async () => {
@@ -123,6 +128,8 @@ suite('commerce-hub-connect primitives', () => {
       el.shadowRoot!.querySelector<HTMLElement>('.payment-method-meta')!;
     const button = el.shadowRoot!.querySelector<HTMLElement>('.button')!;
     const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
+    const poweredByFooter =
+      el.shadowRoot!.querySelector<HTMLElement>('.powered-by-footer')!;
 
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-primary').trim(),
@@ -134,7 +141,10 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(getComputedStyle(title).fontSize, '18.4px');
     assert.equal(getComputedStyle(title).fontWeight, '700');
+    assert.equal(getComputedStyle(button).fontSize, '20px');
     assert.equal(getComputedStyle(paymentMeta).fontWeight, '350');
+    assert.equal(getComputedStyle(paymentMeta).fontSize, '20px');
+    assert.equal(getComputedStyle(poweredByFooter).fontSize, '20px');
     assert.equal(getComputedStyle(button).paddingTop, '7px');
     assert.equal(getComputedStyle(button).paddingBottom, '7px');
     assert.equal(getComputedStyle(button).fontWeight, '500');
@@ -340,6 +350,28 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
+  test('renders OTP inputs with inherited typography and padded sizing', async () => {
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .interactionResponse=${{
+          interactionId: 'interaction-otp',
+          status: 'OTP_VALIDATION_PENDING',
+          email: 'gregory.jablonski@fiserv.com',
+        }}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+
+    await el.updateComplete;
+
+    const otpInput = el.shadowRoot!.querySelector<HTMLInputElement>('.otp-input')!;
+    const otpInputStyles = getComputedStyle(otpInput);
+
+    assert.equal(otpInputStyles.fontWeight, '300');
+    assert.equal(otpInputStyles.fontSize, '16px');
+    assert.closeTo(parseFloat(otpInputStyles.paddingTop), 8.8, 0.2);
+    assert.closeTo(parseFloat(otpInputStyles.paddingRight), 8.8, 0.2);
+  });
+
   test('renders v2 payment method, source action, and detail primitives with disabled state semantics', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',
@@ -412,6 +444,37 @@ suite('commerce-hub-connect primitives', () => {
       ),
       ['Account holder name', 'Last 4 digits']
     );
+  });
+
+  test('renders card-form fields with labels outside the control chrome', async () => {
+    const root = await renderHarness(html`
+      ${renderTextField({
+        id: 'card-label',
+        label: 'Card Name',
+        variant: 'card-form',
+      })}
+      ${renderSelectField({
+        id: 'billing-country',
+        label: 'Country or region',
+        options: [{value: 'US', label: 'United States'}],
+        variant: 'card-form',
+      })}
+    `);
+
+    const textField = root.querySelector('#card-label')?.closest('.field');
+    const textLabel = textField?.querySelector('.field-label-card-form');
+    const textControl = textField?.querySelector('.field-control-card-form');
+    const selectField =
+      root.querySelector('#billing-country')?.closest('.field');
+    const selectLabel = selectField?.querySelector('.field-label-card-form');
+    const selectControl = selectField?.querySelector('.field-control-card-form');
+
+    assert.exists(textControl);
+    assert.equal(textControl?.contains(textLabel ?? null), false);
+    assert.exists(textControl?.querySelector('input#card-label'));
+    assert.exists(selectControl);
+    assert.equal(selectControl?.contains(selectLabel ?? null), false);
+    assert.exists(selectControl?.querySelector('select#billing-country'));
   });
 
   test('renders Pay by Bank provider, outcome, detail, and text-link primitives', async () => {

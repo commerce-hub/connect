@@ -36,7 +36,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/customer/billing-address/{id}": {
+    "/interaction/billing-address/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -276,7 +276,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/customer/source": {
+    "/interaction/source": {
         parameters: {
             query?: never;
             header?: never;
@@ -356,7 +356,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/customer/mask/{type}": {
+    "/interaction/source/mask/{type}": {
         parameters: {
             query?: never;
             header?: never;
@@ -388,7 +388,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/customer/billing-address": {
+    "/interaction/billing-address": {
         parameters: {
             query?: never;
             header?: never;
@@ -564,7 +564,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/customer/source/{sourceId}": {
+    "/interaction/source/{sourceId}": {
         parameters: {
             query?: never;
             header?: never;
