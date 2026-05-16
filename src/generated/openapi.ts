@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/pbb/session/{aldSessionId}/{pToken}": {
+    "/interaction/source/pbb/session/{aldSessionId}/{pToken}": {
         parameters: {
             query?: never;
             header?: never;
@@ -12,7 +12,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put: operations["retrieveBankInfo"];
+        put: operations["addPBBSource"];
         post?: never;
         delete?: never;
         options?: never;
@@ -20,7 +20,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/customer/shipping-address/{id}": {
+    "/interaction/shipping-address/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -212,7 +212,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/payment-source/{paymentSourceId}/attach": {
+    "/interaction/source/{paymentSourceId}/attach": {
         parameters: {
             query?: never;
             header?: never;
@@ -222,6 +222,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["attachPaymentMethod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interaction/source/mask/{type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["mask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interaction/shipping-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addShippingAddress"];
         delete?: never;
         options?: never;
         head?: never;
@@ -276,7 +308,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/source": {
+    "/interaction/billing-address": {
         parameters: {
             query?: never;
             header?: never;
@@ -285,23 +317,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["addSource_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/customer/shipping-address": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["addShippingAddress"];
+        post: operations["addBillingAddress"];
         delete?: never;
         options?: never;
         head?: never;
@@ -356,22 +372,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/source/mask/{type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["mask"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/customer/dsc/create": {
         parameters: {
             query?: never;
@@ -382,22 +382,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["createDynamicSessionCard"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/interaction/billing-address": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["addBillingAddress"];
         delete?: never;
         options?: never;
         head?: never;
@@ -468,22 +452,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/pbb/session": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getAggregationSessionId"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/interaction": {
         parameters: {
             query?: never;
@@ -492,6 +460,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interaction/source/pbb/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAggregationSessionId"];
         put?: never;
         post?: never;
         delete?: never;
@@ -623,10 +607,6 @@ export interface components {
             tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD";
             verificationInfo?: components["schemas"]["VerificationInfo"];
         };
-        AddSourceResponse: {
-            id?: string;
-            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
-        };
         BankAccount: {
             tenderType: "BankAccount";
         } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
@@ -665,6 +645,22 @@ export interface components {
             docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
             mandatory?: boolean;
             value?: string;
+        };
+        InteractionResponse: {
+            interactionId?: string;
+            /** @enum {string} */
+            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "PAYMENT_SOURCE_REQUESTED" | "PAYMENT_SOURCE_ATTACHED";
+            email?: string;
+            selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
+            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
+            paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
+            phone?: components["schemas"]["PhoneDetails"];
+        };
+        PhoneDetails: {
+            countryCode?: string;
+            phoneNumber?: string;
+            /** Format: int64 */
+            verifiedTimestamp?: number;
         };
         VerificationInfo: {
             token?: string;
@@ -713,12 +709,6 @@ export interface components {
             /** @enum {string} */
             channel?: "EMAIL" | "PHONE";
         };
-        PhoneDetails: {
-            countryCode?: string;
-            phoneNumber?: string;
-            /** Format: int64 */
-            verifiedTimestamp?: number;
-        };
         Challenge: {
             id?: string;
             realm?: string;
@@ -749,16 +739,6 @@ export interface components {
             entityData?: components["schemas"]["EntityData"];
             advancedVerification?: boolean;
             preAuthenticated?: boolean;
-        };
-        InteractionResponse: {
-            interactionId?: string;
-            /** @enum {string} */
-            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "PAYMENT_SOURCE_REQUESTED" | "PAYMENT_SOURCE_ATTACHED" | "ABANDONED" | "COMPLETED";
-            email?: string;
-            selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
-            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
-            paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
-            phone?: components["schemas"]["PhoneDetails"];
         };
         DocFieldValue: {
             value?: string;
@@ -870,7 +850,6 @@ export interface components {
             phoneDetails?: components["schemas"]["PhoneDetails"];
             shippingAddress?: components["schemas"]["Address"][];
             billingAddress?: components["schemas"]["Address"][];
-            defaultSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
             sources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
             machinePayments?: boolean;
             logins?: {
@@ -892,7 +871,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    retrieveBankInfo: {
+    addPBBSource: {
         parameters: {
             query?: never;
             header?: never;
@@ -910,7 +889,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["AddSourceResponse"];
+                    "*/*": components["schemas"]["InteractionResponse"];
                 };
             };
         };
@@ -1263,6 +1242,54 @@ export interface operations {
             };
         };
     };
+    mask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StringHolder"];
+                };
+            };
+        };
+    };
+    addShippingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Address"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     validateOTP_1: {
         parameters: {
             query?: never;
@@ -1327,31 +1354,7 @@ export interface operations {
             };
         };
     };
-    addSource_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["AddSourceResponse"];
-                };
-            };
-        };
-    };
-    addShippingAddress: {
+    addBillingAddress: {
         parameters: {
             query?: never;
             header?: never;
@@ -1439,32 +1442,6 @@ export interface operations {
             };
         };
     };
-    mask: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                type: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StringHolder"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["StringHolder"];
-                };
-            };
-        };
-    };
     createDynamicSessionCard: {
         parameters: {
             query?: never;
@@ -1486,28 +1463,6 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["DynamicSessionCard"];
                 };
-            };
-        };
-    };
-    addBillingAddress: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Address"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -1629,26 +1584,6 @@ export interface operations {
             };
         };
     };
-    getAggregationSessionId: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionData"];
-                };
-            };
-        };
-    };
     getStatus: {
         parameters: {
             query?: never;
@@ -1665,6 +1600,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["InteractionResponse"];
+                };
+            };
+        };
+    };
+    getAggregationSessionId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionData"];
                 };
             };
         };

@@ -576,7 +576,7 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/pbb/session') {
+      if (pathname === '/interaction/source/pbb/session') {
         return new Response(
           JSON.stringify({
             aggregatorSessionId: 'agg-session-1',
@@ -791,8 +791,8 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('[data-action="use-different-method"]')
     );
 
-    await waitForRequest(requests, '/customer', 'GET');
-    await clickAction(el, 'use-bank-account-instead');
+    await clickAction(el, 'use-different-method');
+    await clickAction(el, 'add-bank-account');
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
@@ -858,7 +858,7 @@ suite('commerce-hub-connect flow', () => {
       if (request.url.endsWith('/interaction/source')) {
         return new Response(
           JSON.stringify({
-            source: {
+            selectedSource: {
               id: 'card-created-1',
               tenderType: 'Card',
             },
@@ -870,11 +870,7 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (
-        request.url.endsWith(
-          '/interaction/payment-source/card-created-1/attach'
-        )
-      ) {
+      if (request.url.endsWith('/interaction/source/card-created-1/attach')) {
         return new Response(JSON.stringify(apiResponse), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -929,7 +925,7 @@ suite('commerce-hub-connect flow', () => {
         'POST /interaction/source/mask/cvv',
         'POST /interaction/billing-address',
         'POST /interaction/source',
-        'POST /interaction/payment-source/card-created-1/attach',
+        'POST /interaction/source/card-created-1/attach',
         'GET /customer',
       ]
     );
@@ -1040,17 +1036,21 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (request.url.endsWith('/interaction/source')) {
-        return new Response(JSON.stringify({paymentSourceId: 'card-created-1'}), {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
+        return new Response(
+          JSON.stringify({
+            selectedSource: {
+              id: 'card-created-1',
+              tenderType: 'Card',
+            },
+          }),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
       }
 
-      if (
-        request.url.endsWith(
-          '/interaction/payment-source/card-created-1/attach'
-        )
-      ) {
+      if (request.url.endsWith('/interaction/source/card-created-1/attach')) {
         return new Response(JSON.stringify(apiResponse), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -1459,7 +1459,7 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['GET /pbb/session']
+      ['GET /interaction/source/pbb/session']
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
@@ -1491,7 +1491,7 @@ suite('commerce-hub-connect flow', () => {
 
       const pathname = new URL(request.url).pathname;
 
-      if (pathname === '/pbb/session') {
+      if (pathname === '/interaction/source/pbb/session') {
         return new Response(
           JSON.stringify({
             aggregatorSessionId: 'agg-session-1',
@@ -1503,11 +1503,14 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/pbb/session/agg-session-1/p-token-1') {
+      if (
+        pathname ===
+        '/interaction/source/pbb/session/agg-session-1/p-token-1'
+      ) {
         return new Response(
           JSON.stringify({
-            id: 'bank-new',
-            source: {
+            selectedSource: {
+              id: 'bank-new',
               tenderType: 'BankAccount',
               name: 'Operating account',
               verificationInfo: {status: 'NOT_VERIFIED'},
@@ -1563,8 +1566,8 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       [
-        'GET /pbb/session',
-        'PUT /pbb/session/agg-session-1/p-token-1',
+        'GET /interaction/source/pbb/session',
+        'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
         'POST /interaction/verify/step1',
       ]
     );
@@ -1624,7 +1627,7 @@ suite('commerce-hub-connect flow', () => {
 
       const pathname = new URL(request.url).pathname;
 
-      if (pathname === '/pbb/session') {
+      if (pathname === '/interaction/source/pbb/session') {
         return new Response(
           JSON.stringify({
             aggregatorSessionId: 'agg-session-1',
@@ -1636,13 +1639,12 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/pbb/session/agg-session-1/p-token-1') {
+      if (pathname === '/interaction/source/pbb/session/agg-session-1/p-token-1') {
         return new Response(
           JSON.stringify({
-            id: 'card-new',
-            source: {
-              tenderType: 'Card',
+            selectedSource: {
               id: 'card-new',
+              tenderType: 'Card',
             },
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
@@ -1720,7 +1722,7 @@ suite('commerce-hub-connect flow', () => {
 
       const pathname = new URL(request.url).pathname;
 
-      if (pathname === '/pbb/session') {
+      if (pathname === '/interaction/source/pbb/session') {
         return new Response(
           JSON.stringify({
             aggregatorSessionId: 'agg-session-1',
@@ -1732,10 +1734,10 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/pbb/session/agg-session-1/p-token-1') {
+      if (pathname === '/interaction/source/pbb/session/agg-session-1/p-token-1') {
         return new Response(
           JSON.stringify({
-            source: {
+            selectedSource: {
               tenderType: 'BankAccount',
               bankAccount: {
                 bankName: 'No Id Bank',

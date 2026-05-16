@@ -55,7 +55,9 @@ type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
 };
 type Address = components['schemas']['Address'];
-type AddSourceResponse = components['schemas']['AddSourceResponse'] & {
+type CreatedPaymentSourceResponse = InteractionResponse & {
+  id?: string;
+  source?: PaymentSource;
   sourceId?: string;
   paymentSourceId?: string;
 };
@@ -1213,20 +1215,21 @@ export class CommerceHubConnect extends LitElement {
           network: detectCardNetwork(normalizedDraft.cardNumber),
         },
       };
-      const sourceResponse = await this.requestCommerceHubJson<AddSourceResponse>(
-        '/interaction/source',
-        interactionId,
-        {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(cardSource),
-          credentials: 'include',
-        }
-      );
+      const sourceResponse =
+        await this.requestCommerceHubJson<CreatedPaymentSourceResponse>(
+          '/interaction/source',
+          interactionId,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(cardSource),
+            credentials: 'include',
+          }
+        );
       const paymentSourceId = resolveCreatedPaymentSourceId(sourceResponse);
       const attachedResponse =
         await this.requestCommerceHubJson<InteractionResponse>(
-          `/interaction/payment-source/${encodeURIComponent(
+          `/interaction/source/${encodeURIComponent(
             paymentSourceId
           )}/attach`,
           interactionId,
@@ -1411,7 +1414,7 @@ export class CommerceHubConnect extends LitElement {
     containerId: string
   ) {
     const session = await this.requestCommerceHubJson<PayByBankSession>(
-      '/pbb/session',
+      '/interaction/source/pbb/session',
       interactionId,
       {method: 'GET', credentials: 'include'}
     );
@@ -1465,7 +1468,7 @@ export class CommerceHubConnect extends LitElement {
               pToken
             );
             const bankSource =
-              resolvePayByBankSourceFromAddSourceResponse(sourceResponse);
+              resolvePayByBankSourceFromInteractionResponse(sourceResponse);
             const verifiedBankSource = await this.verifyPayByBankSource(
               interactionId,
               bankSource
@@ -1540,9 +1543,9 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string,
     aggregatorSessionId: string,
     pToken: string
-  ): Promise<AddSourceResponse> {
-    return this.requestCommerceHubJson<AddSourceResponse>(
-      `/pbb/session/${encodeURIComponent(
+  ): Promise<InteractionResponse> {
+    return this.requestCommerceHubJson<InteractionResponse>(
+      `/interaction/source/pbb/session/${encodeURIComponent(
         aggregatorSessionId
       )}/${encodeURIComponent(pToken)}`,
       interactionId,
@@ -2193,12 +2196,16 @@ const createLocalBillingAddressId = (): string => {
   )}-${billingAddressIdCounter.toString(36)}`;
 };
 
-const resolveCreatedPaymentSourceId = (response?: AddSourceResponse): string => {
+const resolveCreatedPaymentSourceId = (
+  response?: CreatedPaymentSourceResponse
+): string => {
   const paymentSourceId =
-    response?.id?.trim() ||
+    response?.selectedSource?.id?.trim() ||
+    response?.source?.id?.trim() ||
     response?.sourceId?.trim() ||
     response?.paymentSourceId?.trim() ||
-    response?.source?.id?.trim();
+    response?.id?.trim() ||
+    response?.paymentSources?.find((source) => source.id?.trim())?.id?.trim();
 
   if (!paymentSourceId) {
     throw new Error('The card creation response did not include a source id.');
@@ -2488,7 +2495,7 @@ const resolvePayByBankSession = (
 
   if (!aggregatorSessionId || !accessToken || !pToken || !publicKey) {
     throw new Error(
-      'The /pbb/session response is missing one or more required values.'
+      'The /interaction/source/pbb/session response is missing one or more required values.'
     );
   }
 
@@ -2522,16 +2529,23 @@ const describePaymentSdkTerminalEvent = (event?: PaymentSdkEvent): string => {
   return 'Pay by Bank did not complete successfully.';
 };
 
-const resolvePayByBankSourceFromAddSourceResponse = (
-  response: AddSourceResponse
+const resolvePayByBankSourceFromInteractionResponse = (
+  response: InteractionResponse
 ): BankPaymentSource => {
-  if (!response.source || !isBankPaymentSource(response.source)) {
+  const source = [
+    response.selectedSource,
+    ...(response.paymentSources ?? []),
+  ].find((paymentSource): paymentSource is BankPaymentSource =>
+    Boolean(paymentSource && isBankPaymentSource(paymentSource))
+  );
+
+  if (!source) {
     throw new Error(
-      'Pay by Bank completed but no bank payment source was returned by /pbb/session.'
+      'Pay by Bank completed but no bank payment source was returned by /interaction/source/pbb/session.'
     );
   }
 
-  const paymentSourceId = response.source.id?.trim() || response.id?.trim();
+  const paymentSourceId = source.id?.trim();
 
   if (!paymentSourceId) {
     throw new Error(
@@ -2540,7 +2554,7 @@ const resolvePayByBankSourceFromAddSourceResponse = (
   }
 
   return {
-    ...response.source,
+    ...source,
     id: paymentSourceId,
   };
 };
