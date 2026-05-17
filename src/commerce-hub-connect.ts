@@ -12,6 +12,7 @@ import {
   renderButton,
   renderEmptyState,
   renderFormGrid,
+  renderLoadingRow,
   renderOutcomeShell,
   renderOtpGroup,
   renderOtpResend,
@@ -41,8 +42,9 @@ export interface InteractionError {
   cause?: unknown;
 }
 
-export type PaymentSource =
-  NonNullable<InteractionResponse['paymentSources']>[number];
+export type PaymentSource = NonNullable<
+  InteractionResponse['paymentSources']
+>[number];
 export type OnSuccessEvent = CustomEvent<PaymentSource>;
 export type OnErrorEvent = CustomEvent<InteractionError>;
 
@@ -272,6 +274,11 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private billingAddressesLoading = false;
 
+  @state()
+  private paymentMethodsLoading = false;
+
+  private paymentMethodsRefreshRequestId = 0;
+
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (
       changedProperties.has('interactionResponse') &&
@@ -373,10 +380,14 @@ export class CommerceHubConnect extends LitElement {
             error: isFailed,
           })}
           <div class="otp-support">
-            <p class="otp-support-copy otp-resend-prefix">${copy.resendPrefix}</p>
+            <p class="otp-support-copy otp-resend-prefix">
+              ${copy.resendPrefix}
+            </p>
             <div class="otp-support-actions">
               ${renderOtpResend({
-                label: isResending ? copy.resendPendingButton : copy.resendButton,
+                label: isResending
+                  ? copy.resendPendingButton
+                  : copy.resendButton,
                 action: 'resend-otp',
                 disabled: isSubmitting || isResending,
               })}
@@ -406,6 +417,23 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse,
       this.selectedPaymentSourceId
     );
+
+    if (this.paymentMethodsLoading) {
+      return renderWidgetShell({
+        title: copy.title,
+        subtitle: copy.subtitle,
+        showClose: false,
+        showDivider: false,
+        content: html`
+          <div class="payment-flow">
+            ${renderLoadingRow({
+              title: 'Loading payment methods',
+              helper: 'Refreshing saved payment methods.',
+            })}
+          </div>
+        `,
+      });
+    }
 
     if (!paymentMethods.length) {
       return this.renderNoSavedPaymentMethods();
@@ -882,11 +910,13 @@ export class CommerceHubConnect extends LitElement {
     if (action === 'back-to-payment-methods') {
       this.resetCardFlow();
       this.resetBankFlow();
+      void this.refreshPaymentMethodsFromCustomer();
       return;
     }
 
     if (action === 'continue-bank-outcome' || action === 'done-bank-outcome') {
       this.resetBankFlow();
+      void this.refreshPaymentMethodsFromCustomer();
       return;
     }
 
@@ -907,6 +937,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (action === 'use-different-method') {
       this.resetCardFlow();
+      void this.refreshPaymentMethodsFromCustomer();
       return;
     }
   };
@@ -1229,9 +1260,7 @@ export class CommerceHubConnect extends LitElement {
       const paymentSourceId = resolveCreatedPaymentSourceId(sourceResponse);
       const attachedResponse =
         await this.requestCommerceHubJson<InteractionResponse>(
-          `/interaction/source/${encodeURIComponent(
-            paymentSourceId
-          )}/attach`,
+          `/interaction/source/${encodeURIComponent(paymentSourceId)}/attach`,
           interactionId,
           {
             method: 'POST',
@@ -1239,20 +1268,6 @@ export class CommerceHubConnect extends LitElement {
             credentials: 'include',
           }
         );
-      const createdSource: CardPaymentSource = {
-        tenderType: 'Card',
-        id: paymentSourceId,
-        name: normalizedDraft.name,
-        billingAddressId,
-        card: {
-          nameOnCard: normalizedDraft.fullName,
-          cardNumber: normalizeCardNumber(normalizedDraft.cardNumber),
-          expirationMonth: expiration.month,
-          expirationYear: expiration.year,
-          network: detectCardNetwork(normalizedDraft.cardNumber),
-        },
-      };
-
       this.cardFlowScreen = undefined;
       this.cardDraft = createCardDraft();
       this.cardDraftErrors = {};
@@ -1260,9 +1275,9 @@ export class CommerceHubConnect extends LitElement {
       this.cardSubmitError = undefined;
       this.selectedPaymentSourceId = paymentSourceId;
       this.setInteractionResponseFromSdk(
-        withUpsertedSource(attachedResponse, createdSource)
+        withoutPaymentSources(attachedResponse)
       );
-      await this.loadBillingAddressesForInteraction();
+      await this.refreshPaymentMethodsFromCustomer(paymentSourceId);
     } catch (cause) {
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
@@ -1322,7 +1337,14 @@ export class CommerceHubConnect extends LitElement {
       const interactionResponse = interactionResponseFromApi(response);
 
       this.otpErrorMessage = undefined;
-      this.setInteractionResponseFromSdk(interactionResponse);
+      if (interactionResponse.status === 'PAYMENT_SOURCE_REQUESTED') {
+        this.setInteractionResponseFromSdk(
+          withoutPaymentSources(interactionResponse)
+        );
+        await this.refreshPaymentMethodsFromCustomer();
+      } else {
+        this.setInteractionResponseFromSdk(interactionResponse);
+      }
     } catch (cause) {
       void cause;
       this.otpErrorMessage = undefined;
@@ -1351,7 +1373,14 @@ export class CommerceHubConnect extends LitElement {
       const interactionResponse = interactionResponseFromApi(response);
 
       this.otpErrorMessage = undefined;
-      this.setInteractionResponseFromSdk(interactionResponse);
+      if (interactionResponse.status === 'PAYMENT_SOURCE_REQUESTED') {
+        this.setInteractionResponseFromSdk(
+          withoutPaymentSources(interactionResponse)
+        );
+        await this.refreshPaymentMethodsFromCustomer();
+      } else {
+        this.setInteractionResponseFromSdk(interactionResponse);
+      }
     } catch (cause) {
       void cause;
     } finally {
@@ -1521,13 +1550,7 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      this.billingAddresses = (profile.billingAddress ?? []).filter(
-        (address) => Boolean(address.id?.trim())
-      );
-      this.cardDraft = reconcileCardDraftBillingAddress(
-        this.cardDraft,
-        this.billingAddresses
-      );
+      this.syncBillingAddressesFromProfile(profile);
     } catch {
       this.billingAddresses = [];
       this.cardDraft = {
@@ -1537,6 +1560,64 @@ export class CommerceHubConnect extends LitElement {
     } finally {
       this.billingAddressesLoading = false;
     }
+  }
+
+  private async refreshPaymentMethodsFromCustomer(
+    preferredPaymentSourceId = this.selectedPaymentSourceId
+  ): Promise<void> {
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId) {
+      return;
+    }
+
+    const requestId = ++this.paymentMethodsRefreshRequestId;
+
+    this.paymentMethodsLoading = true;
+
+    try {
+      const profile = await this.getCustomerProfile(interactionId);
+
+      if (
+        requestId !== this.paymentMethodsRefreshRequestId ||
+        this.requireInteractionId() !== interactionId
+      ) {
+        return;
+      }
+
+      const paymentSources = profile.sources ?? [];
+      const selectedSource = resolveCustomerSelectedSource(
+        paymentSources,
+        preferredPaymentSourceId ??
+          this.selectedPaymentSourceId ??
+          this.interactionResponse?.selectedSource?.id
+      );
+
+      this.syncBillingAddressesFromProfile(profile);
+      this.selectedPaymentSourceId = selectedSource?.id;
+      this.setInteractionResponseFromSdk({
+        ...this.interactionResponse,
+        interactionId,
+        selectedSource,
+        paymentSources,
+      });
+    } catch (cause) {
+      void cause;
+    } finally {
+      if (requestId === this.paymentMethodsRefreshRequestId) {
+        this.paymentMethodsLoading = false;
+      }
+    }
+  }
+
+  private syncBillingAddressesFromProfile(profile: CustomerProfile) {
+    this.billingAddresses = (profile.billingAddress ?? []).filter((address) =>
+      Boolean(address.id?.trim())
+    );
+    this.cardDraft = reconcileCardDraftBillingAddress(
+      this.cardDraft,
+      this.billingAddresses
+    );
   }
 
   private async finalizePayByBankSession(
@@ -1707,7 +1788,10 @@ export class CommerceHubConnect extends LitElement {
     const baseFontWeight = this.designConfig?.baseFontWeight?.trim();
 
     if (baseFontWeight) {
-      this.style.setProperty(DESIGN_CONFIG_FONT_WEIGHT_PROPERTY, baseFontWeight);
+      this.style.setProperty(
+        DESIGN_CONFIG_FONT_WEIGHT_PROPERTY,
+        baseFontWeight
+      );
     } else {
       this.style.removeProperty(DESIGN_CONFIG_FONT_WEIGHT_PROPERTY);
     }
@@ -2258,8 +2342,7 @@ const resolvePaymentMethodsCopy = (
     subtitle: copy?.subtitle ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
-    addCardTitle:
-      copy?.addCardTitle ?? 'Add a credit or debit card',
+    addCardTitle: copy?.addCardTitle ?? 'Add a credit or debit card',
     addCardSubtitle: copy?.addCardSubtitle ?? '',
     continueButton: copy?.continueButton ?? 'Confirm',
     continuingButton: copy?.continuingButton ?? 'Confirming...',
@@ -2278,8 +2361,7 @@ const resolveNoSavedPaymentMethodsCopy = (
     emptyMessage: copy?.emptyMessage ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
-    addCardTitle:
-      copy?.addCardTitle ?? 'Add a credit or debit card',
+    addCardTitle: copy?.addCardTitle ?? 'Add a credit or debit card',
     addCardSubtitle: copy?.addCardSubtitle ?? '',
   };
 };
@@ -2420,6 +2502,31 @@ const resolveSelectedPaymentSourceId = (
 
   return interactionResponse?.selectedSource?.id ?? paymentSources[0].id;
 };
+
+const resolveCustomerSelectedSource = (
+  paymentSources: PaymentSource[],
+  preferredPaymentSourceId?: string
+): PaymentSource | undefined => {
+  if (preferredPaymentSourceId) {
+    const preferredSource = paymentSources.find(
+      (source) => source.id === preferredPaymentSourceId
+    );
+
+    if (preferredSource) {
+      return preferredSource;
+    }
+  }
+
+  return paymentSources[0];
+};
+
+const withoutPaymentSources = (
+  interactionResponse: InteractionResponse
+): InteractionResponse => ({
+  ...interactionResponse,
+  selectedSource: undefined,
+  paymentSources: [],
+});
 
 const interactionResponseFromApi = (response: {
   data?: InteractionResponse;

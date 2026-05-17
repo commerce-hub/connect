@@ -381,12 +381,15 @@ suite('commerce-hub-connect flow', () => {
     const addCardLink = el.shadowRoot!.querySelector<HTMLElement>(
       '[data-action="add-card"]'
     )!;
-    const addCardIcon =
-      addCardLink.querySelector<HTMLElement>('.source-action-icon')!;
+    const addCardIcon = addCardLink.querySelector<HTMLElement>(
+      '.source-action-icon'
+    )!;
 
     assert.notExists(el.shadowRoot!.querySelector('.source-action-link-icon'));
     assert.exists(
-      el.shadowRoot!.querySelector('[data-action="add-card"] .source-action-icon')
+      el.shadowRoot!.querySelector(
+        '[data-action="add-card"] .source-action-icon'
+      )
     );
     assert.exists(
       el.shadowRoot!.querySelector(
@@ -807,13 +810,14 @@ suite('commerce-hub-connect flow', () => {
           (request) =>
             request.method === 'GET' &&
             new URL(request.url).pathname === '/customer'
-        ).length === 2,
-      'second GET /customer was not requested'
+        ).length >= 2,
+      'another GET /customer was not requested'
     );
   });
 
-  test('creates a new billing address, creates a customer card from the returned source, and attaches it', async () => {
+  test('creates a new billing address, creates a customer card, attaches it, and refreshes methods from the customer profile', async () => {
     const requests: CapturedRequest[] = [];
+    let cardAttached = false;
     const apiResponse: InteractionResponse = {
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -831,10 +835,30 @@ suite('commerce-hub-connect flow', () => {
       });
 
       if (request.url.endsWith('/customer')) {
-        return new Response(JSON.stringify({billingAddress: []}), {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
+        return new Response(
+          JSON.stringify(
+            cardAttached
+              ? {
+                  billingAddress: [],
+                  sources: [
+                    {
+                      tenderType: 'Card',
+                      id: 'card-created-1',
+                      name: 'Card from customer profile',
+                      card: {
+                        network: 'Mastercard',
+                        cardNumber: '5555555555554444',
+                      },
+                    },
+                  ],
+                }
+              : {billingAddress: []}
+          ),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
       }
 
       if (request.url.endsWith('/interaction/source/mask/card')) {
@@ -871,6 +895,8 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (request.url.endsWith('/interaction/source/card-created-1/attach')) {
+        cardAttached = true;
+
         return new Response(JSON.stringify(apiResponse), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -971,18 +997,17 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.payment-method-title')
         ?.textContent?.trim(),
-      'Ada corporate card'
+      'Card from customer profile'
     );
     assert.equal(
-      el
-        .shadowRoot!.querySelector('.payment-method-meta')
-        ?.textContent?.trim(),
-      '•••• 1111'
+      el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
+      '•••• 4444'
     );
   });
 
   test('uses an existing billing address when one is selected', async () => {
     const requests: CapturedRequest[] = [];
+    let cardAttached = false;
     const apiResponse: InteractionResponse = {
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -1013,6 +1038,15 @@ suite('commerce-hub-connect flow', () => {
                 country: 'US',
               },
             ],
+            sources: cardAttached
+              ? [
+                  {
+                    tenderType: 'Card',
+                    id: 'card-created-1',
+                    name: 'Ada corporate card',
+                  },
+                ]
+              : [],
           }),
           {
             status: 200,
@@ -1051,6 +1085,8 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (request.url.endsWith('/interaction/source/card-created-1/attach')) {
+        cardAttached = true;
+
         return new Response(JSON.stringify(apiResponse), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -1175,20 +1211,32 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['GET /customer', 'POST /interaction/source/mask/card', 'POST /interaction/source/mask/cvv']
+      [
+        'GET /customer',
+        'POST /interaction/source/mask/card',
+        'POST /interaction/source/mask/cvv',
+      ]
     );
   });
 
-  test('verify code posts OTP, email, channel, and x-interaction-id to the default API', async () => {
+  test('verify code posts OTP, email, channel, x-interaction-id, and refreshes methods from the customer profile', async () => {
     const requests: CapturedRequest[] = [];
     const apiResponse: InteractionResponse = {
       interactionId: 'interaction-otp',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      paymentSources: [],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'stale-card',
+          name: 'Stale card from validate',
+        },
+      ],
     };
 
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
       requests.push({
         url: request.url,
         method: request.method,
@@ -1196,6 +1244,28 @@ suite('commerce-hub-connect flow', () => {
         bodyText: await request.clone().text(),
         credentials: request.credentials,
       });
+
+      if (pathname === '/customer') {
+        return new Response(
+          JSON.stringify({
+            sources: [
+              {
+                tenderType: 'Card',
+                id: 'customer-card',
+                name: 'Card from customer profile',
+                card: {
+                  network: 'Visa',
+                  cardNumber: '4111111111114242',
+                },
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
+      }
 
       return new Response(JSON.stringify(apiResponse), {
         status: 200,
@@ -1212,7 +1282,9 @@ suite('commerce-hub-connect flow', () => {
     await setOtpValue(el, '123456');
     await clickAction(el, 'verify-otp');
 
-    assert.lengthOf(requests, 1);
+    await waitForRequest(requests, '/customer', 'GET');
+
+    assert.lengthOf(requests, 2);
     assert.equal(
       requests[0].url,
       `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/otp/validate`
@@ -1227,10 +1299,25 @@ suite('commerce-hub-connect flow', () => {
       email: 'gregory.jablonski@fiserv.com',
       channel: 'EMAIL',
     });
-    assert.deepEqual(el.interactionResponse, apiResponse);
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['POST /interaction/otp/validate', 'GET /customer']
+    );
+    assert.equal(
+      el.interactionResponse?.paymentSources?.[0]?.id,
+      'customer-card'
+    );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Pay with'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-title')
+        ?.textContent?.trim(),
+      'Card from customer profile'
     );
   });
 
@@ -1504,8 +1591,7 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (
-        pathname ===
-        '/interaction/source/pbb/session/agg-session-1/p-token-1'
+        pathname === '/interaction/source/pbb/session/agg-session-1/p-token-1'
       ) {
         return new Response(
           JSON.stringify({
@@ -1639,7 +1725,9 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/interaction/source/pbb/session/agg-session-1/p-token-1') {
+      if (
+        pathname === '/interaction/source/pbb/session/agg-session-1/p-token-1'
+      ) {
         return new Response(
           JSON.stringify({
             selectedSource: {
@@ -1734,7 +1822,9 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/interaction/source/pbb/session/agg-session-1/p-token-1') {
+      if (
+        pathname === '/interaction/source/pbb/session/agg-session-1/p-token-1'
+      ) {
         return new Response(
           JSON.stringify({
             selectedSource: {
