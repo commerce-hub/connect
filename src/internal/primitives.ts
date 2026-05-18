@@ -309,6 +309,56 @@ export const renderPaymentMethodRow = ({
       data-payment-method-id=${id}
       ?disabled=${disabled}
     >
+      <span class="payment-method-icon-chip" aria-hidden="true">
+        <img
+          class="payment-method-icon-image"
+          data-payment-method-icon=${resolvePaymentMethodIconName(method)}
+          src=${resolvePaymentMethodIconDataUri(method)}
+          alt=""
+        />
+      </span>
+      <span class="payment-method-copy">
+        <span class="payment-method-title">${label}</span>
+        <span class="payment-method-meta">
+          ${paymentMethodAccountLabel(method)}
+        </span>
+        ${status === 'verified'
+          ? ''
+          : html`
+              <span class="payment-method-status status-text-${status}">
+                ${paymentMethodStatusLabel(status)}
+              </span>
+            `}
+      </span>
+      <span class="payment-method-radio" aria-hidden="true">
+        <span class="payment-method-radio-dot"></span>
+      </span>
+    </button>
+  `;
+};
+
+export const renderSelectedPaymentMethod = ({
+  id,
+  label,
+  status,
+  type,
+  eyebrow,
+  brand,
+  last4,
+}: PaymentMethod): TemplateResult => {
+  const method: PaymentMethod = {
+    id,
+    label,
+    status,
+    type,
+    eyebrow,
+    brand,
+    last4,
+    selected: true,
+  };
+
+  return html`
+    <div class="selected-payment-method" aria-label=${label}>
       <span class="payment-method-radio" aria-hidden="true">
         <span class="payment-method-radio-dot"></span>
       </span>
@@ -333,7 +383,7 @@ export const renderPaymentMethodRow = ({
               </span>
             `}
       </span>
-    </button>
+    </div>
   `;
 };
 
@@ -524,6 +574,7 @@ export const renderWidgetShell = ({
   title,
   subtitle,
   content,
+  headerAction,
   width = 'default',
   ariaLabel = 'Commerce Hub Connect',
   closeAction = 'close',
@@ -547,7 +598,12 @@ export const renderWidgetShell = ({
           </button>
         `
       : ''}
-    <h2 class="widget-title">${title}</h2>
+    <div class="widget-header">
+      <h2 class="widget-title">${title}</h2>
+      ${headerAction
+        ? html`<div class="widget-header-action">${headerAction}</div>`
+        : ''}
+    </div>
     ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
     ${showDivider
       ? html`<div class="widget-divider" aria-hidden="true"></div>`

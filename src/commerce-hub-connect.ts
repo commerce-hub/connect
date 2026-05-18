@@ -17,6 +17,7 @@ import {
   renderOtpResend,
   renderPaymentMethodRow,
   renderProviderFrame,
+  renderSelectedPaymentMethod,
   renderSelectField,
   renderSourceAction,
   renderTextField,
@@ -276,11 +277,25 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private billingAddressesLoading = false;
 
+  @state()
+  private paymentSourceView?: 'list' | 'selected';
+
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (
       changedProperties.has('interactionResponse') &&
       this.interactionResponse
     ) {
+      const previousInteractionResponse = changedProperties.get(
+        'interactionResponse'
+      ) as InteractionResponse | undefined;
+
+      if (
+        previousInteractionResponse?.interactionId !==
+        this.interactionResponse.interactionId
+      ) {
+        this.paymentSourceView = undefined;
+      }
+
       this.selectedPaymentSourceId = resolveSelectedPaymentSourceId(
         this.interactionResponse,
         this.selectedPaymentSourceId
@@ -422,6 +437,10 @@ export class CommerceHubConnect extends LitElement {
       return this.renderNoSavedPaymentMethods();
     }
 
+    if (this.shouldRenderSelectedPaymentSourceScreen()) {
+      return this.renderSelectedPaymentSourceScreen(copy);
+    }
+
     return renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
@@ -474,6 +493,46 @@ export class CommerceHubConnect extends LitElement {
         </div>
       `,
     });
+  }
+
+  private renderSelectedPaymentSourceScreen(
+    copy: ResolvedPaymentMethodsCopy
+  ): TemplateResult {
+    const selectedSource = selectedPaymentSourceFromInteractionResponse(
+      this.interactionResponse,
+      this.selectedPaymentSourceId
+    );
+
+    if (!selectedSource) {
+      this.paymentSourceView = 'list';
+      return this.renderPaymentSourceScreen();
+    }
+
+    return renderWidgetShell({
+      title: copy.title,
+      headerAction: renderTextLinkButton({
+        label: 'Change',
+        action: 'change-payment-source',
+        disabled: this.pendingAction === 'confirm-payment-source',
+      }),
+      showClose: false,
+      showDivider: false,
+      content: html`
+        <div class="payment-flow">
+          ${renderSelectedPaymentMethod(
+            paymentSourceToPaymentMethod(selectedSource, selectedSource.id)
+          )}
+        </div>
+      `,
+    });
+  }
+
+  private shouldRenderSelectedPaymentSourceScreen(): boolean {
+    if (this.interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED') {
+      return true;
+    }
+
+    return this.paymentSourceView === 'selected';
   }
 
   private renderNoSavedPaymentMethods(): TemplateResult {
@@ -875,7 +934,12 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'confirm-payment-source') {
-      this.confirmSelectedPaymentSource();
+      void this.confirmSelectedPaymentSource();
+      return;
+    }
+
+    if (action === 'change-payment-source') {
+      this.paymentSourceView = 'list';
       return;
     }
 
@@ -885,12 +949,14 @@ export class CommerceHubConnect extends LitElement {
       action === 'retry-bank-provider' ||
       action === 'use-different-bank-account'
     ) {
+      this.paymentSourceView = 'list';
       this.resetCardFlow();
       void this.startPayByBankFlow();
       return;
     }
 
     if (action === 'back-to-payment-methods') {
+      this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetBankFlow();
       return;
@@ -902,6 +968,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'add-card') {
+      this.paymentSourceView = 'list';
       this.showAddCardScreen();
       return;
     }
@@ -917,6 +984,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'use-different-method') {
+      this.paymentSourceView = 'list';
       this.resetCardFlow();
       return;
     }
@@ -1527,22 +1595,55 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private confirmSelectedPaymentSource() {
+  private async confirmSelectedPaymentSource() {
+    if (this.pendingAction === 'confirm-payment-source') {
+      return;
+    }
+
     if (!this.selectedPaymentSourceId) {
       return;
     }
 
-    const selectedSource = this.interactionResponse?.paymentSources?.find(
-      (source) => source.id === this.selectedPaymentSourceId
+    const selectedPaymentSourceId = this.selectedPaymentSourceId;
+    let selectedSource = selectedPaymentSourceFromInteractionResponse(
+      this.interactionResponse,
+      selectedPaymentSourceId
     );
+
+    this.pendingAction = 'confirm-payment-source';
+
+    const interactionId = this.requireInteractionId();
+
+    try {
+      if (interactionId) {
+        const profile = await this.getCustomerProfile(interactionId);
+        const paymentSources = profile.sources ?? [];
+        const refreshedSelectedSource =
+          paymentSources.find((source) => source.id === selectedPaymentSourceId) ??
+          selectedSource;
+
+        this.syncBillingAddressesFromProfile(profile);
+        selectedSource = refreshedSelectedSource;
+        this.selectedPaymentSourceId = refreshedSelectedSource?.id;
+        this.setInteractionResponseFromSdk({
+          ...this.interactionResponse,
+          interactionId,
+          selectedSource: refreshedSelectedSource,
+          paymentSources,
+        });
+      }
+    } catch (cause) {
+      void cause;
+    } finally {
+      this.pendingAction = undefined;
+    }
 
     if (!selectedSource) {
       return;
     }
 
-    this.dispatchEvent(
-      new CustomEvent(ON_SUCCESS_EVENT, {detail: selectedSource})
-    );
+    this.paymentSourceView = 'selected';
+    this.dispatchEvent(new CustomEvent(ON_SUCCESS_EVENT, {detail: selectedSource}));
   }
 
   private async startPayByBankFlow() {
@@ -1903,6 +2004,14 @@ export class CommerceHubConnect extends LitElement {
     } else {
       this.style.removeProperty(DESIGN_CONFIG_FONT_WEIGHT_PROPERTY);
     }
+
+    const shellPadding = this.designConfig?.shellPadding?.trim();
+
+    if (shellPadding) {
+      this.style.setProperty(DESIGN_CONFIG_SHELL_PADDING_PROPERTY, shellPadding);
+    } else {
+      this.style.removeProperty(DESIGN_CONFIG_SHELL_PADDING_PROPERTY);
+    }
   }
 }
 
@@ -1910,6 +2019,7 @@ export interface DesignConfig {
   colors?: DesignConfigColors;
   baseFontSize?: string;
   baseFontWeight?: string;
+  shellPadding?: string;
   copy?: DesignConfigCopy;
   payByBank?: DesignConfigPayByBank;
 }
@@ -2602,10 +2712,12 @@ const designConfigColorProperties: {
 ];
 
 const DESIGN_CONFIG_FONT_WEIGHT_PROPERTY = '--chc-font-weight';
+const DESIGN_CONFIG_SHELL_PADDING_PROPERTY = '--chc-shell-padding';
 
 const designConfigStyleProperties = [
   ...designConfigColorProperties.map(({property}) => property),
   DESIGN_CONFIG_FONT_WEIGHT_PROPERTY,
+  DESIGN_CONFIG_SHELL_PADDING_PROPERTY,
 ];
 
 const paymentMethodsFromInteractionResponse = (
@@ -2615,6 +2727,15 @@ const paymentMethodsFromInteractionResponse = (
   const paymentSources = interactionResponse?.paymentSources;
 
   if (!paymentSources?.length) {
+    const selectedSource = selectedPaymentSourceFromInteractionResponse(
+      interactionResponse,
+      selectedPaymentSourceId
+    );
+
+    if (selectedSource) {
+      return [paymentSourceToPaymentMethod(selectedSource, selectedSource.id)];
+    }
+
     return interactionResponse?.status === 'PAYMENT_SOURCE_REQUESTED'
       ? []
       : demoPaymentMethods;
@@ -2696,7 +2817,7 @@ const resolveSelectedPaymentSourceId = (
     return currentSelection;
   }
 
-  return interactionResponse?.selectedSource?.id ?? paymentSources[0].id;
+  return interactionResponse?.selectedSource?.id;
 };
 
 const resolvePreferredPaymentSource = (
@@ -2713,7 +2834,24 @@ const resolvePreferredPaymentSource = (
     }
   }
 
-  return paymentSources[0];
+  return undefined;
+};
+
+const selectedPaymentSourceFromInteractionResponse = (
+  interactionResponse?: InteractionResponse,
+  selectedPaymentSourceId?: string
+): PaymentSource | undefined => {
+  if (selectedPaymentSourceId) {
+    const selectedSource = interactionResponse?.paymentSources?.find(
+      (source) => source.id === selectedPaymentSourceId
+    );
+
+    if (selectedSource) {
+      return selectedSource;
+    }
+  }
+
+  return interactionResponse?.selectedSource;
 };
 
 const paymentSourcesFromSourceListResponse = (

@@ -431,6 +431,16 @@
                   />
                 </label>
 
+                <label class="field" for="design-config-shell-padding">
+                  <span class="field-label">Shell padding</span>
+                  <input
+                    class="field-input"
+                    id="design-config-shell-padding"
+                    type="text"
+                    placeholder="1.75rem 1.5rem 1.5rem"
+                  />
+                </label>
+
                 <label class="field" for="design-config-primary-color">
                   <span class="field-label">Primary color</span>
                   <input
@@ -457,7 +467,7 @@
                     class="field-input"
                     id="design-config-copy-color"
                     type="text"
-                    placeholder="#344054"
+                    placeholder="#9f9f9f"
                   />
                 </label>
 
@@ -693,6 +703,7 @@
       const designConfigFields = {
         baseFontSize: document.querySelector('#design-config-base-font-size'),
         baseFontWeight: document.querySelector('#design-config-base-font-weight'),
+        shellPadding: document.querySelector('#design-config-shell-padding'),
         primaryColor: document.querySelector('#design-config-primary-color'),
         textColor: document.querySelector('#design-config-text-color'),
         copyColor: document.querySelector('#design-config-copy-color'),
@@ -733,9 +744,10 @@
       const initialDesignConfigFormState = {
         baseFontSize: '16px',
         baseFontWeight: '300',
+        shellPadding: '1.75rem 1.5rem 1.5rem',
         primaryColor: '#084acc',
         textColor: '#101828',
-        copyColor: '#344054',
+        copyColor: '#9f9f9f',
         borderColor: '#cbd5e1',
         otpTitle: 'Confirm your email',
         otpVerifyButton: 'Verify',
@@ -830,6 +842,11 @@
           designConfigFormState.baseFontWeight
         );
         setOptionalTextValue(
+          designConfig,
+          'shellPadding',
+          designConfigFormState.shellPadding
+        );
+        setOptionalTextValue(
           colors,
           'primary',
           designConfigFormState.primaryColor
@@ -908,6 +925,7 @@
       const readDesignConfigFormState = () => ({
         baseFontSize: designConfigFields.baseFontSize.value,
         baseFontWeight: designConfigFields.baseFontWeight.value,
+        shellPadding: designConfigFields.shellPadding.value,
         primaryColor: designConfigFields.primaryColor.value,
         textColor: designConfigFields.textColor.value,
         copyColor: designConfigFields.copyColor.value,
@@ -944,6 +962,8 @@
           designConfigFormState.baseFontSize;
         designConfigFields.baseFontWeight.value =
           designConfigFormState.baseFontWeight;
+        designConfigFields.shellPadding.value =
+          designConfigFormState.shellPadding;
         designConfigFields.primaryColor.value =
           designConfigFormState.primaryColor;
         designConfigFields.textColor.value = designConfigFormState.textColor;

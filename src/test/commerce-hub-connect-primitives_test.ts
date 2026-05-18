@@ -61,6 +61,18 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
 
+  test('does not use font shorthands in shared styles so base font-weight inheritance remains intact', () => {
+    assert.notInclude(primitiveStyles.cssText, 'font: inherit');
+  });
+
+  test('uses rem units in shared styles instead of px sizing tokens', () => {
+    assert.notInclude(primitiveStyles.cssText, 'px');
+  });
+
+  test('declares a hover affordance for clickable source action links', () => {
+    assert.include(primitiveStyles.cssText, '.source-action-link:hover');
+  });
+
   test('renders the widget shell with SDK v2 token defaults and shell affordances', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect></commerce-hub-connect>`
@@ -104,7 +116,7 @@ suite('commerce-hub-connect primitives', () => {
       poweredByBrand.textContent?.trim(),
       'Commerce Hub Connect'
     );
-    assert.equal(getComputedStyle(poweredByBrand).color, 'rgb(16, 24, 40)');
+    assert.equal(getComputedStyle(poweredByBrand).color, 'rgb(102, 112, 133)');
   });
 
   test('applies partial designConfig color and typography without resizing controls', async () => {
@@ -117,6 +129,7 @@ suite('commerce-hub-connect primitives', () => {
           },
           baseFontSize: '20px',
           baseFontWeight: '350',
+          shellPadding: '2rem 1.25rem 1rem',
         }}
       ></commerce-hub-connect>`
     )) as CommerceHubConnect;
@@ -152,6 +165,10 @@ suite('commerce-hub-connect primitives', () => {
       getComputedStyle(shell).backgroundColor,
       'rgb(244, 247, 251)'
     );
+    assert.equal(getComputedStyle(shell).paddingTop, '32px');
+    assert.equal(getComputedStyle(shell).paddingRight, '20px');
+    assert.equal(getComputedStyle(shell).paddingBottom, '16px');
+    assert.equal(getComputedStyle(shell).paddingLeft, '20px');
   });
 
   test('renders payment sources from an interaction response input', async () => {

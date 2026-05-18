@@ -56,6 +56,7 @@ suite('demo host page', () => {
     assert.include(html, 'id="design-config-form"');
     assert.include(html, 'id="design-config-base-font-size"');
     assert.include(html, 'id="design-config-base-font-weight"');
+    assert.include(html, 'id="design-config-shell-padding"');
     assert.include(html, 'id="design-config-primary-color"');
     assert.include(html, 'id="design-config-otp-title"');
     assert.include(html, 'id="design-config-payment-methods-title"');
@@ -132,9 +133,10 @@ suite('demo host page', () => {
 
     assert.include(html, "baseFontSize: '16px'");
     assert.include(html, "baseFontWeight: '300'");
+    assert.include(html, "shellPadding: '1.75rem 1.5rem 1.5rem'");
     assert.include(html, "primaryColor: '#084acc'");
     assert.include(html, "textColor: '#101828'");
-    assert.include(html, "copyColor: '#344054'");
+    assert.include(html, "copyColor: '#9f9f9f'");
     assert.include(html, "borderColor: '#cbd5e1'");
     assert.include(html, "otpTitle: 'Confirm your email'");
     assert.include(html, "otpVerifyButton: 'Verify'");

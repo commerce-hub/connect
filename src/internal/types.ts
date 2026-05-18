@@ -10,6 +10,7 @@ export type FlowActionName =
   | 'verify-otp'
   | 'resend-otp'
   | 'confirm-payment-source'
+  | 'change-payment-source'
   | 'add-bank-account'
   | 'add-card'
   | 'save-card'
@@ -234,6 +235,7 @@ export interface WidgetShellOptions {
   title: string;
   subtitle?: string;
   content: TemplateResult;
+  headerAction?: TemplateResult;
   width?: 'default' | 'wide';
   ariaLabel?: string;
   closeAction?: string;
