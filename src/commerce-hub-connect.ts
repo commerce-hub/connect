@@ -1671,19 +1671,19 @@ export class CommerceHubConnect extends LitElement {
             );
             const bankSource =
               resolvePayByBankSourceFromInteractionResponse(sourceResponse);
-            const verifiedBankSource = await this.verifyPayByBankSource(
+            const resolvedBankSource = await this.resolvePayByBankOutcomeSource(
               interactionId,
               bankSource
             );
-            const paymentSourceId = verifiedBankSource.id;
+            const paymentSourceId = resolvedBankSource.id;
 
             this.selectedPaymentSourceId = paymentSourceId;
-            this.bankOutcomeSource = verifiedBankSource;
+            this.bankOutcomeSource = resolvedBankSource;
             this.bankFlowScreen = 'outcome';
             this.setInteractionResponseFromSdk(
               withUpsertedSource(
                 this.interactionResponse ?? {interactionId},
-                verifiedBankSource
+                resolvedBankSource
               )
             );
             settled = true;
@@ -1701,7 +1701,7 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string
   ): Promise<CustomerProfile> {
     return this.requestCommerceHubJson<CustomerProfile>(
-      '/interaction',
+      '/customer',
       interactionId,
       {method: 'GET', credentials: 'include'}
     );
@@ -1805,6 +1805,17 @@ export class CommerceHubConnect extends LitElement {
       interactionId,
       {method: 'PUT', credentials: 'include'}
     );
+  }
+
+  private async resolvePayByBankOutcomeSource(
+    interactionId: string,
+    source: BankPaymentSource
+  ): Promise<BankPaymentSource> {
+    if (source.verificationInfo?.status !== 'NOT_VERIFIED') {
+      return source;
+    }
+
+    return this.verifyPayByBankSource(interactionId, source);
   }
 
   private async verifyPayByBankSource(
@@ -2935,7 +2946,7 @@ const withUpsertedSource = (
 };
 
 type BankOutcome = {
-  kind: 'verified' | 'pending' | 'failed';
+  kind: 'verified' | 'pending' | 'requires-info' | 'declined' | 'failed';
   variant: 'success' | 'warning' | 'danger';
   title: string;
   message: string;
@@ -2953,12 +2964,31 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     };
   }
 
-  if (status === 'UNDER_REVIEW' || status === 'REQUIRE_INFO') {
+  if (status === 'UNDER_REVIEW') {
     return {
       kind: 'pending',
       variant: 'warning',
       title: 'Verification pending review',
       message: 'We will update this bank account after review is complete.',
+    };
+  }
+
+  if (status === 'REQUIRE_INFO') {
+    return {
+      kind: 'requires-info',
+      variant: 'warning',
+      title: 'More information required',
+      message:
+        'Additional information is required before this bank account can be verified.',
+    };
+  }
+
+  if (status === 'DECLINED') {
+    return {
+      kind: 'declined',
+      variant: 'danger',
+      title: 'Bank account declined',
+      message: 'This bank account could not be verified.',
     };
   }
 
@@ -2991,8 +3021,16 @@ const verificationStatusLabel = (
     return 'Verified';
   }
 
-  if (status === 'UNDER_REVIEW' || status === 'REQUIRE_INFO') {
+  if (status === 'UNDER_REVIEW') {
     return 'Pending review';
+  }
+
+  if (status === 'REQUIRE_INFO') {
+    return 'More information required';
+  }
+
+  if (status === 'DECLINED') {
+    return 'Declined';
   }
 
   return 'Not verified';

@@ -191,6 +191,10 @@ const recordOutputEvents = (el: Element) => {
   return {successEvents, errorEvents};
 };
 
+type VerificationStatus = NonNullable<
+  PaymentSource['verificationInfo']
+>['status'];
+
 interface TestPaymentSdkEvent {
   type?: string;
   payload?: unknown;
@@ -215,6 +219,98 @@ const paymentSdkWindow = window as Window & {
     init: (configuration: TestPaymentSdkInitConfiguration) => void;
     destroy?: () => void;
   };
+};
+
+const completePayByBankFlow = async ({
+  finalizedStatus,
+  verificationStatus,
+}: {
+  finalizedStatus: VerificationStatus;
+  verificationStatus?: VerificationStatus;
+}) => {
+  const requests: CapturedRequest[] = [];
+  let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+  paymentSdkWindow.PaymentSDK = {
+    init: (configuration) => {
+      initConfig = configuration;
+    },
+    destroy: () => undefined,
+  };
+
+  window.fetch = async (input: RequestInfo | URL) => {
+    const request = input instanceof Request ? input : new Request(input);
+    requests.push({
+      url: request.url,
+      method: request.method,
+      headers: new Headers(request.headers),
+      bodyText: await request.clone().text(),
+      credentials: request.credentials,
+    });
+
+    const pathname = new URL(request.url).pathname;
+
+    if (pathname === '/interaction/source/pbb/session') {
+      return new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    }
+
+    if (
+      pathname === '/interaction/source/pbb/session/agg-session-1/p-token-1'
+    ) {
+      return new Response(
+        JSON.stringify({
+          selectedSource: {
+            id: 'bank-new',
+            tenderType: 'BankAccount',
+            name: 'Operating account',
+            verificationInfo: {status: finalizedStatus},
+            bankAccount: {
+              bankName: 'Commerce National Bank',
+              accountNumber: '9876543210',
+            },
+          },
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    }
+
+    if (pathname === '/interaction/verify/step1' && verificationStatus) {
+      return new Response(
+        JSON.stringify({
+          status: verificationStatus,
+          docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    }
+
+    return new Response(JSON.stringify({message: 'Unexpected request'}), {
+      status: 500,
+      headers: {'Content-Type': 'application/json'},
+    });
+  };
+
+  const el = await renderConnect({
+    interactionId: 'interaction-payment',
+    status: 'PAYMENT_SOURCE_REQUESTED',
+    paymentSources: [],
+  });
+  const events = recordOutputEvents(el);
+
+  await clickAction(el, 'add-bank-account');
+  await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+  await initConfig!.onEvent({type: 'success'});
+  await flushElement(el);
+
+  return {el, requests, ...events};
 };
 
 suite('commerce-hub-connect flow', () => {
@@ -1821,6 +1917,162 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_REQUESTED');
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
+  });
+
+  test('Pay by Bank success uses finalized VERIFIED status without verification request', async () => {
+    const {el, requests, successEvents, errorEvents} =
+      await completePayByBankFlow({finalizedStatus: 'VERIFIED'});
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      [
+        'GET /interaction/source/pbb/session',
+        'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
+      ]
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank account verified'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('[data-action="continue-bank-outcome"]')
+        ?.textContent?.trim(),
+      'Continue'
+    );
+    assert.equal(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
+      'VERIFIED'
+    );
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
+  });
+
+  test('Pay by Bank success uses finalized UNDER_REVIEW status without verification request', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'UNDER_REVIEW',
+    });
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      [
+        'GET /interaction/source/pbb/session',
+        'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
+      ]
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Verification pending review'
+    );
+    const detailValues = [
+      ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
+    ].map((node) => node.textContent?.trim());
+    assert.deepEqual(detailValues, [
+      'Commerce National Bank',
+      '3210',
+      'Pending review',
+    ]);
+  });
+
+  test('Pay by Bank success uses finalized REQUIRE_INFO status without verification request', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'REQUIRE_INFO',
+    });
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      [
+        'GET /interaction/source/pbb/session',
+        'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
+      ]
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'More information required'
+    );
+    const detailValues = [
+      ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
+    ].map((node) => node.textContent?.trim());
+    assert.deepEqual(detailValues, [
+      'Commerce National Bank',
+      '3210',
+      'More information required',
+    ]);
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="use-different-bank-account"]')
+    );
+  });
+
+  test('Pay by Bank success uses finalized DECLINED status without verification request', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'DECLINED',
+    });
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      [
+        'GET /interaction/source/pbb/session',
+        'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
+      ]
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank account declined'
+    );
+    const detailValues = [
+      ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
+    ].map((node) => node.textContent?.trim());
+    assert.deepEqual(detailValues, [
+      'Commerce National Bank',
+      '3210',
+      'Declined',
+    ]);
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="use-different-bank-account"]')
+    );
+  });
+
+  test('Pay by Bank NOT_VERIFIED source runs verification and routes by returned VERIFIED status', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'NOT_VERIFIED',
+      verificationStatus: 'VERIFIED',
+    });
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      [
+        'GET /interaction/source/pbb/session',
+        'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
+        'POST /interaction/verify/step1',
+      ]
+    );
+    assert.equal(requests[2].bodyText, JSON.stringify({value: 'bank-new'}));
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank account verified'
+    );
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo,
+      {
+        status: 'VERIFIED',
+        docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+      }
+    );
   });
 
   test('Pay by Bank success with no finalized bank source renders provider unavailable', async () => {
