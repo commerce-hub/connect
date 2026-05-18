@@ -1285,13 +1285,43 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(el.interactionResponse?.selectedSource?.id, 'card-created-1');
     assert.equal(
       el
-        .shadowRoot!.querySelector('.payment-method-title')
+        .shadowRoot!.querySelector('[data-action="change-payment-source"]')
+        ?.textContent?.trim(),
+      'Change'
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector(
+          '.selected-payment-method .payment-method-title'
+        )
         ?.textContent?.trim(),
       'Card from source response'
     );
     assert.equal(
-      el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
+      el
+        .shadowRoot!.querySelector(
+          '.selected-payment-method .payment-method-meta'
+        )
+        ?.textContent?.trim(),
       '•••• 4444'
+    );
+
+    await clickAction(el, 'change-payment-source');
+
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
+        ?.textContent?.trim(),
+      'Confirm'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-row')
+        ?.getAttribute('aria-checked'),
+      'true'
     );
   });
 

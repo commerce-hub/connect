@@ -526,11 +526,14 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private shouldRenderSelectedPaymentSourceScreen(): boolean {
-    if (this.interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED') {
-      return true;
+    if (this.paymentSourceView === 'list') {
+      return false;
     }
 
-    return this.paymentSourceView === 'selected';
+    return (
+      this.interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED' ||
+      this.paymentSourceView === 'selected'
+    );
   }
 
   private renderNoSavedPaymentMethods(): TemplateResult {
@@ -1500,6 +1503,7 @@ export class CommerceHubConnect extends LitElement {
           createdSource
         )
       );
+      this.paymentSourceView = 'selected';
     } catch (cause) {
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
@@ -2778,17 +2782,22 @@ const paymentMethodsFromInteractionResponse = (
 const paymentSourceToPaymentMethod = (
   source: PaymentSource,
   selectedSourceId?: string
-): PaymentMethod => ({
-  id: source.id ?? source.name ?? source.tenderType,
-  label: source.name ?? paymentSourceLabel(source),
-  type: isBankPaymentSource(source) ? 'bank' : 'card',
-  brand: paymentSourceBrand(source),
-  last4: paymentSourceLast4(source),
-  status: verificationStatusToPaymentMethodStatus(
-    source.verificationInfo?.status
-  ),
-  selected: Boolean(source.id && source.id === selectedSourceId),
-});
+): PaymentMethod => {
+  const sourceId = source.id?.trim();
+  const sourceName = source.name?.trim();
+
+  return {
+    id: sourceId || sourceName || source.tenderType,
+    label: sourceName || paymentSourceLabel(source),
+    type: isBankPaymentSource(source) ? 'bank' : 'card',
+    brand: paymentSourceBrand(source),
+    last4: paymentSourceLast4(source),
+    status: verificationStatusToPaymentMethodStatus(
+      source.verificationInfo?.status
+    ),
+    selected: Boolean(sourceId && sourceId === selectedSourceId),
+  };
+};
 
 const paymentSourceLabel = (source: PaymentSource): string => {
   if (isCardPaymentSource(source)) {
@@ -2796,7 +2805,7 @@ const paymentSourceLabel = (source: PaymentSource): string => {
   }
 
   if (isBankPaymentSource(source)) {
-    return 'Saved bank account';
+    return source.bankAccount?.bankName ?? 'Saved bank account';
   }
 
   return 'Dynamic session card';

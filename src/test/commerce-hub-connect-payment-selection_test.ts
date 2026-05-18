@@ -252,4 +252,103 @@ suite('commerce-hub-connect payment selection', () => {
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
     );
   });
+
+  test('change on an attached selected payment returns to the saved source list', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_ATTACHED',
+      selectedSource: {
+        tenderType: 'Card',
+        id: 'card-1',
+        name: 'Corporate Visa',
+        verificationInfo: {status: 'VERIFIED'},
+        card: {
+          network: 'Visa',
+          cardNumber: '4111111111111111',
+        },
+      },
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate Visa',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ],
+    });
+
+    await clickAction(el, 'change-payment-source');
+
+    const rows = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.payment-method-row'
+      ),
+    ];
+
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
+        ?.textContent?.trim(),
+      'Confirm'
+    );
+    assert.lengthOf(rows, 2);
+    assert.equal(rows[0].getAttribute('aria-checked'), 'true');
+    assert.equal(rows[1].getAttribute('aria-checked'), 'false');
+  });
+
+  test('change on an attached selected payment without paymentSources still renders the selected source in the list', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_ATTACHED',
+      selectedSource: {
+        tenderType: 'Card',
+        id: 'card-1',
+        name: 'Corporate Visa',
+        verificationInfo: {status: 'VERIFIED'},
+        card: {
+          network: 'Visa',
+          cardNumber: '4111111111111111',
+        },
+      },
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'change-payment-source');
+
+    const rows = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.payment-method-row'
+      ),
+    ];
+
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
+        ?.textContent?.trim(),
+      'Confirm'
+    );
+    assert.lengthOf(rows, 1);
+    assert.equal(
+      rows[0].querySelector('.payment-method-title')?.textContent?.trim(),
+      'Corporate Visa'
+    );
+    assert.equal(
+      rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
+      '•••• 1111'
+    );
+    assert.equal(rows[0].getAttribute('aria-checked'), 'true');
+  });
 });

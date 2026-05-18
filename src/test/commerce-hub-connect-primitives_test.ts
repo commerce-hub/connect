@@ -252,6 +252,83 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(rows[1].querySelector('.payment-method-chevron'));
   });
 
+  test('uses the bank name as the payment-method title when a bank source name is missing', async () => {
+    const interactionResponse: InteractionResponse = {
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ],
+    };
+
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .interactionResponse=${interactionResponse}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+
+    await el.updateComplete;
+
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-title')
+        ?.textContent?.trim(),
+      'Commerce National Bank'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-meta')
+        ?.textContent?.trim(),
+      '•••• 3210'
+    );
+  });
+
+  test('uses the bank name as the payment-method title when a bank source name is blank', async () => {
+    const interactionResponse: InteractionResponse = {
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: '   ',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ],
+    };
+
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .interactionResponse=${interactionResponse}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+
+    await el.updateComplete;
+
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-title')
+        ?.textContent?.trim(),
+      'Commerce National Bank'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-meta')
+        ?.textContent?.trim(),
+      '•••• 3210'
+    );
+  });
+
   test('does not emit onSuccess when interaction response changes', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect></commerce-hub-connect>`
