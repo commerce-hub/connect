@@ -541,36 +541,31 @@ export const primitiveStyles = css`
     color: var(--chc-danger);
   }
 
-  .payment-method-row {
+  .payment-method-row,
+  .selected-payment-method {
     width: 100%;
     display: grid;
     grid-template-columns: 2.5rem minmax(0, 1fr) 1.125rem;
     gap: 0.75rem;
     align-items: center;
-    border: 0.0625rem solid transparent;
     border-radius: 1.125rem;
     padding: 0.55rem 0.875rem;
     background: var(--chc-soft-surface);
     color: var(--chc-text);
     text-align: left;
+  }
+
+  .payment-method-row {
+    border: 0.0625rem solid transparent;
     cursor: pointer;
   }
 
   .selected-payment-method {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1.125rem 2.5rem minmax(0, 1fr);
-    gap: 0.75rem;
-    align-items: center;
     border: 0.0625rem solid var(--chc-primary);
-    border-radius: 1.125rem;
-    padding: 0.55rem 0.875rem;
-    background: var(--chc-soft-surface);
-    color: var(--chc-text);
-    text-align: left;
   }
 
-  .payment-method-row[aria-checked='true'] {
+  .payment-method-row[aria-checked='true'],
+  .selected-payment-method {
     border-color: var(--chc-primary);
     box-shadow: 0 0 0 0.0625rem var(--chc-primary);
   }
@@ -610,30 +605,20 @@ export const primitiveStyles = css`
     content: '';
   }
 
-  .payment-method-row[aria-checked='true'] .payment-method-radio {
+  .payment-method-row[aria-checked='true'] .payment-method-radio,
+  .selected-payment-method .payment-method-radio {
     border-color: var(--chc-primary);
     background: var(--chc-primary);
   }
 
-  .payment-method-row[aria-checked='true'] .payment-method-radio-dot {
+  .payment-method-row[aria-checked='true'] .payment-method-radio-dot,
+  .selected-payment-method .payment-method-radio-dot {
     color: #fff;
   }
 
-  .selected-payment-method .payment-method-radio {
-    border-color: color-mix(in srgb, var(--chc-primary) 20%, var(--chc-border));
-    background: var(--chc-surface);
-  }
-
-  .payment-method-row[aria-checked='true'] .payment-method-radio-dot::before {
-    content: '✓';
-  }
-
+  .payment-method-row[aria-checked='true'] .payment-method-radio-dot::before,
   .selected-payment-method .payment-method-radio-dot::before {
-    content: '';
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 999rem;
-    background: var(--chc-primary);
+    content: '✓';
   }
 
   .payment-method-icon-chip {

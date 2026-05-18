@@ -17,6 +17,7 @@ import {
   renderPaymentMethodRow,
   renderPoweredByFooter,
   renderProviderFrame,
+  renderSelectedPaymentMethod,
   renderSelectField,
   renderSourceAction,
   renderStatusPill,
@@ -231,7 +232,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 4242'
+      'Visa •••• 4242'
     );
     assert.equal(rows[0].getAttribute('aria-checked'), 'true');
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
@@ -242,7 +243,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[1].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 3210'
+      'Commerce National Bank •••• 3210'
     );
     assert.equal(
       rows[1].querySelector('.payment-method-status')?.textContent?.trim(),
@@ -509,7 +510,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       root.querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 1234'
+      'Checking •••• 1234'
     );
     assert.equal(
       root.querySelector('.payment-method-status')?.textContent?.trim(),
@@ -537,6 +538,60 @@ suite('commerce-hub-connect primitives', () => {
         item.textContent?.trim()
       ),
       ['Account holder name', 'Last 4 digits']
+    );
+  });
+
+  test('renders the selected payment method with the same right-aligned checked control and copy layout as a selected list row', async () => {
+    const method: PaymentMethod = {
+      id: 'bank-1',
+      label: 'Operating account',
+      type: 'bank',
+      brand: 'Commerce National Bank',
+      last4: '3210',
+      status: 'pending',
+      selected: true,
+    };
+
+    const root = await renderHarness(html`
+      ${renderPaymentMethodRow(method)} ${renderSelectedPaymentMethod(method)}
+    `);
+
+    const row = root.querySelector<HTMLButtonElement>('.payment-method-row')!;
+    const selected = root.querySelector<HTMLElement>('.selected-payment-method')!;
+    const rowControl = row.querySelector<HTMLElement>('.payment-method-radio')!;
+    const selectedControl =
+      selected.querySelector<HTMLElement>('.payment-method-radio')!;
+    const rowDot = row.querySelector<HTMLElement>('.payment-method-radio-dot')!;
+    const selectedDot =
+      selected.querySelector<HTMLElement>('.payment-method-radio-dot')!;
+
+    assert.equal(
+      selected.querySelector('.payment-method-title')?.textContent?.trim(),
+      'Operating account'
+    );
+    assert.equal(
+      selected.querySelector('.payment-method-meta')?.textContent?.trim(),
+      'Commerce National Bank •••• 3210'
+    );
+    assert.deepEqual(
+      [...selected.children].map((child) => (child as HTMLElement).className),
+      [...row.children].map((child) => (child as HTMLElement).className)
+    );
+    assert.equal(
+      getComputedStyle(selected).gridTemplateColumns,
+      getComputedStyle(row).gridTemplateColumns
+    );
+    assert.equal(
+      getComputedStyle(selectedControl).backgroundColor,
+      getComputedStyle(rowControl).backgroundColor
+    );
+    assert.equal(
+      getComputedStyle(selectedControl).borderColor,
+      getComputedStyle(rowControl).borderColor
+    );
+    assert.equal(
+      getComputedStyle(selectedDot, '::before').content,
+      getComputedStyle(rowDot, '::before').content
     );
   });
 

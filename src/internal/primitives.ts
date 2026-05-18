@@ -31,8 +31,30 @@ const titleCase = (value: string) =>
 const joinClassNames = (...classNames: Array<string | false | undefined>) =>
   classNames.filter(Boolean).join(' ');
 
-const paymentMethodAccountLabel = ({brand, last4}: PaymentMethod): string =>
-  last4 ? `•••• ${last4}` : brand;
+const normalizeCopyValue = (value?: string): string | undefined => {
+  const normalized = value?.trim();
+
+  return normalized ? normalized : undefined;
+};
+
+const paymentMethodAccountLabel = ({
+  label,
+  brand,
+  last4,
+}: PaymentMethod): string => {
+  const normalizedLabel = normalizeCopyValue(label);
+  const normalizedBrand = normalizeCopyValue(brand);
+
+  if (last4 && normalizedBrand && normalizedBrand !== normalizedLabel) {
+    return `${normalizedBrand} •••• ${last4}`;
+  }
+
+  if (last4) {
+    return `•••• ${last4}`;
+  }
+
+  return normalizedBrand ?? '';
+};
 
 const paymentMethodStatusLabel = (status: PaymentMethod['status']): string => {
   if (status === 'verified') {
@@ -45,6 +67,40 @@ const paymentMethodStatusLabel = (status: PaymentMethod['status']): string => {
 
   return 'Not verified';
 };
+
+const renderPaymentMethodControl = (): TemplateResult => html`
+  <span class="payment-method-radio" aria-hidden="true">
+    <span class="payment-method-radio-dot"></span>
+  </span>
+`;
+
+const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
+  <span class="payment-method-copy">
+    <span class="payment-method-title">${method.label}</span>
+    <span class="payment-method-meta">
+      ${paymentMethodAccountLabel(method)}
+    </span>
+    ${method.status === 'verified'
+      ? ''
+      : html`
+          <span class="payment-method-status status-text-${method.status}">
+            ${paymentMethodStatusLabel(method.status)}
+          </span>
+        `}
+  </span>
+`;
+
+const renderPaymentMethodContent = (method: PaymentMethod): TemplateResult => html`
+  <span class="payment-method-icon-chip" aria-hidden="true">
+    <img
+      class="payment-method-icon-image"
+      data-payment-method-icon=${resolvePaymentMethodIconName(method)}
+      src=${resolvePaymentMethodIconDataUri(method)}
+      alt=""
+    />
+  </span>
+  ${renderPaymentMethodCopy(method)} ${renderPaymentMethodControl()}
+`;
 
 export const renderButton = ({
   label,
@@ -309,30 +365,7 @@ export const renderPaymentMethodRow = ({
       data-payment-method-id=${id}
       ?disabled=${disabled}
     >
-      <span class="payment-method-icon-chip" aria-hidden="true">
-        <img
-          class="payment-method-icon-image"
-          data-payment-method-icon=${resolvePaymentMethodIconName(method)}
-          src=${resolvePaymentMethodIconDataUri(method)}
-          alt=""
-        />
-      </span>
-      <span class="payment-method-copy">
-        <span class="payment-method-title">${label}</span>
-        <span class="payment-method-meta">
-          ${paymentMethodAccountLabel(method)}
-        </span>
-        ${status === 'verified'
-          ? ''
-          : html`
-              <span class="payment-method-status status-text-${status}">
-                ${paymentMethodStatusLabel(status)}
-              </span>
-            `}
-      </span>
-      <span class="payment-method-radio" aria-hidden="true">
-        <span class="payment-method-radio-dot"></span>
-      </span>
+      ${renderPaymentMethodContent(method)}
     </button>
   `;
 };
@@ -359,30 +392,7 @@ export const renderSelectedPaymentMethod = ({
 
   return html`
     <div class="selected-payment-method" aria-label=${label}>
-      <span class="payment-method-radio" aria-hidden="true">
-        <span class="payment-method-radio-dot"></span>
-      </span>
-      <span class="payment-method-icon-chip" aria-hidden="true">
-        <img
-          class="payment-method-icon-image"
-          data-payment-method-icon=${resolvePaymentMethodIconName(method)}
-          src=${resolvePaymentMethodIconDataUri(method)}
-          alt=""
-        />
-      </span>
-      <span class="payment-method-copy">
-        <span class="payment-method-title">${label}</span>
-        <span class="payment-method-meta">
-          ${paymentMethodAccountLabel(method)}
-        </span>
-        ${status === 'verified'
-          ? ''
-          : html`
-              <span class="payment-method-status status-text-${status}">
-                ${paymentMethodStatusLabel(status)}
-              </span>
-            `}
-      </span>
+      ${renderPaymentMethodContent(method)}
     </div>
   `;
 };
