@@ -34,6 +34,8 @@ Do not commit secrets, merchant tokens, or real customer data. Keep API fixtures
 
 ## Codex Learnings
 
+- 2026-05-18: Npm run build completed successfully.
+
 - 2026-05-18: Npm run build && `npm test passed`.
 
 - 2026-05-18: `BROWSERS=chromium npm run test:dev -- --files test/commerce-hub-connect-flow_test`.js → 31 passed.
