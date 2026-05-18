@@ -971,7 +971,7 @@ suite('commerce-hub-connect flow', () => {
         return new Response(null, {status: 204});
       }
 
-      if (request.url.endsWith('/interaction/source')) {
+      if (request.url.endsWith('/interaction/source/card')) {
         return new Response(JSON.stringify({message: 'Save failed'}), {
           status: 500,
           headers: {'Content-Type': 'application/json'},
@@ -1108,7 +1108,7 @@ suite('commerce-hub-connect flow', () => {
         return new Response(null, {status: 204});
       }
 
-      if (request.url.endsWith('/interaction/source')) {
+      if (request.url.endsWith('/interaction/source/card')) {
         return new Response(
           JSON.stringify({
             selectedSource: {
@@ -1179,7 +1179,7 @@ suite('commerce-hub-connect flow', () => {
         'POST /interaction/source/mask/card',
         'POST /interaction/source/mask/cvv',
         'POST /interaction/billing-address',
-        'POST /interaction/source',
+        'POST /interaction/source/card',
         'POST /interaction/source/card-created-1/attach',
         'GET /customer',
       ]
@@ -1298,7 +1298,7 @@ suite('commerce-hub-connect flow', () => {
         });
       }
 
-      if (request.url.endsWith('/interaction/source')) {
+      if (request.url.endsWith('/interaction/source/card')) {
         return new Response(
           JSON.stringify({
             selectedSource: {
@@ -1370,7 +1370,7 @@ suite('commerce-hub-connect flow', () => {
     );
 
     const sourceRequest = requests.find(
-      (request) => new URL(request.url).pathname === '/interaction/source'
+      (request) => new URL(request.url).pathname === '/interaction/source/card'
     )!;
     const sourceBody = JSON.parse(sourceRequest.bodyText);
 

@@ -196,22 +196,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/source": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["addSource"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/interaction/source/{paymentSourceId}/attach": {
         parameters: {
             query?: never;
@@ -238,6 +222,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["mask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interaction/source/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interaction/source/ach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addACH"];
         delete?: never;
         options?: never;
         head?: never;
@@ -619,6 +635,7 @@ export interface components {
             accountType?: string;
             routingNumberEncrypted?: string;
             accountNumberEncrypted?: string;
+            accountNumberReEntered?: string;
         };
         Card: {
             tenderType: "Card";
@@ -1196,30 +1213,6 @@ export interface operations {
             };
         };
     };
-    addSource: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["InteractionResponse"];
-                };
-            };
-        };
-    };
     attachPaymentMethod: {
         parameters: {
             query?: never;
@@ -1264,6 +1257,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["StringHolder"];
+                };
+            };
+        };
+    };
+    addCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Card"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InteractionResponse"];
+                };
+            };
+        };
+    };
+    addACH: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankAccount"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InteractionResponse"];
                 };
             };
         };

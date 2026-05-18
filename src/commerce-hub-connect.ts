@@ -1421,7 +1421,7 @@ export class CommerceHubConnect extends LitElement {
       };
       const sourceResponse =
         await this.requestCommerceHubJson<CreatedPaymentSourceResponse>(
-          '/interaction/source',
+          '/interaction/source/card',
           interactionId,
           {
             method: 'POST',
