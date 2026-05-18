@@ -30,6 +30,7 @@ suite('demo host page', () => {
     assert.include(html, 'id="interaction-first-name"');
     assert.include(html, 'id="interaction-last-name"');
     assert.include(html, 'id="interaction-advanced-verification"');
+    assert.include(html, 'id="interaction-pre-authenticated"');
     assert.include(html, 'name="allowedTenderTypes"');
     assert.include(html, '<pre id="interaction-request-preview"');
     assert.isAtLeast(
@@ -115,9 +116,14 @@ suite('demo host page', () => {
     assert.include(html, "merchantId: '101475000000009'");
     assert.include(html, "terminalId: '10000001'");
     assert.include(html, 'advancedVerification: false');
+    assert.include(html, 'preAuthenticated: true');
     assert.include(html, 'allowCard: true');
     assert.include(html, 'allowBankAccount: true');
     assert.include(html, 'allowDynamicSessionCard: false');
+    assert.include(
+      html,
+      'preAuthenticated: requestFormState.preAuthenticated'
+    );
   });
 
   test('uses editable default values for the design config passed to the SDK', async () => {

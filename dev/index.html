@@ -377,6 +377,11 @@
                 <span>Advanced verification</span>
               </label>
 
+              <label class="checkbox-field" for="interaction-pre-authenticated">
+                <input id="interaction-pre-authenticated" type="checkbox" />
+                <span>Pre-authenticated</span>
+              </label>
+
               <div class="request-preview-group">
                 <span class="field-label">Request body</span>
                 <p class="helper-text">
@@ -674,6 +679,9 @@
         advancedVerification: document.querySelector(
           '#interaction-advanced-verification'
         ),
+        preAuthenticated: document.querySelector(
+          '#interaction-pre-authenticated'
+        ),
         allowCard: document.querySelector('#interaction-allow-card'),
         allowBankAccount: document.querySelector(
           '#interaction-allow-bank-account'
@@ -717,6 +725,7 @@
         firstName: '',
         lastName: '',
         advancedVerification: false,
+        preAuthenticated: true,
         allowCard: true,
         allowBankAccount: true,
         allowDynamicSessionCard: false,
@@ -784,6 +793,7 @@
             terminalId: requestFormState.terminalId.trim(),
           },
           advancedVerification: requestFormState.advancedVerification,
+          preAuthenticated: requestFormState.preAuthenticated,
         };
 
         if (Object.keys(requestEntityData).length > 0) {
@@ -889,6 +899,7 @@
         firstName: requestFields.firstName.value,
         lastName: requestFields.lastName.value,
         advancedVerification: requestFields.advancedVerification.checked,
+        preAuthenticated: requestFields.preAuthenticated.checked,
         allowCard: requestFields.allowCard.checked,
         allowBankAccount: requestFields.allowBankAccount.checked,
         allowDynamicSessionCard: requestFields.allowDynamicSessionCard.checked,
@@ -919,6 +930,8 @@
         requestFields.lastName.value = requestFormState.lastName;
         requestFields.advancedVerification.checked =
           requestFormState.advancedVerification;
+        requestFields.preAuthenticated.checked =
+          requestFormState.preAuthenticated;
         requestFields.allowCard.checked = requestFormState.allowCard;
         requestFields.allowBankAccount.checked =
           requestFormState.allowBankAccount;

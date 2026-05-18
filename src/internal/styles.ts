@@ -659,7 +659,7 @@ export const primitiveStyles = css`
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 11px;
+    padding: 3px 11px;
     border: 1px solid var(--chc-source-action-icon-surface);
     border-radius: 999px;
     background: var(--chc-source-action-icon-surface);
