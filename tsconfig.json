@@ -1,54 +1,34 @@
-/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
-/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
-  "compileOnSave": false,
   "compilerOptions": {
-    "paths": {
-      "commerce-hub-connect-sdk": [
-        "./projects/commerce-hub-connect-angular-app/src/public-api.ts"
-      ],
-      "commerce-hub-connect-web-sdk": [
-        "./projects/commerce-hub-connect-web-sdk/src/public-api.ts"
-      ]
-    },
+    "target": "es2021",
+    "module": "es2020",
+    "lib": ["es2021", "DOM", "DOM.Iterable"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "outDir": "./",
+    "rootDir": "./src",
     "strict": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
-    "importHelpers": true,
-    "target": "ES2022",
-    "module": "preserve"
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitOverride": true,
+    "plugins": [
+      {
+        "name": "ts-lit-plugin",
+        "strict": true
+      }
+    ],
+    "types": ["mocha"]
   },
-  "angularCompilerOptions": {
-    "enableI18nLegacyMessageIdFormat": false,
-    "strictInjectionParameters": true,
-    "strictInputAccessModifiers": true,
-    "typeCheckHostBindings": true,
-    "strictTemplates": true
-  },
-  "files": [],
-  "references": [
-    {
-      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.lib.json"
-    },
-    {
-      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.spec.json"
-    },
-    {
-      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.example.app.json"
-    },
-    {
-      "path": "./projects/commerce-hub-connect-angular-app/tsconfig.example.spec.json"
-    },
-    {
-      "path": "./projects/commerce-hub-connect-web-sdk/tsconfig.app.json"
-    },
-    {
-      "path": "./projects/commerce-hub-connect-web-sdk/tsconfig.spec.json"
-    }
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": []
 }

@@ -1,0 +1,68 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><commerce-hub-connect> ⌲ Home</title>
+    <link rel="stylesheet" href="docs.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600|Roboto+Mono">
+    <link href="prism-okaidia.css" rel="stylesheet" />
+    <script type="module" src="commerce-hub-connect.bundled.js"></script>
+  </head>
+  <body>
+    
+<header>
+  <h1>&lt;commerce-hub-connect></h1>
+  <h2>CommerceHub Connect Web SDK widget primitives.</h2>
+</header>
+    
+<nav>
+  <a href="">Home</a>
+  <a href="examples/">Examples</a>
+  <a href="api/">API</a>
+  <a href="install/">Install</a>
+</nav>
+    <div id="main-wrapper">
+      <main>
+        <h1>&lt;commerce-hub-connect&gt;</h1>
+<p><code>&lt;commerce-hub-connect&gt;</code> is the public Web SDK widget shell. The first SDK flow
+slice renders OTP verification, saved payment-method selection, and the
+no-saved-payment-methods variant.</p>
+<h2>Basic usage</h2>
+<section class="columns">
+  <div>
+<pre class="language-html"><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>commerce-hub-connect</span><span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>commerce-hub-connect</span><span class="token punctuation">></span></span></code></pre>
+  </div>
+  <div>
+<p><commerce-hub-connect></commerce-hub-connect></p>
+  </div>
+</section>
+<h2>Interaction calls</h2>
+<p>Hosts pass an <code>InteractionResponse</code> into <code>.interactionResponse</code>. When the SDK
+handles OTP validation or OTP resend, it uses
+<code>interactionResponse.interactionId</code> as the <code>x-interaction-id</code> header. If
+<code>interactionId</code> is missing, the widget does not call the CommerceHub API and
+keeps the current screen stable.</p>
+<p>Saved payment-method confirmation does not call
+<code>/interaction/payment-source/{paymentSourceId}/attach</code>. After a shopper selects
+a saved method and presses Continue, the widget emits <code>onSuccess</code> with the
+selected <code>PaymentSource</code> as <code>event.detail</code>. Initial <code>interactionResponse</code>
+hydration does not emit <code>onSuccess</code>.</p>
+<h2>Design configuration</h2>
+<p>Host applications can pass an optional <code>.designConfig</code> object to override
+merchant-safe colors, the base text size, the base font weight, and current
+screen copy. The object and all nested fields are optional.</p>
+<pre class="language-ts"><code class="language-ts"><br>html<span class="token template-string"><span class="token template-punctuation string">`</span><span class="token string">&lt;commerce-hub-connect<br>  .interactionResponse=</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span>interactionResponse<span class="token interpolation-punctuation punctuation">}</span></span><span class="token string"><br>  .designConfig=</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token punctuation">{</span><br>    colors<span class="token operator">:</span> <span class="token punctuation">{</span><br>      primary<span class="token operator">:</span> <span class="token string">'#084acc'</span><span class="token punctuation">,</span><br>      text<span class="token operator">:</span> <span class="token string">'#101828'</span><span class="token punctuation">,</span><br>      border<span class="token operator">:</span> <span class="token string">'#cbd5e1'</span><span class="token punctuation">,</span><br>    <span class="token punctuation">}</span><span class="token punctuation">,</span><br>    baseFontSize<span class="token operator">:</span> <span class="token string">'16px'</span><span class="token punctuation">,</span><br>    baseFontWeight<span class="token operator">:</span> <span class="token string">'300'</span><span class="token punctuation">,</span><br>    copy<span class="token operator">:</span> <span class="token punctuation">{</span><br>      otp<span class="token operator">:</span> <span class="token punctuation">{</span><br>        title<span class="token operator">:</span> <span class="token string">'Confirm your email'</span><span class="token punctuation">,</span><br>        verifyButton<span class="token operator">:</span> <span class="token string">'Verify'</span><span class="token punctuation">,</span><br>      <span class="token punctuation">}</span><span class="token punctuation">,</span><br>      paymentMethods<span class="token operator">:</span> <span class="token punctuation">{</span><br>        title<span class="token operator">:</span> <span class="token string">'Choose payment'</span><span class="token punctuation">,</span><br>        continueButton<span class="token operator">:</span> <span class="token string">'Use selected method'</span><span class="token punctuation">,</span><br>      <span class="token punctuation">}</span><span class="token punctuation">,</span><br>    <span class="token punctuation">}</span><span class="token punctuation">,</span><br>  <span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">}<br>>&lt;/commerce-hub-connect></span><span class="token template-punctuation string">`</span></span><span class="token punctuation">;</span><br></code></pre>
+
+      </main>
+    </div>
+    
+<footer>
+  <p>
+    CommerceHub Connect Web SDK
+  </p>
+</footer>
+  </body>
+</html>

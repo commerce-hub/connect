@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>CommerceHub Connect Demo</title>
+    <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
+    <script src="../node_modules/lit/polyfill-support.js"></script>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #edf2f7;
+        padding: 32px;
+        font-family: 'Open Sans', Arial, sans-serif;
+        color: #101828;
+      }
+
+      .demo-layout {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(360px, 480px) minmax(320px, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+
+      .demo-widget-panel {
+        display: grid;
+        gap: 16px;
+      }
+
+      .payload-panel {
+        display: grid;
+        gap: 16px;
+      }
+
+      .payload-card {
+        background: #ffffff;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        box-shadow: 0 12px 24px rgba(16, 24, 40, 0.08);
+        overflow: hidden;
+      }
+
+      .payload-card > h2 {
+        margin: 0;
+        padding: 14px 16px;
+        border-bottom: 1px solid #e4e7ec;
+        font-size: 15px;
+        line-height: 1.4;
+      }
+
+      .payload-card > summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .payload-card > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .payload-card > summary h2 {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.4;
+      }
+
+      .payload-card > summary::after {
+        content: '+';
+        color: #475467;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .payload-card[open] > summary {
+        border-bottom: 1px solid #e4e7ec;
+      }
+
+      .payload-card[open] > summary::after {
+        content: '−';
+      }
+
+      .form-body {
+        display: grid;
+        gap: 16px;
+        padding: 16px;
+      }
+
+      .field-label {
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 18px;
+      }
+
+      .field-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field-input {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #ffffff;
+        color: #101828;
+        font: inherit;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .field-input:focus {
+        border-color: #003de6;
+        outline: 3px solid #dbe7ff;
+      }
+
+      .control-group {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+        padding: 12px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+      }
+
+      .control-group legend {
+        padding: 0 4px;
+      }
+
+      .checkbox-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+
+      .checkbox-field {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .checkbox-field input {
+        width: 16px;
+        height: 16px;
+        accent-color: #003de6;
+      }
+
+      .request-preview-group {
+        display: grid;
+        gap: 3px;
+      }
+
+      .request-preview {
+        max-height: 320px;
+        border-radius: 8px;
+      }
+
+      .helper-text {
+        margin: 0;
+        color: #475467;
+        font-size: 13px;
+        line-height: 18px;
+      }
+
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .primary-button {
+        border: 1px solid #003de6;
+        border-radius: 8px;
+        padding: 9px 14px;
+        background: #003de6;
+        color: #ffffff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 18px;
+        cursor: pointer;
+      }
+
+      .primary-button:disabled {
+        cursor: wait;
+        opacity: 0.72;
+      }
+
+      .error-message {
+        min-height: 18px;
+        color: #b42318;
+        font-size: 13px;
+        line-height: 18px;
+      }
+
+      .scenario-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        padding: 16px;
+      }
+
+      .scenario-controls button {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 8px 12px;
+        background: #fff;
+        color: #101828;
+        font: inherit;
+        font-size: 13px;
+        line-height: 18px;
+        cursor: pointer;
+      }
+
+      .scenario-controls button[aria-pressed='true'] {
+        border-color: #003de6;
+        background: #eff4ff;
+        color: #003de6;
+        font-weight: 700;
+      }
+
+      pre {
+        margin: 0;
+        padding: 16px;
+        max-height: 360px;
+        overflow: auto;
+        background: #0f172a;
+        color: #e2e8f0;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        white-space: pre-wrap;
+      }
+
+      @media (max-width: 860px) {
+        .demo-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .field-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="demo-layout">
+      <section class="payload-panel" aria-label="Host integration payloads">
+        <article class="payload-card">
+          <h2>Create interaction request</h2>
+          <form id="interaction-create-form">
+            <div class="form-body">
+              <div class="field-grid">
+                <label class="field" for="interaction-email">
+                  <span class="field-label">Email</span>
+                  <input
+                    class="field-input"
+                    id="interaction-email"
+                    type="email"
+                    autocomplete="email"
+                    required
+                  />
+                </label>
+
+                <label class="field" for="interaction-client-id">
+                  <span class="field-label">Client ID</span>
+                  <input
+                    class="field-input"
+                    id="interaction-client-id"
+                    type="text"
+                    required
+                  />
+                </label>
+
+                <label class="field" for="interaction-merchant-id">
+                  <span class="field-label">Merchant ID</span>
+                  <input
+                    class="field-input"
+                    id="interaction-merchant-id"
+                    type="text"
+                    required
+                  />
+                </label>
+
+                <label class="field" for="interaction-terminal-id">
+                  <span class="field-label">Terminal ID</span>
+                  <input
+                    class="field-input"
+                    id="interaction-terminal-id"
+                    type="text"
+                    required
+                  />
+                </label>
+              </div>
+
+              <fieldset class="control-group">
+                <legend class="field-label">Entity data</legend>
+                <div class="field-grid">
+                  <label class="field" for="interaction-first-name">
+                    <span class="field-label">First name</span>
+                    <input
+                      class="field-input"
+                      id="interaction-first-name"
+                      type="text"
+                      autocomplete="given-name"
+                    />
+                  </label>
+
+                  <label class="field" for="interaction-last-name">
+                    <span class="field-label">Last name</span>
+                    <input
+                      class="field-input"
+                      id="interaction-last-name"
+                      type="text"
+                      autocomplete="family-name"
+                    />
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="control-group">
+                <legend class="field-label">Allowed tender types</legend>
+                <div class="checkbox-grid">
+                  <label class="checkbox-field" for="interaction-allow-card">
+                    <input
+                      id="interaction-allow-card"
+                      name="allowedTenderTypes"
+                      type="checkbox"
+                    />
+                    <span>Card</span>
+                  </label>
+
+                  <label
+                    class="checkbox-field"
+                    for="interaction-allow-bank-account"
+                  >
+                    <input
+                      id="interaction-allow-bank-account"
+                      name="allowedTenderTypes"
+                      type="checkbox"
+                    />
+                    <span>Bank account</span>
+                  </label>
+
+                  <label
+                    class="checkbox-field"
+                    for="interaction-allow-dynamic-session-card"
+                  >
+                    <input
+                      id="interaction-allow-dynamic-session-card"
+                      name="allowedTenderTypes"
+                      type="checkbox"
+                    />
+                    <span>Dynamic session card</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <label
+                class="checkbox-field"
+                for="interaction-advanced-verification"
+              >
+                <input id="interaction-advanced-verification" type="checkbox" />
+                <span>Advanced verification</span>
+              </label>
+
+              <label class="checkbox-field" for="interaction-pre-authenticated">
+                <input id="interaction-pre-authenticated" type="checkbox" />
+                <span>Pre-authenticated</span>
+              </label>
+
+              <div class="request-preview-group">
+                <span class="field-label">Request body</span>
+                <p class="helper-text">
+                  The JSON preview updates from the form controls and is sent to
+                  <code>/merchant/interaction/create</code>.
+                </p>
+                <pre
+                  id="interaction-request-preview"
+                  class="request-preview"
+                ></pre>
+              </div>
+              <div class="error-message" id="interaction-request-error"></div>
+            </div>
+          </form>
+        </article>
+
+        <details class="payload-card" id="design-config-card">
+          <summary>
+            <h2>Design config</h2>
+          </summary>
+          <div class="form-body" id="design-config-form">
+            <p class="helper-text">
+              These values are passed to <code>widget.designConfig</code> and
+              update the mounted widget without recreating it.
+            </p>
+
+            <fieldset class="control-group">
+              <legend class="field-label">Theme</legend>
+              <div class="field-grid">
+                <label class="field" for="design-config-base-font-size">
+                  <span class="field-label">Base font size</span>
+                  <input
+                    class="field-input"
+                    id="design-config-base-font-size"
+                    type="text"
+                    placeholder="16px"
+                  />
+                </label>
+
+                <label class="field" for="design-config-base-font-weight">
+                  <span class="field-label">Base font weight</span>
+                  <input
+                    class="field-input"
+                    id="design-config-base-font-weight"
+                    type="text"
+                    placeholder="300"
+                  />
+                </label>
+
+                <label class="field" for="design-config-shell-padding">
+                  <span class="field-label">Shell padding</span>
+                  <input
+                    class="field-input"
+                    id="design-config-shell-padding"
+                    type="text"
+                    placeholder="1.75rem 1.5rem 1.5rem"
+                  />
+                </label>
+
+                <label class="field" for="design-config-primary-color">
+                  <span class="field-label">Primary color</span>
+                  <input
+                    class="field-input"
+                    id="design-config-primary-color"
+                    type="text"
+                    placeholder="#084acc"
+                  />
+                </label>
+
+                <label class="field" for="design-config-text-color">
+                  <span class="field-label">Text color</span>
+                  <input
+                    class="field-input"
+                    id="design-config-text-color"
+                    type="text"
+                    placeholder="#101828"
+                  />
+                </label>
+
+                <label class="field" for="design-config-copy-color">
+                  <span class="field-label">Copy color</span>
+                  <input
+                    class="field-input"
+                    id="design-config-copy-color"
+                    type="text"
+                    placeholder="#9f9f9f"
+                  />
+                </label>
+
+                <label class="field" for="design-config-border-color">
+                  <span class="field-label">Border color</span>
+                  <input
+                    class="field-input"
+                    id="design-config-border-color"
+                    type="text"
+                    placeholder="#cbd5e1"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="control-group">
+              <legend class="field-label">OTP copy</legend>
+              <div class="field-grid">
+                <label class="field" for="design-config-otp-title">
+                  <span class="field-label">Title</span>
+                  <input
+                    class="field-input"
+                    id="design-config-otp-title"
+                    type="text"
+                  />
+                </label>
+
+                <label class="field" for="design-config-otp-verify-button">
+                  <span class="field-label">Verify button</span>
+                  <input
+                    class="field-input"
+                    id="design-config-otp-verify-button"
+                    type="text"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="control-group">
+              <legend class="field-label">Payment methods copy</legend>
+              <div class="field-grid">
+                <label class="field" for="design-config-payment-methods-title">
+                  <span class="field-label">Title</span>
+                  <input
+                    class="field-input"
+                    id="design-config-payment-methods-title"
+                    type="text"
+                  />
+                </label>
+
+                <label
+                  class="field"
+                  for="design-config-payment-methods-continue-button"
+                >
+                  <span class="field-label">Continue button</span>
+                  <input
+                    class="field-input"
+                    id="design-config-payment-methods-continue-button"
+                    type="text"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="control-group">
+              <legend class="field-label">No saved methods copy</legend>
+              <div class="field-grid">
+                <label class="field" for="design-config-no-saved-title">
+                  <span class="field-label">Title</span>
+                  <input
+                    class="field-input"
+                    id="design-config-no-saved-title"
+                    type="text"
+                  />
+                </label>
+
+                <label class="field" for="design-config-no-saved-empty-title">
+                  <span class="field-label">Empty title</span>
+                  <input
+                    class="field-input"
+                    id="design-config-no-saved-empty-title"
+                    type="text"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <div class="request-preview-group">
+              <span class="field-label">Design config</span>
+              <p class="helper-text">
+                Empty fields are omitted so the SDK falls back to its defaults.
+              </p>
+              <pre id="design-config-preview" class="request-preview"></pre>
+            </div>
+          </div>
+        </details>
+
+        <div class="form-actions" id="create-interaction-actions">
+          <button
+            class="primary-button"
+            id="create-interaction-button"
+            type="submit"
+            form="interaction-create-form"
+          >
+            Create interaction
+          </button>
+        </div>
+      </section>
+
+      <section class="demo-widget-panel">
+        <div id="connect-widget-host"></div>
+
+        <article class="payload-card">
+          <h2>Scenario</h2>
+          <div class="scenario-controls" id="scenario-controls">
+            <button type="button" data-scenario="otpPending">
+              OTP pending
+            </button>
+            <button type="button" data-scenario="otpFailed">OTP failed</button>
+            <button type="button" data-scenario="savedPaymentMethods">
+              Saved methods
+            </button>
+            <button type="button" data-scenario="noSavedPaymentMethods">
+              No saved methods
+            </button>
+          </div>
+        </article>
+
+        <article class="payload-card">
+          <h2>Input: widget properties</h2>
+          <pre id="interaction-input"></pre>
+        </article>
+
+        <article class="payload-card">
+          <h2>Events</h2>
+          <pre>This SDK slice does not emit onSuccess or onError.</pre>
+        </article>
+      </section>
+    </main>
+
+    <script type="module">
+      const savedSources = [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ];
+
+      const scenarios = {
+        otpPending: {
+          interactionId: 'demo-interaction-otp-pending',
+          status: 'OTP_VALIDATION_PENDING',
+          email: 'gregory.jablonski@fiserv.com',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+        },
+        otpFailed: {
+          interactionId: 'demo-interaction-otp-failed',
+          status: 'OTP_VALIDATION_FAILED',
+          email: 'gregory.jablonski@fiserv.com',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+        },
+        savedPaymentMethods: {
+          interactionId: 'demo-interaction-saved-methods',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          email: 'gregory.jablonski@fiserv.com',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+          selectedSource: {
+            tenderType: 'Card',
+            id: 'card-1',
+            name: 'Corporate card',
+          },
+          paymentSources: savedSources,
+        },
+        noSavedPaymentMethods: {
+          interactionId: 'demo-interaction-no-saved-methods',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          email: 'gregory.jablonski@fiserv.com',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+          paymentSources: [],
+        },
+      };
+      const widgetHost = document.querySelector('#connect-widget-host');
+      const input = document.querySelector('#interaction-input');
+      const createForm = document.querySelector('#interaction-create-form');
+      const requestForm = createForm;
+      const requestPreview = document.querySelector(
+        '#interaction-request-preview'
+      );
+      const designConfigForm = document.querySelector('#design-config-form');
+      const designConfigPreview = document.querySelector(
+        '#design-config-preview'
+      );
+      const requestError = document.querySelector('#interaction-request-error');
+      const createButton = document.querySelector('#create-interaction-button');
+      const scenarioControls = document.querySelector('#scenario-controls');
+      const requestFields = {
+        email: document.querySelector('#interaction-email'),
+        clientId: document.querySelector('#interaction-client-id'),
+        merchantId: document.querySelector('#interaction-merchant-id'),
+        terminalId: document.querySelector('#interaction-terminal-id'),
+        firstName: document.querySelector('#interaction-first-name'),
+        lastName: document.querySelector('#interaction-last-name'),
+        advancedVerification: document.querySelector(
+          '#interaction-advanced-verification'
+        ),
+        preAuthenticated: document.querySelector(
+          '#interaction-pre-authenticated'
+        ),
+        allowCard: document.querySelector('#interaction-allow-card'),
+        allowBankAccount: document.querySelector(
+          '#interaction-allow-bank-account'
+        ),
+        allowDynamicSessionCard: document.querySelector(
+          '#interaction-allow-dynamic-session-card'
+        ),
+      };
+      const designConfigFields = {
+        baseFontSize: document.querySelector('#design-config-base-font-size'),
+        baseFontWeight: document.querySelector('#design-config-base-font-weight'),
+        shellPadding: document.querySelector('#design-config-shell-padding'),
+        primaryColor: document.querySelector('#design-config-primary-color'),
+        textColor: document.querySelector('#design-config-text-color'),
+        copyColor: document.querySelector('#design-config-copy-color'),
+        borderColor: document.querySelector('#design-config-border-color'),
+        otpTitle: document.querySelector('#design-config-otp-title'),
+        otpVerifyButton: document.querySelector(
+          '#design-config-otp-verify-button'
+        ),
+        paymentMethodsTitle: document.querySelector(
+          '#design-config-payment-methods-title'
+        ),
+        paymentMethodsContinueButton: document.querySelector(
+          '#design-config-payment-methods-continue-button'
+        ),
+        noSavedTitle: document.querySelector('#design-config-no-saved-title'),
+        noSavedEmptyTitle: document.querySelector(
+          '#design-config-no-saved-empty-title'
+        ),
+      };
+      const format = (value) => JSON.stringify(value, null, 2);
+      let widget;
+      let latestInteractionResponse;
+      let latestWidgetPropertiesMessage;
+
+      const initialRequestFormState = {
+        email: 'gregory.jablonski@fiserv.com',
+        clientId: 'marriot',
+        merchantId: '101475000000009',
+        terminalId: '10000001',
+        firstName: '',
+        lastName: '',
+        advancedVerification: false,
+        preAuthenticated: true,
+        allowCard: true,
+        allowBankAccount: true,
+        allowDynamicSessionCard: false,
+      };
+      const initialDesignConfigFormState = {
+        baseFontSize: '16px',
+        baseFontWeight: '300',
+        shellPadding: '1.75rem 1.5rem 1.5rem',
+        primaryColor: '#084acc',
+        textColor: '#101828',
+        copyColor: '#9f9f9f',
+        borderColor: '#cbd5e1',
+        otpTitle: 'Confirm your email',
+        otpVerifyButton: 'Verify',
+        paymentMethodsTitle: 'Choose payment method',
+        paymentMethodsContinueButton: 'Use selected method',
+        noSavedTitle: 'Add payment method',
+        noSavedEmptyTitle: '',
+      };
+      const initialWidgetPropertiesMessage =
+        'Submit the create request or choose a scenario to see the widget properties.';
+      const commerceHubApiBaseUrl =
+        new URLSearchParams(window.location.search).get('apiBaseUrl') ??
+        'http://localhost:8080';
+
+      const createApiUrl = (path) =>
+        new URL(path, commerceHubApiBaseUrl).toString();
+
+      const resolveAllowedTenderTypes = (requestFormState) => {
+        const allowedTenderTypes = [];
+
+        if (requestFormState.allowCard) {
+          allowedTenderTypes.push('CARD');
+        }
+
+        if (requestFormState.allowBankAccount) {
+          allowedTenderTypes.push('BANK_ACCOUNT');
+        }
+
+        if (requestFormState.allowDynamicSessionCard) {
+          allowedTenderTypes.push('DYNAMIC_SESSION_CARD');
+        }
+
+        return allowedTenderTypes;
+      };
+
+      const buildInteractionRequest = (requestFormState) => {
+        const requestEntityData = {};
+        const firstName = requestFormState.firstName.trim();
+        const lastName = requestFormState.lastName.trim();
+
+        if (firstName) {
+          requestEntityData.firstName = firstName;
+        }
+
+        if (lastName) {
+          requestEntityData.lastName = lastName;
+        }
+
+        const interactionRequest = {
+          email: requestFormState.email.trim(),
+          allowedTenderTypes: resolveAllowedTenderTypes(requestFormState),
+          merchantData: {
+            clientId: requestFormState.clientId.trim(),
+            merchantId: requestFormState.merchantId.trim(),
+            terminalId: requestFormState.terminalId.trim(),
+          },
+          advancedVerification: requestFormState.advancedVerification,
+          preAuthenticated: requestFormState.preAuthenticated,
+        };
+
+        if (Object.keys(requestEntityData).length > 0) {
+          interactionRequest.entityData = requestEntityData;
+        }
+
+        return interactionRequest;
+      };
+
+      const setOptionalTextValue = (target, key, value) => {
+        const trimmedValue = value.trim();
+
+        if (trimmedValue) {
+          target[key] = trimmedValue;
+        }
+      };
+
+      const buildDesignConfig = (designConfigFormState) => {
+        const designConfig = {};
+        const colors = {};
+        const copy = {};
+        const otp = {};
+        const paymentMethods = {};
+        const noSavedPaymentMethods = {};
+
+        setOptionalTextValue(
+          designConfig,
+          'baseFontSize',
+          designConfigFormState.baseFontSize
+        );
+        setOptionalTextValue(
+          designConfig,
+          'baseFontWeight',
+          designConfigFormState.baseFontWeight
+        );
+        setOptionalTextValue(
+          designConfig,
+          'shellPadding',
+          designConfigFormState.shellPadding
+        );
+        setOptionalTextValue(
+          colors,
+          'primary',
+          designConfigFormState.primaryColor
+        );
+        setOptionalTextValue(colors, 'text', designConfigFormState.textColor);
+        setOptionalTextValue(colors, 'copy', designConfigFormState.copyColor);
+        setOptionalTextValue(
+          colors,
+          'border',
+          designConfigFormState.borderColor
+        );
+        setOptionalTextValue(otp, 'title', designConfigFormState.otpTitle);
+        setOptionalTextValue(
+          otp,
+          'verifyButton',
+          designConfigFormState.otpVerifyButton
+        );
+        setOptionalTextValue(
+          paymentMethods,
+          'title',
+          designConfigFormState.paymentMethodsTitle
+        );
+        setOptionalTextValue(
+          paymentMethods,
+          'continueButton',
+          designConfigFormState.paymentMethodsContinueButton
+        );
+        setOptionalTextValue(
+          noSavedPaymentMethods,
+          'title',
+          designConfigFormState.noSavedTitle
+        );
+        setOptionalTextValue(
+          noSavedPaymentMethods,
+          'emptyTitle',
+          designConfigFormState.noSavedEmptyTitle
+        );
+
+        if (Object.keys(colors).length > 0) {
+          designConfig.colors = colors;
+        }
+
+        if (Object.keys(otp).length > 0) {
+          copy.otp = otp;
+        }
+
+        if (Object.keys(paymentMethods).length > 0) {
+          copy.paymentMethods = paymentMethods;
+        }
+
+        if (Object.keys(noSavedPaymentMethods).length > 0) {
+          copy.noSavedPaymentMethods = noSavedPaymentMethods;
+        }
+
+        if (Object.keys(copy).length > 0) {
+          designConfig.copy = copy;
+        }
+
+        return designConfig;
+      };
+
+      const readRequestFormState = () => ({
+        email: requestFields.email.value,
+        clientId: requestFields.clientId.value,
+        merchantId: requestFields.merchantId.value,
+        terminalId: requestFields.terminalId.value,
+        firstName: requestFields.firstName.value,
+        lastName: requestFields.lastName.value,
+        advancedVerification: requestFields.advancedVerification.checked,
+        preAuthenticated: requestFields.preAuthenticated.checked,
+        allowCard: requestFields.allowCard.checked,
+        allowBankAccount: requestFields.allowBankAccount.checked,
+        allowDynamicSessionCard: requestFields.allowDynamicSessionCard.checked,
+      });
+
+      const readDesignConfigFormState = () => ({
+        baseFontSize: designConfigFields.baseFontSize.value,
+        baseFontWeight: designConfigFields.baseFontWeight.value,
+        shellPadding: designConfigFields.shellPadding.value,
+        primaryColor: designConfigFields.primaryColor.value,
+        textColor: designConfigFields.textColor.value,
+        copyColor: designConfigFields.copyColor.value,
+        borderColor: designConfigFields.borderColor.value,
+        otpTitle: designConfigFields.otpTitle.value,
+        otpVerifyButton: designConfigFields.otpVerifyButton.value,
+        paymentMethodsTitle: designConfigFields.paymentMethodsTitle.value,
+        paymentMethodsContinueButton:
+          designConfigFields.paymentMethodsContinueButton.value,
+        noSavedTitle: designConfigFields.noSavedTitle.value,
+        noSavedEmptyTitle: designConfigFields.noSavedEmptyTitle.value,
+      });
+
+      const writeRequestFormState = (requestFormState) => {
+        requestFields.email.value = requestFormState.email;
+        requestFields.clientId.value = requestFormState.clientId;
+        requestFields.merchantId.value = requestFormState.merchantId;
+        requestFields.terminalId.value = requestFormState.terminalId;
+        requestFields.firstName.value = requestFormState.firstName;
+        requestFields.lastName.value = requestFormState.lastName;
+        requestFields.advancedVerification.checked =
+          requestFormState.advancedVerification;
+        requestFields.preAuthenticated.checked =
+          requestFormState.preAuthenticated;
+        requestFields.allowCard.checked = requestFormState.allowCard;
+        requestFields.allowBankAccount.checked =
+          requestFormState.allowBankAccount;
+        requestFields.allowDynamicSessionCard.checked =
+          requestFormState.allowDynamicSessionCard;
+      };
+
+      const writeDesignConfigFormState = (designConfigFormState) => {
+        designConfigFields.baseFontSize.value =
+          designConfigFormState.baseFontSize;
+        designConfigFields.baseFontWeight.value =
+          designConfigFormState.baseFontWeight;
+        designConfigFields.shellPadding.value =
+          designConfigFormState.shellPadding;
+        designConfigFields.primaryColor.value =
+          designConfigFormState.primaryColor;
+        designConfigFields.textColor.value = designConfigFormState.textColor;
+        designConfigFields.copyColor.value = designConfigFormState.copyColor;
+        designConfigFields.borderColor.value =
+          designConfigFormState.borderColor;
+        designConfigFields.otpTitle.value = designConfigFormState.otpTitle;
+        designConfigFields.otpVerifyButton.value =
+          designConfigFormState.otpVerifyButton;
+        designConfigFields.paymentMethodsTitle.value =
+          designConfigFormState.paymentMethodsTitle;
+        designConfigFields.paymentMethodsContinueButton.value =
+          designConfigFormState.paymentMethodsContinueButton;
+        designConfigFields.noSavedTitle.value =
+          designConfigFormState.noSavedTitle;
+        designConfigFields.noSavedEmptyTitle.value =
+          designConfigFormState.noSavedEmptyTitle;
+      };
+
+      const syncRequestPreview = () => {
+        const requestFormState = readRequestFormState();
+        requestPreview.textContent = format(
+          buildInteractionRequest(requestFormState)
+        );
+      };
+
+      const syncWidgetPropertiesPreview = (designConfig) => {
+        const payload = {designConfig};
+
+        if (latestInteractionResponse) {
+          payload.interactionResponse = latestInteractionResponse;
+        }
+
+        if (latestWidgetPropertiesMessage) {
+          payload.message = latestWidgetPropertiesMessage;
+        }
+
+        input.textContent = format(payload);
+      };
+
+      const applyDesignConfig = () => {
+        const designConfig = buildDesignConfig(readDesignConfigFormState());
+
+        designConfigPreview.textContent = format(designConfig);
+
+        if (widget) {
+          widget.designConfig = designConfig;
+        }
+
+        syncWidgetPropertiesPreview(designConfig);
+      };
+
+      const createInitialInteractionResponse = async (interactionRequest) => {
+        const response = await fetch(
+          createApiUrl('/merchant/interaction/create'),
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(interactionRequest),
+          }
+        );
+        const responseBody = await readJson(response);
+
+        if (response.ok) {
+          return responseBody;
+        }
+
+        throw new Error(apiErrorMessage(responseBody));
+      };
+
+      const initializeWidget = async (interactionResponse) => {
+        await import('../commerce-hub-connect.js');
+
+        const designConfig = buildDesignConfig(readDesignConfigFormState());
+
+        widget = document.createElement('commerce-hub-connect');
+        widget.id = 'connect-widget';
+        widget.interactionResponse = interactionResponse;
+        widget.designConfig = designConfig;
+        widgetHost.replaceChildren(widget);
+        latestInteractionResponse = interactionResponse;
+        latestWidgetPropertiesMessage = undefined;
+        syncWidgetPropertiesPreview(designConfig);
+      };
+
+      const setInteractionResponse = (interactionResponse) => {
+        const designConfig = buildDesignConfig(readDesignConfigFormState());
+        latestInteractionResponse = interactionResponse;
+        latestWidgetPropertiesMessage = undefined;
+        syncWidgetPropertiesPreview(designConfig);
+
+        if (widget) {
+          widget.interactionResponse = interactionResponse;
+          widget.designConfig = designConfig;
+        }
+      };
+
+      const setActiveScenario = (name) => {
+        scenarioControls.querySelectorAll('button').forEach((button) => {
+          button.setAttribute(
+            'aria-pressed',
+            button.dataset.scenario === name ? 'true' : 'false'
+          );
+        });
+      };
+
+      const setScenario = async (name) => {
+        const interactionResponse = structuredClone(scenarios[name]);
+
+        if (widget) {
+          setInteractionResponse(interactionResponse);
+        } else {
+          await initializeWidget(interactionResponse);
+        }
+
+        setActiveScenario(name);
+      };
+
+      const readJson = async (response) => {
+        const text = await response.text();
+
+        return text ? JSON.parse(text) : undefined;
+      };
+
+      const apiErrorMessage = (error) => {
+        if (typeof error === 'string') {
+          return error;
+        }
+
+        if (
+          error &&
+          typeof error === 'object' &&
+          'message' in error &&
+          typeof error.message === 'string'
+        ) {
+          return error.message;
+        }
+
+        return 'CommerceHub API request failed.';
+      };
+
+      const setCreatePending = (isPending) => {
+        createButton.disabled = isPending;
+        createButton.textContent = isPending
+          ? 'Creating...'
+          : 'Create interaction';
+      };
+
+      const handleCreateSubmit = async (event) => {
+        event.preventDefault();
+
+        requestError.textContent = '';
+        if (!createForm.reportValidity()) {
+          return;
+        }
+
+        const requestFormState = readRequestFormState();
+        const interactionRequest = buildInteractionRequest(requestFormState);
+
+        if (interactionRequest.allowedTenderTypes.length === 0) {
+          const message = 'Select at least one allowed tender type.';
+          requestError.textContent = message;
+          latestWidgetPropertiesMessage = message;
+          applyDesignConfig();
+          return;
+        }
+
+        input.textContent = 'Creating merchant interaction...';
+        setCreatePending(true);
+
+        try {
+          const interactionResponse = await createInitialInteractionResponse(
+            interactionRequest
+          );
+
+          await initializeWidget(interactionResponse);
+          setActiveScenario();
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'CommerceHub API request failed.';
+
+          requestError.textContent = message;
+          latestWidgetPropertiesMessage = message;
+          applyDesignConfig();
+        } finally {
+          setCreatePending(false);
+        }
+      };
+
+      const initializeDemo = () => {
+        latestInteractionResponse = undefined;
+        latestWidgetPropertiesMessage = initialWidgetPropertiesMessage;
+        writeRequestFormState(initialRequestFormState);
+        writeDesignConfigFormState(initialDesignConfigFormState);
+        syncRequestPreview();
+        applyDesignConfig();
+        setActiveScenario();
+      };
+
+      requestForm.addEventListener('input', () => {
+        requestError.textContent = '';
+        syncRequestPreview();
+      });
+
+      requestForm.addEventListener('change', () => {
+        requestError.textContent = '';
+        syncRequestPreview();
+      });
+
+      designConfigForm.addEventListener('input', () => {
+        applyDesignConfig();
+      });
+
+      designConfigForm.addEventListener('change', () => {
+        applyDesignConfig();
+      });
+
+      createForm.addEventListener('submit', (event) => {
+        void handleCreateSubmit(event);
+      });
+
+      scenarioControls.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-scenario]');
+
+        if (button) {
+          void setScenario(button.dataset.scenario);
+        }
+      });
+
+      initializeDemo();
+    </script>
+  </body>
+</html>

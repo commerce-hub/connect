@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/append-agents-learning.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Updating AGENTS.md learnings"
+          }
+        ]
+      }
+    ]
+  }
+}

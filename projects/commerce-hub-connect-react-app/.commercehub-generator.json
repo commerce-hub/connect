@@ -1,7 +1,0 @@
-{
-  "generator": "generate-react-ts-app",
-  "projectName": "commerce-hub-connect-react-app",
-  "sourceProject": "projects/commerce-hub-connect-angular-app/src/lib",
-  "sdkProjectName": "commerce-hub-connect-web-sdk",
-  "generatedAt": "2026-04-21T20:59:17.032Z"
-}
