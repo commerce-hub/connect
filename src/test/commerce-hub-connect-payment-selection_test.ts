@@ -204,7 +204,7 @@ suite('commerce-hub-connect payment selection', () => {
       el
         .shadowRoot!.querySelector('.selected-payment-method .payment-method-meta')
         ?.textContent?.trim(),
-      '•••• 1111'
+      'Visa •••• 1111'
     );
 
     await clickAction(el, 'change-payment-source');
@@ -347,7 +347,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 1111'
+      'Visa •••• 1111'
     );
     assert.equal(rows[0].getAttribute('aria-checked'), 'true');
   });

@@ -573,7 +573,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 4242'
+      'Visa •••• 4242'
     );
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
     assert.equal(
@@ -1306,7 +1306,7 @@ suite('commerce-hub-connect flow', () => {
           '.selected-payment-method .payment-method-meta'
         )
         ?.textContent?.trim(),
-      '•••• 4444'
+      'Mastercard •••• 4444'
     );
 
     await clickAction(el, 'change-payment-source');
@@ -1900,7 +1900,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.selected-payment-method .payment-method-meta')
         ?.textContent?.trim(),
-      '•••• 1111'
+      'Visa •••• 1111'
     );
 
     await clickAction(el, 'change-payment-source');
