@@ -582,15 +582,15 @@ suite('commerce-hub-connect flow', () => {
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
     assert.equal(
       getComputedStyle(rows[0]).backgroundColor,
-      'rgb(248, 250, 252)'
+      'rgb(247, 248, 250)'
     );
-    assert.equal(getComputedStyle(rows[0]).paddingTop, '8.8px');
-    assert.equal(getComputedStyle(rows[0]).columnGap, '12px');
+    assert.equal(getComputedStyle(rows[0]).paddingTop, '10px');
+    assert.equal(getComputedStyle(rows[0]).columnGap, '8px');
     assert.equal(
       getComputedStyle(
         rows[0].querySelector<HTMLElement>('.payment-method-title')!
       ).fontWeight,
-      '500'
+      '600'
     );
 
     rows[1].click();
@@ -611,6 +611,7 @@ suite('commerce-hub-connect flow', () => {
     const addCardIcon = addCardLink.querySelector<HTMLElement>(
       '.source-action-icon'
     )!;
+    const unselectedRow = rows[0]!;
 
     assert.notExists(el.shadowRoot!.querySelector('.source-action-link-icon'));
     assert.exists(
@@ -625,19 +626,40 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       getComputedStyle(addCardLink).backgroundColor,
-      'rgb(248, 250, 252)'
+      'rgb(247, 248, 250)'
     );
     assert.equal(getComputedStyle(addCardLink).borderTopStyle, 'solid');
-    assert.equal(getComputedStyle(addCardLink).paddingTop, '8.8px');
+    assert.equal(getComputedStyle(addCardLink).paddingTop, '10px');
     assert.equal(getComputedStyle(addCardLink).columnGap, '8px');
     assert.equal(getComputedStyle(addCardLink).alignItems, 'center');
-    assert.equal(getComputedStyle(addCardIcon).fontSize, '28px');
-    assert.equal(getComputedStyle(addCardIcon).fontWeight, '300');
+    assert.equal(getComputedStyle(addCardIcon).fontSize, '24px');
+    assert.equal(getComputedStyle(addCardIcon).fontWeight, '400');
     assert.equal(getComputedStyle(addCardIcon).borderTopStyle, 'none');
     assert.equal(
       getComputedStyle(addCardIcon).backgroundColor,
       'rgba(0, 0, 0, 0)'
     );
+    assert.equal(
+      getComputedStyle(unselectedRow).backgroundColor,
+      getComputedStyle(addCardLink).backgroundColor
+    );
+    assert.equal(
+      getComputedStyle(unselectedRow).borderRadius,
+      getComputedStyle(addCardLink).borderRadius
+    );
+    assert.equal(
+      getComputedStyle(unselectedRow).paddingTop,
+      getComputedStyle(addCardLink).paddingTop
+    );
+    assert.equal(
+      getComputedStyle(unselectedRow).paddingLeft,
+      getComputedStyle(addCardLink).paddingLeft
+    );
+    assert.equal(
+      getComputedStyle(unselectedRow).columnGap,
+      getComputedStyle(addCardLink).columnGap
+    );
+    assert.equal(getComputedStyle(unselectedRow).alignItems, 'center');
     assert.equal(
       el
         .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')

@@ -93,31 +93,35 @@ suite('commerce-hub-connect primitives', () => {
         .getPropertyValue('--chc-primary')
         .trim()
         .toUpperCase(),
-      '#003DE6'
+      '#162033'
     );
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-text').trim().toUpperCase(),
-      '#101828'
+      '#111827'
     );
-    assert.equal(getComputedStyle(el).fontFamily.includes('Open Sans'), true);
+    assert.equal(
+      getComputedStyle(el).getPropertyValue('--chc-copy').trim().toUpperCase(),
+      '#4B5565'
+    );
+    assert.equal(getComputedStyle(el).fontFamily.includes('Inter'), true);
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-font-weight').trim(),
-      '300'
+      '400'
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-shell')?.getAttribute('aria-label'),
       'Commerce Hub Connect'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
-    assert.equal(getComputedStyle(title).fontSize, '18.4px');
-    assert.equal(getComputedStyle(title).fontWeight, '700');
-    assert.equal(getComputedStyle(paymentMeta).fontWeight, '300');
+    assert.equal(getComputedStyle(title).fontSize, '19.2px');
+    assert.equal(getComputedStyle(title).fontWeight, '600');
+    assert.equal(getComputedStyle(paymentMeta).fontWeight, '400');
     assert.equal(getComputedStyle(poweredByFooter).justifyContent, 'center');
     assert.equal(
       poweredByBrand.textContent?.trim(),
       'Commerce Hub Connect'
     );
-    assert.equal(getComputedStyle(poweredByBrand).color, 'rgb(102, 112, 133)');
+    assert.equal(getComputedStyle(poweredByBrand).color, 'rgb(75, 85, 101)');
   });
 
   test('applies partial designConfig color and typography without resizing controls', async () => {
@@ -153,15 +157,16 @@ suite('commerce-hub-connect primitives', () => {
       getComputedStyle(el).getPropertyValue('--chc-font-weight').trim(),
       '350'
     );
-    assert.equal(getComputedStyle(title).fontSize, '18.4px');
-    assert.equal(getComputedStyle(title).fontWeight, '700');
+    assert.equal(getComputedStyle(title).fontSize, '19.2px');
+    assert.equal(getComputedStyle(title).fontWeight, '600');
     assert.equal(getComputedStyle(button).fontSize, '20px');
     assert.equal(getComputedStyle(paymentMeta).fontWeight, '350');
     assert.equal(getComputedStyle(paymentMeta).fontSize, '20px');
     assert.equal(getComputedStyle(poweredByFooter).fontSize, '20px');
-    assert.equal(getComputedStyle(button).paddingTop, '7px');
-    assert.equal(getComputedStyle(button).paddingBottom, '7px');
-    assert.equal(getComputedStyle(button).fontWeight, '500');
+    assert.equal(getComputedStyle(button).minHeight, '44px');
+    assert.equal(getComputedStyle(button).paddingTop, '0px');
+    assert.equal(getComputedStyle(button).paddingBottom, '0px');
+    assert.equal(getComputedStyle(button).fontWeight, '600');
     assert.equal(
       getComputedStyle(shell).backgroundColor,
       'rgb(244, 247, 251)'
@@ -461,10 +466,9 @@ suite('commerce-hub-connect primitives', () => {
     const otpInput = el.shadowRoot!.querySelector<HTMLInputElement>('.otp-input')!;
     const otpInputStyles = getComputedStyle(otpInput);
 
-    assert.equal(otpInputStyles.fontWeight, '300');
+    assert.equal(otpInputStyles.fontWeight, '400');
     assert.equal(otpInputStyles.fontSize, '16px');
-    assert.closeTo(parseFloat(otpInputStyles.paddingTop), 8.8, 0.2);
-    assert.closeTo(parseFloat(otpInputStyles.paddingRight), 8.8, 0.2);
+    assert.equal(otpInputStyles.minHeight, '44px');
   });
 
   test('renders v2 payment method, source action, and detail primitives with disabled state semantics', async () => {
