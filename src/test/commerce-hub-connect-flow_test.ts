@@ -1044,15 +1044,8 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('creates a new billing address, creates a customer card, attaches it, and refreshes methods from the customer profile', async () => {
+  test('creates a new billing address, creates a customer card, attaches it, and uses returned sources without refreshing the customer profile', async () => {
     const requests: CapturedRequest[] = [];
-    let cardAttached = false;
-    const apiResponse: InteractionResponse = {
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-      paymentSources: [],
-    };
-
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
       requests.push({
@@ -1064,30 +1057,10 @@ suite('commerce-hub-connect flow', () => {
       });
 
       if (request.url.endsWith('/customer')) {
-        return new Response(
-          JSON.stringify(
-            cardAttached
-              ? {
-                  billingAddress: [],
-                  sources: [
-                    {
-                      tenderType: 'Card',
-                      id: 'card-created-1',
-                      name: 'Card from customer profile',
-                      card: {
-                        network: 'Mastercard',
-                        cardNumber: '5555555555554444',
-                      },
-                    },
-                  ],
-                }
-              : {billingAddress: []}
-          ),
-          {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          }
-        );
+        return new Response(JSON.stringify({billingAddress: []}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       if (request.url.endsWith('/interaction/source/mask/card')) {
@@ -1124,12 +1097,23 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (request.url.endsWith('/interaction/source/card-created-1/attach')) {
-        cardAttached = true;
-
-        return new Response(JSON.stringify(apiResponse), {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
+        return new Response(
+          JSON.stringify([
+            {
+              tenderType: 'Card',
+              id: 'card-created-1',
+              name: 'Card from source response',
+              card: {
+                network: 'Mastercard',
+                cardNumber: '5555555555554444',
+              },
+            },
+          ]),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
       }
 
       return new Response('{}', {
@@ -1181,7 +1165,6 @@ suite('commerce-hub-connect flow', () => {
         'POST /interaction/billing-address',
         'POST /interaction/source/card',
         'POST /interaction/source/card-created-1/attach',
-        'GET /customer',
       ]
     );
     assert.equal(
@@ -1226,7 +1209,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.payment-method-title')
         ?.textContent?.trim(),
-      'Card from customer profile'
+      'Card from source response'
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
@@ -1236,13 +1219,6 @@ suite('commerce-hub-connect flow', () => {
 
   test('uses an existing billing address when one is selected', async () => {
     const requests: CapturedRequest[] = [];
-    let cardAttached = false;
-    const apiResponse: InteractionResponse = {
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-      paymentSources: [],
-    };
-
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
       requests.push({
@@ -1267,15 +1243,6 @@ suite('commerce-hub-connect flow', () => {
                 country: 'US',
               },
             ],
-            sources: cardAttached
-              ? [
-                  {
-                    tenderType: 'Card',
-                    id: 'card-created-1',
-                    name: 'Ada corporate card',
-                  },
-                ]
-              : [],
           }),
           {
             status: 200,
@@ -1314,12 +1281,19 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (request.url.endsWith('/interaction/source/card-created-1/attach')) {
-        cardAttached = true;
-
-        return new Response(JSON.stringify(apiResponse), {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
+        return new Response(
+          JSON.stringify([
+            {
+              tenderType: 'Card',
+              id: 'card-created-1',
+              name: 'Ada corporate card',
+            },
+          ]),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
       }
 
       return new Response('{}', {
@@ -1448,7 +1422,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('verify code posts OTP, email, channel, x-interaction-id, and refreshes methods from the customer profile', async () => {
+  test('verify code posts OTP, email, channel, x-interaction-id, and uses sources from the validate response', async () => {
     const requests: CapturedRequest[] = [];
     const apiResponse: InteractionResponse = {
       interactionId: 'interaction-otp',
@@ -1456,15 +1430,18 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [
         {
           tenderType: 'Card',
-          id: 'stale-card',
-          name: 'Stale card from validate',
+          id: 'validated-card',
+          name: 'Card from validate response',
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
         },
       ],
     };
 
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
-      const pathname = new URL(request.url).pathname;
 
       requests.push({
         url: request.url,
@@ -1473,28 +1450,6 @@ suite('commerce-hub-connect flow', () => {
         bodyText: await request.clone().text(),
         credentials: request.credentials,
       });
-
-      if (pathname === '/customer') {
-        return new Response(
-          JSON.stringify({
-            sources: [
-              {
-                tenderType: 'Card',
-                id: 'customer-card',
-                name: 'Card from customer profile',
-                card: {
-                  network: 'Visa',
-                  cardNumber: '4111111111114242',
-                },
-              },
-            ],
-          }),
-          {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          }
-        );
-      }
 
       return new Response(JSON.stringify(apiResponse), {
         status: 200,
@@ -1511,9 +1466,9 @@ suite('commerce-hub-connect flow', () => {
     await setOtpValue(el, '123456');
     await clickAction(el, 'verify-otp');
 
-    await waitForRequest(requests, '/customer', 'GET');
+    await waitForRequest(requests, '/interaction/otp/validate', 'POST');
 
-    assert.lengthOf(requests, 2);
+    assert.lengthOf(requests, 1);
     assert.equal(
       requests[0].url,
       `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/otp/validate`
@@ -1532,11 +1487,11 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/otp/validate', 'GET /customer']
+      ['POST /interaction/otp/validate']
     );
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.id,
-      'customer-card'
+      'validated-card'
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
@@ -1546,7 +1501,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.payment-method-title')
         ?.textContent?.trim(),
-      'Card from customer profile'
+      'Card from validate response'
     );
   });
 
@@ -2124,25 +2079,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/customer') {
-        return new Response(
-          JSON.stringify({
-            sources: [
-              {
-                tenderType: 'BankAccount',
-                id: 'bank-from-customer',
-                verificationInfo: {status: 'VERIFIED'},
-                bankAccount: {
-                  bankName: 'Customer Bank',
-                  accountNumber: '1111222233334444',
-                },
-              },
-            ],
-          }),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
-        );
-      }
-
       return new Response('{}', {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -2224,25 +2160,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/customer') {
-        return new Response(
-          JSON.stringify({
-            sources: [
-              {
-                tenderType: 'BankAccount',
-                id: 'bank-from-customer',
-                verificationInfo: {status: 'VERIFIED'},
-                bankAccount: {
-                  bankName: 'Customer Bank',
-                  accountNumber: '1111222233334444',
-                },
-              },
-            ],
-          }),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
-        );
-      }
-
       return new Response('{}', {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -2283,16 +2200,7 @@ suite('commerce-hub-connect flow', () => {
         destroy: () => undefined,
       };
 
-      window.fetch = async (input: RequestInfo | URL) => {
-        const request = input instanceof Request ? input : new Request(input);
-
-        if (request.url.endsWith('/customer')) {
-          return new Response(JSON.stringify({sources: []}), {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          });
-        }
-
+      window.fetch = async () => {
         return new Response(
           JSON.stringify({
             aggregatorSessionId: 'agg-session-1',
@@ -2411,16 +2319,7 @@ suite('commerce-hub-connect flow', () => {
       },
     };
 
-    window.fetch = async (input: RequestInfo | URL) => {
-      const request = input instanceof Request ? input : new Request(input);
-
-      if (request.url.endsWith('/customer')) {
-        return new Response(JSON.stringify({sources: []}), {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
-      }
-
+    window.fetch = async () => {
       return new Response(
         JSON.stringify({
           aggregatorSessionId: 'agg-session-1',

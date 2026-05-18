@@ -62,7 +62,7 @@ const client = createCommerceHubClient({
   headers: {Authorization: `Bearer ${token}`},
 });
 
-const {data, error} = await client.GET('/customer');
+const {data, error} = await client.GET('/interaction');
 ```
 
 When `<commerce-hub-connect>` performs SDK-managed interaction calls, it uses

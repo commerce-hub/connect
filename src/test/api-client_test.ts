@@ -15,10 +15,13 @@ suite('commerce-hub-connect api client', () => {
     window.fetch = async (input: RequestInfo | URL) => {
       receivedRequest = input instanceof Request ? input : new Request(input);
 
-      return new Response(JSON.stringify({email: 'gregory.jablonski@fiserv.com'}), {
-        status: 200,
-        headers: {'Content-Type': 'application/json'},
-      });
+      return new Response(
+        JSON.stringify({interactionId: 'interaction-1'}),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
     };
 
     const client = createCommerceHubClient({
@@ -30,12 +33,12 @@ suite('commerce-hub-connect api client', () => {
       }),
     });
 
-    const response = await client.GET('/customer');
+    const response = await client.GET('/interaction');
 
-    assert.equal(response.data?.email, 'gregory.jablonski@fiserv.com');
+    assert.equal(response.data?.interactionId, 'interaction-1');
     assert.equal(
       receivedRequest?.url,
-      'https://api.example.test/customer'
+      'https://api.example.test/interaction'
     );
     assert.equal(
       receivedRequest?.headers.get('X-Static-Header'),
