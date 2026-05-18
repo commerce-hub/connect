@@ -57,6 +57,7 @@ type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
 };
 type Address = components['schemas']['Address'];
+type BillingAddressResponse = components['schemas']['StringHolder'];
 type SourceListResponse = PaymentSource[] | InteractionResponse;
 type CreatedPaymentSourceResponse =
   | PaymentSource[]
@@ -1517,7 +1518,7 @@ export class CommerceHubConnect extends LitElement {
 
     const billingAddress = billingAddressFromCardDraft(draft);
 
-    await this.requestCommerceHubJson<unknown>(
+    const response = await this.requestCommerceHubJson<BillingAddressResponse>(
       '/interaction/billing-address',
       interactionId,
       {
@@ -1527,8 +1528,13 @@ export class CommerceHubConnect extends LitElement {
         credentials: 'include',
       }
     );
+    const billingAddressId = response.value?.trim();
 
-    return billingAddress.id!;
+    if (!billingAddressId) {
+      throw new Error('The billing address response did not include an id.');
+    }
+
+    return billingAddressId;
   }
 
   private async verifyOtp() {

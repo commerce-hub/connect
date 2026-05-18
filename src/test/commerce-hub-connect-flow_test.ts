@@ -1042,7 +1042,10 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (request.url.endsWith('/interaction/billing-address')) {
-        return new Response(null, {status: 204});
+        return new Response(JSON.stringify({value: 'billing-from-api-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       if (request.url.endsWith('/interaction/source/card')) {
@@ -1152,7 +1155,10 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (request.url.endsWith('/interaction/billing-address')) {
-        return new Response(null, {status: 204});
+        return new Response(JSON.stringify({value: 'billing-from-api-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       if (request.url.endsWith('/interaction/source/card')) {
@@ -1267,7 +1273,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(sourceBody.id, '');
     assert.equal(sourceBody.tenderType, 'CARD');
     assert.equal(sourceBody.name, 'Ada corporate card');
-    assert.equal(sourceBody.billingAddressId, addressBody.id);
+    assert.equal(sourceBody.billingAddressId, 'billing-from-api-1');
     assert.deepInclude(sourceBody.card, {
       nameOnCard: 'Ada Lovelace',
       cardNumber: 'enc-card-1',

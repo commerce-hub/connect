@@ -1414,7 +1414,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": string;
+                    "*/*": components["schemas"]["StringHolder"];
                 };
             };
         };
