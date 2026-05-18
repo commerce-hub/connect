@@ -302,7 +302,10 @@ export class CommerceHubConnect extends LitElement {
       <div
         @click=${this.handleClick}
         @input=${this.handleInput}
+        @keydown=${this.handleKeyDown}
         @change=${this.handleChange}
+        @paste=${this.handlePaste}
+        @focusin=${this.handleFocusIn}
         @focusout=${this.handleFocusLost}
         @blur=${this.handleFocusLost}
       >
@@ -970,23 +973,87 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    input.value = input.value.replace(/\D/g, '').slice(-1);
-
-    const inputs = [
-      ...this.renderRoot.querySelectorAll<HTMLInputElement>('.otp-input'),
-    ];
-
-    this.otpValue = inputs
-      .map((item) => item.value)
-      .join('')
-      .slice(0, OTP_LENGTH);
-    this.otpErrorMessage = undefined;
-
+    const inputs = this.getOtpInputs();
     const index = Number(input.dataset.otpIndex);
-    const nextInput = inputs[index + 1];
+    const digits = sanitizeOtpValue(input.value);
 
-    if (input.value && nextInput) {
-      nextInput.focus();
+    if (!digits) {
+      input.value = '';
+      this.syncOtpValueFromInputs(inputs);
+      return;
+    }
+
+    if (digits.length === 1) {
+      input.value = digits;
+      this.syncOtpValueFromInputs(inputs);
+      this.focusOtpInput(inputs, index + 1);
+      return;
+    }
+
+    const lastWrittenIndex = this.writeOtpDigits(inputs, index, digits);
+
+    this.syncOtpValueFromInputs(inputs);
+    this.focusOtpInput(
+      inputs,
+      Math.min(index + digits.length, inputs.length - 1),
+      lastWrittenIndex
+    );
+  };
+
+  private handleKeyDown = (event: KeyboardEvent) => {
+    const input = findOtpInput(event);
+
+    if (!input) {
+      return;
+    }
+
+    const inputs = this.getOtpInputs();
+    const index = Number(input.dataset.otpIndex);
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.focusOtpInput(inputs, index - 1);
+      return;
+    }
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.focusOtpInput(inputs, index + 1);
+      return;
+    }
+
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+
+      if (input.value) {
+        input.value = '';
+      } else if (index > 0) {
+        inputs[index - 1].value = '';
+      }
+
+      this.syncOtpValueFromInputs(inputs);
+      this.focusOtpInput(inputs, Math.max(index - 1, 0));
+      return;
+    }
+
+    if (event.key === 'Delete') {
+      event.preventDefault();
+      input.value = '';
+      this.syncOtpValueFromInputs(inputs);
+      return;
+    }
+
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.key.length !== 1
+    ) {
+      return;
+    }
+
+    if (!/\d/.test(event.key)) {
+      event.preventDefault();
     }
   };
 
@@ -1008,6 +1075,56 @@ export class CommerceHubConnect extends LitElement {
     );
   };
 
+  private handlePaste = (event: Event) => {
+    const input = findOtpInput(event);
+
+    if (!input) {
+      return;
+    }
+
+    const clipboardEvent = event as Event & {
+      clipboardData?: {
+        getData?: (type: string) => string;
+      };
+    };
+    const clipboardText =
+      typeof clipboardEvent.clipboardData?.getData === 'function'
+        ? clipboardEvent.clipboardData.getData('text')
+        : '';
+    const digits = sanitizeOtpValue(clipboardText);
+
+    if (!digits) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const inputs = this.getOtpInputs();
+    const index = Number(input.dataset.otpIndex);
+    const lastWrittenIndex = this.writeOtpDigits(inputs, index, digits);
+
+    this.syncOtpValueFromInputs(inputs);
+    this.focusOtpInput(
+      inputs,
+      Math.min(index + digits.length, inputs.length - 1),
+      lastWrittenIndex
+    );
+  };
+
+  private handleFocusIn = (event: FocusEvent) => {
+    const input = findOtpInput(event);
+
+    if (!input || !input.value) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      if (this.renderRoot.contains(input)) {
+        input.select();
+      }
+    });
+  };
+
   private handleFocusLost = (event: Event) => {
     const input = event
       .composedPath()
@@ -1027,6 +1144,60 @@ export class CommerceHubConnect extends LitElement {
     );
   };
 
+  private getOtpInputs(): HTMLInputElement[] {
+    return [...this.renderRoot.querySelectorAll<HTMLInputElement>('.otp-input')];
+  }
+
+  private syncOtpValueFromInputs(inputs = this.getOtpInputs()) {
+    this.otpValue = inputs
+      .map((item) => item.value)
+      .join('')
+      .slice(0, OTP_LENGTH);
+    this.otpErrorMessage = undefined;
+  }
+
+  private writeOtpDigits(
+    inputs: HTMLInputElement[],
+    startIndex: number,
+    value: string
+  ): number {
+    const digits = sanitizeOtpValue(value);
+    let lastWrittenIndex = startIndex;
+
+    digits
+      .slice(0, Math.max(inputs.length - startIndex, 0))
+      .split('')
+      .forEach((digit, offset) => {
+        const targetIndex = startIndex + offset;
+        const targetInput = inputs[targetIndex];
+
+        if (!targetInput) {
+          return;
+        }
+
+        targetInput.value = digit;
+        lastWrittenIndex = targetIndex;
+      });
+
+    return lastWrittenIndex;
+  }
+
+  private focusOtpInput(
+    inputs: HTMLInputElement[],
+    targetIndex: number,
+    fallbackIndex = targetIndex
+  ) {
+    const input =
+      inputs[targetIndex] ??
+      inputs[Math.max(0, Math.min(fallbackIndex, inputs.length - 1))];
+
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+  }
+
   private showAddCardScreen() {
     this.resetBankFlow();
     this.cardFlowScreen = 'form';
@@ -1035,9 +1206,11 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private updateCardDraftField(field: keyof CardDraft, value: string) {
+    const formattedValue = formatCardDraftFieldValue(field, value);
+
     this.cardDraft = {
       ...this.cardDraft,
-      [field]: value,
+      [field]: formattedValue,
     };
 
     this.cardSubmitError = undefined;
@@ -1047,7 +1220,7 @@ export class CommerceHubConnect extends LitElement {
         ...this.cardEncryption,
         [field]: resolveDirtyCardEncryptionState(
           this.cardEncryption[field],
-          normalizeSensitiveCardFieldValue(field, value)
+          normalizeSensitiveCardFieldValue(field, formattedValue)
         ),
       };
     }
@@ -1528,7 +1701,7 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string
   ): Promise<CustomerProfile> {
     return this.requestCommerceHubJson<CustomerProfile>(
-      '/customer',
+      '/interaction',
       interactionId,
       {method: 'GET', credentials: 'include'}
     );
@@ -1936,12 +2109,87 @@ const createCardEncryptionState = (): CardEncryptionState => ({
   cvv: createCardEncryptionFieldState(),
 });
 
+const sanitizeOtpValue = (value: string): string => value.replace(/\D/g, '');
+
+const findOtpInput = (event: Event): HTMLInputElement | undefined =>
+  event.composedPath().find(
+    (item): item is HTMLInputElement =>
+      item instanceof HTMLInputElement && item.classList.contains('otp-input')
+  );
+
 const isSensitiveCardField = (field?: string): field is SensitiveCardField =>
   field === 'cardNumber' || field === 'cvv';
 
 const normalizeCardNumber = (value: string): string => value.replace(/\D/g, '');
 
+const formatCardDraftFieldValue = (
+  field: keyof CardDraft,
+  value: string
+): string => {
+  if (field === 'cardNumber') {
+    return formatCardNumberForDisplay(value);
+  }
+
+  if (field === 'expirationDate') {
+    return formatExpirationDateForDisplay(value);
+  }
+
+  if (field === 'cvv') {
+    return normalizeCvv(value).slice(0, 4);
+  }
+
+  return value;
+};
+
+const formatCardNumberForDisplay = (value: string): string => {
+  const digits = normalizeCardNumber(value).slice(0, 19);
+
+  return formatDigitsByGroups(digits, resolveCardNumberGroupPattern(digits));
+};
+
+const resolveCardNumberGroupPattern = (digits: string): number[] => {
+  if (/^3[47]/.test(digits)) {
+    return [4, 6, 5];
+  }
+
+  if (/^3(?:0[0-5]|[68])/.test(digits)) {
+    return [4, 6, 4];
+  }
+
+  return [4, 4, 4, 4, 3];
+};
+
+const formatDigitsByGroups = (digits: string, groups: number[]): string => {
+  const parts: string[] = [];
+  let offset = 0;
+
+  for (const size of groups) {
+    if (offset >= digits.length) {
+      break;
+    }
+
+    parts.push(digits.slice(offset, offset + size));
+    offset += size;
+  }
+
+  if (offset < digits.length) {
+    parts.push(digits.slice(offset));
+  }
+
+  return parts.join(' ');
+};
+
 const normalizeCvv = (value: string): string => value.replace(/\D/g, '');
+
+const formatExpirationDateForDisplay = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 6);
+
+  if (digits.length <= 2) {
+    return digits.length === 2 ? `${digits} / ` : digits;
+  }
+
+  return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
+};
 
 const normalizeSensitiveCardFieldValue = (
   field: SensitiveCardField,

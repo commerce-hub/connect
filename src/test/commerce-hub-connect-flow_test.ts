@@ -69,6 +69,61 @@ const setOtpValue = async (el: CommerceHubConnect, value: string) => {
   await flushElement(el);
 };
 
+const setOtpDigit = async (
+  el: CommerceHubConnect,
+  index: number,
+  value: string
+) => {
+  const input =
+    el.shadowRoot!.querySelectorAll<HTMLInputElement>('.otp-input')[index]!;
+
+  input.value = value;
+  input.dispatchEvent(new InputEvent('input', {bubbles: true, composed: true}));
+  await flushElement(el);
+};
+
+const keyOtpInput = async (
+  el: CommerceHubConnect,
+  index: number,
+  key: string
+) => {
+  const input =
+    el.shadowRoot!.querySelectorAll<HTMLInputElement>('.otp-input')[index]!;
+
+  input.focus();
+  input.dispatchEvent(
+    new KeyboardEvent('keydown', {key, bubbles: true, composed: true})
+  );
+  await flushElement(el);
+};
+
+const pasteOtpValue = async (
+  el: CommerceHubConnect,
+  index: number,
+  value: string
+) => {
+  const input =
+    el.shadowRoot!.querySelectorAll<HTMLInputElement>('.otp-input')[index]!;
+  const event = new Event('paste', {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+  }) as Event & {
+    clipboardData: {
+      getData: (type: string) => string;
+    };
+  };
+
+  input.focus();
+  Object.defineProperty(event, 'clipboardData', {
+    value: {
+      getData: (type: string) => (type === 'text' ? value : ''),
+    },
+  });
+  input.dispatchEvent(event);
+  await flushElement(el);
+};
+
 const clickAction = async (el: CommerceHubConnect, action: string) => {
   el.shadowRoot!.querySelector<HTMLButtonElement>(
     `[data-action="${action}"]`
@@ -303,6 +358,48 @@ suite('commerce-hub-connect flow', () => {
         .shadowRoot!.querySelector('[data-action="verify-otp"]')
         ?.textContent?.trim(),
       'Try again'
+    );
+  });
+
+  test('OTP input supports arrow navigation, backspace retreat, and paste distribution', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-otp',
+      status: 'OTP_VALIDATION_PENDING',
+      email: 'gregory.jablonski@fiserv.com',
+    });
+    const inputs = [
+      ...el.shadowRoot!.querySelectorAll<HTMLInputElement>('.otp-input'),
+    ];
+
+    await setOtpDigit(el, 0, '1');
+    assert.equal(el.shadowRoot!.activeElement, inputs[1]);
+
+    await setOtpDigit(el, 1, '2');
+    await setOtpDigit(el, 2, '3');
+
+    await keyOtpInput(el, 1, 'ArrowRight');
+    assert.equal(el.shadowRoot!.activeElement, inputs[2]);
+
+    await keyOtpInput(el, 2, 'ArrowLeft');
+    assert.equal(el.shadowRoot!.activeElement, inputs[1]);
+
+    await keyOtpInput(el, 2, 'Backspace');
+    assert.deepEqual(
+      inputs.map((input) => input.value),
+      ['1', '2', '', '', '', '']
+    );
+    assert.equal(el.shadowRoot!.activeElement, inputs[1]);
+
+    await pasteOtpValue(el, 1, '23456');
+    assert.deepEqual(
+      inputs.map((input) => input.value),
+      ['1', '2', '3', '4', '5', '6']
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="verify-otp"]')
+        ?.getAttribute('disabled'),
+      null
     );
   });
 
@@ -701,6 +798,42 @@ suite('commerce-hub-connect flow', () => {
         .shadowRoot!.querySelector('[data-action="save-card"]')
         ?.textContent?.trim(),
       'Save card'
+    );
+  });
+
+  test('formats card number and expiration inputs for different card standards', async () => {
+    window.fetch = async () =>
+      new Response(JSON.stringify({billingAddress: []}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-card');
+    await setFieldValue(el, 'card-number', '378282246310005');
+    await setFieldValue(el, 'expiration-date', '0430');
+
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#card-number')?.value,
+      '3782 822463 10005'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector<HTMLInputElement>('#expiration-date')
+        ?.value,
+      '04 / 30'
+    );
+
+    await setFieldValue(el, 'card-number', '4000000000000000002');
+
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#card-number')?.value,
+      '4000 0000 0000 0000 002'
     );
   });
 

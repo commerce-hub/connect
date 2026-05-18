@@ -111,8 +111,8 @@ suite('demo host page', () => {
     const html = await response.text();
 
     assert.include(html, "email: 'gregory.jablonski@fiserv.com'");
-    assert.include(html, "clientId: 'laika'");
-    assert.include(html, "merchantId: '100014000315473'");
+    assert.include(html, "clientId: 'marriot'");
+    assert.include(html, "merchantId: '101475000000009'");
     assert.include(html, "terminalId: '10000001'");
     assert.include(html, 'advancedVerification: false');
     assert.include(html, 'allowCard: true');
