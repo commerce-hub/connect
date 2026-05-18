@@ -18,6 +18,21 @@ interface CapturedRequest {
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
+const waitFor = async (
+  predicate: () => boolean,
+  message = 'condition was not met'
+) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await nextFrame();
+
+    if (predicate()) {
+      return;
+    }
+  }
+
+  throw new Error(message);
+};
+
 const flushElement = async (el: CommerceHubConnect) => {
   await el.updateComplete;
   await nextFrame();
@@ -112,6 +127,115 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(confirmButton.disabled, false);
   });
 
+  test('loads saved payment sources and billing addresses from the interaction', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'card-1',
+              name: 'Corporate Visa',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111111111',
+              },
+            },
+          ],
+          billerAddress: [
+            {
+              id: 'billing-1',
+              recipientNameOrAddress: 'Ada Lovelace',
+              street: '1 Main St',
+              city: 'New York',
+              stateOrProvince: 'NY',
+              postalCode: '10001',
+              country: 'US',
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+    });
+
+    await waitFor(
+      () => Boolean(el.shadowRoot!.querySelector('.payment-method-row')),
+      'interaction payment sources did not render'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction']
+    );
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-title')
+        ?.textContent?.trim(),
+      'Corporate Visa'
+    );
+
+    await clickAction(el, 'add-card');
+    await waitFor(() =>
+      Boolean(el.shadowRoot!.querySelector('#billing-address'))
+    );
+
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLOptionElement>(
+          '#billing-address option'
+        ),
+      ].map((option) => option.textContent?.trim()),
+      ['1 Main St, New York, NY 10001', 'Add new billing address']
+    );
+  });
+
+  test('interaction refresh failures keep the payment screen stable without emitting onError', async () => {
+    window.fetch = async () => {
+      throw new Error('network unavailable');
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+    });
+    const {errorEvents} = recordOutputEvents(el);
+
+    await nextFrame();
+    await nextFrame();
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add payment method'
+    );
+    assert.lengthOf(errorEvents, 0);
+  });
+
   test('confirming a selected method refreshes payment info, emits onSuccess, and shows the selected payment review', async () => {
     const requests: CapturedRequest[] = [];
     const selectedSource: PaymentSource = {
@@ -142,11 +266,14 @@ suite('commerce-hub-connect payment selection', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/customer') {
+      if (pathname === '/interaction') {
         return new Response(
           JSON.stringify({
-            sources: [refreshedSource],
-            billingAddress: [],
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            selectedSource: refreshedSource,
+            paymentSources: [refreshedSource],
+            billerAddress: [],
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
@@ -165,9 +292,9 @@ suite('commerce-hub-connect payment selection', () => {
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
-    el.shadowRoot!
-      .querySelector<HTMLButtonElement>('.payment-method-row')
-      ?.click();
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '.payment-method-row'
+    )?.click();
     await flushElement(el);
     await clickAction(el, 'confirm-payment-source');
 
@@ -175,7 +302,7 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['GET /customer']
+      ['GET /interaction']
     );
     assert.lengthOf(successEvents, 1);
     assert.deepEqual(successEvents[0].detail, refreshedSource);
@@ -196,13 +323,17 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       el
-        .shadowRoot!.querySelector('.selected-payment-method .payment-method-title')
+        .shadowRoot!.querySelector(
+          '.selected-payment-method .payment-method-title'
+        )
         ?.textContent?.trim(),
       'Corporate Visa'
     );
     assert.equal(
       el
-        .shadowRoot!.querySelector('.selected-payment-method .payment-method-meta')
+        .shadowRoot!.querySelector(
+          '.selected-payment-method .payment-method-meta'
+        )
         ?.textContent?.trim(),
       'Visa •••• 1111'
     );
