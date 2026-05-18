@@ -1476,28 +1476,32 @@ export class CommerceHubConnect extends LitElement {
             credentials: 'include',
           }
         );
-      const paymentSourceId = resolveCreatedPaymentSourceId(sourceResponse);
-      const attachedResponse =
-        await this.requestCommerceHubJson<SourceListResponse>(
-          `/interaction/source/${encodeURIComponent(paymentSourceId)}/attach`,
-          interactionId,
-          {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            credentials: 'include',
-          }
-        );
+      const createdSource = resolveCreatedPaymentSource(sourceResponse);
+      const paymentSourceId = createdSource.id;
+
+      if (createdSource.verificationInfo?.status !== 'VERIFIED') {
+        throw new Error('The card could not be verified.');
+      }
+
+      const sourceInteractionResponse = interactionResponseWithSourceList(
+        this.interactionResponse ?? {interactionId},
+        sourceResponse,
+        paymentSourceId
+      );
       this.cardFlowScreen = undefined;
       this.cardDraft = createCardDraft();
       this.cardDraftErrors = {};
       this.cardEncryption = createCardEncryptionState();
       this.cardSubmitError = undefined;
+      this.paymentSourceView = 'list';
       this.selectedPaymentSourceId = paymentSourceId;
       this.setInteractionResponseFromSdk(
-        interactionResponseWithSourceList(
-          this.interactionResponse ?? {interactionId},
-          attachedResponse,
-          paymentSourceId
+        withUpsertedSource(
+          {
+            ...sourceInteractionResponse,
+            status: 'PAYMENT_SOURCE_REQUESTED',
+          },
+          createdSource
         )
       );
     } catch (cause) {
@@ -2577,6 +2581,54 @@ const createLocalBillingAddressId = (): string => {
   return `billing-address-${Date.now().toString(
     36
   )}-${billingAddressIdCounter.toString(36)}`;
+};
+
+const createdPaymentSourcesFromResponse = (
+  response?: CreatedPaymentSourceResponse
+): PaymentSource[] => {
+  if (!response) {
+    return [];
+  }
+
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return [
+    response.selectedSource,
+    response.source,
+    ...(response.paymentSources ?? []),
+  ].filter((source): source is PaymentSource => Boolean(source));
+};
+
+const resolveCreatedPaymentSource = (
+  response?: CreatedPaymentSourceResponse
+): PaymentSource & {id: string} => {
+  const paymentSourceId = resolveCreatedPaymentSourceId(response);
+  const source =
+    createdPaymentSourcesFromResponse(response).find(
+      (paymentSource) => paymentSource.id?.trim() === paymentSourceId
+    ) ??
+    createdPaymentSourcesFromResponse(response).find((paymentSource) =>
+      paymentSource.id?.trim()
+    );
+
+  if (!source) {
+    throw new Error(
+      'The card creation response did not include a created source.'
+    );
+  }
+
+  if (!isCardPaymentSource(source)) {
+    throw new Error(
+      'The card creation response did not include a card source.'
+    );
+  }
+
+  return {
+    ...source,
+    id: paymentSourceId,
+  };
 };
 
 const resolveCreatedPaymentSourceId = (

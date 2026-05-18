@@ -177,6 +177,20 @@ const waitForRequest = async (
   );
 };
 
+const fillNewCardForm = async (el: CommerceHubConnect) => {
+  await setFieldValue(el, 'card-label', 'Ada corporate card');
+  await setFieldValue(el, 'name-on-card', 'Ada Lovelace');
+  await setFieldValue(el, 'card-number', '4111 1111 1111 1111');
+  await setFieldValue(el, 'expiration-date', '04/30');
+  await setFieldValue(el, 'card-cvv', '123');
+  await setSelectValue(el, 'billing-country', 'US');
+  await setFieldValue(el, 'billing-address-line-1', '1 Main St');
+  await setFieldValue(el, 'billing-address-line-2', 'Suite 100');
+  await setFieldValue(el, 'billing-city', 'New York');
+  await setSelectValue(el, 'billing-state', 'NY');
+  await setFieldValue(el, 'billing-zip', '10001');
+};
+
 const recordOutputEvents = (el: Element) => {
   const successEvents: CustomEvent<PaymentSource>[] = [];
   const errorEvents: CustomEvent<unknown>[] = [];
@@ -1121,7 +1135,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('creates a new billing address, creates a customer card, attaches it, and uses returned sources without refreshing the customer profile', async () => {
+  test('creates a new billing address, creates a verified customer card, and returns to the payment method list without attaching it', async () => {
     const requests: CapturedRequest[] = [];
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
@@ -1167,28 +1181,26 @@ suite('commerce-hub-connect flow', () => {
             selectedSource: {
               id: 'card-created-1',
               tenderType: 'Card',
-            },
-          }),
-          {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          }
-        );
-      }
-
-      if (request.url.endsWith('/interaction/source/card-created-1/attach')) {
-        return new Response(
-          JSON.stringify([
-            {
-              tenderType: 'Card',
-              id: 'card-created-1',
               name: 'Card from source response',
+              verificationInfo: {status: 'VERIFIED'},
               card: {
                 network: 'Mastercard',
                 cardNumber: '5555555555554444',
               },
             },
-          ]),
+            paymentSources: [
+              {
+                id: 'card-created-1',
+                tenderType: 'Card',
+                name: 'Card from source response',
+                verificationInfo: {status: 'VERIFIED'},
+                card: {
+                  network: 'Mastercard',
+                  cardNumber: '5555555555554444',
+                },
+              },
+            ],
+          }),
           {
             status: 200,
             headers: {'Content-Type': 'application/json'},
@@ -1210,17 +1222,7 @@ suite('commerce-hub-connect flow', () => {
 
     await clickAction(el, 'add-card');
     await waitForRequest(requests, '/customer', 'GET');
-    await setFieldValue(el, 'card-label', 'Ada corporate card');
-    await setFieldValue(el, 'name-on-card', 'Ada Lovelace');
-    await setFieldValue(el, 'card-number', '4111 1111 1111 1111');
-    await setFieldValue(el, 'expiration-date', '04/30');
-    await setFieldValue(el, 'card-cvv', '123');
-    await setSelectValue(el, 'billing-country', 'US');
-    await setFieldValue(el, 'billing-address-line-1', '1 Main St');
-    await setFieldValue(el, 'billing-address-line-2', 'Suite 100');
-    await setFieldValue(el, 'billing-city', 'New York');
-    await setSelectValue(el, 'billing-state', 'NY');
-    await setFieldValue(el, 'billing-zip', '10001');
+    await fillNewCardForm(el);
 
     await blurField(el, 'card-number');
     await waitForRequest(requests, '/interaction/source/mask/card');
@@ -1230,8 +1232,9 @@ suite('commerce-hub-connect flow', () => {
     await waitFor(
       () =>
         el.interactionResponse?.selectedSource?.id === 'card-created-1' &&
-        Boolean(el.shadowRoot!.querySelector('.payment-method-title')),
-      'new card was not attached and displayed'
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+          'Pay with',
+      'verified card did not return to the payment method list'
     );
 
     assert.deepEqual(
@@ -1244,7 +1247,6 @@ suite('commerce-hub-connect flow', () => {
         'POST /interaction/source/mask/cvv',
         'POST /interaction/billing-address',
         'POST /interaction/source/card',
-        'POST /interaction/source/card-created-1/attach',
       ]
     );
     assert.equal(
@@ -1351,24 +1353,18 @@ suite('commerce-hub-connect flow', () => {
             selectedSource: {
               id: 'card-created-1',
               tenderType: 'Card',
-            },
-          }),
-          {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          }
-        );
-      }
-
-      if (request.url.endsWith('/interaction/source/card-created-1/attach')) {
-        return new Response(
-          JSON.stringify([
-            {
-              tenderType: 'Card',
-              id: 'card-created-1',
               name: 'Ada corporate card',
+              verificationInfo: {status: 'VERIFIED'},
             },
-          ]),
+            paymentSources: [
+              {
+                id: 'card-created-1',
+                tenderType: 'Card',
+                name: 'Ada corporate card',
+                verificationInfo: {status: 'VERIFIED'},
+              },
+            ],
+          }),
           {
             status: 200,
             headers: {'Content-Type': 'application/json'},
@@ -1414,13 +1410,20 @@ suite('commerce-hub-connect flow', () => {
     await waitForRequest(requests, '/interaction/source/mask/cvv');
     await clickAction(el, 'save-card');
     await waitFor(
-      () => el.interactionResponse?.selectedSource?.id === 'card-created-1',
-      'existing-address card was not attached'
+      () =>
+        el.interactionResponse?.selectedSource?.id === 'card-created-1' &&
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+          'Pay with',
+      'existing-address card did not return to the payment method list'
     );
 
     assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),
       '/interaction/billing-address'
+    );
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/card-created-1/attach'
     );
 
     const sourceRequest = requests.find(
@@ -1429,6 +1432,118 @@ suite('commerce-hub-connect flow', () => {
     const sourceBody = JSON.parse(sourceRequest.bodyText);
 
     assert.equal(sourceBody.billingAddressId, 'billing-1');
+  });
+
+  test('shows the card error screen when card creation returns a non-verified source without attaching it', async () => {
+    const requests: CapturedRequest[] = [];
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (request.url.endsWith('/customer')) {
+        return new Response(JSON.stringify({billingAddress: []}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/source/mask/card')) {
+        return new Response(JSON.stringify({value: 'enc-card-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/source/mask/cvv')) {
+        return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/billing-address')) {
+        return new Response(JSON.stringify({value: 'billing-from-api-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/source/card')) {
+        return new Response(
+          JSON.stringify({
+            selectedSource: {
+              id: 'card-created-1',
+              tenderType: 'Card',
+              name: 'Card under review',
+              verificationInfo: {status: 'UNDER_REVIEW'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111111111',
+              },
+            },
+            paymentSources: [
+              {
+                id: 'card-created-1',
+                tenderType: 'Card',
+                name: 'Card under review',
+                verificationInfo: {status: 'UNDER_REVIEW'},
+                card: {
+                  network: 'Visa',
+                  cardNumber: '4111111111111111',
+                },
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
+      }
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-card');
+    await waitForRequest(requests, '/customer', 'GET');
+    await fillNewCardForm(el);
+    await blurField(el, 'card-number');
+    await waitForRequest(requests, '/interaction/source/mask/card');
+    await blurField(el, 'card-cvv');
+    await waitForRequest(requests, '/interaction/source/mask/cvv');
+    await clickAction(el, 'save-card');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Credit card not saved',
+      'non-verified card did not render the card error screen'
+    );
+
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/card-created-1/attach'
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="edit-card-details"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="use-different-method"]')
+    );
   });
 
   test('blocks card save until blur encryption succeeds', async () => {
