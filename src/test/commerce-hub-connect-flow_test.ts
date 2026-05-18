@@ -886,6 +886,10 @@ suite('commerce-hub-connect flow', () => {
 
     await clickAction(el, 'add-card');
 
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/customer'
+    );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Add a credit card'
@@ -1082,7 +1086,6 @@ suite('commerce-hub-connect flow', () => {
     });
 
     await clickAction(el, 'add-card');
-    await waitForRequest(requests, '/customer', 'GET');
     await setFieldValue(el, 'card-label', 'Ada corporate card');
     await setFieldValue(el, 'name-on-card', 'Ada Lovelace');
     await setFieldValue(el, 'card-number', '4111 1111 1111 1111');
@@ -1124,14 +1127,9 @@ suite('commerce-hub-connect flow', () => {
     );
     await clickAction(el, 'back-to-payment-methods');
     await clickAction(el, 'add-card');
-    await waitFor(
-      () =>
-        requests.filter(
-          (request) =>
-            request.method === 'GET' &&
-            new URL(request.url).pathname === '/customer'
-        ).length >= 2,
-      'another GET /customer was not requested'
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/customer'
     );
   });
 
@@ -1221,7 +1219,6 @@ suite('commerce-hub-connect flow', () => {
     });
 
     await clickAction(el, 'add-card');
-    await waitForRequest(requests, '/customer', 'GET');
     await fillNewCardForm(el);
 
     await blurField(el, 'card-number');
@@ -1242,7 +1239,6 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       [
-        'GET /customer',
         'POST /interaction/source/mask/card',
         'POST /interaction/source/mask/cvv',
         'POST /interaction/billing-address',
@@ -1253,12 +1249,12 @@ suite('commerce-hub-connect flow', () => {
       requests[0].headers.get('x-interaction-id'),
       'interaction-payment'
     );
-    assert.deepEqual(JSON.parse(requests[1].bodyText), {
+    assert.deepEqual(JSON.parse(requests[0].bodyText), {
       value: '4111111111111111',
     });
-    assert.deepEqual(JSON.parse(requests[2].bodyText), {value: '123'});
+    assert.deepEqual(JSON.parse(requests[1].bodyText), {value: '123'});
 
-    const addressBody = JSON.parse(requests[3].bodyText);
+    const addressBody = JSON.parse(requests[2].bodyText);
     assert.match(addressBody.id, /^billing-address-/);
     assert.deepEqual(addressBody, {
       id: addressBody.id,
@@ -1271,7 +1267,7 @@ suite('commerce-hub-connect flow', () => {
       postalCode: '10001',
     });
 
-    const sourceBody = JSON.parse(requests[4].bodyText);
+    const sourceBody = JSON.parse(requests[3].bodyText);
     assert.equal(sourceBody.id, '');
     assert.equal(sourceBody.tenderType, 'CARD');
     assert.equal(sourceBody.name, 'Ada corporate card');
@@ -1301,6 +1297,17 @@ suite('commerce-hub-connect flow', () => {
 
   test('uses an existing billing address when one is selected', async () => {
     const requests: CapturedRequest[] = [];
+    const selectedSource: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Corporate card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {
+        network: 'Visa',
+        cardNumber: '4111111111111111',
+      },
+    };
+
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
       requests.push({
@@ -1314,6 +1321,7 @@ suite('commerce-hub-connect flow', () => {
       if (request.url.endsWith('/customer')) {
         return new Response(
           JSON.stringify({
+            sources: [selectedSource],
             billingAddress: [
               {
                 id: 'billing-1',
@@ -1381,10 +1389,36 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      paymentSources: [],
+      selectedSource,
+      paymentSources: [selectedSource],
     });
 
+    await clickAction(el, 'confirm-payment-source');
+    await waitForRequest(requests, '/customer', 'GET');
+    await waitFor(
+      () =>
+        Boolean(
+          el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
+        ),
+      'selected payment source screen did not render'
+    );
+
+    const customerRequestCount = requests.filter(
+      (request) =>
+        request.method === 'GET' &&
+        new URL(request.url).pathname === '/customer'
+    ).length;
+
+    await clickAction(el, 'change-payment-source');
     await clickAction(el, 'add-card');
+    assert.equal(
+      requests.filter(
+        (request) =>
+          request.method === 'GET' &&
+          new URL(request.url).pathname === '/customer'
+      ).length,
+      customerRequestCount
+    );
     await waitFor(() =>
       Boolean(el.shadowRoot!.querySelector('#billing-address'))
     );
@@ -1520,7 +1554,6 @@ suite('commerce-hub-connect flow', () => {
     });
 
     await clickAction(el, 'add-card');
-    await waitForRequest(requests, '/customer', 'GET');
     await fillNewCardForm(el);
     await blurField(el, 'card-number');
     await waitForRequest(requests, '/interaction/source/mask/card');
@@ -1586,7 +1619,6 @@ suite('commerce-hub-connect flow', () => {
     });
 
     await clickAction(el, 'add-card');
-    await waitForRequest(requests, '/customer', 'GET');
     await setFieldValue(el, 'card-label', 'Ada corporate card');
     await setFieldValue(el, 'name-on-card', 'Ada Lovelace');
     await setFieldValue(el, 'card-number', '4111 1111 1111 1111');
@@ -1610,7 +1642,6 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       [
-        'GET /customer',
         'POST /interaction/source/mask/card',
         'POST /interaction/source/mask/cvv',
       ]

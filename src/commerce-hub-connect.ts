@@ -276,9 +276,6 @@ export class CommerceHubConnect extends LitElement {
   private billingAddresses: Address[] = [];
 
   @state()
-  private billingAddressesLoading = false;
-
-  @state()
   private paymentSourceView?: 'list' | 'selected';
 
   protected override willUpdate(changedProperties: PropertyValues<this>) {
@@ -1248,7 +1245,6 @@ export class CommerceHubConnect extends LitElement {
     this.resetBankFlow();
     this.cardFlowScreen = 'form';
     this.cardSubmitError = undefined;
-    void this.loadBillingAddressesForInteraction();
   }
 
   private updateCardDraftField(field: keyof CardDraft, value: string) {
@@ -1788,34 +1784,6 @@ export class CommerceHubConnect extends LitElement {
       interactionId,
       {method: 'GET', credentials: 'include'}
     );
-  }
-
-  private async loadBillingAddressesForInteraction(): Promise<void> {
-    const interactionId = this.requireInteractionId();
-
-    if (!interactionId || this.billingAddressesLoading) {
-      return;
-    }
-
-    this.billingAddressesLoading = true;
-
-    try {
-      const profile = await this.getCustomerProfile(interactionId);
-
-      if (this.requireInteractionId() !== interactionId) {
-        return;
-      }
-
-      this.syncBillingAddressesFromProfile(profile);
-    } catch {
-      this.billingAddresses = [];
-      this.cardDraft = {
-        ...this.cardDraft,
-        billingAddressValue: NEW_BILLING_ADDRESS_VALUE,
-      };
-    } finally {
-      this.billingAddressesLoading = false;
-    }
   }
 
   private syncBillingAddressesFromProfile(profile: CustomerProfile) {
