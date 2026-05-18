@@ -558,7 +558,11 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(
       [...rows[0].children].map((child) => child.className),
-      ['payment-method-icon-chip', 'payment-method-copy', 'payment-method-radio']
+      [
+        'payment-method-icon-chip',
+        'payment-method-copy',
+        'payment-method-radio',
+      ]
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
@@ -580,7 +584,7 @@ suite('commerce-hub-connect flow', () => {
       getComputedStyle(rows[0]).backgroundColor,
       'rgb(248, 250, 252)'
     );
-    assert.equal(getComputedStyle(rows[0]).paddingTop, '12px');
+    assert.equal(getComputedStyle(rows[0]).paddingTop, '8.8px');
     assert.equal(getComputedStyle(rows[0]).columnGap, '12px');
     assert.equal(
       getComputedStyle(
@@ -624,13 +628,16 @@ suite('commerce-hub-connect flow', () => {
       'rgb(248, 250, 252)'
     );
     assert.equal(getComputedStyle(addCardLink).borderTopStyle, 'solid');
-    assert.equal(getComputedStyle(addCardLink).paddingTop, '12px');
+    assert.equal(getComputedStyle(addCardLink).paddingTop, '8.8px');
     assert.equal(getComputedStyle(addCardLink).columnGap, '8px');
     assert.equal(getComputedStyle(addCardLink).alignItems, 'center');
     assert.equal(getComputedStyle(addCardIcon).fontSize, '28px');
     assert.equal(getComputedStyle(addCardIcon).fontWeight, '300');
     assert.equal(getComputedStyle(addCardIcon).borderTopStyle, 'none');
-    assert.equal(getComputedStyle(addCardIcon).backgroundColor, 'rgba(0, 0, 0, 0)');
+    assert.equal(
+      getComputedStyle(addCardIcon).backgroundColor,
+      'rgba(0, 0, 0, 0)'
+    );
     assert.equal(
       el
         .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
@@ -1011,9 +1018,7 @@ suite('commerce-hub-connect flow', () => {
       '3782 822463 10005'
     );
     assert.equal(
-      el
-        .shadowRoot!.querySelector<HTMLInputElement>('#expiration-date')
-        ?.value,
+      el.shadowRoot!.querySelector<HTMLInputElement>('#expiration-date')?.value,
       '04 / 30'
     );
 
@@ -1348,11 +1353,14 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (request.url.endsWith('/customer')) {
+      if (request.url.endsWith('/interaction')) {
         return new Response(
           JSON.stringify({
-            sources: [selectedSource],
-            billingAddress: [
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            selectedSource,
+            paymentSources: [selectedSource],
+            billerAddress: [
               {
                 id: 'billing-1',
                 recipientNameOrAddress: 'Ada Lovelace',
@@ -1424,7 +1432,7 @@ suite('commerce-hub-connect flow', () => {
     });
 
     await clickAction(el, 'confirm-payment-source');
-    await waitForRequest(requests, '/customer', 'GET');
+    await waitForRequest(requests, '/interaction', 'GET');
     await waitFor(
       () =>
         Boolean(
@@ -1433,10 +1441,10 @@ suite('commerce-hub-connect flow', () => {
       'selected payment source screen did not render'
     );
 
-    const customerRequestCount = requests.filter(
+    const interactionRequestCount = requests.filter(
       (request) =>
         request.method === 'GET' &&
-        new URL(request.url).pathname === '/customer'
+        new URL(request.url).pathname === '/interaction'
     ).length;
 
     await clickAction(el, 'change-payment-source');
@@ -1445,9 +1453,9 @@ suite('commerce-hub-connect flow', () => {
       requests.filter(
         (request) =>
           request.method === 'GET' &&
-          new URL(request.url).pathname === '/customer'
+          new URL(request.url).pathname === '/interaction'
       ).length,
-      customerRequestCount
+      interactionRequestCount
     );
     await waitFor(() =>
       Boolean(el.shadowRoot!.querySelector('#billing-address'))
@@ -1838,11 +1846,14 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/customer') {
+      if (pathname === '/interaction') {
         return new Response(
           JSON.stringify({
-            sources: [refreshedSource],
-            billingAddress: [],
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            selectedSource: refreshedSource,
+            paymentSources: [refreshedSource],
+            billerAddress: [],
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
@@ -1861,9 +1872,9 @@ suite('commerce-hub-connect flow', () => {
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
-    el.shadowRoot!
-      .querySelector<HTMLButtonElement>('.payment-method-row')
-      ?.click();
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '.payment-method-row'
+    )?.click();
     await flushElement(el);
     await clickAction(el, 'confirm-payment-source');
 
@@ -1871,7 +1882,7 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['GET /customer']
+      ['GET /interaction']
     );
     assert.lengthOf(successEvents, 1);
     assert.deepEqual(successEvents[0].detail, refreshedSource);
@@ -1892,13 +1903,17 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el
-        .shadowRoot!.querySelector('.selected-payment-method .payment-method-title')
+        .shadowRoot!.querySelector(
+          '.selected-payment-method .payment-method-title'
+        )
         ?.textContent?.trim(),
       'Corporate Visa'
     );
     assert.equal(
       el
-        .shadowRoot!.querySelector('.selected-payment-method .payment-method-meta')
+        .shadowRoot!.querySelector(
+          '.selected-payment-method .payment-method-meta'
+        )
         ?.textContent?.trim(),
       '•••• 1111'
     );
@@ -2216,7 +2231,8 @@ suite('commerce-hub-connect flow', () => {
       'Bank account verified'
     );
     assert.equal(
-      el.shadowRoot!.querySelector('[data-action="continue-bank-outcome"]')
+      el
+        .shadowRoot!.querySelector('[data-action="continue-bank-outcome"]')
         ?.textContent?.trim(),
       'Continue'
     );
