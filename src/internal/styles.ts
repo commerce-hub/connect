@@ -265,6 +265,25 @@ export const primitiveStyles = css`
     gap: 0.375rem;
   }
 
+  .required-info-ssn-control {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 4.5rem) auto minmax(0, 3.5rem) auto
+      minmax(0, 5.5rem);
+    max-width: 17rem;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .required-info-ssn-input {
+    text-align: center;
+  }
+
+  .required-info-ssn-separator {
+    color: var(--chc-copy);
+    font-weight: 600;
+  }
+
   .required-info-selected-file {
     margin: 0;
     overflow: hidden;

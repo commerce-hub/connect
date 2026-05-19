@@ -1215,6 +1215,13 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleInput = (event: Event) => {
+    const requiredInfoSsnInput = findRequiredInfoSsnInput(event);
+
+    if (requiredInfoSsnInput) {
+      this.storeRequiredInfoSsnInput(requiredInfoSsnInput);
+      return;
+    }
+
     const cardInput = event
       .composedPath()
       .find(
@@ -1375,6 +1382,13 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handlePaste = (event: Event) => {
+    const ssnInput = findRequiredInfoSsnInput(event);
+
+    if (ssnInput) {
+      this.pasteRequiredInfoSsnInput(event, ssnInput);
+      return;
+    }
+
     const input = findOtpInput(event);
 
     if (!input) {
@@ -1447,6 +1461,132 @@ export class CommerceHubConnect extends LitElement {
     return [
       ...this.renderRoot.querySelectorAll<HTMLInputElement>('.otp-input'),
     ];
+  }
+
+  private getRequiredInfoSsnInputs(key: string): HTMLInputElement[] {
+    return [
+      ...this.renderRoot.querySelectorAll<HTMLInputElement>(
+        '.required-info-ssn-input'
+      ),
+    ].filter((input) => input.dataset.requiredInfoDocKey === key);
+  }
+
+  private storeRequiredInfoSsnInput(input: HTMLInputElement) {
+    const key = input.dataset.requiredInfoDocKey;
+
+    if (!key) {
+      return;
+    }
+
+    const inputs = this.getRequiredInfoSsnInputs(key);
+    const inputIndex = inputs.indexOf(input);
+    const segmentLength = requiredInfoSsnInputMaxLength(input);
+    const digits = normalizeRequiredInfoSsn(input.value);
+
+    if (inputIndex < 0) {
+      return;
+    }
+
+    if (digits.length > segmentLength) {
+      const lastWrittenIndex = this.writeRequiredInfoSsnDigits(
+        inputs,
+        inputIndex,
+        digits
+      );
+
+      this.syncRequiredInfoSsnValue(key, inputs);
+      this.focusRequiredInfoSsnInput(inputs, lastWrittenIndex);
+      return;
+    }
+
+    input.value = digits.slice(0, segmentLength);
+    this.syncRequiredInfoSsnValue(key, inputs);
+
+    if (input.value.length >= segmentLength) {
+      this.focusRequiredInfoSsnInput(inputs, inputIndex + 1);
+    }
+  }
+
+  private pasteRequiredInfoSsnInput(event: Event, input: HTMLInputElement) {
+    const key = input.dataset.requiredInfoDocKey;
+
+    if (!key) {
+      return;
+    }
+
+    const clipboardEvent = event as Event & {
+      clipboardData?: {
+        getData?: (type: string) => string;
+      };
+    };
+    const clipboardText =
+      typeof clipboardEvent.clipboardData?.getData === 'function'
+        ? clipboardEvent.clipboardData.getData('text')
+        : '';
+    const digits = normalizeRequiredInfoSsn(clipboardText);
+
+    if (!digits) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const inputs = this.getRequiredInfoSsnInputs(key);
+    const inputIndex = inputs.indexOf(input);
+
+    if (inputIndex < 0) {
+      return;
+    }
+
+    const lastWrittenIndex = this.writeRequiredInfoSsnDigits(
+      inputs,
+      inputIndex,
+      digits
+    );
+
+    this.syncRequiredInfoSsnValue(key, inputs);
+    this.focusRequiredInfoSsnInput(inputs, lastWrittenIndex);
+  }
+
+  private writeRequiredInfoSsnDigits(
+    inputs: HTMLInputElement[],
+    startIndex: number,
+    digits: string
+  ): number {
+    let cursor = 0;
+    let lastWrittenIndex = startIndex;
+
+    inputs.forEach((input, index) => {
+      if (index < startIndex) {
+        return;
+      }
+
+      const length = requiredInfoSsnInputMaxLength(input);
+      const value = digits.slice(cursor, cursor + length);
+      input.value = value;
+
+      if (value) {
+        lastWrittenIndex = index;
+      }
+
+      cursor += length;
+    });
+
+    return lastWrittenIndex;
+  }
+
+  private syncRequiredInfoSsnValue(key: string, inputs: HTMLInputElement[]) {
+    this.storeRequiredInfoValue(
+      key,
+      normalizeRequiredInfoSsn(inputs.map((input) => input.value).join(''))
+    );
+  }
+
+  private focusRequiredInfoSsnInput(
+    inputs: HTMLInputElement[],
+    targetIndex: number
+  ) {
+    inputs[Math.min(targetIndex, inputs.length - 1)]?.focus();
   }
 
   private syncOtpValueFromInputs(inputs = this.getOtpInputs()) {
@@ -2744,6 +2884,30 @@ const findOtpInput = (event: Event): HTMLInputElement | undefined =>
         item instanceof HTMLInputElement && item.classList.contains('otp-input')
     );
 
+const findRequiredInfoSsnInput = (event: Event): HTMLInputElement | undefined =>
+  event
+    .composedPath()
+    .find(
+      (item): item is HTMLInputElement =>
+        item instanceof HTMLInputElement &&
+        item.classList.contains('required-info-ssn-input')
+    );
+
+const normalizeRequiredInfoSsn = (value: string): string =>
+  value.replace(/\D/g, '').slice(0, 9);
+
+const requiredInfoSsnSegments = (value: string): [string, string, string] => {
+  const digits = normalizeRequiredInfoSsn(value);
+
+  return [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5, 9)];
+};
+
+const requiredInfoSsnInputMaxLength = (input: HTMLInputElement): number => {
+  const segmentIndex = Number(input.dataset.requiredInfoSsnSegment);
+
+  return REQUIRED_INFO_SSN_SEGMENT_LENGTHS[segmentIndex] ?? 0;
+};
+
 const isSensitiveCardField = (field?: string): field is SensitiveCardField =>
   field === 'cardNumber' || field === 'cvv';
 
@@ -3908,6 +4072,7 @@ type RequiredInfoDoc = NonNullable<
 >[number];
 type RequiredInfoTextInputType = 'text' | 'password';
 type RequiredInfoTextInputMode = 'text' | 'numeric';
+const REQUIRED_INFO_SSN_SEGMENT_LENGTHS = [3, 2, 4] as const;
 
 const requiredInfoDocs = (source?: PaymentSource): RequiredInfoDoc[] => {
   const docs = source?.verificationInfo?.docs ?? [];
@@ -3951,6 +4116,10 @@ const renderRequiredInfoTextField = ({
   key: string;
   value: string;
 }): TemplateResult => {
+  if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
+    return renderRequiredInfoSsnField({doc, key, value});
+  }
+
   const id = `required-info-${key}`;
 
   return html`
@@ -3970,6 +4139,56 @@ const renderRequiredInfoTextField = ({
           data-required-info-doc-key=${key}
           aria-label=${requiredInfoDocLabel(doc)}
         />
+      </div>
+    </div>
+  `;
+};
+
+const renderRequiredInfoSsnField = ({
+  doc,
+  key,
+  value,
+}: {
+  doc: RequiredInfoDoc;
+  key: string;
+  value: string;
+}): TemplateResult => {
+  const label = requiredInfoDocLabel(doc);
+  const segments = requiredInfoSsnSegments(value);
+  const id = `required-info-${key}-ssn-0`;
+
+  return html`
+    <div
+      class="required-info-document required-info-text-document required-info-ssn-document"
+    >
+      <div class="field field-full">
+        <label class="field-label" for=${id}>${label}</label>
+        <div class="required-info-ssn-control" role="group" aria-label=${label}>
+          ${REQUIRED_INFO_SSN_SEGMENT_LENGTHS.map(
+            (length, index) => html`
+              ${index > 0
+                ? html`
+                    <span class="required-info-ssn-separator" aria-hidden="true"
+                      >-</span
+                    >
+                  `
+                : ''}
+              <input
+                class="field-input required-info-ssn-input"
+                id=${`required-info-${key}-ssn-${index}`}
+                name=${`${key}-${index}`}
+                type="password"
+                .value=${segments[index]}
+                autocomplete="off"
+                inputmode="numeric"
+                maxlength=${length}
+                data-required-info-doc-key=${key}
+                data-required-info-ssn-segment=${String(index)}
+                aria-label=${`${label} part ${index + 1}`}
+              />
+            `
+          )}
+        </div>
       </div>
     </div>
   `;
