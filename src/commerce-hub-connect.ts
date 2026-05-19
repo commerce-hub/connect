@@ -1973,19 +1973,82 @@ export class CommerceHubConnect extends LitElement {
               interactionId,
               bankSource
             );
-            const paymentSourceId = resolvedBankSource.id;
+            const paymentSourceId = resolvedBankSource.id?.trim();
+
+            if (!paymentSourceId) {
+              throw new Error(
+                'Pay by Bank completed but the resolved bank payment source did not include an id.'
+              );
+            }
+            const shouldPreselectSource =
+              shouldPreselectAddedPaymentSource(resolvedBankSource);
             const sourceInteractionResponse = interactionResponseWithSourceList(
               this.interactionResponse ?? {interactionId},
               sourceResponse,
-              paymentSourceId
+              shouldPreselectSource ? paymentSourceId : undefined
             );
+            let nextInteractionResponse = shouldPreselectSource
+              ? withUpsertedSource(
+                  {
+                    ...sourceInteractionResponse,
+                    status: 'PAYMENT_SOURCE_REQUESTED',
+                  },
+                  resolvedBankSource
+                )
+              : withUpsertedSourcePreservingSelection(
+                  {
+                    ...sourceInteractionResponse,
+                    selectedSource: this.interactionResponse?.selectedSource,
+                    status: 'PAYMENT_SOURCE_REQUESTED',
+                  },
+                  resolvedBankSource
+                );
 
-            this.selectedPaymentSourceId = paymentSourceId;
-            this.bankOutcomeSource = resolvedBankSource;
-            this.bankFlowScreen = 'outcome';
-            this.setInteractionResponseFromSdk(
-              withUpsertedSource(sourceInteractionResponse, resolvedBankSource)
-            );
+            if (shouldPreselectSource) {
+              try {
+                const attachedInteractionResponse =
+                  await this.requestCommerceHubJson<InteractionResponse>(
+                    `/interaction/source/${encodeURIComponent(
+                      paymentSourceId
+                    )}/attach`,
+                    interactionId,
+                    {method: 'POST', credentials: 'include'}
+                  );
+                const refreshedInteractionResponse =
+                  interactionResponseWithSelection(
+                    nextInteractionResponse,
+                    attachedInteractionResponse,
+                    paymentSourceId
+                  );
+                const attachedSource =
+                  selectedPaymentSourceFromInteractionResponse(
+                    refreshedInteractionResponse,
+                    paymentSourceId
+                  ) ??
+                  refreshedInteractionResponse.paymentSources?.find(
+                    (paymentSource) => paymentSource.id === paymentSourceId
+                  ) ??
+                  resolvedBankSource;
+
+                nextInteractionResponse = withUpsertedSource(
+                  refreshedInteractionResponse,
+                  attachedSource
+                );
+              } catch (cause) {
+                void cause;
+              }
+            }
+
+            this.resetBankFlow();
+
+            if (shouldPreselectSource) {
+              this.selectedPaymentSourceId = paymentSourceId;
+              this.paymentSourceView = 'selected';
+            } else {
+              this.paymentSourceView = 'list';
+            }
+
+            this.setInteractionResponseFromSdk(nextInteractionResponse);
             settled = true;
             resolve();
           } catch (cause) {
@@ -3402,7 +3465,33 @@ const withUpsertedSource = (
   interactionResponse: InteractionResponse,
   source: PaymentSource
 ): InteractionResponse => {
-  const paymentSources = interactionResponse.paymentSources ?? [];
+  const paymentSources = upsertPaymentSources(
+    interactionResponse.paymentSources ?? [],
+    source
+  );
+
+  return {
+    ...interactionResponse,
+    selectedSource: source,
+    paymentSources,
+  };
+};
+
+const withUpsertedSourcePreservingSelection = (
+  interactionResponse: InteractionResponse,
+  source: PaymentSource
+): InteractionResponse => ({
+  ...interactionResponse,
+  paymentSources: upsertPaymentSources(
+    interactionResponse.paymentSources ?? [],
+    source
+  ),
+});
+
+const upsertPaymentSources = (
+  paymentSources: PaymentSource[],
+  source: PaymentSource
+): PaymentSource[] => {
   const nextPaymentSources = paymentSources.some(
     (paymentSource) => paymentSource.id === source.id
   )
@@ -3411,12 +3500,11 @@ const withUpsertedSource = (
       )
     : [source, ...paymentSources];
 
-  return {
-    ...interactionResponse,
-    selectedSource: source,
-    paymentSources: nextPaymentSources,
-  };
+  return nextPaymentSources;
 };
+
+const shouldPreselectAddedPaymentSource = (source: PaymentSource): boolean =>
+  source.verificationInfo?.status === 'VERIFIED';
 
 type BankOutcome = {
   kind: 'verified' | 'pending' | 'requires-info' | 'declined' | 'failed';
