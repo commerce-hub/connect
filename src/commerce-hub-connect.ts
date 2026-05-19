@@ -277,6 +277,9 @@ export class CommerceHubConnect extends LitElement {
   private paymentSourceView?: 'list' | 'selected';
 
   @state()
+  private paymentSourceEditMode = false;
+
+  @state()
   private savedSourceVerificationSource?: PaymentSource;
 
   @state()
@@ -299,10 +302,18 @@ export class CommerceHubConnect extends LitElement {
         this.interactionResponse.interactionId
       ) {
         this.paymentSourceView = undefined;
+        this.paymentSourceEditMode = false;
         this.interactionRefreshInteractionId = undefined;
         this.interactionRefreshPromise = undefined;
         this.billingAddresses = [];
         this.resetSavedSourceVerification();
+      }
+
+      if (
+        !this.interactionResponse.paymentSources?.length &&
+        !this.interactionResponse.selectedSource
+      ) {
+        this.paymentSourceEditMode = false;
       }
 
       this.syncBillingAddressesFromInteractionResponse(
@@ -453,7 +464,10 @@ export class CommerceHubConnect extends LitElement {
     );
     const isPaymentSourceActionPending =
       this.pendingAction === 'attach-payment-source' ||
-      this.pendingAction === 'verify-payment-source';
+      this.pendingAction === 'verify-payment-source' ||
+      this.pendingAction === 'delete-payment-source';
+    const isEditingPaymentSources =
+      this.paymentSourceEditMode && paymentMethods.length > 0;
 
     if (!paymentMethods.length) {
       return this.renderNoSavedPaymentMethods();
@@ -466,31 +480,45 @@ export class CommerceHubConnect extends LitElement {
     return renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
+      headerAction: renderTextLinkButton({
+        label: isEditingPaymentSources ? 'Done' : 'Edit',
+        action: 'toggle-payment-source-edit-mode',
+        disabled: isPaymentSourceActionPending,
+      }),
       showClose: false,
       showDivider: false,
       content: html`
         <div class="payment-flow">
           <div class="primitive-stack" aria-label="Payment methods">
-            ${paymentMethods.map((method) => renderPaymentMethodRow(method))}
+            ${paymentMethods.map((method) =>
+              renderPaymentMethodRow(method, {
+                variant: isEditingPaymentSources ? 'edit' : 'default',
+                deleteDisabled: isPaymentSourceActionPending,
+              })
+            )}
           </div>
-          <div class="payment-action-links">
-            ${renderSourceAction({
-              label: copy.addCardTitle,
-              subtitle: copy.addCardSubtitle,
-              action: 'add-card',
-              icon: 'card',
-              variant: 'link',
-              disabled: isPaymentSourceActionPending,
-            })}
-            ${renderSourceAction({
-              label: copy.addBankAccountTitle,
-              subtitle: copy.addBankAccountSubtitle,
-              action: 'add-bank-account',
-              icon: 'bank',
-              variant: 'link',
-              disabled: isPaymentSourceActionPending,
-            })}
-          </div>
+          ${isEditingPaymentSources
+            ? ''
+            : html`
+                <div class="payment-action-links">
+                  ${renderSourceAction({
+                    label: copy.addCardTitle,
+                    subtitle: copy.addCardSubtitle,
+                    action: 'add-card',
+                    icon: 'card',
+                    variant: 'link',
+                    disabled: isPaymentSourceActionPending,
+                  })}
+                  ${renderSourceAction({
+                    label: copy.addBankAccountTitle,
+                    subtitle: copy.addBankAccountSubtitle,
+                    action: 'add-bank-account',
+                    icon: 'bank',
+                    variant: 'link',
+                    disabled: isPaymentSourceActionPending,
+                  })}
+                </div>
+              `}
         </div>
       `,
     });
@@ -566,6 +594,7 @@ export class CommerceHubConnect extends LitElement {
   private renderNoSavedPaymentMethods(): TemplateResult {
     const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
     const showHelperCopy = Boolean(copy.emptyTitle || copy.emptyMessage);
+    const isDeletePending = this.pendingAction === 'delete-payment-source';
 
     return renderWidgetShell({
       title: copy.title,
@@ -587,6 +616,7 @@ export class CommerceHubConnect extends LitElement {
               action: 'add-card',
               icon: 'card',
               variant: 'link',
+              disabled: isDeletePending,
             })}
             ${renderSourceAction({
               label: copy.addBankAccountTitle,
@@ -594,6 +624,7 @@ export class CommerceHubConnect extends LitElement {
               action: 'add-bank-account',
               icon: 'bank',
               variant: 'link',
+              disabled: isDeletePending,
             })}
           </div>
         </div>
@@ -947,6 +978,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (action === 'attach-payment-source') {
       if (paymentMethodId) {
+        this.paymentSourceEditMode = false;
         this.selectedPaymentSourceId = paymentMethodId;
         this.paymentSourceView = 'selected';
         void this.attachPaymentSource(paymentMethodId);
@@ -955,18 +987,33 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'change-payment-source') {
+      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
+      return;
+    }
+
+    if (action === 'toggle-payment-source-edit-mode') {
+      this.paymentSourceEditMode = !this.paymentSourceEditMode;
       return;
     }
 
     if (action === 'verify-payment-source') {
       if (paymentMethodId) {
+        this.paymentSourceEditMode = false;
         void this.verifySavedPaymentSource(paymentMethodId);
       }
       return;
     }
 
+    if (action === 'delete-payment-source') {
+      if (paymentMethodId) {
+        void this.deletePaymentSource(paymentMethodId);
+      }
+      return;
+    }
+
     if (action === 'done-payment-source-verification') {
+      this.paymentSourceEditMode = false;
       this.resetSavedSourceVerification();
       return;
     }
@@ -987,6 +1034,7 @@ export class CommerceHubConnect extends LitElement {
       action === 'retry-bank-provider' ||
       action === 'use-different-bank-account'
     ) {
+      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       void this.startPayByBankFlow();
@@ -994,6 +1042,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'back-to-payment-methods') {
+      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetBankFlow();
@@ -1006,6 +1055,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'add-card') {
+      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       void this.showAddCardScreen();
       return;
@@ -1022,6 +1072,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'use-different-method') {
+      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       return;
@@ -1756,6 +1807,54 @@ export class CommerceHubConnect extends LitElement {
       void cause;
       this.savedSourceVerificationSource = source;
       this.savedSourceVerificationFailed = true;
+    } finally {
+      this.pendingAction = undefined;
+    }
+  }
+
+  private async deletePaymentSource(paymentSourceId: string) {
+    if (this.pendingAction === 'delete-payment-source') {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+    const source = this.findPaymentSourceById(paymentSourceId);
+
+    if (!interactionId || !source) {
+      return;
+    }
+
+    const paymentMethod = paymentSourceToPaymentMethod(source);
+    const shouldDelete = window.confirm(`Delete ${paymentMethod.label}?`);
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    this.pendingAction = 'delete-payment-source';
+
+    try {
+      await this.requestCommerceHubJson<unknown>(
+        `/interaction/source/${encodeURIComponent(paymentSourceId)}`,
+        interactionId,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        }
+      );
+
+      const nextInteractionResponse = interactionResponseWithoutPaymentSource(
+        this.interactionResponse ?? {interactionId},
+        paymentSourceId
+      );
+
+      if (!nextInteractionResponse.paymentSources?.length) {
+        this.paymentSourceEditMode = false;
+      }
+
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
+    } catch (cause) {
+      void cause;
     } finally {
       this.pendingAction = undefined;
     }
@@ -3123,6 +3222,29 @@ const interactionResponseWithSelection = (
 
   return {
     ...base,
+    selectedSource,
+    paymentSources,
+  };
+};
+
+const interactionResponseWithoutPaymentSource = (
+  current: InteractionResponse,
+  paymentSourceId: string
+): InteractionResponse => {
+  const paymentSources = (current.paymentSources ?? []).filter(
+    (source) => source.id !== paymentSourceId
+  );
+  const selectedSource =
+    current.selectedSource?.id === paymentSourceId
+      ? undefined
+      : current.selectedSource;
+
+  return {
+    ...current,
+    status:
+      current.status === 'PAYMENT_SOURCE_ATTACHED' && !selectedSource
+        ? 'PAYMENT_SOURCE_REQUESTED'
+        : current.status,
     selectedSource,
     paymentSources,
   };

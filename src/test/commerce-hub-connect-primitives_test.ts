@@ -582,6 +582,40 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(row.disabled, false);
   });
 
+  test('renders edit-mode delete controls with a 44px touch target', async () => {
+    const method: PaymentMethod = {
+      id: 'card-1',
+      label: 'Corporate Visa',
+      type: 'card',
+      brand: 'Visa',
+      last4: '1111',
+      status: 'verified',
+    };
+
+    const root = await renderHarness(
+      html`
+        <style>
+          ${primitiveStyles.cssText}
+        </style>
+        ${renderPaymentMethodRow(method, {variant: 'edit'})}
+      `
+    );
+
+    const deleteButton = root.querySelector<HTMLButtonElement>(
+      '[data-action="delete-payment-source"]'
+    )!;
+    const deleteIcon = deleteButton.querySelector<HTMLElement>(
+      '.payment-method-delete-icon'
+    )!;
+    const deleteButtonStyles = getComputedStyle(deleteButton);
+    const deleteIconStyles = getComputedStyle(deleteIcon);
+
+    assert.equal(deleteButtonStyles.width, '44px');
+    assert.equal(deleteButtonStyles.height, '44px');
+    assert.equal(deleteIconStyles.width, '20px');
+    assert.equal(deleteIconStyles.height, '20px');
+  });
+
   test('renders a selected payment method summary without radio or chevron controls', async () => {
     const method: PaymentMethod = {
       id: 'card-1',

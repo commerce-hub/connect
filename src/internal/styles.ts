@@ -588,6 +588,11 @@ export const primitiveStyles = css`
     cursor: pointer;
   }
 
+  .payment-method-row-edit {
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    cursor: default;
+  }
+
   .selected-payment-method {
     border-color: var(--chc-primary);
     background: var(--chc-soft-surface);
@@ -652,6 +657,78 @@ export const primitiveStyles = css`
     border-right: 0.09375rem solid currentColor;
     border-bottom: 0.09375rem solid currentColor;
     transform: rotate(-45deg);
+  }
+
+  .payment-method-delete-button {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    border: 0;
+    border-radius: 0.75rem;
+    padding: 0;
+    background: transparent;
+    color: var(--chc-danger);
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+    touch-action: manipulation;
+  }
+
+  .payment-method-delete-button:hover:not(:disabled),
+  .payment-method-delete-button:focus-visible {
+    background: color-mix(
+      in srgb,
+      var(--chc-danger) 10%,
+      transparent
+    );
+  }
+
+  .payment-method-delete-button:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 0.125rem
+      color-mix(in srgb, var(--chc-danger) 24%, transparent);
+  }
+
+  .payment-method-delete-button:disabled {
+    color: var(--chc-muted);
+    cursor: not-allowed;
+  }
+
+  .payment-method-delete-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    position: relative;
+    display: inline-flex;
+  }
+
+  .payment-method-delete-icon::before,
+  .payment-method-delete-icon::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .payment-method-delete-icon::before {
+    top: 0.3125rem;
+    width: 0.75rem;
+    height: 0.6875rem;
+    border: 0.09375rem solid currentColor;
+    border-top: 0;
+    border-radius: 0 0 0.15625rem 0.15625rem;
+  }
+
+  .payment-method-delete-icon::after {
+    top: 0.1875rem;
+    width: 0.9375rem;
+    height: 0.125rem;
+    background: currentColor;
+    border-radius: 999rem;
+    box-shadow: 0 -0.21875rem 0 -0.03125rem currentColor;
   }
 
   .payment-method-icon-chip {

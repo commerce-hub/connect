@@ -74,9 +74,11 @@ const recordOutputEvents = (el: Element) => {
 
 suite('commerce-hub-connect payment selection', () => {
   const originalFetch = window.fetch;
+  const originalConfirm = window.confirm;
 
   teardown(() => {
     window.fetch = originalFetch;
+    window.confirm = originalConfirm;
   });
 
   test('saved payment methods render without confirm button or radio controls', async () => {
@@ -122,6 +124,222 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notExists(rows[1].querySelector('.payment-method-radio'));
     assert.notEqual(rows[0].dataset.action, 'verify-payment-source');
     assert.equal(rows[1].dataset.action, 'verify-payment-source');
+  });
+
+  test('Edit toggles payment source edit mode and hides add actions', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ],
+    });
+
+    const editButton = () =>
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="toggle-payment-source-edit-mode"]'
+      );
+
+    assert.equal(editButton()?.textContent?.trim(), 'Edit');
+    assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+    );
+
+    await clickAction(el, 'toggle-payment-source-edit-mode');
+
+    assert.equal(editButton()?.textContent?.trim(), 'Done');
+    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="attach-payment-source"]')
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="verify-payment-source"]')
+    );
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
+      2
+    );
+
+    await clickAction(el, 'toggle-payment-source-edit-mode');
+
+    assert.equal(editButton()?.textContent?.trim(), 'Edit');
+    assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+    );
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
+      0
+    );
+  });
+
+  test('confirmed source deletion calls the delete endpoint and removes the source', async () => {
+    const requests: CapturedRequest[] = [];
+    const confirmMessages: string[] = [];
+
+    window.confirm = (message?: string) => {
+      confirmMessages.push(message ?? '');
+      return true;
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response('', {status: 200});
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ],
+    });
+
+    await clickAction(el, 'toggle-payment-source-edit-mode');
+
+    el.shadowRoot!
+      .querySelector<HTMLButtonElement>(
+        '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
+      )
+      ?.click();
+    await flushElement(el);
+
+    assert.deepEqual(confirmMessages, ['Delete Corporate card?']);
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['DELETE /interaction/source/card-1']
+    );
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(requests[0].credentials, 'include');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['bank-1']
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-header-action button')?.textContent?.trim(),
+      'Done'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
+      1
+    );
+  });
+
+  test('canceling source deletion does not call the delete endpoint', async () => {
+    const requests: CapturedRequest[] = [];
+    const confirmMessages: string[] = [];
+
+    window.confirm = (message?: string) => {
+      confirmMessages.push(message ?? '');
+      return false;
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response('', {status: 200});
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+      ],
+    });
+
+    await clickAction(el, 'toggle-payment-source-edit-mode');
+
+    el.shadowRoot!
+      .querySelector<HTMLButtonElement>(
+        '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
+      )
+      ?.click();
+    await flushElement(el);
+
+    assert.deepEqual(confirmMessages, ['Delete Corporate card?']);
+    assert.lengthOf(requests, 0);
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-1']
+    );
+    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
+      1
+    );
   });
 
   test('loads saved payment sources and billing addresses from the interaction', async () => {
