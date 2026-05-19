@@ -494,14 +494,12 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       title: copy.title,
-      subtitle: copy.subtitle,
       headerAction: renderTextLinkButton({
         label: isEditingPaymentSources ? 'Done' : 'Edit',
         action: 'toggle-payment-source-edit-mode',
         disabled: isPaymentSourceActionPending,
       }),
       showClose: false,
-      showDivider: false,
       content: html`
         <div class="payment-flow">
           <div class="primitive-stack" aria-label="Payment methods">
@@ -509,6 +507,7 @@ export class CommerceHubConnect extends LitElement {
               renderPaymentMethodRow(method, {
                 variant: isEditingPaymentSources ? 'edit' : 'default',
                 deleteDisabled: isPaymentSourceActionPending,
+                selected: method.id === this.selectedPaymentSourceId,
               })
             )}
           </div>
@@ -518,7 +517,6 @@ export class CommerceHubConnect extends LitElement {
                 <div class="payment-action-links">
                   ${renderSourceAction({
                     label: copy.addCardTitle,
-                    subtitle: copy.addCardSubtitle,
                     action: 'add-card',
                     icon: 'card',
                     variant: 'link',
@@ -526,7 +524,6 @@ export class CommerceHubConnect extends LitElement {
                   })}
                   ${renderSourceAction({
                     label: copy.addBankAccountTitle,
-                    subtitle: copy.addBankAccountSubtitle,
                     action: 'add-bank-account',
                     icon: 'bank',
                     variant: 'link',

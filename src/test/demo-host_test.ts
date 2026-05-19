@@ -116,7 +116,7 @@ suite('demo host page', () => {
     assert.include(html, "clientId: 'marriot'");
     assert.include(html, "merchantId: '101475000000009'");
     assert.include(html, "terminalId: '10000001'");
-    assert.include(html, 'advancedVerification: false');
+    assert.include(html, 'advancedVerification: true');
     assert.include(html, 'preAuthenticated: true');
     assert.include(html, 'allowCard: true');
     assert.include(html, 'allowBankAccount: true');

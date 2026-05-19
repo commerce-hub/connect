@@ -98,8 +98,9 @@ export const renderVerificationStatusBadge = (
   `;
 };
 
-const shouldRenderPaymentMethodStatus = (method: PaymentMethod): boolean =>
-  method.status !== 'verified';
+const paymentMethodStatusIconTone = (
+  status: PaymentMethod['status']
+): 'warning' | 'danger' => (status === 'declined' ? 'danger' : 'warning');
 
 const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
   <span class="payment-method-copy">
@@ -107,16 +108,7 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
       <span class="payment-method-title">${method.label}</span>
     </span>
     <span class="payment-method-meta-row">
-      <span class="payment-method-meta">
-        ${paymentMethodAccountLabel(method)}
-      </span>
-      ${shouldRenderPaymentMethodStatus(method)
-        ? html`
-            <span class="payment-method-status">
-              ${renderVerificationStatusBadge(method.status)}
-            </span>
-          `
-        : ''}
+      <span class="payment-method-meta">${paymentMethodAccountLabel(method)}</span>
     </span>
   </span>
 `;
@@ -125,11 +117,30 @@ const renderPaymentMethodSpacer = (): TemplateResult => html`
   <span class="payment-method-row-spacer" aria-hidden="true"></span>
 `;
 
-const renderPaymentMethodVerificationAction = (): TemplateResult => html`
-  <span class="payment-method-chevron" aria-hidden="true">
-    <span class="payment-method-chevron-icon"></span>
-  </span>
-`;
+const renderPaymentMethodVerificationAction = (
+  status: PaymentMethod['status']
+): TemplateResult => {
+  const presentation = paymentMethodStatusPresentation(status);
+
+  return html`
+    <span class="payment-method-trailing">
+      <span
+        class="payment-method-status-icon payment-method-status-icon-${paymentMethodStatusIconTone(
+          status
+        )}"
+        data-verification-status=${status}
+        role="img"
+        aria-label=${presentation.label}
+        title=${presentation.label}
+      >
+        !
+      </span>
+      <span class="payment-method-chevron" aria-hidden="true">
+        <span class="payment-method-chevron-icon"></span>
+      </span>
+    </span>
+  `;
+};
 
 const renderPaymentMethodDeleteAction = (
   paymentMethodId: string,
@@ -406,9 +417,11 @@ export const renderPaymentMethodRow = ({
 {
   variant = 'default',
   deleteDisabled = false,
+  selected = false,
 }: {
   variant?: 'default' | 'edit';
   deleteDisabled?: boolean;
+  selected?: boolean;
 } = {}): TemplateResult => {
   const method: PaymentMethod = {
     id,
@@ -439,7 +452,11 @@ export const renderPaymentMethodRow = ({
   if (status === 'verified') {
     return html`
       <button
-        class="payment-method-row payment-method-row-action"
+        class=${joinClassNames(
+          'payment-method-row',
+          'payment-method-row-action',
+          selected && 'payment-method-row-selected'
+        )}
         type="button"
         aria-disabled=${disabled ? 'true' : 'false'}
         data-action="attach-payment-source"
@@ -453,14 +470,21 @@ export const renderPaymentMethodRow = ({
 
   return html`
     <button
-      class="payment-method-row payment-method-row-action"
+      class=${joinClassNames(
+        'payment-method-row',
+        'payment-method-row-action',
+        selected && 'payment-method-row-selected'
+      )}
       type="button"
       aria-disabled=${disabled ? 'true' : 'false'}
       data-action="verify-payment-source"
       data-payment-method-id=${id}
       ?disabled=${disabled}
     >
-      ${renderPaymentMethodContent(method, renderPaymentMethodVerificationAction())}
+      ${renderPaymentMethodContent(
+        method,
+        renderPaymentMethodVerificationAction(method.status)
+      )}
     </button>
   `;
 };
@@ -521,6 +545,9 @@ export const renderSourceAction = ({
                   </span>
                 `
               : ''}
+          </span>
+          <span class="source-action-link-chevron" aria-hidden="true">
+            <span class="source-action-link-chevron-icon"></span>
           </span>
         </button>
       `
