@@ -623,6 +623,16 @@ export interface components {
             tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD";
             verificationInfo?: components["schemas"]["VerificationInfo"];
         };
+        Address: {
+            id?: string;
+            street?: string;
+            houseNumberOrName?: string;
+            recipientNameOrAddress?: string;
+            city?: string;
+            stateOrProvince?: string;
+            postalCode?: string;
+            country?: string;
+        };
         BankAccount: {
             tenderType: "BankAccount";
         } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
@@ -666,12 +676,13 @@ export interface components {
         InteractionResponse: {
             interactionId?: string;
             /** @enum {string} */
-            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "PAYMENT_SOURCE_REQUESTED" | "PAYMENT_SOURCE_ATTACHED";
+            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "PAYMENT_SOURCE_REQUESTED" | "PAYMENT_SOURCE_ATTACHED" | "COMPLETE";
             email?: string;
             selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
             allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
             paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
             phone?: components["schemas"]["PhoneDetails"];
+            billerAddress?: components["schemas"]["Address"][];
         };
         PhoneDetails: {
             countryCode?: string;
@@ -686,16 +697,6 @@ export interface components {
             /** Format: int64 */
             lastTimestamp?: number;
             docs?: components["schemas"]["DocInfo"][];
-        };
-        Address: {
-            id?: string;
-            street?: string;
-            houseNumberOrName?: string;
-            recipientNameOrAddress?: string;
-            city?: string;
-            stateOrProvince?: string;
-            postalCode?: string;
-            country?: string;
         };
         MPPSetupInfo: Record<string, never>;
         MerchantData: {
