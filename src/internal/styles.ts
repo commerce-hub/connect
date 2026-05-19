@@ -797,7 +797,6 @@ export const primitiveStyles = css`
     max-width: 100%;
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
     border: 0.0625rem solid;
     border-radius: 999rem;
     padding: 0.1875rem 0.5rem;
@@ -811,25 +810,10 @@ export const primitiveStyles = css`
     white-space: nowrap;
   }
 
-  .verification-status-icon {
-    width: 0.875rem;
-    height: 0.875rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    font-size: 0.75rem;
-    font-weight: 700;
-  }
-
   .verification-status-badge-success {
     border-color: var(--chc-success-border);
     background: var(--chc-success-bg);
     color: var(--chc-success);
-  }
-
-  .verification-status-badge-success .verification-status-icon::before {
-    content: '✓';
   }
 
   .verification-status-badge-warning {
@@ -838,18 +822,10 @@ export const primitiveStyles = css`
     color: var(--chc-warning);
   }
 
-  .verification-status-badge-warning .verification-status-icon::before {
-    content: '!';
-  }
-
   .verification-status-badge-danger {
     border-color: var(--chc-danger-border);
     background: var(--chc-danger-bg);
     color: var(--chc-danger);
-  }
-
-  .verification-status-badge-danger .verification-status-icon::before {
-    content: '×';
   }
 
   .source-action {

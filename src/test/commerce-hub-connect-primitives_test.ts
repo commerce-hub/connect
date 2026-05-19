@@ -260,7 +260,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.exists(rows[1].querySelector('.payment-method-title-row'));
     assert.exists(rows[1].querySelector('.payment-method-meta-row'));
-    assert.exists(rows[1].querySelector('.verification-status-icon'));
+    assert.notExists(rows[1].querySelector('.verification-status-icon'));
     assert.exists(rows[1].querySelector('[data-payment-method-icon="bank"]'));
     assert.notExists(rows[1].querySelector('.payment-method-radio'));
     assert.equal(rows[1].dataset.action, 'verify-payment-source');
@@ -596,7 +596,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.exists(row.querySelector('.payment-method-title-row'));
     assert.exists(metaRow);
-    assert.exists(row.querySelector('.verification-status-icon'));
+    assert.notExists(row.querySelector('.verification-status-icon'));
     assert.equal(getComputedStyle(copy).rowGap, '4px');
     assert.equal(getComputedStyle(metaRow).justifyContent, 'space-between');
     assert.exists(chevron);
@@ -668,7 +668,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.exists(root.querySelector('.payment-method-title-row'));
     assert.exists(root.querySelector('.payment-method-meta-row'));
-    assert.exists(root.querySelector('.verification-status-icon'));
+    assert.notExists(root.querySelector('.verification-status-icon'));
   });
 
   test('renders a selected payment method summary without radio or chevron controls', async () => {

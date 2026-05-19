@@ -93,7 +93,6 @@ export const renderVerificationStatusBadge = (
       class="verification-status-badge verification-status-badge-${presentation.tone}"
       data-verification-status=${status}
     >
-      <span class="verification-status-icon" aria-hidden="true"></span>
       <span class="verification-status-label">${presentation.label}</span>
     </span>
   `;
