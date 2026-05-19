@@ -936,7 +936,32 @@ suite('commerce-hub-connect payment selection', () => {
       [...el.shadowRoot!.querySelectorAll('.upload-row-requirements')].map(
         (node) => node.textContent?.trim()
       ),
-      ['Bank statement', 'Driver license number', 'Social Security number']
+      ['Bank statement']
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+          '.required-info-text-input'
+        ),
+      ].map((input) => ({
+        label: el
+          .shadowRoot!.querySelector(`label[for="${input.id}"]`)
+          ?.textContent?.trim(),
+        type: input.type,
+        inputmode: input.getAttribute('inputmode'),
+      })),
+      [
+        {
+          label: 'Driver license number',
+          type: 'text',
+          inputmode: 'text',
+        },
+        {
+          label: 'Social Security number',
+          type: 'password',
+          inputmode: 'numeric',
+        },
+      ]
     );
     assert.equal(
       el
