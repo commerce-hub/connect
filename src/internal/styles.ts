@@ -751,11 +751,12 @@ export const primitiveStyles = css`
 
   .payment-method-copy {
     display: grid;
-    gap: 0.125rem;
+    gap: 0.25rem;
     min-width: 0;
   }
 
   .payment-method-title {
+    min-width: 0;
     overflow: hidden;
     color: var(--chc-text);
     font-weight: 600;
@@ -763,26 +764,92 @@ export const primitiveStyles = css`
     white-space: nowrap;
   }
 
+  .payment-method-title-row {
+    min-width: 0;
+  }
+
+  .payment-method-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.375rem;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
   .payment-method-meta {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
     color: var(--chc-copy);
+    text-overflow: ellipsis;
     font-weight: inherit;
+    white-space: nowrap;
   }
 
   .payment-method-status {
-    font-weight: inherit;
-    font-size: 0.875em;
+    display: inline-flex;
+    flex: 0 0 auto;
+    margin-left: auto;
   }
 
-  .status-text-verified {
+  .verification-status-badge {
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 0.0625rem solid;
+    border-radius: 999rem;
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.75em;
+    font-weight: 600;
+  }
+
+  .verification-status-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .verification-status-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .verification-status-badge-success {
+    border-color: var(--chc-success-border);
+    background: var(--chc-success-bg);
     color: var(--chc-success);
   }
 
-  .status-text-pending {
+  .verification-status-badge-success .verification-status-icon::before {
+    content: '✓';
+  }
+
+  .verification-status-badge-warning {
+    border-color: var(--chc-warning-border);
+    background: var(--chc-warning-bg);
     color: var(--chc-warning);
   }
 
-  .status-text-unverified {
+  .verification-status-badge-warning .verification-status-icon::before {
+    content: '!';
+  }
+
+  .verification-status-badge-danger {
+    border-color: var(--chc-danger-border);
+    background: var(--chc-danger-bg);
     color: var(--chc-danger);
+  }
+
+  .verification-status-badge-danger .verification-status-icon::before {
+    content: '×';
   }
 
   .source-action {
@@ -1195,6 +1262,9 @@ export const primitiveStyles = css`
 
   .verification-detail-value {
     color: var(--chc-text);
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
     font-weight: 500;
   }
 

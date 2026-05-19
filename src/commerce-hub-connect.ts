@@ -22,6 +22,7 @@ import {
   renderSourceAction,
   renderTextField,
   renderTextLinkButton,
+  renderVerificationStatusBadge,
   renderVerificationDetails,
   renderWidgetShell,
 } from './internal/primitives.js';
@@ -208,7 +209,7 @@ const demoPaymentMethods: PaymentMethod[] = [
     type: 'card',
     brand: 'AMEX',
     last4: '8000',
-    status: 'unverified',
+    status: 'not-verified',
   },
 ];
 
@@ -3302,11 +3303,19 @@ const verificationStatusToPaymentMethodStatus = (
     return 'verified';
   }
 
-  if (status === 'UNDER_REVIEW' || status === 'REQUIRE_INFO') {
-    return 'pending';
+  if (status === 'UNDER_REVIEW') {
+    return 'under-review';
   }
 
-  return 'unverified';
+  if (status === 'REQUIRE_INFO') {
+    return 'require-info';
+  }
+
+  if (status === 'DECLINED') {
+    return 'declined';
+  }
+
+  return 'not-verified';
 };
 
 const resolvePayByBankSession = (
@@ -3432,7 +3441,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'pending',
       variant: 'warning',
-      title: 'Verification pending review',
+      title: 'Verification under review',
       message: 'We will update this bank account after review is complete.',
     };
   }
@@ -3441,7 +3450,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'requires-info',
       variant: 'warning',
-      title: 'More information required',
+      title: 'More information needed',
       message:
         'Additional information is required before this bank account can be verified.',
     };
@@ -3459,14 +3468,14 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
   return {
     kind: 'failed',
     variant: 'danger',
-    title: 'Bank account not verified',
-    message: 'This bank account could not be verified.',
+    title: 'Bank account not verified yet',
+    message: 'This bank account is not verified yet.',
   };
 };
 
 const bankSourceVerificationDetails = (
   source: BankPaymentSource
-): {label: string; value: string}[] => [
+): {label: string; value: string | TemplateResult}[] => [
   {label: 'Bank', value: source.bankAccount?.bankName ?? 'Bank account'},
   {
     label: 'Last 4 digits',
@@ -3474,7 +3483,9 @@ const bankSourceVerificationDetails = (
   },
   {
     label: 'Verification status',
-    value: verificationStatusLabel(source.verificationInfo?.status),
+    value: renderVerificationStatusBadge(
+      verificationStatusToPaymentMethodStatus(source.verificationInfo?.status)
+    ),
   },
 ];
 
@@ -3490,7 +3501,7 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'failed',
       variant: 'danger',
-      title: `${subject} not verified`,
+      title: `${subject} not verified yet`,
       message: `We could not verify this ${subjectLowerCase} right now.`,
     };
   }
@@ -3508,7 +3519,7 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'pending',
       variant: 'warning',
-      title: 'Verification pending review',
+      title: 'Verification under review',
       message: `We will update this ${subjectLowerCase} after review is complete.`,
     };
   }
@@ -3517,7 +3528,7 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'requires-info',
       variant: 'warning',
-      title: 'More information required',
+      title: 'More information needed',
       message:
         `Additional information is required before this ${subjectLowerCase} can be verified.`,
     };
@@ -3535,14 +3546,14 @@ const resolveSavedSourceVerificationOutcome = (
   return {
     kind: 'failed',
     variant: 'danger',
-    title: `${subject} not verified`,
-    message: `This ${subjectLowerCase} could not be verified.`,
+    title: `${subject} not verified yet`,
+    message: `This ${subjectLowerCase} is not verified yet.`,
   };
 };
 
 const paymentSourceVerificationDetails = (
   source: PaymentSource
-): {label: string; value: string}[] => [
+): {label: string; value: string | TemplateResult}[] => [
   {
     label: isBankPaymentSource(source) ? 'Bank' : 'Card',
     value: isBankPaymentSource(source)
@@ -3557,34 +3568,14 @@ const paymentSourceVerificationDetails = (
   },
   {
     label: 'Verification status',
-    value: verificationStatusLabel(source.verificationInfo?.status),
+    value: renderVerificationStatusBadge(
+      verificationStatusToPaymentMethodStatus(source.verificationInfo?.status)
+    ),
   },
 ];
 
 const paymentSourceVerificationSubject = (source?: PaymentSource): string =>
   source && isBankPaymentSource(source) ? 'Bank account' : 'Payment method';
-
-const verificationStatusLabel = (
-  status?: NonNullable<PaymentSource['verificationInfo']>['status']
-): string => {
-  if (status === 'VERIFIED') {
-    return 'Verified';
-  }
-
-  if (status === 'UNDER_REVIEW') {
-    return 'Pending review';
-  }
-
-  if (status === 'REQUIRE_INFO') {
-    return 'More information required';
-  }
-
-  if (status === 'DECLINED') {
-    return 'Declined';
-  }
-
-  return 'Not verified';
-};
 
 const isBankPaymentSource = (
   source: PaymentSource

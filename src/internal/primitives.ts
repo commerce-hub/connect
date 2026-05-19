@@ -56,31 +56,69 @@ const paymentMethodAccountLabel = ({
   return normalizedBrand ?? '';
 };
 
-const paymentMethodStatusLabel = (status: PaymentMethod['status']): string => {
-  if (status === 'verified') {
-    return 'Verified';
-  }
-
-  if (status === 'pending') {
-    return 'Further info required';
-  }
-
-  return 'Not verified';
+type VerificationStatusPresentation = {
+  label: string;
+  tone: 'success' | 'warning' | 'danger';
 };
+
+const paymentMethodStatusPresentation = (
+  status: PaymentMethod['status']
+): VerificationStatusPresentation => {
+  if (status === 'verified') {
+    return {label: 'Verified', tone: 'success'};
+  }
+
+  if (status === 'under-review') {
+    return {label: 'Under review', tone: 'warning'};
+  }
+
+  if (status === 'require-info') {
+    return {label: 'More information needed', tone: 'warning'};
+  }
+
+  if (status === 'declined') {
+    return {label: 'Declined', tone: 'danger'};
+  }
+
+  return {label: 'Not verified yet', tone: 'danger'};
+};
+
+export const renderVerificationStatusBadge = (
+  status: PaymentMethod['status']
+): TemplateResult => {
+  const presentation = paymentMethodStatusPresentation(status);
+
+  return html`
+    <span
+      class="verification-status-badge verification-status-badge-${presentation.tone}"
+      data-verification-status=${status}
+    >
+      <span class="verification-status-icon" aria-hidden="true"></span>
+      <span class="verification-status-label">${presentation.label}</span>
+    </span>
+  `;
+};
+
+const shouldRenderPaymentMethodStatus = (method: PaymentMethod): boolean =>
+  method.status !== 'verified';
 
 const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
   <span class="payment-method-copy">
-    <span class="payment-method-title">${method.label}</span>
-    <span class="payment-method-meta">
-      ${paymentMethodAccountLabel(method)}
+    <span class="payment-method-title-row">
+      <span class="payment-method-title">${method.label}</span>
     </span>
-    ${method.status === 'verified'
-      ? ''
-      : html`
-          <span class="payment-method-status status-text-${method.status}">
-            ${paymentMethodStatusLabel(method.status)}
-          </span>
-        `}
+    <span class="payment-method-meta-row">
+      <span class="payment-method-meta">
+        ${paymentMethodAccountLabel(method)}
+      </span>
+      ${shouldRenderPaymentMethodStatus(method)
+        ? html`
+            <span class="payment-method-status">
+              ${renderVerificationStatusBadge(method.status)}
+            </span>
+          `
+        : ''}
+    </span>
   </span>
 `;
 

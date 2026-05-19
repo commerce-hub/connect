@@ -242,7 +242,10 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.notExists(rows[0].querySelector('.payment-method-radio'));
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
+    assert.exists(rows[0].querySelector('.payment-method-title-row'));
+    assert.exists(rows[0].querySelector('.payment-method-meta-row'));
     assert.notExists(rows[0].querySelector('.payment-method-status'));
+    assert.notExists(rows[0].querySelector('.verification-status-icon'));
     assert.equal(
       rows[1].querySelector('.payment-method-title')?.textContent?.trim(),
       'Operating account'
@@ -253,8 +256,11 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[1].querySelector('.payment-method-status')?.textContent?.trim(),
-      'Further info required'
+      'Under review'
     );
+    assert.exists(rows[1].querySelector('.payment-method-title-row'));
+    assert.exists(rows[1].querySelector('.payment-method-meta-row'));
+    assert.exists(rows[1].querySelector('.verification-status-icon'));
     assert.exists(rows[1].querySelector('[data-payment-method-icon="bank"]'));
     assert.notExists(rows[1].querySelector('.payment-method-radio'));
     assert.equal(rows[1].dataset.action, 'verify-payment-source');
@@ -521,7 +527,10 @@ suite('commerce-hub-connect primitives', () => {
       root.querySelector('.payment-method-meta')?.textContent?.trim(),
       'Checking •••• 1234'
     );
+    assert.exists(root.querySelector('.payment-method-title-row'));
+    assert.exists(root.querySelector('.payment-method-meta-row'));
     assert.notExists(root.querySelector('.payment-method-status'));
+    assert.notExists(root.querySelector('.verification-status-icon'));
     assert.equal(
       root
         .querySelector('[data-action="add-bank-account"]')
@@ -554,13 +563,20 @@ suite('commerce-hub-connect primitives', () => {
       type: 'bank',
       brand: 'Commerce National Bank',
       last4: '3210',
-      status: 'pending',
+      status: 'not-verified',
     };
 
-    const root = await renderHarness(html`${renderPaymentMethodRow(method)}`);
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderPaymentMethodRow(method)}
+    `);
 
     const row = root.querySelector<HTMLButtonElement>('.payment-method-row')!;
     const chevron = row.querySelector<HTMLElement>('.payment-method-chevron')!;
+    const copy = row.querySelector<HTMLElement>('.payment-method-copy')!;
+    const metaRow = row.querySelector<HTMLElement>('.payment-method-meta-row')!;
 
     assert.equal(
       row.querySelector('.payment-method-title')?.textContent?.trim(),
@@ -576,8 +592,13 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(row.querySelector('.payment-method-radio'));
     assert.equal(
       row.querySelector('.payment-method-status')?.textContent?.trim(),
-      'Further info required'
+      'Not verified yet'
     );
+    assert.exists(row.querySelector('.payment-method-title-row'));
+    assert.exists(metaRow);
+    assert.exists(row.querySelector('.verification-status-icon'));
+    assert.equal(getComputedStyle(copy).rowGap, '4px');
+    assert.equal(getComputedStyle(metaRow).justifyContent, 'space-between');
     assert.exists(chevron);
     assert.equal(row.disabled, false);
   });
@@ -614,6 +635,40 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(deleteButtonStyles.height, '44px');
     assert.equal(deleteIconStyles.width, '20px');
     assert.equal(deleteIconStyles.height, '20px');
+    assert.notExists(root.querySelector('.payment-method-status'));
+    assert.notExists(root.querySelector('.verification-status-icon'));
+  });
+
+  test('keeps warning and error verification badges visible in edit mode', async () => {
+    const method: PaymentMethod = {
+      id: 'bank-1',
+      label: 'Operating account',
+      type: 'bank',
+      brand: 'Commerce National Bank',
+      last4: '3210',
+      status: 'under-review',
+    };
+
+    const root = await renderHarness(
+      html`
+        <style>
+          ${primitiveStyles.cssText}
+        </style>
+        ${renderPaymentMethodRow(method, {variant: 'edit'})}
+      `
+    );
+
+    assert.equal(
+      root.querySelector('.payment-method-meta')?.textContent?.trim(),
+      'Commerce National Bank •••• 3210'
+    );
+    assert.equal(
+      root.querySelector('.payment-method-status')?.textContent?.trim(),
+      'Under review'
+    );
+    assert.exists(root.querySelector('.payment-method-title-row'));
+    assert.exists(root.querySelector('.payment-method-meta-row'));
+    assert.exists(root.querySelector('.verification-status-icon'));
   });
 
   test('renders a selected payment method summary without radio or chevron controls', async () => {
@@ -642,6 +697,10 @@ suite('commerce-hub-connect primitives', () => {
       selectedMethod.querySelector('.payment-method-meta')?.textContent?.trim(),
       'Visa •••• 1111'
     );
+    assert.exists(selectedMethod.querySelector('.payment-method-title-row'));
+    assert.exists(selectedMethod.querySelector('.payment-method-meta-row'));
+    assert.notExists(selectedMethod.querySelector('.payment-method-status'));
+    assert.notExists(selectedMethod.querySelector('.verification-status-icon'));
     assert.notExists(selectedMethod.querySelector('.payment-method-radio'));
     assert.notExists(
       selectedMethod.querySelector('[data-action="verify-payment-source"]')

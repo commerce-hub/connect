@@ -152,10 +152,17 @@ export interface AlertOptions {
   message: string;
 }
 
-export type PaymentMethodStatus = 'verified' | 'pending' | 'unverified';
+export type PaymentMethodStatus =
+  | 'verified'
+  | 'under-review'
+  | 'require-info'
+  | 'declined'
+  | 'not-verified';
+
+export type StatusPillStatus = 'verified' | 'pending' | 'unverified';
 
 export interface StatusPillOptions {
-  status: PaymentMethodStatus;
+  status: StatusPillStatus;
 }
 
 export interface PaymentMethod {
@@ -230,7 +237,7 @@ export interface TextLinkButtonOptions {
 
 export interface DetailItem {
   label: string;
-  value: string;
+  value: string | TemplateResult;
 }
 
 export interface WidgetShellOptions {

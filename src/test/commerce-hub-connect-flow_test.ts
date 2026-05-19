@@ -722,7 +722,7 @@ suite('commerce-hub-connect flow', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Verification pending review',
+        'Verification under review',
       'verification outcome did not render'
     );
 
@@ -734,7 +734,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification pending review'
+      'Verification under review'
     );
   });
 
@@ -2207,7 +2207,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(verifyRequest.credentials, 'include');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification pending review'
+      'Verification under review'
     );
     const detailValues = [
       ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
@@ -2215,7 +2215,7 @@ suite('commerce-hub-connect flow', () => {
     assert.deepEqual(detailValues, [
       'Commerce National Bank',
       '3210',
-      'Pending review',
+      'Under review',
     ]);
     assert.equal(el.interactionResponse?.paymentSources?.[0]?.id, 'bank-new');
     assert.deepEqual(
@@ -2278,7 +2278,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification pending review'
+      'Verification under review'
     );
     const detailValues = [
       ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
@@ -2286,7 +2286,7 @@ suite('commerce-hub-connect flow', () => {
     assert.deepEqual(detailValues, [
       'Commerce National Bank',
       '3210',
-      'Pending review',
+      'Under review',
     ]);
   });
 
@@ -2306,7 +2306,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'More information required'
+      'More information needed'
     );
     const detailValues = [
       ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
@@ -2314,7 +2314,7 @@ suite('commerce-hub-connect flow', () => {
     assert.deepEqual(detailValues, [
       'Commerce National Bank',
       '3210',
-      'More information required',
+      'More information needed',
     ]);
     assert.exists(
       el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')

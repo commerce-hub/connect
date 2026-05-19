@@ -698,7 +698,7 @@ suite('commerce-hub-connect payment selection', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Verification pending review',
+        'Verification under review',
       'verification outcome did not render'
     );
 
@@ -711,7 +711,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(requests[0].bodyText, JSON.stringify({value: 'bank-1'}));
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification pending review'
+      'Verification under review'
     );
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
@@ -782,13 +782,13 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(requests[0].credentials, 'include');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification pending review'
+      'Verification under review'
     );
     assert.deepEqual(
       [
         ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
       ].map((node) => node.textContent?.trim()),
-      ['Commerce National Bank', '3210', 'Pending review']
+      ['Commerce National Bank', '3210', 'Under review']
     );
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
