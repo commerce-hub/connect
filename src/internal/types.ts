@@ -9,8 +9,12 @@ export type InteractionFlowStatus = NonNullable<
 export type FlowActionName =
   | 'verify-otp'
   | 'resend-otp'
-  | 'confirm-payment-source'
+  | 'attach-payment-source'
   | 'change-payment-source'
+  | 'toggle-payment-source-edit-mode'
+  | 'verify-payment-source'
+  | 'delete-payment-source'
+  | 'done-payment-source-verification'
   | 'add-bank-account'
   | 'add-card'
   | 'save-card'
@@ -44,7 +48,6 @@ export interface OtpScreenModel {
 export interface PaymentMethodsScreenModel {
   status: Extract<InteractionFlowStatus, 'PAYMENT_SOURCE_REQUESTED'>;
   methods: PaymentMethod[];
-  selectedPaymentMethodId?: string;
   attaching?: boolean;
 }
 
@@ -149,10 +152,17 @@ export interface AlertOptions {
   message: string;
 }
 
-export type PaymentMethodStatus = 'verified' | 'pending' | 'unverified';
+export type PaymentMethodStatus =
+  | 'verified'
+  | 'under-review'
+  | 'require-info'
+  | 'declined'
+  | 'not-verified';
+
+export type StatusPillStatus = 'verified' | 'pending' | 'unverified';
 
 export interface StatusPillOptions {
-  status: PaymentMethodStatus;
+  status: StatusPillStatus;
 }
 
 export interface PaymentMethod {
@@ -163,7 +173,6 @@ export interface PaymentMethod {
   brand: string;
   last4: string;
   status: PaymentMethodStatus;
-  selected?: boolean;
   disabled?: boolean;
 }
 
@@ -228,7 +237,7 @@ export interface TextLinkButtonOptions {
 
 export interface DetailItem {
   label: string;
-  value: string;
+  value: string | TemplateResult;
 }
 
 export interface WidgetShellOptions {

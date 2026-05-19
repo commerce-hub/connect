@@ -244,6 +244,13 @@ const completePayByBankFlow = async ({
 }) => {
   const requests: CapturedRequest[] = [];
   let initConfig: TestPaymentSdkInitConfiguration | undefined;
+  const resolvedStatus = verificationStatus ?? finalizedStatus;
+  const resolvedVerificationInfo = verificationStatus
+    ? {
+        status: resolvedStatus,
+        docs: [{docType: 'BANK_STATEMENT', mandatory: true}] as const,
+      }
+    : {status: resolvedStatus};
 
   paymentSdkWindow.PaymentSDK = {
     init: (configuration) => {
@@ -301,6 +308,38 @@ const completePayByBankFlow = async ({
         JSON.stringify({
           status: verificationStatus,
           docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    }
+
+    if (pathname === '/interaction/source/bank-new/attach') {
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: {
+            id: 'bank-new',
+            tenderType: 'BankAccount',
+            name: 'Operating account',
+            verificationInfo: resolvedVerificationInfo,
+            bankAccount: {
+              bankName: 'Commerce National Bank',
+              accountNumber: '9876543210',
+            },
+          },
+          paymentSources: [
+            {
+              id: 'bank-new',
+              tenderType: 'BankAccount',
+              name: 'Operating account',
+              verificationInfo: resolvedVerificationInfo,
+              bankAccount: {
+                bankName: 'Commerce National Bank',
+                accountNumber: '9876543210',
+              },
+            },
+          ],
         }),
         {status: 200, headers: {'Content-Type': 'application/json'}}
       );
@@ -513,7 +552,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('renders payment methods with compact rows, link actions, and a Confirm CTA', async () => {
+  test('renders payment methods with compact rows, link actions, and inline verification chevrons', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -556,21 +595,16 @@ suite('commerce-hub-connect flow', () => {
       rows.map((row) => row.dataset.paymentMethodId),
       ['card-1', 'bank-1']
     );
-    assert.deepEqual(
-      [...rows[0].children].map((child) => child.className),
-      [
-        'payment-method-icon-chip',
-        'payment-method-copy',
-        'payment-method-radio',
-      ]
-    );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Pay with'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
-    assert.equal(rows[0].getAttribute('aria-checked'), 'true');
+    assert.notExists(rows[0].querySelector('.payment-method-radio'));
+    assert.notExists(rows[1].querySelector('.payment-method-radio'));
+    assert.notEqual(rows[0].dataset.action, 'verify-payment-source');
+    assert.equal(rows[1].dataset.action, 'verify-payment-source');
     assert.equal(
       rows[0].querySelector('.payment-method-title')?.textContent?.trim(),
       'Corporate card'
@@ -582,22 +616,16 @@ suite('commerce-hub-connect flow', () => {
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
     assert.equal(
       getComputedStyle(rows[0]).backgroundColor,
-      'rgb(248, 250, 252)'
+      'rgb(247, 248, 250)'
     );
-    assert.equal(getComputedStyle(rows[0]).paddingTop, '8.8px');
-    assert.equal(getComputedStyle(rows[0]).columnGap, '12px');
+    assert.equal(getComputedStyle(rows[0]).paddingTop, '10px');
+    assert.equal(getComputedStyle(rows[0]).columnGap, '8px');
     assert.equal(
       getComputedStyle(
         rows[0].querySelector<HTMLElement>('.payment-method-title')!
       ).fontWeight,
-      '500'
+      '600'
     );
-
-    rows[1].click();
-    await flushElement(el);
-
-    assert.equal(rows[0].getAttribute('aria-checked'), 'false');
-    assert.equal(rows[1].getAttribute('aria-checked'), 'true');
     assert.notExists(el.shadowRoot!.querySelector('.source-action'));
     assert.deepEqual(
       [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
@@ -611,6 +639,7 @@ suite('commerce-hub-connect flow', () => {
     const addCardIcon = addCardLink.querySelector<HTMLElement>(
       '.source-action-icon'
     )!;
+    const unselectedRow = rows[0]!;
 
     assert.notExists(el.shadowRoot!.querySelector('.source-action-link-icon'));
     assert.exists(
@@ -625,33 +654,76 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       getComputedStyle(addCardLink).backgroundColor,
-      'rgb(248, 250, 252)'
+      'rgb(247, 248, 250)'
     );
     assert.equal(getComputedStyle(addCardLink).borderTopStyle, 'solid');
-    assert.equal(getComputedStyle(addCardLink).paddingTop, '8.8px');
+    assert.equal(getComputedStyle(addCardLink).paddingTop, '10px');
     assert.equal(getComputedStyle(addCardLink).columnGap, '8px');
     assert.equal(getComputedStyle(addCardLink).alignItems, 'center');
-    assert.equal(getComputedStyle(addCardIcon).fontSize, '28px');
-    assert.equal(getComputedStyle(addCardIcon).fontWeight, '300');
+    assert.equal(getComputedStyle(addCardIcon).fontSize, '24px');
+    assert.equal(getComputedStyle(addCardIcon).fontWeight, '400');
     assert.equal(getComputedStyle(addCardIcon).borderTopStyle, 'none');
     assert.equal(
       getComputedStyle(addCardIcon).backgroundColor,
       'rgba(0, 0, 0, 0)'
     );
     assert.equal(
-      el
-        .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
-        ?.textContent?.trim(),
-      'Confirm'
+      getComputedStyle(unselectedRow).backgroundColor,
+      getComputedStyle(addCardLink).backgroundColor
     );
-    assert.exists(
-      el.shadowRoot!.querySelector(
-        '[data-action="confirm-payment-source"] .button-icon-arrow-right'
-      )
+    assert.equal(
+      getComputedStyle(unselectedRow).borderRadius,
+      getComputedStyle(addCardLink).borderRadius
+    );
+    assert.equal(
+      getComputedStyle(unselectedRow).paddingTop,
+      getComputedStyle(addCardLink).paddingTop
+    );
+    assert.equal(
+      getComputedStyle(unselectedRow).paddingLeft,
+      getComputedStyle(addCardLink).paddingLeft
+    );
+    assert.equal(
+      getComputedStyle(unselectedRow).columnGap,
+      getComputedStyle(addCardLink).columnGap
+    );
+    assert.equal(getComputedStyle(unselectedRow).alignItems, 'center');
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
     );
   });
 
-  test('confirm payment stays disabled until a payment source is selected', async () => {
+  test('clicking an unverified saved source row starts verification', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/verify/step1') {
+        return new Response(
+          JSON.stringify({
+            status: 'UNDER_REVIEW',
+            docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -684,19 +756,25 @@ suite('commerce-hub-connect flow', () => {
         '.payment-method-row'
       ),
     ];
-    const confirmButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '[data-action="confirm-payment-source"]'
-    )!;
-
-    assert.equal(rows[0].getAttribute('aria-checked'), 'false');
-    assert.equal(rows[1].getAttribute('aria-checked'), 'false');
-    assert.equal(confirmButton.disabled, true);
 
     rows[1].click();
-    await flushElement(el);
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Verification under review',
+      'verification outcome did not render'
+    );
 
-    assert.equal(rows[1].getAttribute('aria-checked'), 'true');
-    assert.equal(confirmButton.disabled, false);
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['POST /interaction/verify/step1']
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Verification under review'
+    );
   });
 
   test('renders payment methods copy from partial designConfig overrides', async () => {
@@ -726,7 +804,6 @@ suite('commerce-hub-connect flow', () => {
             addBankAccountSubtitle: 'Connect checking or savings',
             addCardTitle: 'Use card',
             addCardSubtitle: 'Add debit or credit card',
-            continueButton: 'Pay with selected method',
           },
         },
       }
@@ -752,11 +829,8 @@ suite('commerce-hub-connect flow', () => {
       ),
       ['Add debit or credit card', 'Connect checking or savings']
     );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
-        ?.textContent?.trim(),
-      'Pay with selected method'
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
     );
   });
 
@@ -1288,15 +1362,20 @@ suite('commerce-hub-connect flow', () => {
       network: 'Visa',
     });
     assert.equal(el.interactionResponse?.selectedSource?.id, 'card-created-1');
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('[data-action="change-payment-source"]')
-        ?.textContent?.trim(),
-      'Change'
-    );
+    const rows = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.payment-method-row'
+      ),
+    ];
+
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
     );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
+    );
+    assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.lengthOf(rows, 0);
     assert.equal(
       el
         .shadowRoot!.querySelector(
@@ -1312,21 +1391,6 @@ suite('commerce-hub-connect flow', () => {
         )
         ?.textContent?.trim(),
       'Mastercard •••• 4444'
-    );
-
-    await clickAction(el, 'change-payment-source');
-
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
-        ?.textContent?.trim(),
-      'Confirm'
-    );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('.payment-method-row')
-        ?.getAttribute('aria-checked'),
-      'true'
     );
   });
 
@@ -1431,23 +1495,12 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [selectedSource],
     });
 
-    await clickAction(el, 'confirm-payment-source');
-    await waitForRequest(requests, '/interaction', 'GET');
-    await waitFor(
-      () =>
-        Boolean(
-          el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
-        ),
-      'selected payment source screen did not render'
-    );
-
     const interactionRequestCount = requests.filter(
       (request) =>
         request.method === 'GET' &&
         new URL(request.url).pathname === '/interaction'
     ).length;
 
-    await clickAction(el, 'change-payment-source');
     await clickAction(el, 'add-card');
     assert.equal(
       requests.filter(
@@ -1455,7 +1508,7 @@ suite('commerce-hub-connect flow', () => {
           request.method === 'GET' &&
           new URL(request.url).pathname === '/interaction'
       ).length,
-      interactionRequestCount
+      interactionRequestCount + 1
     );
     await waitFor(() =>
       Boolean(el.shadowRoot!.querySelector('#billing-address'))
@@ -1504,6 +1557,13 @@ suite('commerce-hub-connect flow', () => {
     const sourceBody = JSON.parse(sourceRequest.bodyText);
 
     assert.equal(sourceBody.billingAddressId, 'billing-1');
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
+    );
+    assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
   });
 
   test('shows the card error screen when card creation returns a non-verified source without attaching it', async () => {
@@ -1822,6 +1882,11 @@ suite('commerce-hub-connect flow', () => {
       tenderType: 'Card',
       id: 'card-1',
       name: 'Corporate card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {
+        network: 'Visa',
+        cardNumber: '4111111111111111',
+      },
     };
     const refreshedSource: PaymentSource = {
       tenderType: 'Card',
@@ -1846,11 +1911,11 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction') {
+      if (pathname === '/interaction/source/card-1/attach') {
         return new Response(
           JSON.stringify({
             interactionId: 'interaction-payment',
-            status: 'PAYMENT_SOURCE_REQUESTED',
+            status: 'PAYMENT_SOURCE_ATTACHED',
             selectedSource: refreshedSource,
             paymentSources: [refreshedSource],
             billerAddress: [],
@@ -1875,31 +1940,34 @@ suite('commerce-hub-connect flow', () => {
     el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.payment-method-row'
     )?.click();
+    await waitFor(() => successEvents.length === 1, 'attach did not complete');
     await flushElement(el);
-    await clickAction(el, 'confirm-payment-source');
 
     assert.deepEqual(
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['GET /interaction']
+      ['POST /interaction/source/card-1/attach']
     );
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(requests[0].credentials, 'include');
     assert.lengthOf(successEvents, 1);
     assert.deepEqual(successEvents[0].detail, refreshedSource);
     assert.lengthOf(errorEvents, 0);
     assert.equal(el.interactionResponse?.selectedSource?.id, 'card-1');
+    assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Pay with'
     );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('[data-action="change-payment-source"]')
-        ?.textContent?.trim(),
-      'Change'
-    );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
     );
     assert.equal(
       el
@@ -1917,18 +1985,7 @@ suite('commerce-hub-connect flow', () => {
         ?.textContent?.trim(),
       'Visa •••• 1111'
     );
-
-    await clickAction(el, 'change-payment-source');
-
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
-    );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('.payment-method-row')
-        ?.getAttribute('aria-checked'),
-      'true'
-    );
+    assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
   });
 
   test('missing interactionId does not emit onError and keeps the current screen stable', async () => {
@@ -2078,7 +2135,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(requests[0].credentials, 'include');
   });
 
-  test('Pay by Bank success verifies the finalized bank source and renders the verified outcome without events', async () => {
+  test('Pay by Bank success verifies the finalized bank source and returns to the payment method list with status without events', async () => {
     const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
@@ -2189,16 +2246,27 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(verifyRequest.credentials, 'include');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification pending review'
+      'Pay with'
     );
-    const detailValues = [
-      ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
-    ].map((node) => node.textContent?.trim());
-    assert.deepEqual(detailValues, [
-      'Commerce National Bank',
-      '3210',
-      'Pending review',
-    ]);
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-title')
+        ?.textContent?.trim(),
+      'Operating account'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-meta')
+        ?.textContent?.trim(),
+      'Commerce National Bank •••• 3210'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.verification-status-label')
+        ?.textContent?.trim(),
+      'Under review'
+    );
     assert.equal(el.interactionResponse?.paymentSources?.[0]?.id, 'bank-new');
     assert.deepEqual(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo,
@@ -2207,13 +2275,13 @@ suite('commerce-hub-connect flow', () => {
         docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
       }
     );
-    assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-new');
+    assert.isUndefined(el.interactionResponse?.selectedSource);
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_REQUESTED');
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
   });
 
-  test('Pay by Bank success uses finalized VERIFIED status without verification request', async () => {
+  test('Pay by Bank success preselects a finalized VERIFIED bank source without verification request', async () => {
     const {el, requests, successEvents, errorEvents} =
       await completePayByBankFlow({finalizedStatus: 'VERIFIED'});
 
@@ -2224,27 +2292,47 @@ suite('commerce-hub-connect flow', () => {
       [
         'GET /interaction/source/pbb/session',
         'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
+        'POST /interaction/source/bank-new/attach',
       ]
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Bank account verified'
+      'Pay with'
+    );
+    assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="continue-bank-outcome"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
     );
     assert.equal(
       el
-        .shadowRoot!.querySelector('[data-action="continue-bank-outcome"]')
+        .shadowRoot!.querySelector(
+          '.selected-payment-method .payment-method-title'
+        )
         ?.textContent?.trim(),
-      'Continue'
+      'Operating account'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector(
+          '.selected-payment-method .payment-method-meta'
+        )
+        ?.textContent?.trim(),
+      'Commerce National Bank •••• 3210'
     );
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
       'VERIFIED'
     );
+    assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-new');
+    assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
   });
 
-  test('Pay by Bank success uses finalized UNDER_REVIEW status without verification request', async () => {
+  test('Pay by Bank success shows finalized UNDER_REVIEW bank sources in the payment method list', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'UNDER_REVIEW',
     });
@@ -2260,19 +2348,19 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification pending review'
+      'Pay with'
     );
-    const detailValues = [
-      ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
-    ].map((node) => node.textContent?.trim());
-    assert.deepEqual(detailValues, [
-      'Commerce National Bank',
-      '3210',
-      'Pending review',
-    ]);
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.verification-status-label')
+        ?.textContent?.trim(),
+      'Under review'
+    );
+    assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
-  test('Pay by Bank success uses finalized REQUIRE_INFO status without verification request', async () => {
+  test('Pay by Bank success shows finalized REQUIRE_INFO bank sources in the payment method list', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'REQUIRE_INFO',
     });
@@ -2288,25 +2376,19 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'More information required'
+      'Pay with'
     );
-    const detailValues = [
-      ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
-    ].map((node) => node.textContent?.trim());
-    assert.deepEqual(detailValues, [
-      'Commerce National Bank',
-      '3210',
-      'More information required',
-    ]);
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.verification-status-label')
+        ?.textContent?.trim(),
+      'More information needed'
     );
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="use-different-bank-account"]')
-    );
+    assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
-  test('Pay by Bank success uses finalized DECLINED status without verification request', async () => {
+  test('Pay by Bank success shows finalized DECLINED bank sources in the payment method list', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'DECLINED',
     });
@@ -2322,25 +2404,19 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Bank account declined'
+      'Pay with'
     );
-    const detailValues = [
-      ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
-    ].map((node) => node.textContent?.trim());
-    assert.deepEqual(detailValues, [
-      'Commerce National Bank',
-      '3210',
-      'Declined',
-    ]);
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.verification-status-label')
+        ?.textContent?.trim(),
+      'Declined'
     );
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="use-different-bank-account"]')
-    );
+    assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
-  test('Pay by Bank NOT_VERIFIED source runs verification and routes by returned VERIFIED status', async () => {
+  test('Pay by Bank NOT_VERIFIED source runs verification and preselects when step1 returns VERIFIED', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'NOT_VERIFIED',
       verificationStatus: 'VERIFIED',
@@ -2354,12 +2430,17 @@ suite('commerce-hub-connect flow', () => {
         'GET /interaction/source/pbb/session',
         'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
         'POST /interaction/verify/step1',
+        'POST /interaction/source/bank-new/attach',
       ]
     );
     assert.equal(requests[2].bodyText, JSON.stringify({value: 'bank-new'}));
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Bank account verified'
+      'Pay with'
+    );
+    assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="continue-bank-outcome"]')
     );
     assert.deepEqual(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo,
@@ -2368,6 +2449,8 @@ suite('commerce-hub-connect flow', () => {
         docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
       }
     );
+    assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-new');
+    assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');
   });
 
   test('Pay by Bank success with no finalized bank source renders provider unavailable', async () => {

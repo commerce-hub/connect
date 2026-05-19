@@ -2,15 +2,15 @@ import {css} from 'lit';
 
 export const primitiveStyles = css`
   :host {
-    --chc-text: #101828;
-    --chc-copy: #667085;
-    --chc-muted: #98a2b3;
-    --chc-placeholder: #98a2b3;
+    --chc-text: #111827;
+    --chc-copy: #4b5565;
+    --chc-muted: #6b7280;
+    --chc-placeholder: #9ca3af;
     --chc-surface: #ffffff;
-    --chc-soft-surface: #f8fafc;
-    --chc-border: #d0d5dd;
-    --chc-border-strong: #cbd5e1;
-    --chc-primary: #003de6;
+    --chc-soft-surface: #f7f8fa;
+    --chc-border: #dde3ea;
+    --chc-border-strong: #cdd5df;
+    --chc-primary: #162033;
     --chc-success: #047857;
     --chc-success-bg: #ecfdf3;
     --chc-success-border: #a6f4c5;
@@ -21,18 +21,18 @@ export const primitiveStyles = css`
     --chc-warning-bg: #fffaeb;
     --chc-warning-border: #fedf89;
     --chc-disabled-text: #ffffff;
-    --chc-disabled-surface: #b6c3db;
-    --chc-font-family: 'Open Sans', Arial, sans-serif;
-    --chc-radius-control: .55rem;;
-    --chc-radius-card: 0.875rem;
-    --chc-radius-shell: .55rem;
-    --chc-input-height: 2.875rem;
-    --chc-font-weight: 300;
-    --chc-divider: #eaecf0;
-    --chc-focus-ring: rgba(0, 61, 230, 0.18);
-    --chc-shell-padding: 1.75rem 1.5rem 1.5rem;
-    --chc-shell-shadow: 0 0.0625rem 0.125rem rgba(16, 24, 40, 0.04),
-      0 0.75rem 1.5rem rgba(16, 24, 40, 0.06);
+    --chc-disabled-surface: #c5ccd8;
+    --chc-font-family: Inter, 'Segoe UI', Arial, sans-serif;
+    --chc-radius-control: 0.75rem;
+    --chc-radius-card: 1rem;
+    --chc-radius-shell: 1rem;
+    --chc-input-height: 2.75rem;
+    --chc-font-weight: 400;
+    --chc-divider: #ebeef2;
+    --chc-focus-ring: rgba(22, 32, 51, 0.14);
+    --chc-shell-padding: 1.5rem 1.25rem 1.25rem;
+    --chc-shell-shadow: 0 0.125rem 0.375rem rgba(17, 24, 39, 0.04),
+      0 0.75rem 1.5rem rgba(17, 24, 39, 0.08);
     display: block;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
@@ -51,6 +51,7 @@ export const primitiveStyles = css`
   .button,
   .field-input,
   .payment-method-row,
+  .selected-payment-method,
   .source-action,
   .source-action-link,
   .upload-row,
@@ -63,11 +64,14 @@ export const primitiveStyles = css`
 
   .widget-shell {
     width: 100%;
-    max-width: 26.25rem;
+    max-width: 25.5rem;
     position: relative;
     padding: var(--chc-shell-padding);
+    border: 0.0625rem solid
+      color-mix(in srgb, var(--chc-border) 84%, var(--chc-surface));
     border-radius: var(--chc-radius-shell);
     background: var(--chc-surface);
+    box-shadow: var(--chc-shell-shadow);
     text-align: left;
   }
 
@@ -76,28 +80,28 @@ export const primitiveStyles = css`
   }
 
   .widget-close {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2rem;
+    height: 2rem;
     position: absolute;
-    top: 1.125rem;
-    right: 0.875rem;
+    top: 0.875rem;
+    right: 0.75rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border: 0;
     border-radius: 999rem;
-    background: transparent;
+    background: color-mix(in srgb, var(--chc-soft-surface) 88%, white);
     color: var(--chc-muted);
-    font-size: 1.5em;
-    font-weight: 700;
+    font-size: 1.25em;
+    font-weight: 600;
     cursor: pointer;
   }
 
   .widget-title {
     margin: 0;
     color: var(--chc-text);
-    font-size: 1.15rem;
-    font-weight: 700;
+    font-size: 1.2rem;
+    font-weight: 600;
     letter-spacing: -0.02em;
   }
 
@@ -105,7 +109,7 @@ export const primitiveStyles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.625rem;
   }
 
   .widget-header-action {
@@ -114,13 +118,14 @@ export const primitiveStyles = css`
 
   .widget-header-action .text-link-button {
     color: var(--chc-primary);
-    font-weight: 500;
+    font-weight: 600;
   }
 
   .widget-subtitle {
-    margin: 0.5rem 0 0;
+    margin: 0.375rem 0 0;
     color: var(--chc-copy);
     font-weight: inherit;
+    font-size: 0.9375em;
   }
 
   .widget-divider {
@@ -130,23 +135,24 @@ export const primitiveStyles = css`
   }
 
   .widget-content {
-    margin-top: 1.5rem;
+    margin-top: 1.125rem;
   }
 
   .primitive-stack {
     display: grid;
-    gap: 0.75rem;
+    gap: 0.625rem;
   }
 
   .primitive-actions {
     display: grid;
-    gap: 0.75rem;
-    margin-top: 1rem;
+    gap: 0.625rem;
+    margin-top: 0.875rem;
   }
 
   .primitive-footer {
     display: grid;
-    margin-top: 1rem;
+    gap: 0.625rem;
+    margin-top: 0.875rem;
   }
 
   .card-form-footer {
@@ -154,7 +160,7 @@ export const primitiveStyles = css`
     grid-template-columns: auto auto;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.625rem;
     margin-top: 0.25rem;
   }
 
@@ -183,28 +189,28 @@ export const primitiveStyles = css`
 
   .card-form-footer .button {
     width: auto;
-    padding-right: 1.5rem;
-    padding-left: 1.5rem;
+    padding-right: 1.25rem;
+    padding-left: 1.25rem;
   }
 
   .payment-action-links {
     display: grid;
     gap: 0.625rem;
-    margin-top: 0.25rem;
+    margin-top: 0;
     justify-items: stretch;
   }
 
   .otp-flow,
   .payment-flow {
     display: grid;
-    gap: 1rem;
+    gap: 0.75rem;
   }
 
   .otp-support {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.1875rem;
+    gap: 0.25rem;
     flex-wrap: nowrap;
     text-align: center;
   }
@@ -229,7 +235,7 @@ export const primitiveStyles = css`
     padding: 0;
     background: transparent;
     color: var(--chc-primary);
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
   }
 
@@ -240,13 +246,16 @@ export const primitiveStyles = css`
 
   .button {
     width: 100%;
+    min-height: var(--chc-input-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border: 0.0625rem solid var(--chc-primary);
     border-radius: var(--chc-radius-control);
-    padding: 0.4375rem 1.125rem;
-    font-weight: 500;
+    padding: 0 1rem;
+    font-weight: 600;
+    transition: border-color 120ms ease, background-color 120ms ease,
+      box-shadow 120ms ease, transform 120ms ease;
     cursor: pointer;
   }
 
@@ -273,12 +282,22 @@ export const primitiveStyles = css`
   .button-primary {
     background: var(--chc-primary);
     color: #fff;
+    box-shadow: 0 0.5rem 1.25rem
+      color-mix(in srgb, var(--chc-primary) 16%, transparent);
   }
 
   .button-secondary {
     border-color: var(--chc-border);
-    background: var(--chc-surface);
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 82%,
+      var(--chc-surface)
+    );
     color: var(--chc-text);
+  }
+
+  .button:hover:not(:disabled) {
+    transform: translateY(-0.0625rem);
   }
 
   .button:disabled {
@@ -290,7 +309,7 @@ export const primitiveStyles = css`
 
   .field {
     display: grid;
-    gap: 0.375rem;
+    gap: 0.3125rem;
     min-width: 0;
     text-align: left;
   }
@@ -310,6 +329,7 @@ export const primitiveStyles = css`
   .field-label {
     color: var(--chc-text);
     font-weight: 500;
+    font-size: 0.875em;
   }
 
   .field-input {
@@ -317,10 +337,12 @@ export const primitiveStyles = css`
     min-height: var(--chc-input-height);
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-control);
-    padding: .55rem;
+    padding: 0.625rem 0.75rem;
     background: var(--chc-surface);
     color: var(--chc-text);
     text-align: left;
+    transition: border-color 120ms ease, box-shadow 120ms ease,
+      background-color 120ms ease;
   }
 
   .field-input:focus {
@@ -345,12 +367,13 @@ export const primitiveStyles = css`
 
   .field-control-card-form {
     width: 100%;
-    padding: .55rem;
+    min-height: var(--chc-input-height);
+    padding: 0.625rem 0.75rem;
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-control);
     background: color-mix(
       in srgb,
-      var(--chc-soft-surface) 70%,
+      var(--chc-soft-surface) 82%,
       var(--chc-surface)
     );
     transition: border-color 120ms ease, box-shadow 120ms ease,
@@ -385,7 +408,7 @@ export const primitiveStyles = css`
     content: '';
     position: absolute;
     top: 50%;
-    right: 1.125rem;
+    right: 1rem;
     width: 0.45rem;
     aspect-ratio: 1;
     border-right: 0.09375rem solid var(--chc-copy);
@@ -411,16 +434,17 @@ export const primitiveStyles = css`
     margin: 0;
     color: var(--chc-danger);
     font-weight: 500;
+    font-size: 0.875em;
   }
 
   .form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: 0.625rem;
   }
 
   .card-form-screen .form-grid {
-    gap: 0.875rem 0.75rem;
+    gap: 0.75rem 0.625rem;
   }
 
   .otp-group {
@@ -443,15 +467,16 @@ export const primitiveStyles = css`
 
   .otp-inputs {
     display: grid;
-    width: min(100%, 20.75rem);
+    width: min(100%, 18.75rem);
     margin: 0 auto;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 0.1875rem;
+    gap: 0.375rem;
   }
 
   .otp-input {
+    min-height: var(--chc-input-height);
     border: 0.0625rem solid var(--chc-border);
-    border-radius: 0.625rem;
+    border-radius: 0.75rem;
     background: var(--chc-surface);
     color: var(--chc-text);
     font-style: inherit;
@@ -465,9 +490,9 @@ export const primitiveStyles = css`
     font-kerning: inherit;
     font-language-override: inherit;
     font-feature-settings: inherit;
-    font-weight: 300;
+    font-weight: 400;
     text-align: center;
-    padding: 0.55rem;
+    padding: 0;
   }
 
   .otp-input:focus {
@@ -482,12 +507,12 @@ export const primitiveStyles = css`
   }
 
   .alert {
-    min-height: 3.25rem;
+    min-height: 0;
     display: flex;
     align-items: center;
     border: 0.0625rem solid;
     border-radius: var(--chc-radius-control);
-    padding: .55rem;
+    padding: 0.625rem 0.75rem;
     font-weight: 500;
     text-align: left;
   }
@@ -512,14 +537,15 @@ export const primitiveStyles = css`
 
   .status-pill {
     display: inline-flex;
-    min-width: 4.25rem;
-    min-height: 1.375rem;
+    min-width: 4rem;
+    min-height: 1.5rem;
     align-items: center;
     justify-content: center;
     border: 0.0625rem solid;
     border-radius: 999rem;
-    padding: 0.0625rem 0.625rem;
+    padding: 0.0625rem 0.5625rem;
     font-weight: 500;
+    font-size: 0.8125em;
   }
 
   .status-verified {
@@ -545,89 +571,173 @@ export const primitiveStyles = css`
   .selected-payment-method {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.5rem minmax(0, 1fr) 1.125rem;
-    gap: 0.75rem;
+    grid-template-columns: 2.25rem minmax(0, 1fr) 1rem;
+    gap: 0.5rem;
     align-items: center;
-    border-radius: 1.125rem;
-    padding: 0.55rem 0.875rem;
+    border-radius: 1rem;
+    padding: 0.625rem 0.75rem;
     background: var(--chc-soft-surface);
     color: var(--chc-text);
     text-align: left;
+    border: 0.0625rem solid var(--chc-border);
   }
 
-  .payment-method-row {
-    border: 0.0625rem solid transparent;
+  .payment-method-row-action {
+    transition: border-color 120ms ease, background-color 120ms ease,
+      box-shadow 120ms ease;
     cursor: pointer;
   }
 
-  .selected-payment-method {
-    border: 0.0625rem solid var(--chc-primary);
+  .payment-method-row-edit {
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    cursor: default;
   }
 
-  .payment-method-row[aria-checked='true'],
   .selected-payment-method {
     border-color: var(--chc-primary);
-    box-shadow: 0 0 0 0.0625rem var(--chc-primary);
+    background: var(--chc-soft-surface);
+    box-shadow: 0 0 0 0.0625rem
+      color-mix(in srgb, var(--chc-primary) 28%, transparent);
   }
 
-  .payment-method-row:disabled {
-    border-color: transparent;
+  .payment-method-row-action:hover:not(:disabled),
+  .payment-method-row-action:focus-visible {
+    border-color: var(--chc-primary);
+    background: color-mix(
+      in srgb,
+      var(--chc-primary) 6%,
+      var(--chc-soft-surface)
+    );
+    box-shadow: 0 0 0 0.0625rem
+      color-mix(in srgb, var(--chc-primary) 24%, transparent);
+  }
+
+  .payment-method-row-action:focus-visible {
+    outline: 0;
+  }
+
+  .payment-method-row-action:disabled {
+    border-color: var(--chc-border);
     background: var(--chc-soft-surface);
     color: var(--chc-placeholder);
     cursor: not-allowed;
   }
 
-  .payment-method-radio {
-    width: 1.125rem;
-    height: 1.125rem;
+  .payment-method-row-spacer {
+    width: 1rem;
+    height: 1rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 0.0625rem solid var(--chc-border-strong);
-    border-radius: 999rem;
-    background: var(--chc-surface);
   }
 
-  .payment-method-radio-dot {
-    width: 100%;
-    height: 100%;
+  .payment-method-chevron {
+    width: 1rem;
+    height: 1rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999rem;
     background: transparent;
-    color: transparent;
-    font-size: 0.75em;
-    font-weight: 700;
+    color: var(--chc-primary);
+    pointer-events: none;
   }
 
-  .payment-method-radio-dot::before {
+  .payment-method-chevron-icon {
+    width: 0.5rem;
+    height: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .payment-method-chevron-icon::before {
     content: '';
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-right: 0.09375rem solid currentColor;
+    border-bottom: 0.09375rem solid currentColor;
+    transform: rotate(-45deg);
   }
 
-  .payment-method-row[aria-checked='true'] .payment-method-radio,
-  .selected-payment-method .payment-method-radio {
-    border-color: var(--chc-primary);
-    background: var(--chc-primary);
+  .payment-method-delete-button {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    border: 0;
+    border-radius: 0.75rem;
+    padding: 0;
+    background: transparent;
+    color: var(--chc-danger);
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+    touch-action: manipulation;
   }
 
-  .payment-method-row[aria-checked='true'] .payment-method-radio-dot,
-  .selected-payment-method .payment-method-radio-dot {
-    color: #fff;
+  .payment-method-delete-button:hover:not(:disabled),
+  .payment-method-delete-button:focus-visible {
+    background: color-mix(
+      in srgb,
+      var(--chc-danger) 10%,
+      transparent
+    );
   }
 
-  .payment-method-row[aria-checked='true'] .payment-method-radio-dot::before,
-  .selected-payment-method .payment-method-radio-dot::before {
-    content: '✓';
+  .payment-method-delete-button:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 0.125rem
+      color-mix(in srgb, var(--chc-danger) 24%, transparent);
+  }
+
+  .payment-method-delete-button:disabled {
+    color: var(--chc-muted);
+    cursor: not-allowed;
+  }
+
+  .payment-method-delete-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    position: relative;
+    display: inline-flex;
+  }
+
+  .payment-method-delete-icon::before,
+  .payment-method-delete-icon::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .payment-method-delete-icon::before {
+    top: 0.3125rem;
+    width: 0.75rem;
+    height: 0.6875rem;
+    border: 0.09375rem solid currentColor;
+    border-top: 0;
+    border-radius: 0 0 0.15625rem 0.15625rem;
+  }
+
+  .payment-method-delete-icon::after {
+    top: 0.1875rem;
+    width: 0.9375rem;
+    height: 0.125rem;
+    background: currentColor;
+    border-radius: 999rem;
+    box-shadow: 0 -0.21875rem 0 -0.03125rem currentColor;
   }
 
   .payment-method-icon-chip {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2.25rem;
+    height: 2.25rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0.75rem;
+    border-radius: 0.6875rem;
     background: var(--chc-surface);
     color: var(--chc-primary);
     overflow: hidden;
@@ -641,49 +751,93 @@ export const primitiveStyles = css`
 
   .payment-method-copy {
     display: grid;
-    gap: 0.125rem;
+    gap: 0.25rem;
     min-width: 0;
   }
 
   .payment-method-title {
+    min-width: 0;
     overflow: hidden;
     color: var(--chc-text);
-    font-weight: 500;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  .payment-method-title-row {
+    min-width: 0;
+  }
+
+  .payment-method-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.375rem;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
   .payment-method-meta {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
     color: var(--chc-copy);
+    text-overflow: ellipsis;
     font-weight: inherit;
+    white-space: nowrap;
   }
 
   .payment-method-status {
-    font-weight: inherit;
+    display: inline-flex;
+    flex: 0 0 auto;
+    margin-left: auto;
   }
 
-  .status-text-verified {
+  .verification-status-badge {
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    border: 0.0625rem solid;
+    border-radius: 999rem;
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.75em;
+    font-weight: 600;
+  }
+
+  .verification-status-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .verification-status-badge-success {
+    border-color: var(--chc-success-border);
+    background: var(--chc-success-bg);
     color: var(--chc-success);
   }
 
-  .status-text-pending {
+  .verification-status-badge-warning {
+    border-color: var(--chc-warning-border);
+    background: var(--chc-warning-bg);
     color: var(--chc-warning);
   }
 
-  .status-text-unverified {
+  .verification-status-badge-danger {
+    border-color: var(--chc-danger-border);
+    background: var(--chc-danger-bg);
     color: var(--chc-danger);
   }
 
   .source-action {
     width: 100%;
-    min-height: 4.25rem;
+    min-height: 3.5rem;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.625rem;
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
-    padding: 0.55rem 0.875rem;
+    padding: 0.75rem;
     background: var(--chc-surface);
     color: var(--chc-text);
     text-align: left;
@@ -706,8 +860,8 @@ export const primitiveStyles = css`
     border-radius: 0;
     background: transparent;
     color: var(--chc-primary);
-    font-size: 1.75rem;
-    font-weight: 300;
+    font-size: 1.5rem;
+    font-weight: 400;
   }
 
   .source-action-copy {
@@ -718,7 +872,7 @@ export const primitiveStyles = css`
   .source-action-title {
     overflow: hidden;
     color: var(--chc-text);
-    font-weight: 500;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -727,19 +881,21 @@ export const primitiveStyles = css`
     overflow: hidden;
     color: var(--chc-muted);
     font-weight: inherit;
+    font-size: 0.875em;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .source-action-link {
     width: 100%;
+    min-height: var(--chc-input-height);
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     gap: 0.5rem;
     align-items: center;
     border: 0.0625rem solid var(--chc-border);
-    border-radius: 1.125rem;
-    padding: 0.55rem 0.875rem;
+    border-radius: 1rem;
+    padding: 0.625rem 0.75rem;
     background: var(--chc-soft-surface);
     color: var(--chc-text);
     text-align: left;
@@ -782,11 +938,12 @@ export const primitiveStyles = css`
 
   .source-action-link-title {
     color: currentColor;
-    font-weight: 500;
+    font-weight: 600;
   }
 
   .source-action-link-subtitle {
     color: var(--chc-copy);
+    font-size: 0.875em;
   }
 
   .source-action-link:disabled .source-action-link-subtitle {
@@ -804,7 +961,7 @@ export const primitiveStyles = css`
 
   .empty-state {
     display: grid;
-    gap: 0.375rem;
+    gap: 0.25rem;
     text-align: left;
   }
 
@@ -812,7 +969,7 @@ export const primitiveStyles = css`
     margin: 0;
     color: var(--chc-text);
     font-size: 1em;
-    font-weight: 700;
+    font-weight: 600;
   }
 
   .empty-state-message {
@@ -821,10 +978,10 @@ export const primitiveStyles = css`
   }
 
   .detail-row {
-    min-height: 4.75rem;
+    min-height: 0;
     display: grid;
     gap: 0.125rem;
-    padding: 0.75rem 1.5rem;
+    padding: 0.75rem 1rem;
   }
 
   .detail-row + .detail-row {
@@ -843,14 +1000,14 @@ export const primitiveStyles = css`
 
   .upload-row {
     width: 100%;
-    min-height: 4.5rem;
+    min-height: 3.75rem;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     border: 0.0625rem dashed var(--chc-border-strong);
     border-radius: var(--chc-radius-card);
-    padding: 0 1.125rem;
+    padding: 0 1rem;
     background: var(--chc-surface);
     color: var(--chc-copy);
     text-align: left;
@@ -866,7 +1023,7 @@ export const primitiveStyles = css`
     display: flex;
     min-width: 0;
     align-items: center;
-    gap: 0.875rem;
+    gap: 0.75rem;
   }
 
   .upload-icon {
@@ -895,27 +1052,27 @@ export const primitiveStyles = css`
 
   .upload-row-action {
     color: var(--chc-primary);
-    font-weight: 500;
+    font-weight: 600;
     white-space: nowrap;
   }
 
   .loading-row {
-    min-height: 5.25rem;
+    min-height: 0;
     display: grid;
-    grid-template-columns: 3rem minmax(0, 1fr);
+    grid-template-columns: 2.5rem minmax(0, 1fr);
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
-    padding: 1rem 1.125rem;
+    padding: 0.875rem 1rem;
     background: var(--chc-surface);
     text-align: left;
   }
 
   .loading-spinner {
-    width: 3rem;
-    height: 3rem;
-    border: 0.375rem solid #dbe3f1;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 0.3125rem solid #dbe3f1;
     border-right-color: var(--chc-primary);
     border-radius: 999rem;
   }
@@ -928,8 +1085,8 @@ export const primitiveStyles = css`
   .loading-row-title {
     overflow: hidden;
     color: var(--chc-text);
-    font-size: 1.3125em;
-    font-weight: 700;
+    font-size: 1.125em;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -944,13 +1101,13 @@ export const primitiveStyles = css`
 
   .provider-frame {
     display: grid;
-    gap: 1.125rem;
+    gap: 0.875rem;
     text-align: left;
   }
 
   .bank-provider-flow {
     display: grid;
-    gap: 1.25rem;
+    gap: 0.875rem;
   }
 
   .provider-frame-header {
@@ -961,8 +1118,8 @@ export const primitiveStyles = css`
   .provider-frame-title {
     margin: 0;
     color: var(--chc-text);
-    font-size: 1.125em;
-    font-weight: 700;
+    font-size: 1em;
+    font-weight: 600;
   }
 
   .provider-frame-status {
@@ -985,20 +1142,20 @@ export const primitiveStyles = css`
   .outcome-shell {
     display: grid;
     justify-items: center;
-    gap: 1rem;
+    gap: 0.875rem;
     text-align: center;
   }
 
   .outcome-icon {
-    width: 4.5rem;
-    height: 4.5rem;
+    width: 3.75rem;
+    height: 3.75rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border: 0.125rem solid;
     border-radius: 999rem;
-    font-size: 2.25em;
-    font-weight: 700;
+    font-size: 1.75em;
+    font-weight: 600;
   }
 
   .outcome-success .outcome-icon {
@@ -1034,8 +1191,8 @@ export const primitiveStyles = css`
   .outcome-title {
     margin: 0;
     color: var(--chc-text);
-    font-size: 1.375em;
-    font-weight: 700;
+    font-size: 1.1875em;
+    font-weight: 600;
   }
 
   .outcome-message {
@@ -1050,7 +1207,7 @@ export const primitiveStyles = css`
 
   .outcome-actions {
     display: grid;
-    gap: 0.75rem;
+    gap: 0.625rem;
   }
 
   .verification-details {
@@ -1064,10 +1221,10 @@ export const primitiveStyles = css`
   }
 
   .verification-detail-row {
-    min-height: 4rem;
+    min-height: 0;
     display: grid;
     gap: 0.125rem;
-    padding: 0.625rem 1.25rem;
+    padding: 0.75rem 1rem;
   }
 
   .verification-detail-row + .verification-detail-row {
@@ -1081,6 +1238,9 @@ export const primitiveStyles = css`
 
   .verification-detail-value {
     color: var(--chc-text);
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
     font-weight: 500;
   }
 
@@ -1090,7 +1250,7 @@ export const primitiveStyles = css`
     padding: 0;
     background: transparent;
     color: var(--chc-primary);
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
   }
 
@@ -1103,7 +1263,7 @@ export const primitiveStyles = css`
     display: flex;
     justify-content: center;
     gap: 0.3125rem;
-    margin-top: 2rem;
+    margin-top: 1.25rem;
     color: var(--chc-copy);
     font-weight: inherit;
     white-space: nowrap;
@@ -1116,15 +1276,15 @@ export const primitiveStyles = css`
 
   @media (max-width: 26.25rem) {
     :host {
-      --chc-shell-padding: 1.5rem 1.25rem 1.25rem;
+      --chc-shell-padding: 1.25rem 1rem 1rem;
     }
 
     .widget-shell {
-      border-radius: 1.125rem;
+      border-radius: 0.875rem;
     }
 
     .widget-close {
-      right: 0.5rem;
+      right: 0.375rem;
     }
 
     .form-grid {
@@ -1152,8 +1312,8 @@ export const primitiveStyles = css`
     .source-action-link,
     .upload-row,
     .loading-row {
-      padding-right: 0.875rem;
-      padding-left: 0.875rem;
+      padding-right: 0.75rem;
+      padding-left: 0.75rem;
     }
 
     .provider-frame-container,
@@ -1165,6 +1325,17 @@ export const primitiveStyles = css`
     .source-action-link-title,
     .payment-method-title {
       white-space: normal;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .widget-close,
+    .button,
+    .field-input,
+    .field-control-card-form,
+    .payment-method-row,
+    .source-action-link {
+      transition: none;
     }
   }
 `;

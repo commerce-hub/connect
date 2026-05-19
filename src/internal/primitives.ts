@@ -56,41 +56,102 @@ const paymentMethodAccountLabel = ({
   return normalizedBrand ?? '';
 };
 
-const paymentMethodStatusLabel = (status: PaymentMethod['status']): string => {
-  if (status === 'verified') {
-    return 'Verified';
-  }
-
-  if (status === 'pending') {
-    return 'Further info required';
-  }
-
-  return 'Not verified';
+type VerificationStatusPresentation = {
+  label: string;
+  tone: 'success' | 'warning' | 'danger';
 };
 
-const renderPaymentMethodControl = (): TemplateResult => html`
-  <span class="payment-method-radio" aria-hidden="true">
-    <span class="payment-method-radio-dot"></span>
-  </span>
-`;
+const paymentMethodStatusPresentation = (
+  status: PaymentMethod['status']
+): VerificationStatusPresentation => {
+  if (status === 'verified') {
+    return {label: 'Verified', tone: 'success'};
+  }
+
+  if (status === 'under-review') {
+    return {label: 'Under review', tone: 'warning'};
+  }
+
+  if (status === 'require-info') {
+    return {label: 'More information needed', tone: 'warning'};
+  }
+
+  if (status === 'declined') {
+    return {label: 'Declined', tone: 'danger'};
+  }
+
+  return {label: 'Not verified yet', tone: 'danger'};
+};
+
+export const renderVerificationStatusBadge = (
+  status: PaymentMethod['status']
+): TemplateResult => {
+  const presentation = paymentMethodStatusPresentation(status);
+
+  return html`
+    <span
+      class="verification-status-badge verification-status-badge-${presentation.tone}"
+      data-verification-status=${status}
+    >
+      <span class="verification-status-label">${presentation.label}</span>
+    </span>
+  `;
+};
+
+const shouldRenderPaymentMethodStatus = (method: PaymentMethod): boolean =>
+  method.status !== 'verified';
 
 const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
   <span class="payment-method-copy">
-    <span class="payment-method-title">${method.label}</span>
-    <span class="payment-method-meta">
-      ${paymentMethodAccountLabel(method)}
+    <span class="payment-method-title-row">
+      <span class="payment-method-title">${method.label}</span>
     </span>
-    ${method.status === 'verified'
-      ? ''
-      : html`
-          <span class="payment-method-status status-text-${method.status}">
-            ${paymentMethodStatusLabel(method.status)}
-          </span>
-        `}
+    <span class="payment-method-meta-row">
+      <span class="payment-method-meta">
+        ${paymentMethodAccountLabel(method)}
+      </span>
+      ${shouldRenderPaymentMethodStatus(method)
+        ? html`
+            <span class="payment-method-status">
+              ${renderVerificationStatusBadge(method.status)}
+            </span>
+          `
+        : ''}
+    </span>
   </span>
 `;
 
-const renderPaymentMethodContent = (method: PaymentMethod): TemplateResult => html`
+const renderPaymentMethodSpacer = (): TemplateResult => html`
+  <span class="payment-method-row-spacer" aria-hidden="true"></span>
+`;
+
+const renderPaymentMethodVerificationAction = (): TemplateResult => html`
+  <span class="payment-method-chevron" aria-hidden="true">
+    <span class="payment-method-chevron-icon"></span>
+  </span>
+`;
+
+const renderPaymentMethodDeleteAction = (
+  paymentMethodId: string,
+  deleteLabel: string,
+  disabled = false
+): TemplateResult => html`
+  <button
+    class="payment-method-delete-button"
+    type="button"
+    aria-label=${deleteLabel}
+    data-action="delete-payment-source"
+    data-payment-method-id=${paymentMethodId}
+    ?disabled=${disabled}
+  >
+    <span class="payment-method-delete-icon" aria-hidden="true"></span>
+  </button>
+`;
+
+const renderPaymentMethodContent = (
+  method: PaymentMethod,
+  trailingContent: TemplateResult
+): TemplateResult => html`
   <span class="payment-method-icon-chip" aria-hidden="true">
     <img
       class="payment-method-icon-image"
@@ -99,7 +160,7 @@ const renderPaymentMethodContent = (method: PaymentMethod): TemplateResult => ht
       alt=""
     />
   </span>
-  ${renderPaymentMethodCopy(method)} ${renderPaymentMethodControl()}
+  ${renderPaymentMethodCopy(method)} ${trailingContent}
 `;
 
 export const renderButton = ({
@@ -340,9 +401,15 @@ export const renderPaymentMethodRow = ({
   eyebrow,
   brand,
   last4,
-  selected = false,
   disabled = false,
-}: PaymentMethod): TemplateResult => {
+}: PaymentMethod,
+{
+  variant = 'default',
+  deleteDisabled = false,
+}: {
+  variant?: 'default' | 'edit';
+  deleteDisabled?: boolean;
+} = {}): TemplateResult => {
   const method: PaymentMethod = {
     id,
     label,
@@ -351,21 +418,49 @@ export const renderPaymentMethodRow = ({
     eyebrow,
     brand,
     last4,
-    selected,
     disabled,
   };
 
+  if (variant === 'edit') {
+    return html`
+      <div class="payment-method-row payment-method-row-edit" aria-label=${label}>
+        ${renderPaymentMethodContent(
+          method,
+          renderPaymentMethodDeleteAction(
+            id,
+            `Delete ${label}`,
+            deleteDisabled
+          )
+        )}
+      </div>
+    `;
+  }
+
+  if (status === 'verified') {
+    return html`
+      <button
+        class="payment-method-row payment-method-row-action"
+        type="button"
+        aria-disabled=${disabled ? 'true' : 'false'}
+        data-action="attach-payment-source"
+        data-payment-method-id=${id}
+        ?disabled=${disabled}
+      >
+        ${renderPaymentMethodContent(method, renderPaymentMethodSpacer())}
+      </button>
+    `;
+  }
+
   return html`
     <button
-      class="payment-method-row"
+      class="payment-method-row payment-method-row-action"
       type="button"
-      role="radio"
-      aria-checked=${selected ? 'true' : 'false'}
       aria-disabled=${disabled ? 'true' : 'false'}
+      data-action="verify-payment-source"
       data-payment-method-id=${id}
       ?disabled=${disabled}
     >
-      ${renderPaymentMethodContent(method)}
+      ${renderPaymentMethodContent(method, renderPaymentMethodVerificationAction())}
     </button>
   `;
 };
@@ -387,12 +482,11 @@ export const renderSelectedPaymentMethod = ({
     eyebrow,
     brand,
     last4,
-    selected: true,
   };
 
   return html`
     <div class="selected-payment-method" aria-label=${label}>
-      ${renderPaymentMethodContent(method)}
+      ${renderPaymentMethodContent(method, renderPaymentMethodSpacer())}
     </div>
   `;
 };
