@@ -291,7 +291,7 @@ export class CommerceHubConnect extends LitElement {
   private requiredInfoSource?: PaymentSource;
 
   @state()
-  private requiredInfoFiles: Record<string, string> = {};
+  private requiredInfoValues: Record<string, string> = {};
 
   private pendingRequiredInfoDocKey?: string;
 
@@ -611,7 +611,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     const docs = requiredInfoDocs(source);
-    const firstDocKey = requiredInfoDocKey(docs[0], 0);
+    const firstUploadDocKey = firstRequiredInfoUploadDocKey(docs);
     const secondaryAction = isBankPaymentSource(source)
       ? {
           label: 'Use a different account',
@@ -650,7 +650,15 @@ export class CommerceHubConnect extends LitElement {
             <div class="primitive-stack">
               ${docs.map((doc, index) => {
                 const key = requiredInfoDocKey(doc, index);
-                const selectedFileName = this.requiredInfoFiles[key];
+                const currentValue = this.requiredInfoValues[key];
+
+                if (isRequiredInfoTextDoc(doc)) {
+                  return renderRequiredInfoTextField({
+                    doc,
+                    key,
+                    value: currentValue ?? '',
+                  });
+                }
 
                 return html`
                   <div
@@ -660,13 +668,13 @@ export class CommerceHubConnect extends LitElement {
                     ${renderUploadRow({
                       label: 'Required document',
                       requirements: requiredInfoDocLabel(doc),
-                      actionLabel: selectedFileName ? 'Replace' : 'Choose file',
+                      actionLabel: currentValue ? 'Replace' : 'Choose file',
                       action: 'open-required-info-file-picker',
                     })}
-                    ${selectedFileName
+                    ${currentValue
                       ? html`
                           <p class="required-info-selected-file">
-                            ${selectedFileName}
+                            ${currentValue}
                           </p>
                         `
                       : ''}
@@ -676,20 +684,25 @@ export class CommerceHubConnect extends LitElement {
             </div>
           </div>
 
-          <input
-            class="required-info-file-input"
-            type="file"
-            data-required-info-file-input="true"
-            hidden
-          />
+          ${firstUploadDocKey
+            ? html`
+                <input
+                  class="required-info-file-input"
+                  type="file"
+                  data-required-info-file-input="true"
+                  hidden
+                />
+              `
+            : ''}
 
           <div
             class="primitive-footer"
-            data-required-info-doc-key=${firstDocKey}
+            data-required-info-doc-key=${firstUploadDocKey ?? ''}
           >
             ${renderButton({
               label: 'Verify',
               action: 'open-required-info-file-picker',
+              disabled: !firstUploadDocKey,
             })}
             ${renderTextLinkButton(secondaryAction)}
           </div>
@@ -1213,6 +1226,22 @@ export class CommerceHubConnect extends LitElement {
       this.updateCardDraftField(
         cardInput.dataset.cardField as keyof CardDraft,
         cardInput.value
+      );
+      return;
+    }
+
+    const requiredInfoInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          Boolean(item.dataset.requiredInfoDocKey)
+      );
+
+    if (requiredInfoInput) {
+      this.storeRequiredInfoValue(
+        requiredInfoInput.dataset.requiredInfoDocKey!,
+        requiredInfoInput.value
       );
       return;
     }
@@ -2043,18 +2072,29 @@ export class CommerceHubConnect extends LitElement {
 
   private showRequiredInfoSource(source: PaymentSource) {
     this.requiredInfoSource = source;
-    this.requiredInfoFiles = {};
+    this.requiredInfoValues = {};
     this.pendingRequiredInfoDocKey = undefined;
   }
 
   private resetRequiredInfo() {
     this.requiredInfoSource = undefined;
-    this.requiredInfoFiles = {};
+    this.requiredInfoValues = {};
     this.pendingRequiredInfoDocKey = undefined;
   }
 
   private firstRequiredInfoDocKey(): string {
-    return requiredInfoDocKey(requiredInfoDocs(this.requiredInfoSource)[0], 0);
+    return (
+      firstRequiredInfoUploadDocKey(
+        requiredInfoDocs(this.requiredInfoSource)
+      ) ?? requiredInfoDocKey(requiredInfoDocs(this.requiredInfoSource)[0], 0)
+    );
+  }
+
+  private storeRequiredInfoValue(key: string, value: string) {
+    this.requiredInfoValues = {
+      ...this.requiredInfoValues,
+      [key]: value,
+    };
   }
 
   private storeRequiredInfoSelectedFile(file?: File) {
@@ -2068,8 +2108,8 @@ export class CommerceHubConnect extends LitElement {
     const key =
       this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
 
-    this.requiredInfoFiles = {
-      ...this.requiredInfoFiles,
+    this.requiredInfoValues = {
+      ...this.requiredInfoValues,
       [key]: file.name,
     };
     this.pendingRequiredInfoDocKey = undefined;
@@ -3866,6 +3906,8 @@ const paymentSourceVerificationDetails = (
 type RequiredInfoDoc = NonNullable<
   NonNullable<PaymentSource['verificationInfo']>['docs']
 >[number];
+type RequiredInfoTextInputType = 'text' | 'password';
+type RequiredInfoTextInputMode = 'text' | 'numeric';
 
 const requiredInfoDocs = (source?: PaymentSource): RequiredInfoDoc[] => {
   const docs = source?.verificationInfo?.docs ?? [];
@@ -3875,6 +3917,63 @@ const requiredInfoDocs = (source?: PaymentSource): RequiredInfoDoc[] => {
 
 const requiredInfoDocKey = (doc?: RequiredInfoDoc, index = 0): string =>
   `${doc?.docType ?? 'DOCUMENT'}-${index}`;
+
+const isRequiredInfoTextDoc = (doc: RequiredInfoDoc): boolean =>
+  doc.docType === 'DRIVER_LICENSE_NUMBER' ||
+  doc.docType === 'SOCIAL_SECURITY_NUMBER';
+
+const firstRequiredInfoUploadDocKey = (
+  docs: RequiredInfoDoc[]
+): string | undefined => {
+  const uploadDocIndex = docs.findIndex((doc) => !isRequiredInfoTextDoc(doc));
+
+  return uploadDocIndex >= 0
+    ? requiredInfoDocKey(docs[uploadDocIndex], uploadDocIndex)
+    : undefined;
+};
+
+const requiredInfoTextInputType = (
+  doc: RequiredInfoDoc
+): RequiredInfoTextInputType =>
+  doc.docType === 'SOCIAL_SECURITY_NUMBER' ? 'password' : 'text';
+
+const requiredInfoTextInputMode = (
+  doc: RequiredInfoDoc
+): RequiredInfoTextInputMode =>
+  doc.docType === 'SOCIAL_SECURITY_NUMBER' ? 'numeric' : 'text';
+
+const renderRequiredInfoTextField = ({
+  doc,
+  key,
+  value,
+}: {
+  doc: RequiredInfoDoc;
+  key: string;
+  value: string;
+}): TemplateResult => {
+  const id = `required-info-${key}`;
+
+  return html`
+    <div class="required-info-document required-info-text-document">
+      <div class="field field-full">
+        <label class="field-label" for=${id}
+          >${requiredInfoDocLabel(doc)}</label
+        >
+        <input
+          class="field-input required-info-text-input"
+          id=${id}
+          name=${key}
+          type=${requiredInfoTextInputType(doc)}
+          .value=${value}
+          autocomplete="off"
+          inputmode=${requiredInfoTextInputMode(doc)}
+          data-required-info-doc-key=${key}
+          aria-label=${requiredInfoDocLabel(doc)}
+        />
+      </div>
+    </div>
+  `;
+};
 
 const requiredInfoDocLabel = (doc: RequiredInfoDoc): string => {
   if (doc.docType === 'BANK_STATEMENT') {

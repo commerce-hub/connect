@@ -150,6 +150,28 @@ const selectRequiredInfoFile = async (
   await flushElement(el);
 };
 
+const setRequiredInfoValue = async (
+  el: CommerceHubConnect,
+  label: string,
+  value: string
+) => {
+  const input = [
+    ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+      '.required-info-text-input'
+    ),
+  ].find((candidate) => {
+    const inputLabel = el
+      .shadowRoot!.querySelector(`label[for="${candidate.id}"]`)
+      ?.textContent?.trim();
+
+    return inputLabel === label;
+  })!;
+
+  input.value = value;
+  input.dispatchEvent(new InputEvent('input', {bubbles: true, composed: true}));
+  await flushElement(el);
+};
+
 const setFieldValue = async (
   el: CommerceHubConnect,
   id: string,
@@ -257,9 +279,13 @@ const paymentSdkWindow = window as Window & {
 const completePayByBankFlow = async ({
   finalizedStatus,
   verificationStatus,
+  verificationDocs = [{docType: 'BANK_STATEMENT', mandatory: true}] as const,
 }: {
   finalizedStatus: VerificationStatus;
   verificationStatus?: VerificationStatus;
+  verificationDocs?: NonNullable<
+    NonNullable<PaymentSource['verificationInfo']>['docs']
+  >;
 }) => {
   const requests: CapturedRequest[] = [];
   let initConfig: TestPaymentSdkInitConfiguration | undefined;
@@ -267,7 +293,7 @@ const completePayByBankFlow = async ({
   const resolvedVerificationInfo = verificationStatus
     ? {
         status: resolvedStatus,
-        docs: [{docType: 'BANK_STATEMENT', mandatory: true}] as const,
+        docs: verificationDocs,
       }
     : finalizedStatus === 'REQUIRE_INFO'
     ? {
@@ -338,7 +364,7 @@ const completePayByBankFlow = async ({
       return new Response(
         JSON.stringify({
           status: verificationStatus,
-          docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+          docs: verificationDocs,
         }),
         {status: 200, headers: {'Content-Type': 'application/json'}}
       );
@@ -2552,6 +2578,61 @@ suite('commerce-hub-connect flow', () => {
       {
         status: 'REQUIRE_INFO',
         docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+      }
+    );
+    assert.isUndefined(el.interactionResponse?.selectedSource);
+  });
+
+  test('Pay by Bank REQUIRE_INFO text documents render as local-only inputs', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'NOT_VERIFIED',
+      verificationStatus: 'REQUIRE_INFO',
+      verificationDocs: [
+        {docType: 'DRIVER_LICENSE_NUMBER', mandatory: true},
+        {docType: 'SOCIAL_SECURITY_NUMBER', mandatory: true},
+      ],
+    });
+    const requestCountBeforeEntry = requests.length;
+
+    await setRequiredInfoValue(el, 'Driver license number', 'D1234567');
+    await setRequiredInfoValue(el, 'Social Security number', '123456789');
+
+    assert.lengthOf(requests, requestCountBeforeEntry);
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+          '.required-info-text-input'
+        ),
+      ].map((input) => ({
+        label: el
+          .shadowRoot!.querySelector(`label[for="${input.id}"]`)
+          ?.textContent?.trim(),
+        type: input.type,
+        value: input.value,
+      })),
+      [
+        {
+          label: 'Driver license number',
+          type: 'text',
+          value: 'D1234567',
+        },
+        {
+          label: 'Social Security number',
+          type: 'password',
+          value: '123456789',
+        },
+      ]
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.required-info-file-input'));
+    assert.notExists(el.shadowRoot!.querySelector('.upload-row-requirements'));
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo,
+      {
+        status: 'REQUIRE_INFO',
+        docs: [
+          {docType: 'DRIVER_LICENSE_NUMBER', mandatory: true},
+          {docType: 'SOCIAL_SECURITY_NUMBER', mandatory: true},
+        ],
       }
     );
     assert.isUndefined(el.interactionResponse?.selectedSource);
