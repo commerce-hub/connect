@@ -68,12 +68,6 @@ const paymentMethodStatusLabel = (status: PaymentMethod['status']): string => {
   return 'Not verified';
 };
 
-const renderPaymentMethodControl = (): TemplateResult => html`
-  <span class="payment-method-radio" aria-hidden="true">
-    <span class="payment-method-radio-dot"></span>
-  </span>
-`;
-
 const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
   <span class="payment-method-copy">
     <span class="payment-method-title">${method.label}</span>
@@ -90,7 +84,20 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
   </span>
 `;
 
-const renderPaymentMethodContent = (method: PaymentMethod): TemplateResult => html`
+const renderPaymentMethodSpacer = (): TemplateResult => html`
+  <span class="payment-method-row-spacer" aria-hidden="true"></span>
+`;
+
+const renderPaymentMethodVerificationAction = (): TemplateResult => html`
+  <span class="payment-method-chevron" aria-hidden="true">
+    <span class="payment-method-chevron-icon"></span>
+  </span>
+`;
+
+const renderPaymentMethodContent = (
+  method: PaymentMethod,
+  trailingContent: TemplateResult
+): TemplateResult => html`
   <span class="payment-method-icon-chip" aria-hidden="true">
     <img
       class="payment-method-icon-image"
@@ -99,7 +106,7 @@ const renderPaymentMethodContent = (method: PaymentMethod): TemplateResult => ht
       alt=""
     />
   </span>
-  ${renderPaymentMethodCopy(method)} ${renderPaymentMethodControl()}
+  ${renderPaymentMethodCopy(method)} ${trailingContent}
 `;
 
 export const renderButton = ({
@@ -340,7 +347,6 @@ export const renderPaymentMethodRow = ({
   eyebrow,
   brand,
   last4,
-  selected = false,
   disabled = false,
 }: PaymentMethod): TemplateResult => {
   const method: PaymentMethod = {
@@ -351,21 +357,34 @@ export const renderPaymentMethodRow = ({
     eyebrow,
     brand,
     last4,
-    selected,
     disabled,
   };
 
+  if (status === 'verified') {
+    return html`
+      <button
+        class="payment-method-row payment-method-row-action"
+        type="button"
+        aria-disabled=${disabled ? 'true' : 'false'}
+        data-action="attach-payment-source"
+        data-payment-method-id=${id}
+        ?disabled=${disabled}
+      >
+        ${renderPaymentMethodContent(method, renderPaymentMethodSpacer())}
+      </button>
+    `;
+  }
+
   return html`
     <button
-      class="payment-method-row"
+      class="payment-method-row payment-method-row-action"
       type="button"
-      role="radio"
-      aria-checked=${selected ? 'true' : 'false'}
       aria-disabled=${disabled ? 'true' : 'false'}
+      data-action="verify-payment-source"
       data-payment-method-id=${id}
       ?disabled=${disabled}
     >
-      ${renderPaymentMethodContent(method)}
+      ${renderPaymentMethodContent(method, renderPaymentMethodVerificationAction())}
     </button>
   `;
 };
@@ -387,12 +406,11 @@ export const renderSelectedPaymentMethod = ({
     eyebrow,
     brand,
     last4,
-    selected: true,
   };
 
   return html`
     <div class="selected-payment-method" aria-label=${label}>
-      ${renderPaymentMethodContent(method)}
+      ${renderPaymentMethodContent(method, renderPaymentMethodSpacer())}
     </div>
   `;
 };

@@ -9,8 +9,10 @@ export type InteractionFlowStatus = NonNullable<
 export type FlowActionName =
   | 'verify-otp'
   | 'resend-otp'
-  | 'confirm-payment-source'
+  | 'attach-payment-source'
   | 'change-payment-source'
+  | 'verify-payment-source'
+  | 'done-payment-source-verification'
   | 'add-bank-account'
   | 'add-card'
   | 'save-card'
@@ -44,7 +46,6 @@ export interface OtpScreenModel {
 export interface PaymentMethodsScreenModel {
   status: Extract<InteractionFlowStatus, 'PAYMENT_SOURCE_REQUESTED'>;
   methods: PaymentMethod[];
-  selectedPaymentMethodId?: string;
   attaching?: boolean;
 }
 
@@ -163,7 +164,6 @@ export interface PaymentMethod {
   brand: string;
   last4: string;
   status: PaymentMethodStatus;
-  selected?: boolean;
   disabled?: boolean;
 }
 

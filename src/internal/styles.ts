@@ -51,6 +51,7 @@ export const primitiveStyles = css`
   .button,
   .field-input,
   .payment-method-row,
+  .selected-payment-method,
   .source-action,
   .source-action-link,
   .upload-row,
@@ -578,20 +579,15 @@ export const primitiveStyles = css`
     background: var(--chc-soft-surface);
     color: var(--chc-text);
     text-align: left;
+    border: 0.0625rem solid var(--chc-border);
   }
 
-  .payment-method-row {
-    border: 0.0625rem solid var(--chc-border);
+  .payment-method-row-action {
     transition: border-color 120ms ease, background-color 120ms ease,
       box-shadow 120ms ease;
     cursor: pointer;
   }
 
-  .selected-payment-method {
-    border: 0.0625rem solid var(--chc-primary);
-  }
-
-  .payment-method-row[aria-checked='true'],
   .selected-payment-method {
     border-color: var(--chc-primary);
     background: var(--chc-soft-surface);
@@ -599,8 +595,8 @@ export const primitiveStyles = css`
       color-mix(in srgb, var(--chc-primary) 28%, transparent);
   }
 
-  .payment-method-row:hover:not(:disabled),
-  .payment-method-row:focus-visible {
+  .payment-method-row-action:hover:not(:disabled),
+  .payment-method-row-action:focus-visible {
     border-color: var(--chc-primary);
     background: color-mix(
       in srgb,
@@ -611,59 +607,51 @@ export const primitiveStyles = css`
       color-mix(in srgb, var(--chc-primary) 24%, transparent);
   }
 
-  .payment-method-row:focus-visible {
+  .payment-method-row-action:focus-visible {
     outline: 0;
   }
 
-  .payment-method-row:disabled {
+  .payment-method-row-action:disabled {
     border-color: var(--chc-border);
     background: var(--chc-soft-surface);
     color: var(--chc-placeholder);
     cursor: not-allowed;
   }
 
-  .payment-method-radio {
+  .payment-method-row-spacer {
     width: 1rem;
     height: 1rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 0.0625rem solid var(--chc-border-strong);
-    border-radius: 999rem;
-    background: var(--chc-surface);
   }
 
-  .payment-method-radio-dot {
-    width: 100%;
-    height: 100%;
+  .payment-method-chevron {
+    width: 1rem;
+    height: 1rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999rem;
     background: transparent;
-    color: transparent;
-    font-size: 0.75em;
-    font-weight: 700;
+    color: var(--chc-primary);
+    pointer-events: none;
   }
 
-  .payment-method-radio-dot::before {
+  .payment-method-chevron-icon {
+    width: 0.5rem;
+    height: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .payment-method-chevron-icon::before {
     content: '';
-  }
-
-  .payment-method-row[aria-checked='true'] .payment-method-radio,
-  .selected-payment-method .payment-method-radio {
-    border-color: var(--chc-primary);
-    background: var(--chc-primary);
-  }
-
-  .payment-method-row[aria-checked='true'] .payment-method-radio-dot,
-  .selected-payment-method .payment-method-radio-dot {
-    color: #fff;
-  }
-
-  .payment-method-row[aria-checked='true'] .payment-method-radio-dot::before,
-  .selected-payment-method .payment-method-radio-dot::before {
-    content: '✓';
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-right: 0.09375rem solid currentColor;
+    border-bottom: 0.09375rem solid currentColor;
+    transform: rotate(-45deg);
   }
 
   .payment-method-icon-chip {
