@@ -2432,7 +2432,7 @@ suite('commerce-hub-connect flow', () => {
           '.primitive-footer [data-action="open-required-info-file-picker"]'
         )
         ?.textContent?.trim(),
-      'Upload required document'
+      'Verify'
     );
     assert.equal(
       el

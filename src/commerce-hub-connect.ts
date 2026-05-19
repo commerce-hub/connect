@@ -691,7 +691,7 @@ export class CommerceHubConnect extends LitElement {
             data-required-info-doc-key=${firstDocKey}
           >
             ${renderButton({
-              label: 'Upload required document',
+              label: 'Verify',
               action: 'open-required-info-file-picker',
             })}
             ${renderTextLinkButton(secondaryAction)}
