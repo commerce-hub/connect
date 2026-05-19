@@ -124,6 +124,53 @@ const pasteOtpValue = async (
   await flushElement(el);
 };
 
+const setRequiredInfoSsnSegments = async (
+  el: CommerceHubConnect,
+  values: [string, string, string]
+) => {
+  const inputs = [
+    ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+      '.required-info-ssn-input'
+    ),
+  ];
+
+  inputs.forEach((input, index) => {
+    input.value = values[index] ?? '';
+    input.dispatchEvent(
+      new InputEvent('input', {bubbles: true, composed: true})
+    );
+  });
+
+  await flushElement(el);
+};
+
+const pasteRequiredInfoSsnValue = async (
+  el: CommerceHubConnect,
+  value: string
+) => {
+  const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+    '.required-info-ssn-input'
+  )!;
+  const event = new Event('paste', {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+  }) as Event & {
+    clipboardData: {
+      getData: (type: string) => string;
+    };
+  };
+
+  input.focus();
+  Object.defineProperty(event, 'clipboardData', {
+    value: {
+      getData: (type: string) => (type === 'text' ? value : ''),
+    },
+  });
+  input.dispatchEvent(event);
+  await flushElement(el);
+};
+
 const clickAction = async (el: CommerceHubConnect, action: string) => {
   el.shadowRoot!.querySelector<HTMLButtonElement>(
     `[data-action="${action}"]`
@@ -674,8 +721,14 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(rows[0].dataset.action, 'attach-payment-source');
     assert.equal(rows[1].dataset.action, 'verify-payment-source');
     assert.equal(rows[2].dataset.action, 'verify-payment-source');
-    assert.equal(rows[0].classList.contains('payment-method-row-selected'), true);
-    assert.equal(rows[1].classList.contains('payment-method-row-selected'), false);
+    assert.equal(
+      rows[0].classList.contains('payment-method-row-selected'),
+      true
+    );
+    assert.equal(
+      rows[1].classList.contains('payment-method-row-selected'),
+      false
+    );
     assert.equal(
       rows[0].querySelector('.payment-method-title')?.textContent?.trim(),
       'Corporate card'
@@ -801,10 +854,10 @@ suite('commerce-hub-connect flow', () => {
       getComputedStyle(addCardLink).columnGap
     );
     assert.equal(getComputedStyle(unselectedRow).alignItems, 'center');
-    assert.notExists(el.shadowRoot!.querySelector('.source-action-link-subtitle'));
-    assert.exists(
-      addCardLink.querySelector('.source-action-link-chevron')
+    assert.notExists(
+      el.shadowRoot!.querySelector('.source-action-link-subtitle')
     );
+    assert.exists(addCardLink.querySelector('.source-action-link-chevron'));
     assert.exists(
       el.shadowRoot!.querySelector(
         '[data-action="add-bank-account"] .source-action-link-chevron'
@@ -2379,7 +2432,9 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
       'Commerce National Bank •••• 3210'
     );
-    assert.notExists(el.shadowRoot!.querySelector('.verification-status-badge'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('.verification-status-badge')
+    );
     assert.exists(
       el.shadowRoot!.querySelector('.payment-method-status-icon-warning')
     );
@@ -2474,7 +2529,9 @@ suite('commerce-hub-connect flow', () => {
       'Pay with'
     );
     assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
-    assert.notExists(el.shadowRoot!.querySelector('.verification-status-badge'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('.verification-status-badge')
+    );
     assert.exists(
       el.shadowRoot!.querySelector('.payment-method-status-icon-warning')
     );
@@ -2595,7 +2652,7 @@ suite('commerce-hub-connect flow', () => {
     const requestCountBeforeEntry = requests.length;
 
     await setRequiredInfoValue(el, 'Driver license number', 'D1234567');
-    await setRequiredInfoValue(el, 'Social Security number', '123456789');
+    await setRequiredInfoSsnSegments(el, ['123', '45', '6789']);
 
     assert.lengthOf(requests, requestCountBeforeEntry);
     assert.deepEqual(
@@ -2616,12 +2673,63 @@ suite('commerce-hub-connect flow', () => {
           type: 'text',
           value: 'D1234567',
         },
+      ]
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.required-info-ssn-document .field-label')
+        ?.textContent?.trim(),
+      'Social Security number'
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+          '.required-info-ssn-input'
+        ),
+      ].map((input) => ({
+        type: input.type,
+        inputmode: input.getAttribute('inputmode'),
+        maxlength: input.getAttribute('maxlength'),
+        value: input.value,
+      })),
+      [
         {
-          label: 'Social Security number',
           type: 'password',
-          value: '123456789',
+          inputmode: 'numeric',
+          maxlength: '3',
+          value: '123',
+        },
+        {
+          type: 'password',
+          inputmode: 'numeric',
+          maxlength: '2',
+          value: '45',
+        },
+        {
+          type: 'password',
+          inputmode: 'numeric',
+          maxlength: '4',
+          value: '6789',
         },
       ]
+    );
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.required-info-ssn-separator')].map(
+        (node) => node.textContent?.trim()
+      ),
+      ['-', '-']
+    );
+
+    await pasteRequiredInfoSsnValue(el, '987-65-4321');
+
+    assert.lengthOf(requests, requestCountBeforeEntry);
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+          '.required-info-ssn-input'
+        ),
+      ].map((input) => input.value),
+      ['987', '65', '4321']
     );
     assert.notExists(el.shadowRoot!.querySelector('.required-info-file-input'));
     assert.notExists(el.shadowRoot!.querySelector('.upload-row-requirements'));
@@ -2657,7 +2765,9 @@ suite('commerce-hub-connect flow', () => {
       'Pay with'
     );
     assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
-    assert.notExists(el.shadowRoot!.querySelector('.verification-status-badge'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('.verification-status-badge')
+    );
     assert.exists(
       el.shadowRoot!.querySelector('.payment-method-status-icon-danger')
     );

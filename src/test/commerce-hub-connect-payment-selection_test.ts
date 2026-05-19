@@ -956,10 +956,39 @@ suite('commerce-hub-connect payment selection', () => {
           type: 'text',
           inputmode: 'text',
         },
+      ]
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.required-info-ssn-document .field-label')
+        ?.textContent?.trim(),
+      'Social Security number'
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+          '.required-info-ssn-input'
+        ),
+      ].map((input) => ({
+        type: input.type,
+        inputmode: input.getAttribute('inputmode'),
+        maxlength: input.getAttribute('maxlength'),
+      })),
+      [
         {
-          label: 'Social Security number',
           type: 'password',
           inputmode: 'numeric',
+          maxlength: '3',
+        },
+        {
+          type: 'password',
+          inputmode: 'numeric',
+          maxlength: '2',
+        },
+        {
+          type: 'password',
+          inputmode: 'numeric',
+          maxlength: '4',
         },
       ]
     );
