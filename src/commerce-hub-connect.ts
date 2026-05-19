@@ -22,6 +22,7 @@ import {
   renderSourceAction,
   renderTextField,
   renderTextLinkButton,
+  renderUploadRow,
   renderVerificationStatusBadge,
   renderVerificationDetails,
   renderWidgetShell,
@@ -286,6 +287,14 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private savedSourceVerificationFailed = false;
 
+  @state()
+  private requiredInfoSource?: PaymentSource;
+
+  @state()
+  private requiredInfoFiles: Record<string, string> = {};
+
+  private pendingRequiredInfoDocKey?: string;
+
   private interactionRefreshInteractionId?: string;
   private interactionRefreshPromise?: Promise<InteractionResponse>;
 
@@ -308,6 +317,7 @@ export class CommerceHubConnect extends LitElement {
         this.interactionRefreshPromise = undefined;
         this.billingAddresses = [];
         this.resetSavedSourceVerification();
+        this.resetRequiredInfo();
       }
 
       if (
@@ -379,6 +389,10 @@ export class CommerceHubConnect extends LitElement {
 
     if (this.cardFlowScreen === 'error') {
       return this.renderCardErrorScreen();
+    }
+
+    if (this.requiredInfoSource) {
+      return this.renderRequiredInfoScreen();
     }
 
     if (this.savedSourceVerificationSource) {
@@ -589,6 +603,101 @@ export class CommerceHubConnect extends LitElement {
           action: 'done-payment-source-verification',
         }),
       }),
+    });
+  }
+
+  private renderRequiredInfoScreen(): TemplateResult {
+    const source = this.requiredInfoSource;
+
+    if (!source) {
+      return this.renderPaymentSourceScreen();
+    }
+
+    const docs = requiredInfoDocs(source);
+    const firstDocKey = requiredInfoDocKey(docs[0], 0);
+    const secondaryAction = isBankPaymentSource(source)
+      ? {
+          label: 'Use a different account',
+          action: 'use-different-bank-account' as const,
+        }
+      : {
+          label: 'Use a different method',
+          action: 'use-different-method' as const,
+        };
+
+    return renderWidgetShell({
+      title: 'Complete account verification',
+      showClose: false,
+      showDivider: false,
+      content: html`
+        <div class="required-info-flow">
+          <div
+            class="required-info-source-summary"
+            aria-label="Payment source requiring verification"
+          >
+            ${requiredInfoSummaryRows(source).map(
+              (item) => html`
+                <div class="required-info-summary-row">
+                  <span class="required-info-summary-label">${item.label}</span>
+                  <span class="required-info-summary-value">${item.value}</span>
+                </div>
+              `
+            )}
+            <div class="required-info-summary-status">
+              Advanced verification incomplete
+            </div>
+          </div>
+
+          <div class="required-info-documents">
+            <p class="required-info-section-title">Required information</p>
+            <div class="primitive-stack">
+              ${docs.map((doc, index) => {
+                const key = requiredInfoDocKey(doc, index);
+                const selectedFileName = this.requiredInfoFiles[key];
+
+                return html`
+                  <div
+                    class="required-info-document"
+                    data-required-info-doc-key=${key}
+                  >
+                    ${renderUploadRow({
+                      label: 'Required document',
+                      requirements: requiredInfoDocLabel(doc),
+                      actionLabel: selectedFileName ? 'Replace' : 'Choose file',
+                      action: 'open-required-info-file-picker',
+                    })}
+                    ${selectedFileName
+                      ? html`
+                          <p class="required-info-selected-file">
+                            ${selectedFileName}
+                          </p>
+                        `
+                      : ''}
+                  </div>
+                `;
+              })}
+            </div>
+          </div>
+
+          <input
+            class="required-info-file-input"
+            type="file"
+            data-required-info-file-input="true"
+            hidden
+          />
+
+          <div
+            class="primitive-footer"
+            data-required-info-doc-key=${firstDocKey}
+          >
+            ${renderButton({
+              label: 'Upload required document',
+              action: 'open-required-info-file-picker',
+            })}
+            ${renderTextLinkButton(secondaryAction)}
+          </div>
+        </div>
+      `,
     });
   }
 
@@ -990,6 +1099,7 @@ export class CommerceHubConnect extends LitElement {
     if (action === 'change-payment-source') {
       this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
+      this.resetRequiredInfo();
       return;
     }
 
@@ -1019,6 +1129,16 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'open-required-info-file-picker') {
+      this.pendingRequiredInfoDocKey =
+        findDatasetValue(event, 'requiredInfoDocKey') ??
+        this.firstRequiredInfoDocKey();
+      this.renderRoot
+        .querySelector<HTMLInputElement>('.required-info-file-input')
+        ?.click();
+      return;
+    }
+
     if (action === 'verify-otp') {
       void this.verifyOtp();
       return;
@@ -1038,6 +1158,7 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
+      this.resetRequiredInfo();
       void this.startPayByBankFlow();
       return;
     }
@@ -1047,6 +1168,7 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetBankFlow();
+      this.resetRequiredInfo();
       return;
     }
 
@@ -1058,6 +1180,7 @@ export class CommerceHubConnect extends LitElement {
     if (action === 'add-card') {
       this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
+      this.resetRequiredInfo();
       void this.showAddCardScreen();
       return;
     }
@@ -1076,6 +1199,7 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
+      this.resetRequiredInfo();
       return;
     }
   };
@@ -1193,6 +1317,20 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleChange = (event: Event) => {
+    const requiredInfoFileInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          Boolean(item.dataset.requiredInfoFileInput)
+      );
+
+    if (requiredInfoFileInput) {
+      this.storeRequiredInfoSelectedFile(requiredInfoFileInput.files?.[0]);
+      requiredInfoFileInput.value = '';
+      return;
+    }
+
     const cardSelect = event
       .composedPath()
       .find(
@@ -1784,6 +1922,15 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (requiresAdditionalVerificationInfo(source)) {
+      this.savedSourceVerificationSource = undefined;
+      this.savedSourceVerificationFailed = false;
+      this.selectedPaymentSourceId = undefined;
+      this.paymentSourceView = 'list';
+      this.showRequiredInfoSource(source);
+      return;
+    }
+
     this.pendingAction = 'verify-payment-source';
 
     try {
@@ -1791,19 +1938,37 @@ export class CommerceHubConnect extends LitElement {
         interactionId,
         source
       );
+      const nextInteractionResponse = withUpsertedSource(
+        {
+          ...(this.interactionResponse ?? {interactionId}),
+          status: 'PAYMENT_SOURCE_REQUESTED',
+        },
+        verifiedSource
+      );
+
+      if (requiresAdditionalVerificationInfo(verifiedSource)) {
+        this.savedSourceVerificationSource = undefined;
+        this.savedSourceVerificationFailed = false;
+        this.selectedPaymentSourceId = undefined;
+        this.paymentSourceView = 'list';
+        this.setInteractionResponseFromSdk(
+          withUpsertedSourcePreservingSelection(
+            {
+              ...(this.interactionResponse ?? {interactionId}),
+              selectedSource: this.interactionResponse?.selectedSource,
+              status: 'PAYMENT_SOURCE_REQUESTED',
+            },
+            verifiedSource
+          )
+        );
+        this.showRequiredInfoSource(verifiedSource);
+        return;
+      }
 
       this.savedSourceVerificationSource = verifiedSource;
       this.savedSourceVerificationFailed = false;
       this.selectedPaymentSourceId = verifiedSource.id;
-      this.setInteractionResponseFromSdk(
-        withUpsertedSource(
-          {
-            ...(this.interactionResponse ?? {interactionId}),
-            status: 'PAYMENT_SOURCE_REQUESTED',
-          },
-          verifiedSource
-        )
-      );
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
     } catch (cause) {
       void cause;
       this.savedSourceVerificationSource = source;
@@ -1861,7 +2026,9 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private findPaymentSourceById(paymentSourceId: string): PaymentSource | undefined {
+  private findPaymentSourceById(
+    paymentSourceId: string
+  ): PaymentSource | undefined {
     const paymentSources = this.interactionResponse?.paymentSources ?? [];
 
     return (
@@ -1875,6 +2042,40 @@ export class CommerceHubConnect extends LitElement {
   private resetSavedSourceVerification() {
     this.savedSourceVerificationSource = undefined;
     this.savedSourceVerificationFailed = false;
+  }
+
+  private showRequiredInfoSource(source: PaymentSource) {
+    this.requiredInfoSource = source;
+    this.requiredInfoFiles = {};
+    this.pendingRequiredInfoDocKey = undefined;
+  }
+
+  private resetRequiredInfo() {
+    this.requiredInfoSource = undefined;
+    this.requiredInfoFiles = {};
+    this.pendingRequiredInfoDocKey = undefined;
+  }
+
+  private firstRequiredInfoDocKey(): string {
+    return requiredInfoDocKey(requiredInfoDocs(this.requiredInfoSource)[0], 0);
+  }
+
+  private storeRequiredInfoSelectedFile(file?: File) {
+    const source = this.requiredInfoSource;
+
+    if (!source || !file) {
+      this.pendingRequiredInfoDocKey = undefined;
+      return;
+    }
+
+    const key =
+      this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
+
+    this.requiredInfoFiles = {
+      ...this.requiredInfoFiles,
+      [key]: file.name,
+    };
+    this.pendingRequiredInfoDocKey = undefined;
   }
 
   private async startPayByBankFlow() {
@@ -2041,7 +2242,11 @@ export class CommerceHubConnect extends LitElement {
 
             this.resetBankFlow();
 
-            if (shouldPreselectSource) {
+            if (requiresAdditionalVerificationInfo(resolvedBankSource)) {
+              this.selectedPaymentSourceId = undefined;
+              this.paymentSourceView = 'list';
+              this.showRequiredInfoSource(resolvedBankSource);
+            } else if (shouldPreselectSource) {
               this.selectedPaymentSourceId = paymentSourceId;
               this.paymentSourceView = 'selected';
             } else {
@@ -3617,8 +3822,7 @@ const resolveSavedSourceVerificationOutcome = (
       kind: 'requires-info',
       variant: 'warning',
       title: 'More information needed',
-      message:
-        `Additional information is required before this ${subjectLowerCase} can be verified.`,
+      message: `Additional information is required before this ${subjectLowerCase} can be verified.`,
     };
   }
 
@@ -3661,6 +3865,62 @@ const paymentSourceVerificationDetails = (
     ),
   },
 ];
+
+type RequiredInfoDoc = NonNullable<
+  NonNullable<PaymentSource['verificationInfo']>['docs']
+>[number];
+
+const requiredInfoDocs = (source?: PaymentSource): RequiredInfoDoc[] => {
+  const docs = source?.verificationInfo?.docs ?? [];
+
+  return docs.length > 0 ? docs : [{}];
+};
+
+const requiredInfoDocKey = (doc?: RequiredInfoDoc, index = 0): string =>
+  `${doc?.docType ?? 'DOCUMENT'}-${index}`;
+
+const requiredInfoDocLabel = (doc: RequiredInfoDoc): string => {
+  if (doc.docType === 'BANK_STATEMENT') {
+    return 'Bank statement';
+  }
+
+  if (doc.docType === 'DRIVER_LICENSE_PHOTO') {
+    return 'Driver license photo';
+  }
+
+  if (doc.docType === 'DRIVER_LICENSE_NUMBER') {
+    return 'Driver license number';
+  }
+
+  if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
+    return 'Social Security number';
+  }
+
+  return 'Required document';
+};
+
+const requiredInfoSourceTypeLabel = (source: PaymentSource): string => {
+  if (isBankPaymentSource(source)) {
+    return 'Bank account';
+  }
+
+  if (isCardPaymentSource(source)) {
+    return 'Card';
+  }
+
+  return 'Dynamic session card';
+};
+
+const requiredInfoSummaryRows = (
+  source: PaymentSource
+): {label: string; value: string}[] => [
+  {label: 'Type', value: requiredInfoSourceTypeLabel(source)},
+  {label: 'Account', value: `•••• ${paymentSourceLast4(source)}`},
+  {label: 'Name', value: source.name?.trim() || paymentSourceLabel(source)},
+];
+
+const requiresAdditionalVerificationInfo = (source: PaymentSource): boolean =>
+  source.verificationInfo?.status === 'REQUIRE_INFO';
 
 const paymentSourceVerificationSubject = (source?: PaymentSource): string =>
   source && isBankPaymentSource(source) ? 'Bank account' : 'Payment method';

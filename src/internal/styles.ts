@@ -201,9 +201,78 @@ export const primitiveStyles = css`
   }
 
   .otp-flow,
-  .payment-flow {
+  .payment-flow,
+  .required-info-flow {
     display: grid;
     gap: 0.75rem;
+  }
+
+  .required-info-source-summary {
+    display: grid;
+    gap: 0.5rem;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-card);
+    padding: 0.75rem;
+    background: var(--chc-soft-surface);
+  }
+
+  .required-info-summary-row {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .required-info-summary-label {
+    color: var(--chc-muted);
+    font-weight: 500;
+  }
+
+  .required-info-summary-value {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--chc-text);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .required-info-summary-status {
+    display: inline-flex;
+    justify-self: start;
+    border: 0.0625rem solid var(--chc-warning-border);
+    border-radius: 999rem;
+    padding: 0.1875rem 0.5rem;
+    background: var(--chc-warning-bg);
+    color: var(--chc-warning);
+    font-size: 0.75em;
+    font-weight: 600;
+  }
+
+  .required-info-documents {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .required-info-section-title {
+    margin: 0;
+    color: var(--chc-text);
+    font-weight: 600;
+  }
+
+  .required-info-document {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .required-info-selected-file {
+    margin: 0;
+    overflow: hidden;
+    color: var(--chc-copy);
+    font-size: 0.875em;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .otp-support {
@@ -680,11 +749,7 @@ export const primitiveStyles = css`
 
   .payment-method-delete-button:hover:not(:disabled),
   .payment-method-delete-button:focus-visible {
-    background: color-mix(
-      in srgb,
-      var(--chc-danger) 10%,
-      transparent
-    );
+    background: color-mix(in srgb, var(--chc-danger) 10%, transparent);
   }
 
   .payment-method-delete-button:focus-visible {
