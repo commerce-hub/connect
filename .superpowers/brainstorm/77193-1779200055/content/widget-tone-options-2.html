@@ -1,0 +1,706 @@
+<style>
+  .cards {
+    align-items: start;
+  }
+
+  .lead {
+    max-width: 72rem;
+  }
+
+  .lead strong {
+    color: #0f172a;
+  }
+
+  .card {
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .card-image {
+    padding: 28px 20px;
+    aspect-ratio: auto;
+    min-height: 420px;
+    align-items: stretch;
+  }
+
+  .scene {
+    width: 100%;
+    border-radius: 26px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .widget {
+    width: min(100%, 320px);
+    border-radius: 24px;
+    padding: 18px;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .widget::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .header-row {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .header-row h4 {
+    margin: 8px 0 6px;
+    font-size: 1.16rem;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .header-copy {
+    margin: 0 0 15px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .header-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 32px;
+    border-radius: 999px;
+    padding: 0 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .stack {
+    display: grid;
+    gap: 10px;
+  }
+
+  .row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    min-height: 62px;
+    border-radius: 18px;
+    padding: 12px;
+  }
+
+  .row.add-row {
+    grid-template-columns: 20px minmax(0, 1fr);
+    min-height: 54px;
+  }
+
+  .row-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .row-copy {
+    min-width: 0;
+  }
+
+  .row-title {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row-meta {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.74rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 26px;
+    padding: 0.28rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .plus {
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .widget-footer {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .cta {
+    min-height: 48px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.84rem;
+    font-weight: 800;
+  }
+
+  .powered {
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .option-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.8rem;
+    padding: 0.38rem 0.68rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .option-tag.recommended {
+    background: #e8f1ff;
+    color: #2551cc;
+  }
+
+  .option-tag.default {
+    background: #f3f4f6;
+    color: #5b6472;
+  }
+
+  .note {
+    margin-top: 1.25rem;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+  }
+
+  .ambient-scene {
+    background:
+      radial-gradient(circle at 12% 12%, rgba(110, 160, 255, 0.28), transparent 36%),
+      radial-gradient(circle at 88% 16%, rgba(148, 163, 184, 0.18), transparent 32%),
+      linear-gradient(180deg, #eef5ff 0%, #f7f9fd 58%, #edf1f7 100%);
+  }
+
+  .ambient-widget {
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.84) 0%,
+      rgba(255, 255, 255, 0.72) 100%
+    );
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 20px 48px rgba(38, 64, 117, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(18px) saturate(1.2);
+  }
+
+  .ambient-widget::before {
+    background:
+      linear-gradient(140deg, rgba(255, 255, 255, 0.24), transparent 42%),
+      radial-gradient(circle at top right, rgba(91, 141, 255, 0.14), transparent 34%);
+  }
+
+  .ambient-widget .eyebrow,
+  .ambient-widget .powered,
+  .ambient-widget .row-meta,
+  .ambient-widget .header-copy {
+    color: #6a7688;
+  }
+
+  .ambient-widget h4,
+  .ambient-widget .row-title {
+    color: #101828;
+  }
+
+  .ambient-widget .header-link {
+    color: #1c52d8;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(189, 205, 234, 0.8);
+  }
+
+  .ambient-widget .row {
+    background: rgba(252, 253, 255, 0.68);
+    border: 1px solid rgba(199, 211, 234, 0.8);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+
+  .ambient-widget .row.primary {
+    background: rgba(244, 248, 255, 0.86);
+    border-color: rgba(134, 166, 241, 0.9);
+    box-shadow:
+      0 0 0 3px rgba(90, 134, 239, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+
+  .ambient-widget .row-icon {
+    background: rgba(232, 239, 252, 0.92);
+    color: #2643a6;
+  }
+
+  .ambient-widget .badge {
+    background: rgba(255, 244, 220, 0.95);
+    color: #a26000;
+  }
+
+  .ambient-widget .cta {
+    background: linear-gradient(135deg, #3164e8 0%, #5a84f3 100%);
+    color: #fff;
+    box-shadow: 0 16px 28px rgba(49, 100, 232, 0.22);
+  }
+
+  .ambient-widget .plus {
+    color: #2d5be0;
+  }
+
+  .precision-scene {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(180, 202, 255, 0.26), transparent 34%),
+      linear-gradient(180deg, #f6f8fc 0%, #eef2f7 100%);
+  }
+
+  .precision-widget {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+    border: 1px solid #d7e0eb;
+    box-shadow:
+      0 20px 42px rgba(15, 23, 42, 0.10),
+      0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  }
+
+  .precision-widget::before {
+    background:
+      linear-gradient(180deg, rgba(248, 250, 252, 0.88), transparent 26%),
+      radial-gradient(circle at top right, rgba(96, 130, 210, 0.08), transparent 30%);
+  }
+
+  .precision-widget .eyebrow,
+  .precision-widget .powered,
+  .precision-widget .row-meta,
+  .precision-widget .header-copy {
+    color: #64748b;
+  }
+
+  .precision-widget h4,
+  .precision-widget .row-title {
+    color: #0f172a;
+  }
+
+  .precision-widget .header-link {
+    background: #f8fafc;
+    color: #1d4ed8;
+    border: 1px solid #d6dfe9;
+  }
+
+  .precision-widget .row {
+    background: #ffffff;
+    border: 1px solid #d9e1ea;
+    box-shadow: 0 1px 0 rgba(248, 250, 252, 0.95) inset;
+  }
+
+  .precision-widget .row.primary {
+    border-color: #bfd0ef;
+    box-shadow:
+      0 10px 20px rgba(37, 99, 235, 0.08),
+      0 0 0 3px rgba(37, 99, 235, 0.07);
+  }
+
+  .precision-widget .row-icon {
+    background: #eef2f7;
+    color: #0f172a;
+  }
+
+  .precision-widget .badge {
+    background: #fff3dd;
+    color: #9f5b00;
+  }
+
+  .precision-widget .cta {
+    background: #0f172a;
+    color: #fff;
+    box-shadow: 0 14px 24px rgba(15, 23, 42, 0.16);
+  }
+
+  .precision-widget .plus {
+    color: #1d4ed8;
+  }
+
+  .graphite-scene {
+    background:
+      radial-gradient(circle at 18% 8%, rgba(113, 113, 122, 0.16), transparent 34%),
+      linear-gradient(180deg, #f8f8f8 0%, #efeff1 100%);
+  }
+
+  .graphite-widget {
+    background: linear-gradient(180deg, #ffffff 0%, #fcfcfc 100%);
+    border: 1px solid #e2e3e6;
+    box-shadow: 0 18px 32px rgba(24, 24, 27, 0.09);
+  }
+
+  .graphite-widget::before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), transparent 24%);
+  }
+
+  .graphite-widget .eyebrow,
+  .graphite-widget .powered,
+  .graphite-widget .row-meta,
+  .graphite-widget .header-copy {
+    color: #71717a;
+  }
+
+  .graphite-widget h4,
+  .graphite-widget .row-title {
+    color: #18181b;
+  }
+
+  .graphite-widget .header-link {
+    background: #ffffff;
+    color: #18181b;
+    border: 1px solid #e4e4e7;
+  }
+
+  .graphite-widget .row {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+  }
+
+  .graphite-widget .row.primary {
+    border-color: #18181b;
+    box-shadow: 0 8px 18px rgba(24, 24, 27, 0.08);
+  }
+
+  .graphite-widget .row-icon {
+    background: #f4f4f5;
+    color: #27272a;
+  }
+
+  .graphite-widget .badge {
+    background: #f4f4f5;
+    color: #52525b;
+  }
+
+  .graphite-widget .cta {
+    background: #18181b;
+    color: #fff;
+  }
+
+  .graphite-widget .plus {
+    color: #18181b;
+  }
+
+  .halo-scene {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(87, 117, 255, 0.22), transparent 34%),
+      radial-gradient(circle at 85% 18%, rgba(175, 184, 255, 0.14), transparent 25%),
+      linear-gradient(180deg, #f5f7fc 0%, #eef3fb 100%);
+  }
+
+  .halo-widget {
+    background: linear-gradient(180deg, #ffffff 0%, #fdfdff 100%);
+    border: 1px solid #dce3f0;
+    box-shadow:
+      0 22px 44px rgba(48, 70, 123, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.66) inset;
+  }
+
+  .halo-widget::before {
+    background:
+      radial-gradient(circle at top center, rgba(87, 117, 255, 0.14), transparent 32%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 26%);
+  }
+
+  .halo-widget .eyebrow,
+  .halo-widget .powered,
+  .halo-widget .row-meta,
+  .halo-widget .header-copy {
+    color: #677489;
+  }
+
+  .halo-widget h4,
+  .halo-widget .row-title {
+    color: #121926;
+  }
+
+  .halo-widget .header-link {
+    color: #3254cf;
+    background: #f4f7ff;
+    border: 1px solid #d7e0f5;
+  }
+
+  .halo-widget .row {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+    border: 1px solid #dae1ee;
+  }
+
+  .halo-widget .row.primary {
+    border-color: #c7d4f7;
+    box-shadow:
+      0 14px 26px rgba(58, 96, 190, 0.12),
+      0 0 0 3px rgba(87, 117, 255, 0.08);
+  }
+
+  .halo-widget .row-icon {
+    background: #eef3ff;
+    color: #2f4fc0;
+  }
+
+  .halo-widget .badge {
+    background: #fff3dc;
+    color: #9f5e00;
+  }
+
+  .halo-widget .cta {
+    background: linear-gradient(135deg, #101828 0%, #3454cf 100%);
+    color: #fff;
+    box-shadow: 0 18px 30px rgba(52, 84, 207, 0.22);
+  }
+
+  .halo-widget .plus {
+    color: #3254cf;
+  }
+</style>
+
+<h2>More modern directions for the default widget</h2>
+<p class="subtitle lead">
+  These push further toward a current, polished fintech feel than the first
+  round. I kept them <strong>light, neutral, and merchant-themeable</strong>,
+  but added more atmosphere, elevation, and sharper hierarchy so the default
+  doesn’t feel generic.
+</p>
+
+<div class="cards">
+  <div class="card" data-choice="ambient-glass" onclick="toggleSelect(this)">
+    <div class="card-image ambient-scene">
+      <div class="widget ambient-widget">
+        <div class="option-tag default">A · Ambient Glass</div>
+        <div class="header-row">
+          <div>
+            <span class="eyebrow">Wallet</span>
+            <h4>Choose payment method</h4>
+          </div>
+          <span class="header-link">Edit</span>
+        </div>
+        <p class="header-copy">Frosted layers, softer depth, and a more premium first impression.</p>
+        <div class="stack">
+          <div class="row primary">
+            <div class="row-icon">VS</div>
+            <div class="row-copy">
+              <span class="row-title">Corporate card</span>
+              <span class="row-meta">Visa •••• 4242</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-icon">BA</div>
+            <div class="row-copy">
+              <span class="row-title">Operating account</span>
+              <span class="row-meta">Commerce National …</span>
+            </div>
+            <span class="badge">Review</span>
+          </div>
+          <div class="row add-row">
+            <span class="plus">+</span>
+            <span class="row-title">Add a debit card</span>
+          </div>
+        </div>
+        <div class="widget-footer">
+          <div class="cta">Continue</div>
+          <div class="powered">Powered by Commerce Hub Connect</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Ambient Glass</h3>
+      <p>
+        Most visibly “state of the art.” Great for a modern hosted feel, but it
+        introduces translucency and blur that some merchants may see as a stronger default opinion.
+      </p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="precision-layered" onclick="toggleSelect(this)">
+    <div class="card-image precision-scene">
+      <div class="widget precision-widget">
+        <div class="option-tag recommended">B · Precision Layered · Recommended</div>
+        <div class="header-row">
+          <div>
+            <span class="eyebrow">Wallet</span>
+            <h4>Choose payment method</h4>
+          </div>
+          <span class="header-link">Edit</span>
+        </div>
+        <p class="header-copy">Structured surfaces, clearer hierarchy, and quiet depth without visual noise.</p>
+        <div class="stack">
+          <div class="row primary">
+            <div class="row-icon">VS</div>
+            <div class="row-copy">
+              <span class="row-title">Corporate card</span>
+              <span class="row-meta">Visa •••• 4242</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-icon">BA</div>
+            <div class="row-copy">
+              <span class="row-title">Operating account</span>
+              <span class="row-meta">Commerce National …</span>
+            </div>
+            <span class="badge">Review</span>
+          </div>
+          <div class="row add-row">
+            <span class="plus">+</span>
+            <span class="row-title">Add a debit card</span>
+          </div>
+        </div>
+        <div class="widget-footer">
+          <div class="cta">Continue</div>
+          <div class="powered">Powered by Commerce Hub Connect</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Precision Layered</h3>
+      <p>
+        The best balance for an embeddable default. It looks current and premium,
+        but stays highly adaptable for merchant colors, fonts, and density changes.
+      </p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="graphite-mono" onclick="toggleSelect(this)">
+    <div class="card-image graphite-scene">
+      <div class="widget graphite-widget">
+        <div class="option-tag default">C · Graphite Mono</div>
+        <div class="header-row">
+          <div>
+            <span class="eyebrow">Wallet</span>
+            <h4>Choose payment method</h4>
+          </div>
+          <span class="header-link">Edit</span>
+        </div>
+        <p class="header-copy">Monochrome precision with tighter edges and a more editorial feel.</p>
+        <div class="stack">
+          <div class="row primary">
+            <div class="row-icon">VS</div>
+            <div class="row-copy">
+              <span class="row-title">Corporate card</span>
+              <span class="row-meta">Visa •••• 4242</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-icon">BA</div>
+            <div class="row-copy">
+              <span class="row-title">Operating account</span>
+              <span class="row-meta">Commerce National …</span>
+            </div>
+            <span class="badge">Review</span>
+          </div>
+          <div class="row add-row">
+            <span class="plus">+</span>
+            <span class="row-title">Add a debit card</span>
+          </div>
+        </div>
+        <div class="widget-footer">
+          <div class="cta">Continue</div>
+          <div class="powered">Powered by Commerce Hub Connect</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Graphite Mono</h3>
+      <p>
+        Strongest typographic confidence and least decorative. Very clean, but
+        it can read a bit severe if the rest of the merchant experience is softer.
+      </p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="halo-surface" onclick="toggleSelect(this)">
+    <div class="card-image halo-scene">
+      <div class="widget halo-widget">
+        <div class="option-tag default">D · Halo Surface</div>
+        <div class="header-row">
+          <div>
+            <span class="eyebrow">Wallet</span>
+            <h4>Choose payment method</h4>
+          </div>
+          <span class="header-link">Edit</span>
+        </div>
+        <p class="header-copy">Subtle ambient glow, modern gradients, and a cleaner “hosted checkout” vibe.</p>
+        <div class="stack">
+          <div class="row primary">
+            <div class="row-icon">VS</div>
+            <div class="row-copy">
+              <span class="row-title">Corporate card</span>
+              <span class="row-meta">Visa •••• 4242</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-icon">BA</div>
+            <div class="row-copy">
+              <span class="row-title">Operating account</span>
+              <span class="row-meta">Commerce National …</span>
+            </div>
+            <span class="badge">Review</span>
+          </div>
+          <div class="row add-row">
+            <span class="plus">+</span>
+            <span class="row-title">Add a debit card</span>
+          </div>
+        </div>
+        <div class="widget-footer">
+          <div class="cta">Continue</div>
+          <div class="powered">Powered by Commerce Hub Connect</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Halo Surface</h3>
+      <p>
+        The most modern while staying practical: more energy than flat enterprise,
+        less risk than full glass. Good if you want the widget to feel “new” out of the box.
+      </p>
+    </div>
+  </div>
+</div>
+
+<p class="note">
+  Recommendation: <strong>Precision Layered</strong> if you want the safest
+  base, or <strong>Halo Surface</strong> if you want the default widget to feel
+  more modern and differentiated.
+</p>

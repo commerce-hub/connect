@@ -640,12 +640,12 @@ export const primitiveStyles = css`
   .selected-payment-method {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.25rem minmax(0, 1fr) 1rem;
-    gap: 0.5rem;
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    gap: 0.625rem;
     align-items: center;
     border-radius: 1rem;
-    padding: 0.625rem 0.75rem;
-    background: var(--chc-soft-surface);
+    padding: 0.75rem;
+    background: var(--chc-surface);
     color: var(--chc-text);
     text-align: left;
     border: 0.0625rem solid var(--chc-border);
@@ -663,22 +663,29 @@ export const primitiveStyles = css`
   }
 
   .selected-payment-method {
-    border-color: var(--chc-primary);
-    background: var(--chc-soft-surface);
-    box-shadow: 0 0 0 0.0625rem
-      color-mix(in srgb, var(--chc-primary) 28%, transparent);
+    border-color: var(--chc-border-strong);
+    background: color-mix(
+      in srgb,
+      var(--chc-surface) 92%,
+      var(--chc-soft-surface)
+    );
+    box-shadow: 0 0.625rem 1.125rem rgba(17, 24, 39, 0.05);
+  }
+
+  .payment-method-row-selected {
+    border-color: color-mix(in srgb, var(--chc-primary) 24%, var(--chc-border));
+    background: color-mix(in srgb, var(--chc-primary) 4%, var(--chc-surface));
   }
 
   .payment-method-row-action:hover:not(:disabled),
   .payment-method-row-action:focus-visible {
-    border-color: var(--chc-primary);
+    border-color: var(--chc-border-strong);
     background: color-mix(
       in srgb,
-      var(--chc-primary) 6%,
+      var(--chc-surface) 88%,
       var(--chc-soft-surface)
     );
-    box-shadow: 0 0 0 0.0625rem
-      color-mix(in srgb, var(--chc-primary) 24%, transparent);
+    box-shadow: 0 0.5rem 1rem rgba(17, 24, 39, 0.05);
   }
 
   .payment-method-row-action:focus-visible {
@@ -687,7 +694,7 @@ export const primitiveStyles = css`
 
   .payment-method-row-action:disabled {
     border-color: var(--chc-border);
-    background: var(--chc-soft-surface);
+    background: var(--chc-surface);
     color: var(--chc-placeholder);
     cursor: not-allowed;
   }
@@ -698,6 +705,37 @@ export const primitiveStyles = css`
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    justify-self: end;
+  }
+
+  .payment-method-trailing {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    justify-self: end;
+  }
+
+  .payment-method-status-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .payment-method-status-icon-warning {
+    border: 0.0625rem solid var(--chc-warning-border);
+    background: var(--chc-warning-bg);
+    color: var(--chc-warning);
+  }
+
+  .payment-method-status-icon-danger {
+    border: 0.0625rem solid var(--chc-danger-border);
+    background: var(--chc-danger-bg);
+    color: var(--chc-danger);
   }
 
   .payment-method-chevron {
@@ -707,7 +745,7 @@ export const primitiveStyles = css`
     align-items: center;
     justify-content: center;
     background: transparent;
-    color: var(--chc-primary);
+    color: var(--chc-muted);
     pointer-events: none;
   }
 
@@ -803,7 +841,7 @@ export const primitiveStyles = css`
     align-items: center;
     justify-content: center;
     border-radius: 0.6875rem;
-    background: var(--chc-surface);
+    background: var(--chc-soft-surface);
     color: var(--chc-primary);
     overflow: hidden;
   }
@@ -836,7 +874,7 @@ export const primitiveStyles = css`
   .payment-method-meta-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 0.375rem;
     min-width: 0;
     flex-wrap: nowrap;
@@ -955,13 +993,14 @@ export const primitiveStyles = css`
     width: 100%;
     min-height: var(--chc-input-height);
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.5rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.625rem;
     align-items: center;
     border: 0.0625rem solid var(--chc-border);
+    border-style: dashed;
     border-radius: 1rem;
-    padding: 0.625rem 0.75rem;
-    background: var(--chc-soft-surface);
+    padding: 0.75rem;
+    background: var(--chc-surface);
     color: var(--chc-text);
     text-align: left;
     cursor: pointer;
@@ -971,14 +1010,13 @@ export const primitiveStyles = css`
 
   .source-action-link:hover:not(:disabled),
   .source-action-link:focus-visible {
-    border-color: var(--chc-primary);
+    border-color: var(--chc-border-strong);
     background: color-mix(
       in srgb,
-      var(--chc-primary) 6%,
+      var(--chc-surface) 90%,
       var(--chc-soft-surface)
     );
-    box-shadow: 0 0 0 0.0625rem
-      color-mix(in srgb, var(--chc-primary) 24%, transparent);
+    box-shadow: 0 0.5rem 1rem rgba(17, 24, 39, 0.04);
   }
 
   .source-action-link:focus-visible {
@@ -986,6 +1024,7 @@ export const primitiveStyles = css`
   }
 
   .source-action-link:disabled {
+    background: var(--chc-surface);
     color: var(--chc-muted);
     cursor: not-allowed;
   }
@@ -1009,6 +1048,33 @@ export const primitiveStyles = css`
   .source-action-link-subtitle {
     color: var(--chc-copy);
     font-size: 0.875em;
+  }
+
+  .source-action-link-chevron {
+    width: 1rem;
+    height: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    color: var(--chc-muted);
+  }
+
+  .source-action-link-chevron-icon {
+    width: 0.5rem;
+    height: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .source-action-link-chevron-icon::before {
+    content: '';
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-right: 0.09375rem solid currentColor;
+    border-bottom: 0.09375rem solid currentColor;
+    transform: rotate(-45deg);
   }
 
   .source-action-link:disabled .source-action-link-subtitle {

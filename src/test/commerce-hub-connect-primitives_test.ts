@@ -117,6 +117,14 @@ suite('commerce-hub-connect primitives', () => {
     assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 19.2, 0.01);
     assert.equal(getComputedStyle(title).fontWeight, '600');
     assert.equal(getComputedStyle(paymentMeta).fontWeight, '400');
+    assert.equal(
+      getComputedStyle(
+        el.shadowRoot!.querySelector<HTMLElement>(
+          '.widget-header-action .text-link-button'
+        )!
+      ).borderTopStyle,
+      'none'
+    );
     assert.equal(getComputedStyle(poweredByFooter).justifyContent, 'center');
     assert.equal(poweredByBrand.textContent?.trim(), 'Commerce Hub Connect');
     assert.equal(getComputedStyle(poweredByBrand).color, 'rgb(75, 85, 101)');
@@ -165,8 +173,8 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(getComputedStyle(paymentMeta).fontSize, '20px');
     assert.equal(getComputedStyle(poweredByFooter).fontSize, '20px');
     assert.equal(getComputedStyle(button).minHeight, '44px');
-    assert.equal(getComputedStyle(button).paddingTop, '10px');
-    assert.equal(getComputedStyle(button).paddingBottom, '10px');
+    assert.equal(getComputedStyle(button).paddingTop, '12px');
+    assert.equal(getComputedStyle(button).paddingBottom, '12px');
     assert.equal(getComputedStyle(button).fontWeight, '350');
     assert.equal(getComputedStyle(shell).backgroundColor, 'rgb(244, 247, 251)');
     assert.equal(getComputedStyle(shell).paddingTop, '32px');
@@ -239,6 +247,12 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.notExists(rows[0].querySelector('.payment-method-radio'));
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
+    assert.equal(
+      getComputedStyle(
+        rows[0].querySelector<HTMLElement>('.payment-method-icon-chip')!
+      ).borderTopStyle,
+      'none'
+    );
     assert.exists(rows[0].querySelector('.payment-method-title-row'));
     assert.exists(rows[0].querySelector('.payment-method-meta-row'));
     assert.notExists(rows[0].querySelector('.payment-method-status'));
@@ -251,13 +265,18 @@ suite('commerce-hub-connect primitives', () => {
       rows[1].querySelector('.payment-method-meta')?.textContent?.trim(),
       'Commerce National Bank •••• 3210'
     );
-    assert.equal(
-      rows[1].querySelector('.payment-method-status')?.textContent?.trim(),
-      'Under review'
-    );
     assert.exists(rows[1].querySelector('.payment-method-title-row'));
     assert.exists(rows[1].querySelector('.payment-method-meta-row'));
-    assert.notExists(rows[1].querySelector('.verification-status-icon'));
+    assert.notExists(rows[1].querySelector('.payment-method-status'));
+    assert.notExists(rows[1].querySelector('.verification-status-badge'));
+    assert.exists(rows[1].querySelector('.payment-method-status-icon-warning'));
+    assert.exists(rows[1].querySelector('.payment-method-chevron'));
+    assert.equal(
+      rows[1]
+        .querySelector('.payment-method-status-icon')
+        ?.getAttribute('aria-label'),
+      'Under review'
+    );
     assert.exists(rows[1].querySelector('[data-payment-method-icon="bank"]'));
     assert.notExists(rows[1].querySelector('.payment-method-radio'));
     assert.equal(rows[1].dataset.action, 'verify-payment-source');
@@ -540,6 +559,12 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(
       root.querySelector('[data-action="add-card"] .source-action-link-icon')
     );
+    assert.exists(
+      root.querySelector('[data-action="add-card"] .source-action-link-chevron')
+    );
+    assert.notExists(
+      root.querySelector('[data-action="add-card"] .source-action-link-subtitle')
+    );
     assert.deepEqual(
       [...root.querySelectorAll('.detail-label')].map((item) =>
         item.textContent?.trim()
@@ -548,7 +573,7 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
-  test('renders non-verified payment methods as a full-row verify button with chevron affordance', async () => {
+  test('renders non-verified payment methods with a trailing warning icon and chevron', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',
       label: 'Operating account',
@@ -569,6 +594,9 @@ suite('commerce-hub-connect primitives', () => {
     const chevron = row.querySelector<HTMLElement>('.payment-method-chevron')!;
     const copy = row.querySelector<HTMLElement>('.payment-method-copy')!;
     const metaRow = row.querySelector<HTMLElement>('.payment-method-meta-row')!;
+    const statusIcon = row.querySelector<HTMLElement>(
+      '.payment-method-status-icon-warning'
+    )!;
 
     assert.equal(
       row.querySelector('.payment-method-title')?.textContent?.trim(),
@@ -582,17 +610,45 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(row.dataset.action, 'verify-payment-source');
     assert.equal(row.dataset.paymentMethodId, 'bank-1');
     assert.notExists(row.querySelector('.payment-method-radio'));
-    assert.equal(
-      row.querySelector('.payment-method-status')?.textContent?.trim(),
-      'Not verified yet'
-    );
+    assert.notExists(row.querySelector('.payment-method-status'));
+    assert.notExists(row.querySelector('.verification-status-badge'));
     assert.exists(row.querySelector('.payment-method-title-row'));
     assert.exists(metaRow);
-    assert.notExists(row.querySelector('.verification-status-icon'));
+    assert.exists(statusIcon);
+    assert.equal(statusIcon.getAttribute('aria-label'), 'Not verified yet');
     assert.equal(getComputedStyle(copy).rowGap, '4px');
-    assert.equal(getComputedStyle(metaRow).justifyContent, 'space-between');
+    assert.equal(getComputedStyle(metaRow).justifyContent, 'flex-start');
     assert.exists(chevron);
     assert.equal(row.disabled, false);
+  });
+
+  test('renders declined payment methods with a trailing danger icon and chevron', async () => {
+    const method: PaymentMethod = {
+      id: 'card-2',
+      label: 'Travel card',
+      type: 'card',
+      brand: 'Amex',
+      last4: '1005',
+      status: 'declined',
+    };
+
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderPaymentMethodRow(method)}
+    `);
+
+    const row = root.querySelector<HTMLButtonElement>('.payment-method-row')!;
+    const statusIcon = row.querySelector<HTMLElement>(
+      '.payment-method-status-icon-danger'
+    )!;
+
+    assert.notExists(row.querySelector('.payment-method-status'));
+    assert.notExists(row.querySelector('.verification-status-badge'));
+    assert.exists(statusIcon);
+    assert.equal(statusIcon.getAttribute('aria-label'), 'Declined');
+    assert.exists(row.querySelector('.payment-method-chevron'));
   });
 
   test('renders edit-mode delete controls with a 44px touch target', async () => {
@@ -631,7 +687,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(root.querySelector('.verification-status-icon'));
   });
 
-  test('keeps warning and error verification badges visible in edit mode', async () => {
+  test('keeps edit-mode rows focused on delete actions without inline verification badges', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',
       label: 'Operating account',
@@ -654,13 +710,13 @@ suite('commerce-hub-connect primitives', () => {
       root.querySelector('.payment-method-meta')?.textContent?.trim(),
       'Commerce National Bank •••• 3210'
     );
-    assert.equal(
-      root.querySelector('.payment-method-status')?.textContent?.trim(),
-      'Under review'
-    );
     assert.exists(root.querySelector('.payment-method-title-row'));
     assert.exists(root.querySelector('.payment-method-meta-row'));
-    assert.notExists(root.querySelector('.verification-status-icon'));
+    assert.exists(root.querySelector('[data-action="delete-payment-source"]'));
+    assert.notExists(root.querySelector('.payment-method-status'));
+    assert.notExists(root.querySelector('.verification-status-badge'));
+    assert.notExists(root.querySelector('.payment-method-status-icon'));
+    assert.notExists(root.querySelector('.payment-method-chevron'));
   });
 
   test('renders a selected payment method summary without radio or chevron controls', async () => {
