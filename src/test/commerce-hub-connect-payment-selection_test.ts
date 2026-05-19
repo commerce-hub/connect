@@ -247,11 +247,9 @@ suite('commerce-hub-connect payment selection', () => {
 
     await clickAction(el, 'toggle-payment-source-edit-mode');
 
-    el.shadowRoot!
-      .querySelector<HTMLButtonElement>(
-        '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
-      )
-      ?.click();
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
+    )?.click();
     await flushElement(el);
 
     assert.deepEqual(confirmMessages, ['Delete Corporate card?']);
@@ -271,7 +269,9 @@ suite('commerce-hub-connect payment selection', () => {
       ['bank-1']
     );
     assert.equal(
-      el.shadowRoot!.querySelector('.widget-header-action button')?.textContent?.trim(),
+      el
+        .shadowRoot!.querySelector('.widget-header-action button')
+        ?.textContent?.trim(),
       'Done'
     );
     assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
@@ -322,11 +322,9 @@ suite('commerce-hub-connect payment selection', () => {
 
     await clickAction(el, 'toggle-payment-source-edit-mode');
 
-    el.shadowRoot!
-      .querySelector<HTMLButtonElement>(
-        '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
-      )
-      ?.click();
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
+    )?.click();
     await flushElement(el);
 
     assert.deepEqual(confirmMessages, ['Delete Corporate card?']);
@@ -692,9 +690,9 @@ suite('commerce-hub-connect payment selection', () => {
 
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
-    el.shadowRoot!
-      .querySelector<HTMLButtonElement>('.payment-method-row')
-      ?.click();
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '.payment-method-row'
+    )?.click();
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
@@ -767,6 +765,12 @@ suite('commerce-hub-connect payment selection', () => {
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
     await clickAction(el, 'verify-payment-source');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Verification under review',
+      'verification outcome did not render'
+    );
 
     assert.deepEqual(
       requests.map(
@@ -785,9 +789,9 @@ suite('commerce-hub-connect payment selection', () => {
       'Verification under review'
     );
     assert.deepEqual(
-      [
-        ...el.shadowRoot!.querySelectorAll('.verification-detail-value'),
-      ].map((node) => node.textContent?.trim()),
+      [...el.shadowRoot!.querySelectorAll('.verification-detail-value')].map(
+        (node) => node.textContent?.trim()
+      ),
       ['Commerce National Bank', '3210', 'Under review']
     );
     assert.equal(
@@ -796,5 +800,231 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
+  });
+
+  test('clicking a REQUIRE_INFO saved source opens required-info screen without verification request', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          status: 'UNDER_REVIEW',
+          docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {
+            status: 'REQUIRE_INFO',
+            docs: [
+              {docType: 'BANK_STATEMENT', mandatory: true},
+              {docType: 'DRIVER_LICENSE_PHOTO', mandatory: true},
+            ],
+          },
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ],
+    });
+
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '.payment-method-row'
+    )?.click();
+    await flushElement(el);
+
+    assert.lengthOf(requests, 0);
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Complete account verification'
+    );
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.upload-row-requirements')].map(
+        (node) => node.textContent?.trim()
+      ),
+      ['Bank statement', 'Driver license photo']
+    );
+  });
+
+  test('bank saved-source REQUIRE_INFO verification shows required-info screen with bank retry action', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/verify/step1') {
+        return new Response(
+          JSON.stringify({
+            status: 'REQUIRE_INFO',
+            docs: [
+              {docType: 'BANK_STATEMENT', mandatory: true},
+              {docType: 'DRIVER_LICENSE_NUMBER', mandatory: true},
+              {docType: 'SOCIAL_SECURITY_NUMBER', mandatory: true},
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ],
+    });
+    const {successEvents, errorEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'verify-payment-source');
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['POST /interaction/verify/step1']
+    );
+    assert.equal(requests[0].bodyText, JSON.stringify({value: 'bank-1'}));
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Complete account verification'
+    );
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.upload-row-requirements')].map(
+        (node) => node.textContent?.trim()
+      ),
+      ['Bank statement', 'Driver license number', 'Social Security number']
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="use-different-bank-account"]')
+        ?.textContent?.trim(),
+      'Use a different account'
+    );
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
+  });
+
+  test('card saved-source REQUIRE_INFO verification shows required-info screen with different-method action', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/verify/step1') {
+        return new Response(
+          JSON.stringify({
+            status: 'REQUIRE_INFO',
+            docs: [{docType: 'DRIVER_LICENSE_PHOTO', mandatory: true}],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
+      ],
+    });
+
+    await clickAction(el, 'verify-payment-source');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Complete account verification'
+    );
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.required-info-summary-value')].map(
+        (node) => node.textContent?.trim()
+      ),
+      ['Card', '•••• 4242', 'Corporate card']
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.upload-row-requirements')
+        ?.textContent?.trim(),
+      'Driver license photo'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="use-different-method"]')
+        ?.textContent?.trim(),
+      'Use a different method'
+    );
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['POST /interaction/verify/step1']
+    );
   });
 });

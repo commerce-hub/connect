@@ -131,6 +131,25 @@ const clickAction = async (el: CommerceHubConnect, action: string) => {
   await flushElement(el);
 };
 
+const selectRequiredInfoFile = async (
+  el: CommerceHubConnect,
+  fileName: string
+) => {
+  const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+    '.required-info-file-input'
+  )!;
+  const file = new File(['synthetic document'], fileName, {
+    type: 'application/pdf',
+  });
+
+  Object.defineProperty(input, 'files', {
+    configurable: true,
+    value: [file],
+  });
+  input.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+  await flushElement(el);
+};
+
 const setFieldValue = async (
   el: CommerceHubConnect,
   id: string,
@@ -250,7 +269,19 @@ const completePayByBankFlow = async ({
         status: resolvedStatus,
         docs: [{docType: 'BANK_STATEMENT', mandatory: true}] as const,
       }
+    : finalizedStatus === 'REQUIRE_INFO'
+    ? {
+        status: resolvedStatus,
+        docs: [
+          {docType: 'BANK_STATEMENT', mandatory: true},
+          {docType: 'DRIVER_LICENSE_PHOTO', mandatory: false},
+        ] as const,
+      }
     : {status: resolvedStatus};
+  const finalizedVerificationInfo =
+    finalizedStatus === 'REQUIRE_INFO'
+      ? resolvedVerificationInfo
+      : {status: finalizedStatus};
 
   paymentSdkWindow.PaymentSDK = {
     init: (configuration) => {
@@ -292,7 +323,7 @@ const completePayByBankFlow = async ({
             id: 'bank-new',
             tenderType: 'BankAccount',
             name: 'Operating account',
-            verificationInfo: {status: finalizedStatus},
+            verificationInfo: finalizedVerificationInfo,
             bankAccount: {
               bankName: 'Commerce National Bank',
               accountNumber: '9876543210',
@@ -1502,6 +1533,7 @@ suite('commerce-hub-connect flow', () => {
     ).length;
 
     await clickAction(el, 'add-card');
+    await waitForRequest(requests, '/interaction', 'GET');
     assert.equal(
       requests.filter(
         (request) =>
@@ -2256,9 +2288,7 @@ suite('commerce-hub-connect flow', () => {
       'Operating account'
     );
     assert.equal(
-      el
-        .shadowRoot!.querySelector('.payment-method-meta')
-        ?.textContent?.trim(),
+      el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
       'Commerce National Bank •••• 3210'
     );
     assert.equal(
@@ -2360,7 +2390,7 @@ suite('commerce-hub-connect flow', () => {
     assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
-  test('Pay by Bank success shows finalized REQUIRE_INFO bank sources in the payment method list', async () => {
+  test('Pay by Bank success shows finalized REQUIRE_INFO bank sources on the required-info screen', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'REQUIRE_INFO',
     });
@@ -2376,14 +2406,81 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Complete account verification'
     );
-    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.required-info-summary-value')].map(
+        (node) => node.textContent?.trim()
+      ),
+      ['Bank account', '•••• 3210', 'Operating account']
+    );
     assert.equal(
       el
-        .shadowRoot!.querySelector('.verification-status-label')
+        .shadowRoot!.querySelector('.required-info-summary-status')
         ?.textContent?.trim(),
-      'More information needed'
+      'Advanced verification incomplete'
+    );
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.upload-row-requirements')].map(
+        (node) => node.textContent?.trim()
+      ),
+      ['Bank statement', 'Driver license photo']
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector(
+          '.primitive-footer [data-action="open-required-info-file-picker"]'
+        )
+        ?.textContent?.trim(),
+      'Verify'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="use-different-bank-account"]')
+        ?.textContent?.trim(),
+      'Use a different account'
+    );
+    assert.exists(el.shadowRoot!.querySelector('.required-info-file-input'));
+    assert.isUndefined(el.interactionResponse?.selectedSource);
+  });
+
+  test('Pay by Bank verification step1 REQUIRE_INFO opens the required-info screen and keeps file selection local only', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'NOT_VERIFIED',
+      verificationStatus: 'REQUIRE_INFO',
+    });
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      [
+        'GET /interaction/source/pbb/session',
+        'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
+        'POST /interaction/verify/step1',
+      ]
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Complete account verification'
+    );
+
+    const requestCountBeforeFileSelection = requests.length;
+    await selectRequiredInfoFile(el, 'may-bank-statement.pdf');
+
+    assert.lengthOf(requests, requestCountBeforeFileSelection);
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.required-info-selected-file')
+        ?.textContent?.trim(),
+      'may-bank-statement.pdf'
+    );
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo,
+      {
+        status: 'REQUIRE_INFO',
+        docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+      }
     );
     assert.isUndefined(el.interactionResponse?.selectedSource);
   });
