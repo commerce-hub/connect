@@ -265,6 +265,15 @@ const waitForRequest = async (
   );
 };
 
+const deferredResponse = () => {
+  let resolve!: (response: Response) => void;
+  const promise = new Promise<Response>((innerResolve) => {
+    resolve = innerResolve;
+  });
+
+  return {promise, resolve};
+};
+
 const fillNewCardForm = async (el: CommerceHubConnect) => {
   await setFieldValue(el, 'card-label', 'Ada corporate card');
   await setFieldValue(el, 'name-on-card', 'Ada Lovelace');
@@ -511,9 +520,8 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.lengthOf(el.shadowRoot!.querySelectorAll('.otp-input'), 6);
     assert.equal(
-      getComputedStyle(
-        el.shadowRoot!.querySelector<HTMLElement>('.otp-input')!
-      ).minHeight,
+      getComputedStyle(el.shadowRoot!.querySelector<HTMLElement>('.otp-input')!)
+        .minHeight,
       '40px'
     );
     assert.deepEqual(
@@ -1046,6 +1054,46 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('shows payment method skeleton rows while refreshing interaction payment sources', async () => {
+    const pendingInteraction = deferredResponse();
+
+    window.fetch = async () => pendingInteraction.promise;
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+    });
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Pay with'
+    );
+    assert.exists(el.shadowRoot!.querySelector('.payment-method-skeletons'));
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll('.payment-method-skeleton-row'),
+      3
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.empty-state'));
+    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+
+    pendingInteraction.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Add payment method',
+      'empty payment-source state did not render after refresh'
+    );
+  });
+
   test('renders no-saved-methods copy from partial designConfig overrides', async () => {
     const el = await renderConnect(
       {
@@ -1252,6 +1300,110 @@ suite('commerce-hub-connect flow', () => {
         .shadowRoot!.querySelector('[data-action="save-card"]')
         ?.textContent?.trim(),
       'Save card'
+    );
+  });
+
+  test('card save shows an overlay, preserves typed values, and disables form controls while pending', async () => {
+    const pendingBillingAddress = deferredResponse();
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (request.url.endsWith('/interaction/source/mask/card')) {
+        return new Response(JSON.stringify({value: 'enc-card-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/source/mask/cvv')) {
+        return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (request.url.endsWith('/interaction/billing-address')) {
+        return pendingBillingAddress.promise;
+      }
+
+      if (request.url.endsWith('/interaction/source/card')) {
+        return new Response(
+          JSON.stringify({
+            selectedSource: {
+              id: 'card-created-1',
+              tenderType: 'Card',
+              name: 'Ada corporate card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111111111',
+              },
+            },
+            paymentSources: [],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-card');
+    await fillNewCardForm(el);
+    await blurField(el, 'card-number');
+    await blurField(el, 'card-cvv');
+    await clickAction(el, 'save-card');
+
+    const saveButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="save-card"]'
+    )!;
+    const cardLabel =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#card-label')!;
+    const cardNumber =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#card-number')!;
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-shell')?.getAttribute('aria-busy'),
+      'true'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.widget-loading-title')
+        ?.textContent?.trim(),
+      'Saving payment method'
+    );
+    assert.include(
+      el.shadowRoot!.querySelector('.widget-loading-helper')?.textContent ?? '',
+      'securely saving'
+    );
+    assert.equal(saveButton.disabled, true);
+    assert.exists(saveButton.querySelector('.button-spinner'));
+    assert.equal(cardLabel.value, 'Ada corporate card');
+    assert.equal(cardNumber.value, '4111 1111 1111 1111');
+    assert.equal(cardLabel.disabled, true);
+    assert.equal(cardNumber.disabled, true);
+
+    pendingBillingAddress.resolve(
+      new Response(JSON.stringify({value: 'billing-from-api-1'}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      })
+    );
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Payment method saved',
+      'card save did not complete'
     );
   });
 
@@ -2231,6 +2383,114 @@ suite('commerce-hub-connect flow', () => {
         ?.textContent?.trim(),
       'Try again'
     );
+  });
+
+  test('OTP verification shows a loading spinner and keeps OTP boxes still while pending', async () => {
+    const pendingOtp = deferredResponse();
+
+    window.fetch = async () => pendingOtp.promise;
+
+    const el = await renderConnect({
+      interactionId: 'interaction-otp',
+      status: 'OTP_VALIDATION_PENDING',
+      email: 'gregory.jablonski@fiserv.com',
+    });
+
+    await setOtpValue(el, '123456');
+    await clickAction(el, 'verify-otp');
+
+    const verifyButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="verify-otp"]'
+    )!;
+    const otpInput = el.shadowRoot!.querySelector<HTMLElement>('.otp-input')!;
+
+    assert.equal(verifyButton.disabled, true);
+    assert.equal(verifyButton.getAttribute('aria-busy'), 'true');
+    assert.exists(verifyButton.querySelector('.button-spinner'));
+    assert.equal(verifyButton.textContent?.trim(), 'Verifying...');
+    assert.equal(getComputedStyle(otpInput).animationName, 'none');
+
+    pendingOtp.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-otp',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await flushElement(el);
+  });
+
+  test('Pay by Bank shows a loading frame until PaymentSDK init is ready', async () => {
+    const pendingSession = deferredResponse();
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async () => pendingSession.promise;
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Pay by bank'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.provider-frame')
+        ?.getAttribute('aria-busy'),
+      'true'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.provider-loading-overlay')
+        ?.textContent?.trim(),
+      'Connecting to your bank'
+    );
+    assert.equal(
+      getComputedStyle(
+        el.querySelector<HTMLElement>('#commerce-hub-pbb-provider')!
+      ).minHeight,
+      '500px'
+    );
+
+    pendingSession.resolve(
+      new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+
+    assert.notExists(el.shadowRoot!.querySelector('.provider-loading-overlay'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.provider-frame')
+        ?.getAttribute('aria-busy'),
+      'false'
+    );
+
+    await initConfig!.onEvent({type: 'cancel'});
+    await flushElement(el);
   });
 
   test('add bank account initializes PaymentSDK with a compact Pay by Bank handoff', async () => {

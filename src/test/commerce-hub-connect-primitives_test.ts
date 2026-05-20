@@ -14,6 +14,7 @@ import {
   renderLoadingRow,
   renderOtpGroup,
   renderOutcomeShell,
+  renderPaymentMethodSkeletonRows,
   renderPaymentMethodRow,
   renderPoweredByFooter,
   renderProviderFrame,
@@ -477,6 +478,134 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
+  test('renders loading buttons with a spinner, busy state, and stable accessible label', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderButton({
+        label: 'Verifying code',
+        action: 'verify-otp',
+        loading: true,
+      })}
+    `);
+
+    const button = root.querySelector<HTMLButtonElement>('.button')!;
+    const spinner = button.querySelector<HTMLElement>('.button-spinner')!;
+
+    assert.equal(button.disabled, true);
+    assert.equal(button.getAttribute('aria-busy'), 'true');
+    assert.equal(
+      button.querySelector('.button-label')?.textContent?.trim(),
+      'Verifying code'
+    );
+    assert.exists(spinner);
+    assert.equal(spinner.getAttribute('aria-hidden'), 'true');
+    assert.equal(getComputedStyle(spinner).animationTimingFunction, 'linear');
+  });
+
+  test('renders widget loading overlays with status semantics without removing content', async () => {
+    const root = await renderHarness(html`
+      ${renderWidgetShell({
+        title: 'Add card',
+        busy: true,
+        overlay: html`
+          <div class="widget-loading-status" role="status" aria-live="polite">
+            <span
+              class="loading-spinner loading-spinner-small"
+              aria-hidden="true"
+            ></span>
+            <span class="widget-loading-copy">
+              <span class="widget-loading-title">Saving payment method</span>
+              <span class="widget-loading-helper"
+                >Keep this window open while we save your card.</span
+              >
+            </span>
+          </div>
+        `,
+        content: html`<button class="retained-control">Retained</button>`,
+      })}
+    `);
+
+    const shell = root.querySelector<HTMLElement>('.widget-shell')!;
+
+    assert.equal(shell.getAttribute('aria-busy'), 'true');
+    assert.exists(root.querySelector('.retained-control'));
+    assert.equal(
+      root.querySelector('.widget-loading-title')?.textContent?.trim(),
+      'Saving payment method'
+    );
+    assert.equal(
+      root.querySelector('.widget-loading-status')?.getAttribute('role'),
+      'status'
+    );
+  });
+
+  test('renders provider loading overlays while preserving the provider container', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderProviderFrame({
+        containerId: 'provider-container',
+        loading: true,
+        loadingLabel: 'Connecting to your bank',
+      })}
+    `);
+
+    const frame = root.querySelector<HTMLElement>('.provider-frame')!;
+    const container = root.querySelector<HTMLElement>('#provider-container')!;
+    const overlay = root.querySelector<HTMLElement>(
+      '.provider-loading-overlay'
+    )!;
+
+    assert.equal(frame.getAttribute('aria-busy'), 'true');
+    assert.exists(container);
+    assert.equal(getComputedStyle(container).minHeight, '500px');
+    assert.equal(overlay.getAttribute('role'), 'status');
+    assert.equal(
+      overlay.textContent?.replace(/\s+/g, ' ').trim(),
+      'Connecting to your bank'
+    );
+  });
+
+  test('renders payment method skeleton rows with status text for interaction refresh', async () => {
+    const root = await renderHarness(html`
+      ${renderPaymentMethodSkeletonRows({
+        count: 3,
+        label: 'Loading payment methods',
+      })}
+    `);
+
+    const status = root.querySelector<HTMLElement>(
+      '.payment-method-skeletons'
+    )!;
+
+    assert.equal(status.getAttribute('role'), 'status');
+    assert.equal(status.getAttribute('aria-live'), 'polite');
+    assert.include(status.textContent ?? '', 'Loading payment methods');
+    assert.lengthOf(root.querySelectorAll('.payment-method-skeleton-row'), 3);
+    assert.lengthOf(root.querySelectorAll('.payment-method-skeleton-icon'), 3);
+  });
+
+  test('declares SDK v3 motion tokens and reduced-motion spinner overrides', () => {
+    assert.include(primitiveStyles.cssText, '--chc-motion-fast: 120ms');
+    assert.include(primitiveStyles.cssText, '--chc-motion-base: 180ms');
+    assert.include(primitiveStyles.cssText, '--chc-motion-slow: 240ms');
+    assert.include(primitiveStyles.cssText, '--chc-motion-provider: 300ms');
+    assert.include(
+      primitiveStyles.cssText,
+      '--chc-ease-standard: cubic-bezier(0.2, 0, 0, 1)'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      '--chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1)'
+    );
+    assert.include(primitiveStyles.cssText, '@keyframes chc-spinner-rotate');
+    assert.include(primitiveStyles.cssText, 'animation: none');
+    assert.include(primitiveStyles.cssText, 'transform: none');
+  });
+
   test('renders OTP inputs with inherited typography and compact SDK v3 sizing', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
@@ -573,7 +702,9 @@ suite('commerce-hub-connect primitives', () => {
       root.querySelector('[data-action="add-card"] .source-action-link-chevron')
     );
     assert.notExists(
-      root.querySelector('[data-action="add-card"] .source-action-link-subtitle')
+      root.querySelector(
+        '[data-action="add-card"] .source-action-link-subtitle'
+      )
     );
     assert.deepEqual(
       [...root.querySelectorAll('.detail-label')].map((item) =>
@@ -629,15 +760,13 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(statusIcon.getAttribute('aria-label'), 'Not verified yet');
     assert.equal(getComputedStyle(copy).rowGap, '4px');
     assert.equal(
-      getComputedStyle(
-        row.querySelector<HTMLElement>('.payment-method-title')!
-      ).display,
+      getComputedStyle(row.querySelector<HTMLElement>('.payment-method-title')!)
+        .display,
       'block'
     );
     assert.equal(
-      getComputedStyle(
-        row.querySelector<HTMLElement>('.payment-method-meta')!
-      ).display,
+      getComputedStyle(row.querySelector<HTMLElement>('.payment-method-meta')!)
+        .display,
       'block'
     );
     assert.equal(getComputedStyle(metaRow).justifyContent, 'flex-start');

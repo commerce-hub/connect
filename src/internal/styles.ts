@@ -30,6 +30,13 @@ export const primitiveStyles = css`
     --chc-font-weight: 400;
     --chc-divider: #ebeef2;
     --chc-focus-ring: rgba(29, 78, 216, 0.14);
+    --chc-motion-fast: 120ms;
+    --chc-motion-base: 180ms;
+    --chc-motion-slow: 240ms;
+    --chc-motion-provider: 300ms;
+    --chc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    --chc-spinner-duration: 900ms;
     --chc-shell-padding: 1.1875rem 1.1875rem 1rem;
     --chc-shell-shadow: 0 0.0625rem 0.125rem rgba(15, 23, 42, 0.04),
       0 0.875rem 1.75rem rgba(15, 23, 42, 0.08);
@@ -73,6 +80,10 @@ export const primitiveStyles = css`
     background: var(--chc-surface);
     box-shadow: var(--chc-shell-shadow);
     text-align: left;
+  }
+
+  .widget-shell-busy {
+    overflow: hidden;
   }
 
   .widget-shell-wide {
@@ -328,6 +339,10 @@ export const primitiveStyles = css`
   }
 
   .otp-resend {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
     border: 0;
     padding: 0;
     background: transparent;
@@ -351,8 +366,10 @@ export const primitiveStyles = css`
     border-radius: var(--chc-radius-control);
     padding: 0 1rem;
     font-weight: 600;
-    transition: border-color 120ms ease, background-color 120ms ease,
-      box-shadow 120ms ease, transform 120ms ease;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      transform var(--chc-motion-fast) var(--chc-ease-emphasized);
     cursor: pointer;
   }
 
@@ -370,6 +387,23 @@ export const primitiveStyles = css`
     align-items: center;
     justify-content: center;
     font-size: 0.875em;
+  }
+
+  .button-spinner,
+  .otp-resend-spinner {
+    width: 1em;
+    height: 1em;
+    display: inline-flex;
+    flex: 0 0 auto;
+    border: 0.125rem solid color-mix(in srgb, currentColor 28%, transparent);
+    border-right-color: currentColor;
+    border-radius: 999rem;
+    animation: chc-spinner-rotate var(--chc-spinner-duration) linear infinite;
+  }
+
+  .otp-resend-spinner {
+    width: 0.875em;
+    height: 0.875em;
   }
 
   .button-icon-check::before {
@@ -438,8 +472,9 @@ export const primitiveStyles = css`
     background: var(--chc-surface);
     color: var(--chc-text);
     text-align: left;
-    transition: border-color 120ms ease, box-shadow 120ms ease,
-      background-color 120ms ease;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard);
   }
 
   .field-input:focus {
@@ -473,8 +508,9 @@ export const primitiveStyles = css`
       var(--chc-soft-surface) 82%,
       var(--chc-surface)
     );
-    transition: border-color 120ms ease, box-shadow 120ms ease,
-      background-color 120ms ease;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard);
   }
 
   .field-control-card-form:focus-within {
@@ -709,8 +745,9 @@ export const primitiveStyles = css`
   }
 
   .payment-method-row-action {
-    transition: border-color 120ms ease, background-color 120ms ease,
-      box-shadow 120ms ease;
+    transition: border-color var(--chc-motion-base) var(--chc-ease-standard),
+      background-color var(--chc-motion-base) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-base) var(--chc-ease-standard);
     cursor: pointer;
   }
 
@@ -838,7 +875,8 @@ export const primitiveStyles = css`
     background: transparent;
     color: var(--chc-danger);
     cursor: pointer;
-    transition: background-color 120ms ease, color 120ms ease;
+    transition: background-color var(--chc-motion-fast) var(--chc-ease-standard),
+      color var(--chc-motion-fast) var(--chc-ease-standard);
     touch-action: manipulation;
   }
 
@@ -1063,8 +1101,9 @@ export const primitiveStyles = css`
     color: var(--chc-text);
     text-align: left;
     cursor: pointer;
-    transition: border-color 120ms ease, background-color 120ms ease,
-      box-shadow 120ms ease;
+    transition: border-color var(--chc-motion-base) var(--chc-ease-standard),
+      background-color var(--chc-motion-base) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-base) var(--chc-ease-standard);
   }
 
   .source-action-link:hover:not(:disabled),
@@ -1273,6 +1312,13 @@ export const primitiveStyles = css`
     border: 0.3125rem solid #dbe3f1;
     border-right-color: var(--chc-primary);
     border-radius: 999rem;
+    animation: chc-spinner-rotate var(--chc-spinner-duration) linear infinite;
+  }
+
+  .loading-spinner-small {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-width: 0.15625rem;
   }
 
   .loading-row-copy {
@@ -1299,8 +1345,13 @@ export const primitiveStyles = css`
 
   .provider-frame {
     display: grid;
+    position: relative;
     gap: 0.875rem;
     text-align: left;
+  }
+
+  .provider-frame-loading {
+    min-height: 31.25rem;
   }
 
   .bank-provider-flow {
@@ -1340,6 +1391,56 @@ export const primitiveStyles = css`
     min-height: 23.75rem;
     background: var(--chc-soft-surface);
     overflow: hidden;
+  }
+
+  .provider-frame-container-loading,
+  .provider-frame-loading ::slotted(.provider-frame-container) {
+    min-height: 31.25rem;
+  }
+
+  .provider-loading-overlay,
+  .widget-loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--chc-surface) 84%, transparent);
+    color: var(--chc-text);
+    text-align: center;
+  }
+
+  .provider-loading-overlay {
+    align-content: center;
+    gap: 0.75rem;
+  }
+
+  .provider-loading-label {
+    color: var(--chc-copy);
+    font-weight: 600;
+  }
+
+  .widget-loading-status {
+    max-width: 15rem;
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .widget-loading-copy {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .widget-loading-title {
+    color: var(--chc-text);
+    font-weight: 600;
+  }
+
+  .widget-loading-helper {
+    color: var(--chc-copy);
+    font-size: 0.875em;
   }
 
   .outcome-shell {
@@ -1462,6 +1563,87 @@ export const primitiveStyles = css`
     cursor: not-allowed;
   }
 
+  .payment-method-skeletons {
+    display: grid;
+    gap: 0.625rem;
+  }
+
+  .payment-method-skeleton-label {
+    width: 0.0625rem;
+    height: 0.0625rem;
+    position: absolute;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .payment-method-skeleton-row {
+    width: 100%;
+    min-height: 3.625rem;
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr) 1rem;
+    gap: 0.625rem;
+    align-items: center;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-card);
+    padding: 0.625rem;
+    background: var(--chc-surface);
+  }
+
+  .payment-method-skeleton-icon,
+  .payment-method-skeleton-line,
+  .payment-method-skeleton-trailing {
+    display: block;
+    border-radius: 999rem;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--chc-soft-surface) 92%, var(--chc-border)),
+      color-mix(in srgb, var(--chc-border) 72%, var(--chc-surface)),
+      color-mix(in srgb, var(--chc-soft-surface) 92%, var(--chc-border))
+    );
+    background-size: 200% 100%;
+    animation: chc-skeleton-shimmer var(--chc-motion-provider)
+      var(--chc-ease-standard) infinite alternate;
+  }
+
+  .payment-method-skeleton-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.6875rem;
+  }
+
+  .payment-method-skeleton-copy {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .payment-method-skeleton-title {
+    width: 60%;
+    height: 0.75rem;
+  }
+
+  .payment-method-skeleton-meta {
+    width: 82%;
+    height: 0.625rem;
+  }
+
+  .payment-method-skeleton-trailing {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  @keyframes chc-spinner-rotate {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes chc-skeleton-shimmer {
+    to {
+      background-position: -100% 0;
+    }
+  }
+
   .powered-by-footer {
     display: flex;
     justify-content: center;
@@ -1526,8 +1708,22 @@ export const primitiveStyles = css`
     .field-input,
     .field-control-card-form,
     .payment-method-row,
-    .source-action-link {
+    .source-action-link,
+    .payment-method-delete-button {
       transition: none;
+    }
+
+    .button:hover:not(:disabled) {
+      transform: none;
+    }
+
+    .loading-spinner,
+    .button-spinner,
+    .otp-resend-spinner,
+    .payment-method-skeleton-icon,
+    .payment-method-skeleton-line,
+    .payment-method-skeleton-trailing {
+      animation: none;
     }
   }
 `;

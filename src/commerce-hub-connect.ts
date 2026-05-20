@@ -17,6 +17,7 @@ import {
   renderOtpGroup,
   renderOtpResend,
   renderPaymentMethodRow,
+  renderPaymentMethodSkeletonRows,
   renderProviderFrame,
   renderSelectedPaymentMethod,
   renderSelectField,
@@ -450,6 +451,7 @@ export class CommerceHubConnect extends LitElement {
               icon: !isSubmitting && !isFailed ? 'check' : undefined,
               variant: 'primary',
               action: 'verify-otp',
+              loading: isSubmitting,
               disabled: isSubmitting || this.otpValue.length < OTP_LENGTH,
             })}
           </div>
@@ -463,6 +465,7 @@ export class CommerceHubConnect extends LitElement {
                   ? copy.resendPendingButton
                   : copy.resendButton,
                 action: 'resend-otp',
+                loading: isResending,
                 disabled: isSubmitting || isResending,
               })}
             </div>
@@ -484,6 +487,21 @@ export class CommerceHubConnect extends LitElement {
     const isEditingPaymentSources =
       this.paymentSourceEditMode && paymentMethods.length > 0;
 
+    if (this.shouldRenderPaymentSourceRefreshSkeleton()) {
+      return renderWidgetShell({
+        title: copy.title,
+        showClose: false,
+        content: html`
+          <div class="payment-flow">
+            ${renderPaymentMethodSkeletonRows({
+              count: 3,
+              label: 'Loading payment methods',
+            })}
+          </div>
+        `,
+      });
+    }
+
     if (!paymentMethods.length) {
       return this.renderNoSavedPaymentMethods();
     }
@@ -504,11 +522,17 @@ export class CommerceHubConnect extends LitElement {
         <div class="payment-flow">
           <div class="primitive-stack" aria-label="Payment methods">
             ${paymentMethods.map((method) =>
-              renderPaymentMethodRow(method, {
-                variant: isEditingPaymentSources ? 'edit' : 'default',
-                deleteDisabled: isPaymentSourceActionPending,
-                selected: method.id === this.selectedPaymentSourceId,
-              })
+              renderPaymentMethodRow(
+                {
+                  ...method,
+                  disabled: method.disabled || isPaymentSourceActionPending,
+                },
+                {
+                  variant: isEditingPaymentSources ? 'edit' : 'default',
+                  deleteDisabled: isPaymentSourceActionPending,
+                  selected: method.id === this.selectedPaymentSourceId,
+                }
+              )
             )}
           </div>
           ${isEditingPaymentSources
@@ -565,6 +589,7 @@ export class CommerceHubConnect extends LitElement {
               label: 'Manage payment methods',
               variant: 'secondary',
               action: 'change-payment-source',
+              loading: this.pendingAction === 'attach-payment-source',
               disabled: this.pendingAction === 'attach-payment-source',
             })}
           </div>
@@ -581,6 +606,24 @@ export class CommerceHubConnect extends LitElement {
     return (
       this.interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED' ||
       this.paymentSourceView === 'selected'
+    );
+  }
+
+  private shouldRenderPaymentSourceRefreshSkeleton(): boolean {
+    const interactionResponse = this.interactionResponse;
+    const interactionId = interactionResponse?.interactionId;
+
+    if (!interactionId) {
+      return false;
+    }
+
+    if (this.interactionRefreshPromise) {
+      return true;
+    }
+
+    return (
+      this.shouldRefreshPaymentSourcesFromInteraction() &&
+      interactionResponse?.paymentSources === undefined
     );
   }
 
@@ -889,6 +932,26 @@ export class CommerceHubConnect extends LitElement {
       `,
       showClose: false,
       showDivider: false,
+      busy: isSaving,
+      overlay: isSaving
+        ? html`
+            <div class="widget-loading-status" role="status" aria-live="polite">
+              <span
+                class="loading-spinner loading-spinner-small"
+                aria-hidden="true"
+              ></span>
+              <span class="widget-loading-copy">
+                <span class="widget-loading-title">
+                  Saving payment method
+                </span>
+                <span class="widget-loading-helper">
+                  Keep this window open while we are securely saving your
+                  payment method.
+                </span>
+              </span>
+            </div>
+          `
+        : undefined,
       content: html`
         <div class="payment-flow card-form-screen">
           ${this.cardSubmitError
@@ -965,8 +1028,9 @@ export class CommerceHubConnect extends LitElement {
           <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
-                label: isSaving ? 'Saving card...' : 'Save card',
+                label: isSaving ? 'Saving payment method' : 'Save card',
                 action: 'save-card',
+                loading: isSaving,
                 disabled:
                   isSaving ||
                   isEncrypting ||
@@ -1023,6 +1087,8 @@ export class CommerceHubConnect extends LitElement {
         <div class="bank-provider-flow">
           ${renderProviderFrame({
             containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
+            loading: this.bankLinkLoading,
+            loadingLabel: 'Connecting to your bank',
           })}
         </div>
       `,
@@ -1041,8 +1107,9 @@ export class CommerceHubConnect extends LitElement {
         message: describePaymentSdkTerminalEvent(this.bankTerminalEvent),
         actions: html`
           ${renderButton({
-            label: 'Retry',
+            label: this.bankLinkLoading ? 'Retrying' : 'Retry',
             action: 'retry-bank-provider',
+            loading: this.bankLinkLoading,
             disabled: this.bankLinkLoading,
           })}
           ${renderTextLinkButton({
@@ -1083,8 +1150,9 @@ export class CommerceHubConnect extends LitElement {
                 })
               : html`
                   ${renderButton({
-                    label: 'Try again',
+                    label: this.bankLinkLoading ? 'Retrying' : 'Try again',
                     action: 'retry-bank-provider',
+                    loading: this.bankLinkLoading,
                     disabled: this.bankLinkLoading,
                   })}
                   ${renderTextLinkButton({
@@ -1827,6 +1895,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async saveCard() {
+    if (this.pendingAction === 'save-card') {
+      return;
+    }
+
     const interactionId = this.requireInteractionId();
 
     if (!interactionId) {
@@ -1968,6 +2040,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async verifyOtp() {
+    if (this.pendingAction === 'verify-otp') {
+      return;
+    }
+
     if (this.otpValue.length < OTP_LENGTH) {
       return;
     }
@@ -2008,6 +2084,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async resendOtp() {
+    if (this.pendingAction === 'resend-otp') {
+      return;
+    }
+
     const interactionId = this.requireInteractionId();
 
     if (!interactionId) {
@@ -2452,6 +2532,7 @@ export class CommerceHubConnect extends LitElement {
           }
         },
       });
+      this.bankLinkLoading = false;
     });
   }
 
@@ -2517,6 +2598,7 @@ export class CommerceHubConnect extends LitElement {
       })
       .finally(() => {
         this.interactionRefreshPromise = undefined;
+        this.requestUpdate();
       });
 
     return this.interactionRefreshPromise;
@@ -4021,7 +4103,9 @@ const resolveSavedSourceVerificationOutcome = (
       kind: 'verified',
       variant: 'success',
       title:
-        subject === 'Bank account' ? 'Bank account verified' : `${subject} saved`,
+        subject === 'Bank account'
+          ? 'Bank account verified'
+          : `${subject} saved`,
       message: `This ${subjectLowerCase} is verified and ready to use.`,
     };
   }

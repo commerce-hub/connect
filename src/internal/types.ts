@@ -67,6 +67,7 @@ export interface ButtonOptions {
   type?: ButtonType;
   icon?: ButtonIcon;
   disabled?: boolean;
+  loading?: boolean;
 }
 
 export interface TextFieldOptions {
@@ -194,6 +195,7 @@ export interface OtpResendOptions {
   label: string;
   action: FlowActionName;
   disabled?: boolean;
+  loading?: boolean;
 }
 
 export interface EmptyStateOptions {
@@ -219,6 +221,12 @@ export interface ProviderFrameOptions {
   containerId: string;
   title?: string;
   loadingLabel?: string;
+  loading?: boolean;
+}
+
+export interface PaymentMethodSkeletonRowsOptions {
+  count?: number;
+  label?: string;
 }
 
 export type OutcomeVariant = 'success' | 'warning' | 'danger';
@@ -253,4 +261,6 @@ export interface WidgetShellOptions {
   showClose?: boolean;
   showDivider?: boolean;
   showFooter?: boolean;
+  busy?: boolean;
+  overlay?: TemplateResult;
 }
