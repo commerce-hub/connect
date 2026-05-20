@@ -10,6 +10,7 @@ import {primitiveStyles} from './internal/styles.js';
 import {
   renderAlert,
   renderButton,
+  renderDetailList,
   renderEmptyState,
   renderFormGrid,
   renderOutcomeShell,
@@ -24,7 +25,6 @@ import {
   renderTextLinkButton,
   renderUploadRow,
   renderVerificationStatusBadge,
-  renderVerificationDetails,
   renderWidgetShell,
 } from './internal/primitives.js';
 import type {FlowActionName, PaymentMethod} from './internal/types.js';
@@ -440,6 +440,19 @@ export class CommerceHubConnect extends LitElement {
             disabled: isSubmitting,
             error: isFailed,
           })}
+          <div class="primitive-footer">
+            ${renderButton({
+              label: isSubmitting
+                ? copy.verifyingButton
+                : isFailed
+                ? copy.tryAgainButton
+                : copy.verifyButton,
+              icon: !isSubmitting && !isFailed ? 'check' : undefined,
+              variant: 'primary',
+              action: 'verify-otp',
+              disabled: isSubmitting || this.otpValue.length < OTP_LENGTH,
+            })}
+          </div>
           <div class="otp-support">
             <p class="otp-support-copy otp-resend-prefix">
               ${copy.resendPrefix}
@@ -453,19 +466,6 @@ export class CommerceHubConnect extends LitElement {
                 disabled: isSubmitting || isResending,
               })}
             </div>
-          </div>
-          <div class="primitive-footer">
-            ${renderButton({
-              label: isSubmitting
-                ? copy.verifyingButton
-                : isFailed
-                ? copy.tryAgainButton
-                : copy.verifyButton,
-              icon: !isSubmitting && !isFailed ? 'check' : undefined,
-              variant: 'primary',
-              action: 'verify-otp',
-              disabled: isSubmitting || this.otpValue.length < OTP_LENGTH,
-            })}
           </div>
         </div>
       `,
@@ -489,7 +489,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (this.shouldRenderSelectedPaymentSourceScreen()) {
-      return this.renderSelectedPaymentSourceScreen(copy);
+      return this.renderSelectedPaymentSourceScreen();
     }
 
     return renderWidgetShell({
@@ -536,9 +536,7 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
-  private renderSelectedPaymentSourceScreen(
-    copy: ResolvedPaymentMethodsCopy
-  ): TemplateResult {
+  private renderSelectedPaymentSourceScreen(): TemplateResult {
     const selectedSource = selectedPaymentSourceFromInteractionResponse(
       this.interactionResponse,
       this.selectedPaymentSourceId
@@ -550,19 +548,26 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return renderWidgetShell({
-      title: copy.title,
-      headerAction: renderTextLinkButton({
-        label: 'Change',
-        action: 'change-payment-source',
-        disabled: this.pendingAction === 'attach-payment-source',
-      }),
+      title: 'Payment method saved',
       showClose: false,
       showDivider: false,
       content: html`
         <div class="payment-flow">
+          ${renderAlert({
+            variant: 'success',
+            message: 'Your payment method has been saved.',
+          })}
           ${renderSelectedPaymentMethod(
             paymentSourceToPaymentMethod(selectedSource)
           )}
+          <div class="primitive-footer">
+            ${renderButton({
+              label: 'Manage payment methods',
+              variant: 'secondary',
+              action: 'change-payment-source',
+              disabled: this.pendingAction === 'attach-payment-source',
+            })}
+          </div>
         </div>
       `,
     });
@@ -588,18 +593,22 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       title: outcome.title,
-      subtitle: outcome.message,
       showClose: false,
-      content: renderOutcomeShell({
-        variant: outcome.variant,
-        content: source
-          ? renderVerificationDetails(paymentSourceVerificationDetails(source))
-          : undefined,
-        actions: renderButton({
-          label: 'Back to payment methods',
-          action: 'done-payment-source-verification',
-        }),
-      }),
+      showDivider: false,
+      content: html`
+        <div class="verification-outcome-flow">
+          ${renderAlert({variant: outcome.variant, message: outcome.message})}
+          ${source
+            ? renderDetailList(paymentSourceVerificationDetails(source))
+            : ''}
+          <div class="primitive-footer">
+            ${renderButton({
+              label: 'Back to payment methods',
+              action: 'done-payment-source-verification',
+            })}
+          </div>
+        </div>
+      `,
     });
   }
 
@@ -641,7 +650,7 @@ export class CommerceHubConnect extends LitElement {
               `
             )}
             <div class="required-info-summary-status">
-              Advanced verification incomplete
+              Verification incomplete
             </div>
           </div>
 
@@ -662,7 +671,7 @@ export class CommerceHubConnect extends LitElement {
 
                 return html`
                   <div
-                    class="required-info-document"
+                    class="required-info-document required-document-row"
                     data-required-info-doc-key=${key}
                   >
                     ${renderUploadRow({
@@ -868,8 +877,16 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return renderWidgetShell({
-      title: 'Add a credit card',
-      subtitle: 'Add a new payment method for this session.',
+      title: 'Add card',
+      headerAction: html`
+        <div class="card-form-back-header">
+          ${renderTextLinkButton({
+            label: 'Back',
+            action: 'back-to-payment-methods',
+            disabled: isSaving,
+          })}
+        </div>
+      `,
       showClose: false,
       showDivider: false,
       content: html`
@@ -945,14 +962,7 @@ export class CommerceHubConnect extends LitElement {
             }),
             ...billingAddressFields,
           ])}
-          <div class="card-form-footer">
-            <div class="card-form-back">
-              ${renderTextLinkButton({
-                label: 'Back',
-                action: 'back-to-payment-methods',
-                disabled: isSaving,
-              })}
-            </div>
+          <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
                 label: isSaving ? 'Saving card...' : 'Save card',
@@ -997,8 +1007,16 @@ export class CommerceHubConnect extends LitElement {
 
   private renderBankProviderScreen(): TemplateResult {
     return renderWidgetShell({
-      title: 'Add bank account',
-      width: 'wide',
+      title: 'Pay by bank',
+      headerAction: html`
+        <div class="bank-provider-back-header">
+          ${renderTextLinkButton({
+            label: 'Back',
+            action: 'back-to-payment-methods',
+            disabled: this.bankLinkLoading,
+          })}
+        </div>
+      `,
       showClose: false,
       showDivider: false,
       content: html`
@@ -1006,14 +1024,6 @@ export class CommerceHubConnect extends LitElement {
           ${renderProviderFrame({
             containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
           })}
-          <div class="primitive-footer">
-            ${renderButton({
-              label: 'Back',
-              variant: 'secondary',
-              action: 'back-to-payment-methods',
-              disabled: this.bankLinkLoading,
-            })}
-          </div>
         </div>
       `,
     });
@@ -1050,39 +1060,42 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       title: outcome.title,
-      subtitle: outcome.message,
       showClose: false,
-      content: renderOutcomeShell({
-        variant: outcome.variant,
-        content: this.bankOutcomeSource
-          ? renderVerificationDetails(
-              bankSourceVerificationDetails(this.bankOutcomeSource)
-            )
-          : undefined,
-        actions:
-          outcome.kind === 'verified'
-            ? renderButton({
-                label: 'Continue',
-                action: 'continue-bank-outcome',
-              })
-            : outcome.kind === 'pending'
-            ? renderButton({
-                label: 'Done',
-                action: 'done-bank-outcome',
-              })
-            : html`
-                ${renderButton({
-                  label: 'Try again',
-                  action: 'retry-bank-provider',
-                  disabled: this.bankLinkLoading,
-                })}
-                ${renderTextLinkButton({
-                  label: 'Use a different account',
-                  action: 'use-different-bank-account',
-                  disabled: this.bankLinkLoading,
-                })}
-              `,
-      }),
+      showDivider: false,
+      content: html`
+        <div class="verification-outcome-flow">
+          ${renderAlert({variant: outcome.variant, message: outcome.message})}
+          ${this.bankOutcomeSource
+            ? renderDetailList(
+                bankSourceVerificationDetails(this.bankOutcomeSource)
+              )
+            : ''}
+          <div class="primitive-footer">
+            ${outcome.kind === 'verified'
+              ? renderButton({
+                  label: 'Continue',
+                  action: 'continue-bank-outcome',
+                })
+              : outcome.kind === 'pending'
+              ? renderButton({
+                  label: 'Done',
+                  action: 'done-bank-outcome',
+                })
+              : html`
+                  ${renderButton({
+                    label: 'Try again',
+                    action: 'retry-bank-provider',
+                    disabled: this.bankLinkLoading,
+                  })}
+                  ${renderTextLinkButton({
+                    label: 'Use a different account',
+                    action: 'use-different-bank-account',
+                    disabled: this.bankLinkLoading,
+                  })}
+                `}
+          </div>
+        </div>
+      `,
     });
   }
 
@@ -3420,7 +3433,7 @@ const resolveOtpCopy = (designConfig?: DesignConfig): ResolvedOtpCopy => {
   const copy = designConfig?.copy?.otp;
 
   return {
-    title: copy?.title ?? 'Enter the code',
+    title: copy?.title ?? 'Enter verification code',
     subtitle: copy?.subtitle,
     failedMessage: copy?.failedMessage ?? 'The code does not match. Try again.',
     resendPrefix: copy?.resendPrefix ?? "Didn't receive the code?",
@@ -3935,7 +3948,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'pending',
       variant: 'warning',
-      title: 'Verification under review',
+      title: 'Bank account pending review',
       message: 'We will update this bank account after review is complete.',
     };
   }
@@ -3944,7 +3957,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'requires-info',
       variant: 'warning',
-      title: 'More information needed',
+      title: 'Complete account verification',
       message:
         'Additional information is required before this bank account can be verified.',
     };
@@ -3954,7 +3967,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'declined',
       variant: 'danger',
-      title: 'Bank account declined',
+      title: 'Bank account verification failed',
       message: 'This bank account could not be verified.',
     };
   }
@@ -3962,7 +3975,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
   return {
     kind: 'failed',
     variant: 'danger',
-    title: 'Bank account not verified yet',
+    title: 'Bank account not verified',
     message: 'This bank account is not verified yet.',
   };
 };
@@ -3995,7 +4008,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'failed',
       variant: 'danger',
-      title: `${subject} not verified yet`,
+      title:
+        subject === 'Bank account'
+          ? 'Bank account verification failed'
+          : `${subject} not verified`,
       message: `We could not verify this ${subjectLowerCase} right now.`,
     };
   }
@@ -4004,7 +4020,8 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'verified',
       variant: 'success',
-      title: `${subject} verified`,
+      title:
+        subject === 'Bank account' ? 'Bank account verified' : `${subject} saved`,
       message: `This ${subjectLowerCase} is verified and ready to use.`,
     };
   }
@@ -4013,7 +4030,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'pending',
       variant: 'warning',
-      title: 'Verification under review',
+      title:
+        subject === 'Bank account'
+          ? 'Bank account pending review'
+          : 'Verification pending review',
       message: `We will update this ${subjectLowerCase} after review is complete.`,
     };
   }
@@ -4022,7 +4042,7 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'requires-info',
       variant: 'warning',
-      title: 'More information needed',
+      title: 'Complete account verification',
       message: `Additional information is required before this ${subjectLowerCase} can be verified.`,
     };
   }
@@ -4031,7 +4051,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'declined',
       variant: 'danger',
-      title: `${subject} declined`,
+      title:
+        subject === 'Bank account'
+          ? 'Bank account verification failed'
+          : `${subject} declined`,
       message: `This ${subjectLowerCase} could not be verified.`,
     };
   }
@@ -4039,7 +4062,10 @@ const resolveSavedSourceVerificationOutcome = (
   return {
     kind: 'failed',
     variant: 'danger',
-    title: `${subject} not verified yet`,
+    title:
+      subject === 'Bank account'
+        ? 'Bank account not verified'
+        : `${subject} not verified`,
     message: `This ${subjectLowerCase} is not verified yet.`,
   };
 };

@@ -1,0 +1,327 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+
+<style>
+  .lead {
+    max-width: 68rem;
+  }
+
+  .lead strong {
+    color: #0f172a;
+  }
+
+  .focus-card {
+    max-width: 37rem;
+  }
+
+  .focus-card .card-image {
+    padding: 24px 20px;
+    min-height: 500px;
+    aspect-ratio: auto;
+    background: linear-gradient(180deg, #f4f7fb 0%, #edf2f7 100%);
+  }
+
+  .tone-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.8rem;
+    padding: 0.38rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.69rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: #e8eefc;
+    color: #2849bf;
+  }
+
+  .widget {
+    width: min(100%, 324px);
+    margin: 0 auto;
+    text-align: left;
+    font-family: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
+  }
+
+  .shell {
+    position: relative;
+    overflow: hidden;
+    border-radius: 22px;
+    padding: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+    border: 1px solid #dbe3ed;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+  }
+
+  .shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.58), transparent 24%);
+  }
+
+  .header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .header h4 {
+    margin: 0;
+    font-size: 1.16rem;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    color: #0f172a;
+  }
+
+  .header-action {
+    min-width: 40px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid #d9e2ed;
+    background: #ffffff;
+    color: #1d4ed8;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .rows,
+  .add-actions {
+    display: grid;
+    gap: 10px;
+  }
+
+  .method-row,
+  .add-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    min-height: 62px;
+    border-radius: 16px;
+    padding: 12px 13px;
+    background: #ffffff;
+    border: 1px solid #dde5ee;
+  }
+
+  .method-row.selected {
+    background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
+    border-color: #cad6e5;
+    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.05);
+  }
+
+  .left-icon {
+    min-width: 38px;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: #0f172a;
+    background: #f8fafc;
+    border: 1px solid #dbe3ed;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.04);
+  }
+
+  .add-icon {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1d4ed8;
+    font-size: 1rem;
+    font-weight: 900;
+  }
+
+  .method-main,
+  .add-main {
+    min-width: 0;
+  }
+
+  .method-title,
+  .add-title {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .method-meta {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.74rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .right-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 900;
+  }
+
+  .status-icon.warning {
+    background: #fff7e7;
+    border: 1px solid #f1d19b;
+    color: #9a5a00;
+  }
+
+  .status-icon.declined {
+    background: #fef3f2;
+    border: 1px solid #f3c3bf;
+    color: #b42318;
+  }
+
+  .chevron {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 900;
+  }
+
+  .add-actions {
+    margin-top: 10px;
+  }
+
+  .add-row {
+    min-height: 48px;
+    border-style: dashed;
+  }
+
+  .add-arrow {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 900;
+  }
+
+  .footer {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+  }
+
+  .notes {
+    margin-top: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+  }
+</style>
+
+<h2>Refined A with left icons</h2>
+<p class="subtitle lead">
+  This keeps the same current structure, but now uses <strong>left-side brand chips like the current widget</strong>,
+  removes the <strong>blue selected border</strong>, removes the <strong>divided list treatment</strong>,
+  and turns verification into a <strong>right-side status icon</strong>. Rows with a status icon also get a chevron.
+</p>
+
+<div class="cards">
+  <div class="card focus-card" data-choice="a5-left-icons-status" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="tone-tag">A5 · Left Icons + Status Icons</div>
+      <div class="widget">
+        <div class="shell">
+          <div class="header">
+            <h4>Choose payment method</h4>
+            <span class="header-action">Edit</span>
+          </div>
+
+          <div class="rows">
+            <div class="method-row selected">
+              <span class="left-icon">VISA</span>
+              <div class="method-main">
+                <span class="method-title">Corporate card</span>
+                <span class="method-meta">Visa •••• 4242</span>
+              </div>
+              <span class="right-actions"></span>
+            </div>
+
+            <div class="method-row">
+              <span class="left-icon">BANK</span>
+              <div class="method-main">
+                <span class="method-title">Operating account</span>
+                <span class="method-meta">Commerce National …</span>
+              </div>
+              <span class="right-actions">
+                <span class="status-icon warning">!</span>
+                <span class="chevron">›</span>
+              </span>
+            </div>
+
+            <div class="method-row">
+              <span class="left-icon">AMEX</span>
+              <div class="method-main">
+                <span class="method-title">Travel card</span>
+                <span class="method-meta">Amex •••• 1234</span>
+              </div>
+              <span class="right-actions">
+                <span class="status-icon declined">!</span>
+                <span class="chevron">›</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="add-actions">
+            <div class="add-row">
+              <span class="add-icon">+</span>
+              <div class="add-main">
+                <span class="add-title">Add a credit or debit card</span>
+              </div>
+              <span class="add-arrow">›</span>
+            </div>
+
+            <div class="add-row">
+              <span class="add-icon">+</span>
+              <div class="add-main">
+                <span class="add-title">Add bank account</span>
+              </div>
+              <span class="add-arrow">›</span>
+            </div>
+          </div>
+
+          <div class="footer">Powered by Commerce Hub Connect</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A5 Left Icons + Status Icons</h3>
+      <p>
+        This stays closest to the current widget rhythm, but cleans up the selection treatment and makes verification state more compact and directional.
+      </p>
+    </div>
+  </div>
+</div>
+
+<p class="notes">
+  If this is the right baseline, I can carry it into the written spec and stop iterating on alternate mock directions.
+</p>

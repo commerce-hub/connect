@@ -34,6 +34,8 @@ Do not commit secrets, merchant tokens, or real customer data. Keep API fixtures
 
 ## Codex Learnings
 
+- 2026-05-20: Npm run lint passed: lit-analyzer 0 problems, ESLint clean.
+
 - 2026-05-18: Verification: `npm run build passed`.
 
 - 2026-05-18: Npm run build completed successfully.

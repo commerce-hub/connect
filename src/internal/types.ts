@@ -151,6 +151,7 @@ export type AlertVariant = 'success' | 'danger' | 'warning';
 export interface AlertOptions {
   variant: AlertVariant;
   message: string;
+  icon?: boolean;
 }
 
 export type PaymentMethodStatus =

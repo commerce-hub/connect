@@ -74,7 +74,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, '.source-action-link:hover');
   });
 
-  test('renders the widget shell with SDK v2 token defaults and shell affordances', async () => {
+  test('renders the widget shell with SDK v3 compact token defaults and footer treatment', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect></commerce-hub-connect>`
     )) as CommerceHubConnect;
@@ -89,12 +89,16 @@ suite('commerce-hub-connect primitives', () => {
     const poweredByBrand =
       el.shadowRoot!.querySelector<HTMLElement>('.powered-by-brand')!;
 
+    const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
+    const content =
+      el.shadowRoot!.querySelector<HTMLElement>('.widget-content')!;
+
     assert.equal(
       getComputedStyle(el)
         .getPropertyValue('--chc-primary')
         .trim()
         .toUpperCase(),
-      '#162033'
+      '#1D4ED8'
     );
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-text').trim().toUpperCase(),
@@ -114,7 +118,10 @@ suite('commerce-hub-connect primitives', () => {
       'Commerce Hub Connect'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
-    assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 19.2, 0.01);
+    assert.equal(getComputedStyle(shell).maxWidth, '324px');
+    assert.equal(getComputedStyle(shell).borderRadius, '22px');
+    assert.equal(getComputedStyle(content).maxWidth, '286px');
+    assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 18, 0.01);
     assert.equal(getComputedStyle(title).fontWeight, '600');
     assert.equal(getComputedStyle(paymentMeta).fontWeight, '400');
     assert.equal(
@@ -126,8 +133,9 @@ suite('commerce-hub-connect primitives', () => {
       'none'
     );
     assert.equal(getComputedStyle(poweredByFooter).justifyContent, 'center');
+    assert.equal(getComputedStyle(poweredByFooter).fontSize, '12px');
     assert.equal(poweredByBrand.textContent?.trim(), 'Commerce Hub Connect');
-    assert.equal(getComputedStyle(poweredByBrand).color, 'rgb(75, 85, 101)');
+    assert.equal(getComputedStyle(poweredByBrand).color, 'rgb(29, 78, 216)');
   });
 
   test('applies partial designConfig color and typography without resizing controls', async () => {
@@ -166,15 +174,15 @@ suite('commerce-hub-connect primitives', () => {
       getComputedStyle(el).getPropertyValue('--chc-font-weight').trim(),
       '350'
     );
-    assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 19.2, 0.01);
+    assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 18, 0.01);
     assert.equal(getComputedStyle(title).fontWeight, '600');
     assert.equal(getComputedStyle(button).fontSize, '20px');
     assert.equal(getComputedStyle(paymentMeta).fontWeight, '350');
     assert.equal(getComputedStyle(paymentMeta).fontSize, '20px');
-    assert.equal(getComputedStyle(poweredByFooter).fontSize, '20px');
-    assert.equal(getComputedStyle(button).minHeight, '44px');
-    assert.equal(getComputedStyle(button).paddingTop, '12px');
-    assert.equal(getComputedStyle(button).paddingBottom, '12px');
+    assert.equal(getComputedStyle(poweredByFooter).fontSize, '15px');
+    assert.equal(getComputedStyle(button).minHeight, '40px');
+    assert.equal(getComputedStyle(button).paddingTop, '10px');
+    assert.equal(getComputedStyle(button).paddingBottom, '10px');
     assert.equal(getComputedStyle(button).fontWeight, '350');
     assert.equal(getComputedStyle(shell).backgroundColor, 'rgb(244, 247, 251)');
     assert.equal(getComputedStyle(shell).paddingTop, '32px');
@@ -421,7 +429,7 @@ suite('commerce-hub-connect primitives', () => {
     `);
 
     assert.equal(
-      root.querySelector('button[data-action="continue"]')?.textContent?.trim(),
+      root.querySelector('button.button-primary')?.textContent?.trim(),
       'Continue'
     );
     assert.equal(
@@ -450,6 +458,7 @@ suite('commerce-hub-connect primitives', () => {
       root.querySelector('[role="alert"]')?.textContent?.trim(),
       'This bank account is verified.'
     );
+    assert.exists(root.querySelector('[role="alert"] .alert-icon'));
     assert.equal(
       root.querySelector('.upload-row-label')?.textContent?.trim(),
       'Bank statement'
@@ -468,7 +477,7 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
-  test('renders OTP inputs with inherited typography and padded sizing', async () => {
+  test('renders OTP inputs with inherited typography and compact SDK v3 sizing', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
         .interactionResponse=${{
@@ -487,10 +496,11 @@ suite('commerce-hub-connect primitives', () => {
 
     assert.equal(otpInputStyles.fontWeight, '400');
     assert.equal(otpInputStyles.fontSize, '16px');
-    assert.equal(otpInputStyles.minHeight, '44px');
+    assert.equal(otpInputStyles.minHeight, '40px');
+    assert.equal(otpInputStyles.borderRadius, '10px');
   });
 
-  test('renders v2 payment method, source action, and detail primitives with disabled state semantics', async () => {
+  test('renders SDK v3 payment method, source action, and detail primitives with disabled state semantics', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',
       label: 'James Anderson',
@@ -571,6 +581,7 @@ suite('commerce-hub-connect primitives', () => {
       ),
       ['Account holder name', 'Last 4 digits']
     );
+    assert.exists(root.querySelector('.detail-list-compact'));
   });
 
   test('renders non-verified payment methods with a trailing warning icon and chevron', async () => {
@@ -617,6 +628,18 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(statusIcon);
     assert.equal(statusIcon.getAttribute('aria-label'), 'Not verified yet');
     assert.equal(getComputedStyle(copy).rowGap, '4px');
+    assert.equal(
+      getComputedStyle(
+        row.querySelector<HTMLElement>('.payment-method-title')!
+      ).display,
+      'block'
+    );
+    assert.equal(
+      getComputedStyle(
+        row.querySelector<HTMLElement>('.payment-method-meta')!
+      ).display,
+      'block'
+    );
     assert.equal(getComputedStyle(metaRow).justifyContent, 'flex-start');
     assert.exists(chevron);
     assert.equal(row.disabled, false);

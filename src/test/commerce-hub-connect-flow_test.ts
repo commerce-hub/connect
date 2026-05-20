@@ -482,7 +482,7 @@ suite('commerce-hub-connect flow', () => {
       .forEach((script) => script.remove());
   });
 
-  test('renders OTP pending with no close, inline resend copy, and a Verify CTA icon', async () => {
+  test('renders OTP pending with SDK v3 title, verify CTA before resend, and compact inputs', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
@@ -491,7 +491,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Enter the code'
+      'Enter verification code'
     );
     assert.include(
       el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
@@ -507,9 +507,23 @@ suite('commerce-hub-connect flow', () => {
       getComputedStyle(
         el.shadowRoot!.querySelector<HTMLElement>('.otp-support')!
       ).display,
-      'flex'
+      'grid'
     );
     assert.lengthOf(el.shadowRoot!.querySelectorAll('.otp-input'), 6);
+    assert.equal(
+      getComputedStyle(
+        el.shadowRoot!.querySelector<HTMLElement>('.otp-input')!
+      ).minHeight,
+      '40px'
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '[data-action="verify-otp"], [data-action="resend-otp"]'
+        ),
+      ].map((node) => node.dataset.action),
+      ['verify-otp', 'resend-otp']
+    );
     assert.equal(
       el
         .shadowRoot!.querySelector('[data-action="resend-otp"]')
@@ -784,7 +798,7 @@ suite('commerce-hub-connect flow', () => {
       getComputedStyle(rows[1]).backgroundColor,
       'rgb(255, 255, 255)'
     );
-    assert.equal(getComputedStyle(rows[0]).paddingTop, '12px');
+    assert.equal(getComputedStyle(rows[0]).paddingTop, '10px');
     assert.equal(getComputedStyle(rows[0]).columnGap, '10px');
     assert.equal(
       getComputedStyle(
@@ -823,7 +837,7 @@ suite('commerce-hub-connect flow', () => {
       'rgb(255, 255, 255)'
     );
     assert.equal(getComputedStyle(addCardLink).borderTopStyle, 'dashed');
-    assert.equal(getComputedStyle(addCardLink).paddingTop, '12px');
+    assert.equal(getComputedStyle(addCardLink).paddingTop, '10px');
     assert.equal(getComputedStyle(addCardLink).columnGap, '10px');
     assert.equal(getComputedStyle(addCardLink).alignItems, 'center');
     assert.equal(getComputedStyle(addCardIcon).fontSize, '24px');
@@ -936,7 +950,7 @@ suite('commerce-hub-connect flow', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Verification under review',
+        'Bank account pending review',
       'verification outcome did not render'
     );
 
@@ -948,7 +962,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification under review'
+      'Bank account pending review'
     );
   });
 
@@ -1085,7 +1099,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('opens the add credit card screen with the redesigned inline card-entry layout', async () => {
+  test('opens the add card screen with the SDK v3 compact card-entry layout and header back pill', async () => {
     const requests: CapturedRequest[] = [];
 
     paymentSdkWindow.PaymentSDK = {
@@ -1145,12 +1159,9 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add a credit card'
+      'Add card'
     );
-    assert.equal(
-      el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
-      'Add a new payment method for this session.'
-    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.deepEqual(
@@ -1229,7 +1240,9 @@ suite('commerce-hub-connect flow', () => {
       false
     );
     assert.exists(
-      el.shadowRoot!.querySelector('[data-action="back-to-payment-methods"]')
+      el.shadowRoot!.querySelector(
+        '.widget-header-action [data-action="back-to-payment-methods"]'
+      )
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="use-bank-account-instead"]')
@@ -1481,7 +1494,7 @@ suite('commerce-hub-connect flow', () => {
       () =>
         el.interactionResponse?.selectedSource?.id === 'card-created-1' &&
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-          'Pay with',
+          'Payment method saved',
       'verified card did not return to the payment method list'
     );
 
@@ -1711,7 +1724,7 @@ suite('commerce-hub-connect flow', () => {
       () =>
         el.interactionResponse?.selectedSource?.id === 'card-created-1' &&
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-          'Pay with',
+          'Payment method saved',
       'existing-address card did not return to the payment method list'
     );
 
@@ -2134,7 +2147,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Payment method saved'
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
@@ -2183,7 +2196,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(errorEvents, 0);
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Enter the code'
+      'Enter verification code'
     );
   });
 
@@ -2203,6 +2216,10 @@ suite('commerce-hub-connect flow', () => {
 
     await setOtpValue(el, '123456');
     await clickAction(el, 'verify-otp');
+    await waitFor(
+      () => el.interactionResponse?.status === 'OTP_VALIDATION_FAILED',
+      'OTP failure state did not render'
+    );
 
     assert.equal(el.interactionResponse?.status, 'OTP_VALIDATION_FAILED');
     assert.lengthOf(successEvents, 0);
@@ -2216,7 +2233,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('add bank account initializes PaymentSDK with mapped Pay by Bank session fields', async () => {
+  test('add bank account initializes PaymentSDK with a compact Pay by Bank handoff', async () => {
     const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
     let providerContainer: HTMLElement | null = null;
@@ -2277,13 +2294,16 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add bank account'
+      'Pay by bank'
     );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-shell-wide'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.provider-frame-header'));
     assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
     assert.exists(
-      el.shadowRoot!.querySelector('[data-action="back-to-payment-methods"]')
+      el.shadowRoot!.querySelector(
+        '.widget-header-action [data-action="back-to-payment-methods"]'
+      )
     );
     assert.equal(initConfig?.apiKey, 'override-api-key');
     assert.equal(initConfig?.configId, 'override-config-id');
@@ -2459,7 +2479,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(errorEvents, 0);
   });
 
-  test('Pay by Bank success preselects a finalized VERIFIED bank source without verification request', async () => {
+  test('Pay by Bank success preselects a finalized VERIFIED bank source and shows payment-method-saved summary', async () => {
     const {el, requests, successEvents, errorEvents} =
       await completePayByBankFlow({finalizedStatus: 'VERIFIED'});
 
@@ -2475,14 +2495,21 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Payment method saved'
     );
     assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.exists(el.shadowRoot!.querySelector('.alert-success'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="continue-bank-outcome"]')
     );
     assert.exists(
       el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="change-payment-source"]')
+        ?.textContent?.trim(),
+      'Manage payment methods'
     );
     assert.equal(
       el
@@ -2545,7 +2572,7 @@ suite('commerce-hub-connect flow', () => {
     assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
-  test('Pay by Bank success shows finalized REQUIRE_INFO bank sources on the required-info screen', async () => {
+  test('Pay by Bank success shows finalized REQUIRE_INFO bank sources on the SDK v3 required-info screen', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'REQUIRE_INFO',
     });
@@ -2573,8 +2600,9 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.required-info-summary-status')
         ?.textContent?.trim(),
-      'Advanced verification incomplete'
+      'Verification incomplete'
     );
+    assert.exists(el.shadowRoot!.querySelector('.required-document-row'));
     assert.deepEqual(
       [...el.shadowRoot!.querySelectorAll('.upload-row-requirements')].map(
         (node) => node.textContent?.trim()
@@ -2801,7 +2829,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(requests[2].bodyText, JSON.stringify({value: 'bank-new'}));
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Payment method saved'
     );
     assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
     assert.notExists(

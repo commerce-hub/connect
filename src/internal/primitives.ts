@@ -369,8 +369,12 @@ export const renderOtpGroup = ({
 export const renderAlert = ({
   variant,
   message,
+  icon = true,
 }: AlertOptions): TemplateResult => html`
-  <div class="alert alert-${variant}" role="alert">${message}</div>
+  <div class="alert alert-${variant}" role="alert">
+    ${icon ? html`<span class="alert-icon" aria-hidden="true"></span>` : ''}
+    <span class="alert-message">${message}</span>
+  </div>
 `;
 
 export const renderOtpResend = ({
@@ -569,7 +573,7 @@ export const renderSourceAction = ({
       `;
 
 export const renderDetailList = (items: DetailItem[]): TemplateResult => html`
-  <div class="detail-list">
+  <div class="detail-list detail-list-compact">
     ${items.map(
       (item) => html`
         <div class="detail-row">
