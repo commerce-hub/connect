@@ -567,7 +567,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Payment method saved'
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
@@ -594,7 +594,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
   });
 
-  test('payment source attached renders the selected payment summary with a change option', async () => {
+  test('payment source attached renders the payment-method-saved summary with a manage action', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_ATTACHED',
@@ -613,14 +613,21 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Payment method saved'
     );
     assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.exists(el.shadowRoot!.querySelector('.alert-success'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
     );
     assert.exists(
       el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="change-payment-source"]')
+        ?.textContent?.trim(),
+      'Manage payment methods'
     );
     assert.equal(
       el
@@ -696,7 +703,7 @@ suite('commerce-hub-connect payment selection', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Verification under review',
+        'Bank account pending review',
       'verification outcome did not render'
     );
 
@@ -709,7 +716,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(requests[0].bodyText, JSON.stringify({value: 'bank-1'}));
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification under review'
+      'Bank account pending review'
     );
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
@@ -768,7 +775,7 @@ suite('commerce-hub-connect payment selection', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Verification under review',
+        'Bank account pending review',
       'verification outcome did not render'
     );
 
@@ -786,10 +793,10 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(requests[0].credentials, 'include');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Verification under review'
+      'Bank account pending review'
     );
     assert.deepEqual(
-      [...el.shadowRoot!.querySelectorAll('.verification-detail-value')].map(
+      [...el.shadowRoot!.querySelectorAll('.detail-value')].map(
         (node) => node.textContent?.trim()
       ),
       ['Commerce National Bank', '3210', 'Under review']
@@ -864,6 +871,7 @@ suite('commerce-hub-connect payment selection', () => {
       ),
       ['Bank statement', 'Driver license photo']
     );
+    assert.exists(el.shadowRoot!.querySelector('.required-document-row'));
   });
 
   test('bank saved-source REQUIRE_INFO verification shows required-info screen with bank retry action', async () => {

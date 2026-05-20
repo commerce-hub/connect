@@ -1,0 +1,182 @@
+[
+  {
+    "name": "09-desktop-required-info-file-selected",
+    "metrics": {
+      "innerWidth": 1600,
+      "innerHeight": 900,
+      "scrollWidth": 1600,
+      "scrollHeight": 964,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 643.71875,
+        "y": 32,
+        "width": 312.546875,
+        "height": 602,
+        "right": 956.265625,
+        "bottom": 634
+      }
+    },
+    "fitsWidth": true
+  },
+  {
+    "name": "10-desktop-bank-verified",
+    "metrics": {
+      "innerWidth": 1600,
+      "innerHeight": 900,
+      "scrollWidth": 1600,
+      "scrollHeight": 964,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 638,
+        "y": 32,
+        "width": 324,
+        "height": 424,
+        "right": 962,
+        "bottom": 456
+      }
+    },
+    "fitsWidth": true
+  },
+  {
+    "name": "11-desktop-bank-pending",
+    "metrics": {
+      "innerWidth": 1600,
+      "innerHeight": 900,
+      "scrollWidth": 1600,
+      "scrollHeight": 964,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 638,
+        "y": 32,
+        "width": 324,
+        "height": 424,
+        "right": 962,
+        "bottom": 456
+      }
+    },
+    "fitsWidth": true
+  },
+  {
+    "name": "12-desktop-bank-not-verified",
+    "metrics": {
+      "innerWidth": 1600,
+      "innerHeight": 900,
+      "scrollWidth": 1600,
+      "scrollHeight": 964,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 638,
+        "y": 32,
+        "width": 324,
+        "height": 452,
+        "right": 962,
+        "bottom": 484
+      }
+    },
+    "fitsWidth": true
+  },
+  {
+    "name": "13-desktop-bank-failed",
+    "metrics": {
+      "innerWidth": 1600,
+      "innerHeight": 900,
+      "scrollWidth": 1600,
+      "scrollHeight": 964,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 638,
+        "y": 32,
+        "width": 324,
+        "height": 452,
+        "right": 962,
+        "bottom": 484
+      }
+    },
+    "fitsWidth": true
+  },
+  {
+    "name": "14-desktop-long-source-truncation",
+    "metrics": {
+      "innerWidth": 1600,
+      "innerHeight": 900,
+      "scrollWidth": 1600,
+      "scrollHeight": 964,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 638,
+        "y": 32,
+        "width": 324,
+        "height": 379,
+        "right": 962,
+        "bottom": 411
+      }
+    },
+    "fitsWidth": true
+  },
+  {
+    "name": "15-mobile-otp-density",
+    "metrics": {
+      "innerWidth": 390,
+      "innerHeight": 844,
+      "scrollWidth": 390,
+      "scrollHeight": 876,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 33,
+        "y": 16,
+        "width": 324,
+        "height": 298,
+        "right": 357,
+        "bottom": 314
+      }
+    },
+    "fitsWidth": true
+  },
+  {
+    "name": "16-mobile-saved-methods-density",
+    "metrics": {
+      "innerWidth": 390,
+      "innerHeight": 844,
+      "scrollWidth": 390,
+      "scrollHeight": 876,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 35,
+        "y": 16,
+        "width": 320,
+        "height": 446,
+        "right": 355,
+        "bottom": 462
+      }
+    },
+    "fitsWidth": true
+  },
+  {
+    "name": "17-native-window-saved-methods",
+    "metrics": {
+      "innerWidth": 800,
+      "innerHeight": 600,
+      "scrollWidth": 800,
+      "scrollHeight": 664,
+      "canScrollX": false,
+      "canScrollY": true,
+      "shell": {
+        "x": 238,
+        "y": 32,
+        "width": 324,
+        "height": 451,
+        "right": 562,
+        "bottom": 483
+      }
+    },
+    "fitsWidth": true
+  }
+]

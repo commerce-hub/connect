@@ -7,10 +7,10 @@ export const primitiveStyles = css`
     --chc-muted: #6b7280;
     --chc-placeholder: #9ca3af;
     --chc-surface: #ffffff;
-    --chc-soft-surface: #f7f8fa;
-    --chc-border: #dde3ea;
-    --chc-border-strong: #cdd5df;
-    --chc-primary: #162033;
+    --chc-soft-surface: #f8fafc;
+    --chc-border: #d9e1ec;
+    --chc-border-strong: #c6d0dd;
+    --chc-primary: #1d4ed8;
     --chc-success: #047857;
     --chc-success-bg: #ecfdf3;
     --chc-success-border: #a6f4c5;
@@ -23,16 +23,23 @@ export const primitiveStyles = css`
     --chc-disabled-text: #ffffff;
     --chc-disabled-surface: #c5ccd8;
     --chc-font-family: Inter, 'Segoe UI', Arial, sans-serif;
-    --chc-radius-control: 0.75rem;
-    --chc-radius-card: 1rem;
-    --chc-radius-shell: 1rem;
-    --chc-input-height: 2.75rem;
+    --chc-radius-control: 0.625rem;
+    --chc-radius-card: 0.75rem;
+    --chc-radius-shell: 1.375rem;
+    --chc-input-height: 2.5rem;
     --chc-font-weight: 400;
     --chc-divider: #ebeef2;
-    --chc-focus-ring: rgba(22, 32, 51, 0.14);
-    --chc-shell-padding: 1.5rem 1.25rem 1.25rem;
-    --chc-shell-shadow: 0 0.125rem 0.375rem rgba(17, 24, 39, 0.04),
-      0 0.75rem 1.5rem rgba(17, 24, 39, 0.08);
+    --chc-focus-ring: rgba(29, 78, 216, 0.14);
+    --chc-motion-fast: 120ms;
+    --chc-motion-base: 180ms;
+    --chc-motion-slow: 240ms;
+    --chc-motion-provider: 300ms;
+    --chc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    --chc-spinner-duration: 900ms;
+    --chc-shell-padding: 1.1875rem 1.1875rem 1rem;
+    --chc-shell-shadow: 0 0.0625rem 0.125rem rgba(15, 23, 42, 0.04),
+      0 0.875rem 1.75rem rgba(15, 23, 42, 0.08);
     display: block;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
@@ -64,7 +71,7 @@ export const primitiveStyles = css`
 
   .widget-shell {
     width: 100%;
-    max-width: 25.5rem;
+    max-width: 20.25rem;
     position: relative;
     padding: var(--chc-shell-padding);
     border: 0.0625rem solid
@@ -73,6 +80,10 @@ export const primitiveStyles = css`
     background: var(--chc-surface);
     box-shadow: var(--chc-shell-shadow);
     text-align: left;
+  }
+
+  .widget-shell-busy {
+    overflow: hidden;
   }
 
   .widget-shell-wide {
@@ -100,9 +111,9 @@ export const primitiveStyles = css`
   .widget-title {
     margin: 0;
     color: var(--chc-text);
-    font-size: 1.2rem;
+    font-size: 1.125rem;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 
   .widget-header {
@@ -135,7 +146,10 @@ export const primitiveStyles = css`
   }
 
   .widget-content {
+    max-width: 17.875rem;
     margin-top: 1.125rem;
+    margin-right: auto;
+    margin-left: auto;
   }
 
   .primitive-stack {
@@ -155,42 +169,39 @@ export const primitiveStyles = css`
     margin-top: 0.875rem;
   }
 
-  .card-form-footer {
-    display: grid;
-    grid-template-columns: auto auto;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.625rem;
-    margin-top: 0.25rem;
-  }
-
-  .card-form-back {
+  .card-form-back-header,
+  .bank-provider-back-header {
     display: inline-flex;
     align-items: center;
   }
 
-  .card-form-back .text-link-button {
+  .card-form-back-header .text-link-button,
+  .bank-provider-back-header .text-link-button {
+    min-height: 1.875rem;
+    display: inline-flex;
+    align-items: center;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: 999rem;
+    padding: 0 0.625rem;
+    background: var(--chc-soft-surface);
     color: var(--chc-text);
+    font-size: 0.875em;
+    font-weight: 600;
   }
 
-  .card-form-back .text-link-button:disabled {
+  .card-form-back-header .text-link-button:disabled,
+  .bank-provider-back-header .text-link-button:disabled {
     color: var(--chc-muted);
   }
 
-  .card-form-back .text-link-button::before {
+  .card-form-back-header .text-link-button::before,
+  .bank-provider-back-header .text-link-button::before {
     content: '←';
-    margin-right: 0.5rem;
+    margin-right: 0.375rem;
   }
 
   .card-form-primary {
     display: grid;
-    justify-items: end;
-  }
-
-  .card-form-footer .button {
-    width: auto;
-    padding-right: 1.25rem;
-    padding-left: 1.25rem;
   }
 
   .payment-action-links {
@@ -265,6 +276,17 @@ export const primitiveStyles = css`
     gap: 0.375rem;
   }
 
+  .required-document-row {
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-card);
+    padding: 0.5rem;
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 80%,
+      var(--chc-surface)
+    );
+  }
+
   .required-info-ssn-control {
     display: grid;
     grid-template-columns:
@@ -295,11 +317,9 @@ export const primitiveStyles = css`
   }
 
   .otp-support {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    flex-wrap: nowrap;
+    display: grid;
+    justify-items: center;
+    gap: 0.1875rem;
     text-align: center;
   }
 
@@ -319,6 +339,10 @@ export const primitiveStyles = css`
   }
 
   .otp-resend {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
     border: 0;
     padding: 0;
     background: transparent;
@@ -342,8 +366,10 @@ export const primitiveStyles = css`
     border-radius: var(--chc-radius-control);
     padding: 0 1rem;
     font-weight: 600;
-    transition: border-color 120ms ease, background-color 120ms ease,
-      box-shadow 120ms ease, transform 120ms ease;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      transform var(--chc-motion-fast) var(--chc-ease-emphasized);
     cursor: pointer;
   }
 
@@ -361,6 +387,23 @@ export const primitiveStyles = css`
     align-items: center;
     justify-content: center;
     font-size: 0.875em;
+  }
+
+  .button-spinner,
+  .otp-resend-spinner {
+    width: 1em;
+    height: 1em;
+    display: inline-flex;
+    flex: 0 0 auto;
+    border: 0.125rem solid color-mix(in srgb, currentColor 28%, transparent);
+    border-right-color: currentColor;
+    border-radius: 999rem;
+    animation: chc-spinner-rotate var(--chc-spinner-duration) linear infinite;
+  }
+
+  .otp-resend-spinner {
+    width: 0.875em;
+    height: 0.875em;
   }
 
   .button-icon-check::before {
@@ -429,8 +472,9 @@ export const primitiveStyles = css`
     background: var(--chc-surface);
     color: var(--chc-text);
     text-align: left;
-    transition: border-color 120ms ease, box-shadow 120ms ease,
-      background-color 120ms ease;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard);
   }
 
   .field-input:focus {
@@ -464,8 +508,9 @@ export const primitiveStyles = css`
       var(--chc-soft-surface) 82%,
       var(--chc-surface)
     );
-    transition: border-color 120ms ease, box-shadow 120ms ease,
-      background-color 120ms ease;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard);
   }
 
   .field-control-card-form:focus-within {
@@ -555,16 +600,16 @@ export const primitiveStyles = css`
 
   .otp-inputs {
     display: grid;
-    width: min(100%, 18.75rem);
+    width: min(100%, 17.5rem);
     margin: 0 auto;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 0.375rem;
+    gap: 0.5rem;
   }
 
   .otp-input {
     min-height: var(--chc-input-height);
     border: 0.0625rem solid var(--chc-border);
-    border-radius: 0.75rem;
+    border-radius: 0.625rem;
     background: var(--chc-surface);
     color: var(--chc-text);
     font-style: inherit;
@@ -596,13 +641,30 @@ export const primitiveStyles = css`
 
   .alert {
     min-height: 0;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
+    gap: 0.5rem;
     border: 0.0625rem solid;
     border-radius: var(--chc-radius-control);
     padding: 0.625rem 0.75rem;
     font-weight: 500;
     text-align: left;
+  }
+
+  .alert-icon {
+    width: 1rem;
+    height: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .alert-message {
+    min-width: 0;
   }
 
   .alert-success {
@@ -611,16 +673,28 @@ export const primitiveStyles = css`
     color: var(--chc-success);
   }
 
+  .alert-success .alert-icon::before {
+    content: '✓';
+  }
+
   .alert-danger {
     border-color: var(--chc-danger-border);
     background: var(--chc-danger-bg);
     color: var(--chc-danger);
   }
 
+  .alert-danger .alert-icon::before {
+    content: '!';
+  }
+
   .alert-warning {
     border-color: var(--chc-warning-border);
     background: var(--chc-warning-bg);
     color: var(--chc-warning);
+  }
+
+  .alert-warning .alert-icon::before {
+    content: '!';
   }
 
   .status-pill {
@@ -662,8 +736,8 @@ export const primitiveStyles = css`
     grid-template-columns: 2.25rem minmax(0, 1fr) auto;
     gap: 0.625rem;
     align-items: center;
-    border-radius: 1rem;
-    padding: 0.75rem;
+    border-radius: var(--chc-radius-card);
+    padding: 0.625rem;
     background: var(--chc-surface);
     color: var(--chc-text);
     text-align: left;
@@ -671,8 +745,9 @@ export const primitiveStyles = css`
   }
 
   .payment-method-row-action {
-    transition: border-color 120ms ease, background-color 120ms ease,
-      box-shadow 120ms ease;
+    transition: border-color var(--chc-motion-base) var(--chc-ease-standard),
+      background-color var(--chc-motion-base) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-base) var(--chc-ease-standard);
     cursor: pointer;
   }
 
@@ -800,7 +875,8 @@ export const primitiveStyles = css`
     background: transparent;
     color: var(--chc-danger);
     cursor: pointer;
-    transition: background-color 120ms ease, color 120ms ease;
+    transition: background-color var(--chc-motion-fast) var(--chc-ease-standard),
+      color var(--chc-motion-fast) var(--chc-ease-standard);
     touch-action: manipulation;
   }
 
@@ -879,6 +955,7 @@ export const primitiveStyles = css`
 
   .payment-method-title {
     min-width: 0;
+    display: block;
     overflow: hidden;
     color: var(--chc-text);
     font-weight: 600;
@@ -902,6 +979,7 @@ export const primitiveStyles = css`
   .payment-method-meta {
     flex: 1 1 auto;
     min-width: 0;
+    display: block;
     overflow: hidden;
     color: var(--chc-copy);
     text-overflow: ellipsis;
@@ -1017,14 +1095,15 @@ export const primitiveStyles = css`
     align-items: center;
     border: 0.0625rem solid var(--chc-border);
     border-style: dashed;
-    border-radius: 1rem;
-    padding: 0.75rem;
+    border-radius: var(--chc-radius-card);
+    padding: 0.625rem;
     background: var(--chc-surface);
     color: var(--chc-text);
     text-align: left;
     cursor: pointer;
-    transition: border-color 120ms ease, background-color 120ms ease,
-      box-shadow 120ms ease;
+    transition: border-color var(--chc-motion-base) var(--chc-ease-standard),
+      background-color var(--chc-motion-base) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-base) var(--chc-ease-standard);
   }
 
   .source-action-link:hover:not(:disabled),
@@ -1109,6 +1188,14 @@ export const primitiveStyles = css`
     text-align: left;
   }
 
+  .detail-list-compact {
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 82%,
+      var(--chc-surface)
+    );
+  }
+
   .empty-state {
     display: grid;
     gap: 0.25rem;
@@ -1131,7 +1218,7 @@ export const primitiveStyles = css`
     min-height: 0;
     display: grid;
     gap: 0.125rem;
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.75rem;
   }
 
   .detail-row + .detail-row {
@@ -1150,14 +1237,14 @@ export const primitiveStyles = css`
 
   .upload-row {
     width: 100%;
-    min-height: 3.75rem;
+    min-height: 3.5rem;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.75rem;
     border: 0.0625rem dashed var(--chc-border-strong);
     border-radius: var(--chc-radius-card);
-    padding: 0 1rem;
+    padding: 0 0.75rem;
     background: var(--chc-surface);
     color: var(--chc-copy);
     text-align: left;
@@ -1225,6 +1312,13 @@ export const primitiveStyles = css`
     border: 0.3125rem solid #dbe3f1;
     border-right-color: var(--chc-primary);
     border-radius: 999rem;
+    animation: chc-spinner-rotate var(--chc-spinner-duration) linear infinite;
+  }
+
+  .loading-spinner-small {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-width: 0.15625rem;
   }
 
   .loading-row-copy {
@@ -1251,13 +1345,23 @@ export const primitiveStyles = css`
 
   .provider-frame {
     display: grid;
+    position: relative;
     gap: 0.875rem;
     text-align: left;
+  }
+
+  .provider-frame-loading {
+    min-height: 31.25rem;
   }
 
   .bank-provider-flow {
     display: grid;
     gap: 0.875rem;
+  }
+
+  .verification-outcome-flow {
+    display: grid;
+    gap: 0.75rem;
   }
 
   .provider-frame-header {
@@ -1284,15 +1388,65 @@ export const primitiveStyles = css`
   .provider-frame-container,
   ::slotted(.provider-frame-container) {
     width: 100%;
-    min-height: 32.5rem;
+    min-height: 23.75rem;
     background: var(--chc-soft-surface);
     overflow: hidden;
+  }
+
+  .provider-frame-container-loading,
+  .provider-frame-loading ::slotted(.provider-frame-container) {
+    min-height: 31.25rem;
+  }
+
+  .provider-loading-overlay,
+  .widget-loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--chc-surface) 84%, transparent);
+    color: var(--chc-text);
+    text-align: center;
+  }
+
+  .provider-loading-overlay {
+    align-content: center;
+    gap: 0.75rem;
+  }
+
+  .provider-loading-label {
+    color: var(--chc-copy);
+    font-weight: 600;
+  }
+
+  .widget-loading-status {
+    max-width: 15rem;
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .widget-loading-copy {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .widget-loading-title {
+    color: var(--chc-text);
+    font-weight: 600;
+  }
+
+  .widget-loading-helper {
+    color: var(--chc-copy);
+    font-size: 0.875em;
   }
 
   .outcome-shell {
     display: grid;
     justify-items: center;
-    gap: 0.875rem;
+    gap: 0.75rem;
     text-align: center;
   }
 
@@ -1409,28 +1563,110 @@ export const primitiveStyles = css`
     cursor: not-allowed;
   }
 
+  .payment-method-skeletons {
+    display: grid;
+    gap: 0.625rem;
+  }
+
+  .payment-method-skeleton-label {
+    width: 0.0625rem;
+    height: 0.0625rem;
+    position: absolute;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .payment-method-skeleton-row {
+    width: 100%;
+    min-height: 3.625rem;
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr) 1rem;
+    gap: 0.625rem;
+    align-items: center;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-card);
+    padding: 0.625rem;
+    background: var(--chc-surface);
+  }
+
+  .payment-method-skeleton-icon,
+  .payment-method-skeleton-line,
+  .payment-method-skeleton-trailing {
+    display: block;
+    border-radius: 999rem;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--chc-soft-surface) 92%, var(--chc-border)),
+      color-mix(in srgb, var(--chc-border) 72%, var(--chc-surface)),
+      color-mix(in srgb, var(--chc-soft-surface) 92%, var(--chc-border))
+    );
+    background-size: 200% 100%;
+    animation: chc-skeleton-shimmer var(--chc-motion-provider)
+      var(--chc-ease-standard) infinite alternate;
+  }
+
+  .payment-method-skeleton-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.6875rem;
+  }
+
+  .payment-method-skeleton-copy {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .payment-method-skeleton-title {
+    width: 60%;
+    height: 0.75rem;
+  }
+
+  .payment-method-skeleton-meta {
+    width: 82%;
+    height: 0.625rem;
+  }
+
+  .payment-method-skeleton-trailing {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  @keyframes chc-spinner-rotate {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes chc-skeleton-shimmer {
+    to {
+      background-position: -100% 0;
+    }
+  }
+
   .powered-by-footer {
     display: flex;
     justify-content: center;
     gap: 0.3125rem;
-    margin-top: 1.25rem;
+    margin-top: 1rem;
     color: var(--chc-copy);
+    font-size: 0.75em;
     font-weight: inherit;
     white-space: nowrap;
   }
 
   .powered-by-brand {
-    color: var(--chc-copy);
+    color: var(--chc-primary);
     font-weight: 700;
   }
 
   @media (max-width: 26.25rem) {
     :host {
-      --chc-shell-padding: 1.25rem 1rem 1rem;
+      --chc-shell-padding: 1rem 1rem 0.875rem;
     }
 
     .widget-shell {
-      border-radius: 0.875rem;
+      border-radius: 1rem;
     }
 
     .widget-close {
@@ -1439,18 +1675,6 @@ export const primitiveStyles = css`
 
     .form-grid {
       grid-template-columns: minmax(0, 1fr);
-    }
-
-    .card-form-footer {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .card-form-primary {
-      justify-items: stretch;
-    }
-
-    .card-form-footer .button {
-      width: 100%;
     }
 
     .otp-inputs {
@@ -1468,7 +1692,7 @@ export const primitiveStyles = css`
 
     .provider-frame-container,
     ::slotted(.provider-frame-container) {
-      min-height: 28.75rem;
+      min-height: 22.5rem;
     }
 
     .source-action-title,
@@ -1484,8 +1708,22 @@ export const primitiveStyles = css`
     .field-input,
     .field-control-card-form,
     .payment-method-row,
-    .source-action-link {
+    .source-action-link,
+    .payment-method-delete-button {
       transition: none;
+    }
+
+    .button:hover:not(:disabled) {
+      transform: none;
+    }
+
+    .loading-spinner,
+    .button-spinner,
+    .otp-resend-spinner,
+    .payment-method-skeleton-icon,
+    .payment-method-skeleton-line,
+    .payment-method-skeleton-trailing {
+      animation: none;
     }
   }
 `;

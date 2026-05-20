@@ -10,12 +10,14 @@ import {primitiveStyles} from './internal/styles.js';
 import {
   renderAlert,
   renderButton,
+  renderDetailList,
   renderEmptyState,
   renderFormGrid,
   renderOutcomeShell,
   renderOtpGroup,
   renderOtpResend,
   renderPaymentMethodRow,
+  renderPaymentMethodSkeletonRows,
   renderProviderFrame,
   renderSelectedPaymentMethod,
   renderSelectField,
@@ -24,7 +26,6 @@ import {
   renderTextLinkButton,
   renderUploadRow,
   renderVerificationStatusBadge,
-  renderVerificationDetails,
   renderWidgetShell,
 } from './internal/primitives.js';
 import type {FlowActionName, PaymentMethod} from './internal/types.js';
@@ -293,6 +294,14 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private requiredInfoValues: Record<string, string> = {};
 
+  @state()
+  private requiredInfoFileNames: Record<string, string> = {};
+
+  @state()
+  private requiredInfoSubmitError?: string;
+
+  private requiredInfoFiles: Record<string, File> = {};
+
   private pendingRequiredInfoDocKey?: string;
 
   private interactionRefreshInteractionId?: string;
@@ -440,20 +449,6 @@ export class CommerceHubConnect extends LitElement {
             disabled: isSubmitting,
             error: isFailed,
           })}
-          <div class="otp-support">
-            <p class="otp-support-copy otp-resend-prefix">
-              ${copy.resendPrefix}
-            </p>
-            <div class="otp-support-actions">
-              ${renderOtpResend({
-                label: isResending
-                  ? copy.resendPendingButton
-                  : copy.resendButton,
-                action: 'resend-otp',
-                disabled: isSubmitting || isResending,
-              })}
-            </div>
-          </div>
           <div class="primitive-footer">
             ${renderButton({
               label: isSubmitting
@@ -464,8 +459,24 @@ export class CommerceHubConnect extends LitElement {
               icon: !isSubmitting && !isFailed ? 'check' : undefined,
               variant: 'primary',
               action: 'verify-otp',
+              loading: isSubmitting,
               disabled: isSubmitting || this.otpValue.length < OTP_LENGTH,
             })}
+          </div>
+          <div class="otp-support">
+            <p class="otp-support-copy otp-resend-prefix">
+              ${copy.resendPrefix}
+            </p>
+            <div class="otp-support-actions">
+              ${renderOtpResend({
+                label: isResending
+                  ? copy.resendPendingButton
+                  : copy.resendButton,
+                action: 'resend-otp',
+                loading: isResending,
+                disabled: isSubmitting || isResending,
+              })}
+            </div>
           </div>
         </div>
       `,
@@ -484,12 +495,27 @@ export class CommerceHubConnect extends LitElement {
     const isEditingPaymentSources =
       this.paymentSourceEditMode && paymentMethods.length > 0;
 
+    if (this.shouldRenderPaymentSourceRefreshSkeleton()) {
+      return renderWidgetShell({
+        title: copy.title,
+        showClose: false,
+        content: html`
+          <div class="payment-flow">
+            ${renderPaymentMethodSkeletonRows({
+              count: 3,
+              label: 'Loading payment methods',
+            })}
+          </div>
+        `,
+      });
+    }
+
     if (!paymentMethods.length) {
       return this.renderNoSavedPaymentMethods();
     }
 
     if (this.shouldRenderSelectedPaymentSourceScreen()) {
-      return this.renderSelectedPaymentSourceScreen(copy);
+      return this.renderSelectedPaymentSourceScreen();
     }
 
     return renderWidgetShell({
@@ -504,11 +530,17 @@ export class CommerceHubConnect extends LitElement {
         <div class="payment-flow">
           <div class="primitive-stack" aria-label="Payment methods">
             ${paymentMethods.map((method) =>
-              renderPaymentMethodRow(method, {
-                variant: isEditingPaymentSources ? 'edit' : 'default',
-                deleteDisabled: isPaymentSourceActionPending,
-                selected: method.id === this.selectedPaymentSourceId,
-              })
+              renderPaymentMethodRow(
+                {
+                  ...method,
+                  disabled: method.disabled || isPaymentSourceActionPending,
+                },
+                {
+                  variant: isEditingPaymentSources ? 'edit' : 'default',
+                  deleteDisabled: isPaymentSourceActionPending,
+                  selected: method.id === this.selectedPaymentSourceId,
+                }
+              )
             )}
           </div>
           ${isEditingPaymentSources
@@ -536,9 +568,7 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
-  private renderSelectedPaymentSourceScreen(
-    copy: ResolvedPaymentMethodsCopy
-  ): TemplateResult {
+  private renderSelectedPaymentSourceScreen(): TemplateResult {
     const selectedSource = selectedPaymentSourceFromInteractionResponse(
       this.interactionResponse,
       this.selectedPaymentSourceId
@@ -550,19 +580,27 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return renderWidgetShell({
-      title: copy.title,
-      headerAction: renderTextLinkButton({
-        label: 'Change',
-        action: 'change-payment-source',
-        disabled: this.pendingAction === 'attach-payment-source',
-      }),
+      title: 'Payment method saved',
       showClose: false,
       showDivider: false,
       content: html`
         <div class="payment-flow">
+          ${renderAlert({
+            variant: 'success',
+            message: 'Your payment method has been saved.',
+          })}
           ${renderSelectedPaymentMethod(
             paymentSourceToPaymentMethod(selectedSource)
           )}
+          <div class="primitive-footer">
+            ${renderButton({
+              label: 'Manage payment methods',
+              variant: 'secondary',
+              action: 'change-payment-source',
+              loading: this.pendingAction === 'attach-payment-source',
+              disabled: this.pendingAction === 'attach-payment-source',
+            })}
+          </div>
         </div>
       `,
     });
@@ -579,6 +617,24 @@ export class CommerceHubConnect extends LitElement {
     );
   }
 
+  private shouldRenderPaymentSourceRefreshSkeleton(): boolean {
+    const interactionResponse = this.interactionResponse;
+    const interactionId = interactionResponse?.interactionId;
+
+    if (!interactionId) {
+      return false;
+    }
+
+    if (this.interactionRefreshPromise) {
+      return true;
+    }
+
+    return (
+      this.shouldRefreshPaymentSourcesFromInteraction() &&
+      interactionResponse?.paymentSources === undefined
+    );
+  }
+
   private renderSavedSourceVerificationOutcomeScreen(): TemplateResult {
     const source = this.savedSourceVerificationSource;
     const outcome = resolveSavedSourceVerificationOutcome(
@@ -588,18 +644,22 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       title: outcome.title,
-      subtitle: outcome.message,
       showClose: false,
-      content: renderOutcomeShell({
-        variant: outcome.variant,
-        content: source
-          ? renderVerificationDetails(paymentSourceVerificationDetails(source))
-          : undefined,
-        actions: renderButton({
-          label: 'Back to payment methods',
-          action: 'done-payment-source-verification',
-        }),
-      }),
+      showDivider: false,
+      content: html`
+        <div class="verification-outcome-flow">
+          ${renderAlert({variant: outcome.variant, message: outcome.message})}
+          ${source
+            ? renderDetailList(paymentSourceVerificationDetails(source))
+            : ''}
+          <div class="primitive-footer">
+            ${renderButton({
+              label: 'Back to payment methods',
+              action: 'done-payment-source-verification',
+            })}
+          </div>
+        </div>
+      `,
     });
   }
 
@@ -612,6 +672,8 @@ export class CommerceHubConnect extends LitElement {
 
     const docs = requiredInfoDocs(source);
     const firstUploadDocKey = firstRequiredInfoUploadDocKey(docs);
+    const isSubmitting = this.pendingAction === 'submit-required-info';
+    const canSubmit = this.canSubmitRequiredInfo();
     const secondaryAction = isBankPaymentSource(source)
       ? {
           label: 'Use a different account',
@@ -641,16 +703,25 @@ export class CommerceHubConnect extends LitElement {
               `
             )}
             <div class="required-info-summary-status">
-              Advanced verification incomplete
+              Verification incomplete
             </div>
           </div>
+
+          ${this.requiredInfoSubmitError
+            ? renderAlert({
+                variant: 'danger',
+                message: this.requiredInfoSubmitError,
+              })
+            : ''}
 
           <div class="required-info-documents">
             <p class="required-info-section-title">Required information</p>
             <div class="primitive-stack">
               ${docs.map((doc, index) => {
                 const key = requiredInfoDocKey(doc, index);
-                const currentValue = this.requiredInfoValues[key];
+                const currentValue = isRequiredInfoTextDoc(doc)
+                  ? this.requiredInfoValues[key]
+                  : this.requiredInfoFileNames[key];
 
                 if (isRequiredInfoTextDoc(doc)) {
                   return renderRequiredInfoTextField({
@@ -662,7 +733,7 @@ export class CommerceHubConnect extends LitElement {
 
                 return html`
                   <div
-                    class="required-info-document"
+                    class="required-info-document required-document-row"
                     data-required-info-doc-key=${key}
                   >
                     ${renderUploadRow({
@@ -670,6 +741,7 @@ export class CommerceHubConnect extends LitElement {
                       requirements: requiredInfoDocLabel(doc),
                       actionLabel: currentValue ? 'Replace' : 'Choose file',
                       action: 'open-required-info-file-picker',
+                      disabled: isSubmitting,
                     })}
                     ${currentValue
                       ? html`
@@ -700,9 +772,10 @@ export class CommerceHubConnect extends LitElement {
             data-required-info-doc-key=${firstUploadDocKey ?? ''}
           >
             ${renderButton({
-              label: 'Verify',
-              action: 'open-required-info-file-picker',
-              disabled: !firstUploadDocKey,
+              label: isSubmitting ? 'Verifying...' : 'Verify',
+              action: 'submit-required-info',
+              loading: isSubmitting,
+              disabled: isSubmitting || !canSubmit,
             })}
             ${renderTextLinkButton(secondaryAction)}
           </div>
@@ -868,10 +941,38 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return renderWidgetShell({
-      title: 'Add a credit card',
-      subtitle: 'Add a new payment method for this session.',
+      title: 'Add card',
+      headerAction: html`
+        <div class="card-form-back-header">
+          ${renderTextLinkButton({
+            label: 'Back',
+            action: 'back-to-payment-methods',
+            disabled: isSaving,
+          })}
+        </div>
+      `,
       showClose: false,
       showDivider: false,
+      busy: isSaving,
+      overlay: isSaving
+        ? html`
+            <div class="widget-loading-status" role="status" aria-live="polite">
+              <span
+                class="loading-spinner loading-spinner-small"
+                aria-hidden="true"
+              ></span>
+              <span class="widget-loading-copy">
+                <span class="widget-loading-title">
+                  Saving payment method
+                </span>
+                <span class="widget-loading-helper">
+                  Keep this window open while we are securely saving your
+                  payment method.
+                </span>
+              </span>
+            </div>
+          `
+        : undefined,
       content: html`
         <div class="payment-flow card-form-screen">
           ${this.cardSubmitError
@@ -945,18 +1046,12 @@ export class CommerceHubConnect extends LitElement {
             }),
             ...billingAddressFields,
           ])}
-          <div class="card-form-footer">
-            <div class="card-form-back">
-              ${renderTextLinkButton({
-                label: 'Back',
-                action: 'back-to-payment-methods',
-                disabled: isSaving,
-              })}
-            </div>
+          <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
-                label: isSaving ? 'Saving card...' : 'Save card',
+                label: isSaving ? 'Saving payment method' : 'Save card',
                 action: 'save-card',
+                loading: isSaving,
                 disabled:
                   isSaving ||
                   isEncrypting ||
@@ -997,23 +1092,25 @@ export class CommerceHubConnect extends LitElement {
 
   private renderBankProviderScreen(): TemplateResult {
     return renderWidgetShell({
-      title: 'Add bank account',
-      width: 'wide',
+      title: 'Pay by bank',
+      headerAction: html`
+        <div class="bank-provider-back-header">
+          ${renderTextLinkButton({
+            label: 'Back',
+            action: 'back-to-payment-methods',
+            disabled: this.bankLinkLoading,
+          })}
+        </div>
+      `,
       showClose: false,
       showDivider: false,
       content: html`
         <div class="bank-provider-flow">
           ${renderProviderFrame({
             containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
+            loading: this.bankLinkLoading,
+            loadingLabel: 'Connecting to your bank',
           })}
-          <div class="primitive-footer">
-            ${renderButton({
-              label: 'Back',
-              variant: 'secondary',
-              action: 'back-to-payment-methods',
-              disabled: this.bankLinkLoading,
-            })}
-          </div>
         </div>
       `,
     });
@@ -1031,8 +1128,9 @@ export class CommerceHubConnect extends LitElement {
         message: describePaymentSdkTerminalEvent(this.bankTerminalEvent),
         actions: html`
           ${renderButton({
-            label: 'Retry',
+            label: this.bankLinkLoading ? 'Retrying' : 'Retry',
             action: 'retry-bank-provider',
+            loading: this.bankLinkLoading,
             disabled: this.bankLinkLoading,
           })}
           ${renderTextLinkButton({
@@ -1050,39 +1148,43 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       title: outcome.title,
-      subtitle: outcome.message,
       showClose: false,
-      content: renderOutcomeShell({
-        variant: outcome.variant,
-        content: this.bankOutcomeSource
-          ? renderVerificationDetails(
-              bankSourceVerificationDetails(this.bankOutcomeSource)
-            )
-          : undefined,
-        actions:
-          outcome.kind === 'verified'
-            ? renderButton({
-                label: 'Continue',
-                action: 'continue-bank-outcome',
-              })
-            : outcome.kind === 'pending'
-            ? renderButton({
-                label: 'Done',
-                action: 'done-bank-outcome',
-              })
-            : html`
-                ${renderButton({
-                  label: 'Try again',
-                  action: 'retry-bank-provider',
-                  disabled: this.bankLinkLoading,
-                })}
-                ${renderTextLinkButton({
-                  label: 'Use a different account',
-                  action: 'use-different-bank-account',
-                  disabled: this.bankLinkLoading,
-                })}
-              `,
-      }),
+      showDivider: false,
+      content: html`
+        <div class="verification-outcome-flow">
+          ${renderAlert({variant: outcome.variant, message: outcome.message})}
+          ${this.bankOutcomeSource
+            ? renderDetailList(
+                bankSourceVerificationDetails(this.bankOutcomeSource)
+              )
+            : ''}
+          <div class="primitive-footer">
+            ${outcome.kind === 'verified'
+              ? renderButton({
+                  label: 'Continue',
+                  action: 'continue-bank-outcome',
+                })
+              : outcome.kind === 'pending'
+              ? renderButton({
+                  label: 'Done',
+                  action: 'done-bank-outcome',
+                })
+              : html`
+                  ${renderButton({
+                    label: this.bankLinkLoading ? 'Retrying' : 'Try again',
+                    action: 'retry-bank-provider',
+                    loading: this.bankLinkLoading,
+                    disabled: this.bankLinkLoading,
+                  })}
+                  ${renderTextLinkButton({
+                    label: 'Use a different account',
+                    action: 'use-different-bank-account',
+                    disabled: this.bankLinkLoading,
+                  })}
+                `}
+          </div>
+        </div>
+      `,
     });
   }
 
@@ -1146,6 +1248,11 @@ export class CommerceHubConnect extends LitElement {
       this.renderRoot
         .querySelector<HTMLInputElement>('.required-info-file-input')
         ?.click();
+      return;
+    }
+
+    if (action === 'submit-required-info') {
+      void this.submitRequiredInfo();
       return;
     }
 
@@ -1814,6 +1921,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async saveCard() {
+    if (this.pendingAction === 'save-card') {
+      return;
+    }
+
     const interactionId = this.requireInteractionId();
 
     if (!interactionId) {
@@ -1955,6 +2066,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async verifyOtp() {
+    if (this.pendingAction === 'verify-otp') {
+      return;
+    }
+
     if (this.otpValue.length < OTP_LENGTH) {
       return;
     }
@@ -1995,6 +2110,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async resendOtp() {
+    if (this.pendingAction === 'resend-otp') {
+      return;
+    }
+
     const interactionId = this.requireInteractionId();
 
     if (!interactionId) {
@@ -2213,12 +2332,18 @@ export class CommerceHubConnect extends LitElement {
   private showRequiredInfoSource(source: PaymentSource) {
     this.requiredInfoSource = source;
     this.requiredInfoValues = {};
+    this.requiredInfoFileNames = {};
+    this.requiredInfoFiles = {};
+    this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
   }
 
   private resetRequiredInfo() {
     this.requiredInfoSource = undefined;
     this.requiredInfoValues = {};
+    this.requiredInfoFileNames = {};
+    this.requiredInfoFiles = {};
+    this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
   }
 
@@ -2235,6 +2360,7 @@ export class CommerceHubConnect extends LitElement {
       ...this.requiredInfoValues,
       [key]: value,
     };
+    this.requiredInfoSubmitError = undefined;
   }
 
   private storeRequiredInfoSelectedFile(file?: File) {
@@ -2248,11 +2374,192 @@ export class CommerceHubConnect extends LitElement {
     const key =
       this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
 
-    this.requiredInfoValues = {
-      ...this.requiredInfoValues,
+    this.requiredInfoFiles = {
+      ...this.requiredInfoFiles,
+      [key]: file,
+    };
+    this.requiredInfoFileNames = {
+      ...this.requiredInfoFileNames,
       [key]: file.name,
     };
+    this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
+  }
+
+  private canSubmitRequiredInfo(): boolean {
+    const source = this.requiredInfoSource;
+
+    if (!source?.id?.trim()) {
+      return false;
+    }
+
+    return requiredInfoDocs(source).every((doc, index) => {
+      if (!isRequiredInfoDocMandatory(doc)) {
+        return true;
+      }
+
+      const key = requiredInfoDocKey(doc, index);
+
+      if (isRequiredInfoTextDoc(doc)) {
+        return Boolean(this.requiredInfoValues[key]?.trim());
+      }
+
+      return Boolean(this.requiredInfoFiles[key]);
+    });
+  }
+
+  private async submitRequiredInfo() {
+    if (this.pendingAction === 'submit-required-info') {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+    const source = this.requiredInfoSource;
+    const sourceId = source?.id?.trim();
+
+    if (!interactionId || !source || !sourceId) {
+      return;
+    }
+
+    if (!this.canSubmitRequiredInfo()) {
+      this.requiredInfoSubmitError =
+        'Add all required information before verifying.';
+      return;
+    }
+
+    this.pendingAction = 'submit-required-info';
+    this.requiredInfoSubmitError = undefined;
+
+    try {
+      const docs = requiredInfoDocs(source);
+
+      for (const [index, doc] of docs.entries()) {
+        const key = requiredInfoDocKey(doc, index);
+        const docType = doc.docType;
+
+        if (!docType) {
+          continue;
+        }
+
+        if (isRequiredInfoTextDoc(doc)) {
+          const value = this.requiredInfoValues[key]?.trim();
+
+          if (value) {
+            await this.uploadRequiredInfoField(interactionId, docType, value);
+          }
+          continue;
+        }
+
+        const file = this.requiredInfoFiles[key];
+
+        if (file) {
+          await this.uploadRequiredInfoDocument(
+            interactionId,
+            sourceId,
+            docType,
+            file
+          );
+        }
+      }
+
+      const verificationResponse =
+        await this.requestCommerceHubJson<VerificationResponse>(
+          '/interaction/verify/step2',
+          interactionId,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({value: sourceId}),
+            credentials: 'include',
+          }
+        );
+      const verifiedSource = {
+        ...source,
+        verificationInfo: {
+          ...source.verificationInfo,
+          ...verificationResponse,
+        },
+      };
+      const nextInteractionResponse = withUpsertedSourcePreservingSelection(
+        {
+          ...(this.interactionResponse ?? {interactionId}),
+          selectedSource: this.interactionResponse?.selectedSource,
+          status: 'PAYMENT_SOURCE_REQUESTED',
+        },
+        verifiedSource
+      );
+
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
+
+      if (verifiedSource.verificationInfo?.status === 'VERIFIED') {
+        this.resetRequiredInfo();
+        this.pendingAction = undefined;
+        await this.attachPaymentSource(sourceId);
+        return;
+      }
+
+      if (requiresAdditionalVerificationInfo(verifiedSource)) {
+        this.requiredInfoSource = verifiedSource;
+        this.requiredInfoValues = {};
+        this.requiredInfoFileNames = {};
+        this.requiredInfoFiles = {};
+        return;
+      }
+
+      this.resetRequiredInfo();
+      this.savedSourceVerificationSource = verifiedSource;
+      this.savedSourceVerificationFailed = false;
+      this.selectedPaymentSourceId = verifiedSource.id;
+      this.paymentSourceView = 'list';
+    } catch (cause) {
+      this.requiredInfoSubmitError =
+        apiErrorMessage(cause) ||
+        'We could not submit the required information. Please try again.';
+    } finally {
+      if (this.pendingAction === 'submit-required-info') {
+        this.pendingAction = undefined;
+      }
+    }
+  }
+
+  private async uploadRequiredInfoField(
+    interactionId: string,
+    docType: NonNullable<RequiredInfoDoc['docType']>,
+    value: string
+  ) {
+    await this.requestCommerceHubJson<unknown>(
+      '/interaction/verify/uploadField',
+      interactionId,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({docType, value, docValue: value}),
+        credentials: 'include',
+      }
+    );
+  }
+
+  private async uploadRequiredInfoDocument(
+    interactionId: string,
+    sourceId: string,
+    docType: NonNullable<RequiredInfoDoc['docType']>,
+    file: File
+  ) {
+    const formData = new FormData();
+
+    formData.set('file', file);
+
+    await this.requestCommerceHubJson<unknown>(
+      `/interaction/doc/upload/${encodeURIComponent(
+        sourceId
+      )}/${encodeURIComponent(docType)}`,
+      interactionId,
+      {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      }
+    );
   }
 
   private async startPayByBankFlow() {
@@ -2439,6 +2746,7 @@ export class CommerceHubConnect extends LitElement {
           }
         },
       });
+      this.bankLinkLoading = false;
     });
   }
 
@@ -2504,6 +2812,7 @@ export class CommerceHubConnect extends LitElement {
       })
       .finally(() => {
         this.interactionRefreshPromise = undefined;
+        this.requestUpdate();
       });
 
     return this.interactionRefreshPromise;
@@ -3420,7 +3729,7 @@ const resolveOtpCopy = (designConfig?: DesignConfig): ResolvedOtpCopy => {
   const copy = designConfig?.copy?.otp;
 
   return {
-    title: copy?.title ?? 'Enter the code',
+    title: copy?.title ?? 'Enter verification code',
     subtitle: copy?.subtitle,
     failedMessage: copy?.failedMessage ?? 'The code does not match. Try again.',
     resendPrefix: copy?.resendPrefix ?? "Didn't receive the code?",
@@ -3935,7 +4244,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'pending',
       variant: 'warning',
-      title: 'Verification under review',
+      title: 'Bank account pending review',
       message: 'We will update this bank account after review is complete.',
     };
   }
@@ -3944,7 +4253,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'requires-info',
       variant: 'warning',
-      title: 'More information needed',
+      title: 'Complete account verification',
       message:
         'Additional information is required before this bank account can be verified.',
     };
@@ -3954,7 +4263,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'declined',
       variant: 'danger',
-      title: 'Bank account declined',
+      title: 'Bank account verification failed',
       message: 'This bank account could not be verified.',
     };
   }
@@ -3962,7 +4271,7 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
   return {
     kind: 'failed',
     variant: 'danger',
-    title: 'Bank account not verified yet',
+    title: 'Bank account not verified',
     message: 'This bank account is not verified yet.',
   };
 };
@@ -3995,7 +4304,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'failed',
       variant: 'danger',
-      title: `${subject} not verified yet`,
+      title:
+        subject === 'Bank account'
+          ? 'Bank account verification failed'
+          : `${subject} not verified`,
       message: `We could not verify this ${subjectLowerCase} right now.`,
     };
   }
@@ -4004,7 +4316,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'verified',
       variant: 'success',
-      title: `${subject} verified`,
+      title:
+        subject === 'Bank account'
+          ? 'Bank account verified'
+          : `${subject} saved`,
       message: `This ${subjectLowerCase} is verified and ready to use.`,
     };
   }
@@ -4013,7 +4328,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'pending',
       variant: 'warning',
-      title: 'Verification under review',
+      title:
+        subject === 'Bank account'
+          ? 'Bank account pending review'
+          : 'Verification pending review',
       message: `We will update this ${subjectLowerCase} after review is complete.`,
     };
   }
@@ -4022,7 +4340,7 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'requires-info',
       variant: 'warning',
-      title: 'More information needed',
+      title: 'Complete account verification',
       message: `Additional information is required before this ${subjectLowerCase} can be verified.`,
     };
   }
@@ -4031,7 +4349,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'declined',
       variant: 'danger',
-      title: `${subject} declined`,
+      title:
+        subject === 'Bank account'
+          ? 'Bank account verification failed'
+          : `${subject} declined`,
       message: `This ${subjectLowerCase} could not be verified.`,
     };
   }
@@ -4039,7 +4360,10 @@ const resolveSavedSourceVerificationOutcome = (
   return {
     kind: 'failed',
     variant: 'danger',
-    title: `${subject} not verified yet`,
+    title:
+      subject === 'Bank account'
+        ? 'Bank account not verified'
+        : `${subject} not verified`,
     message: `This ${subjectLowerCase} is not verified yet.`,
   };
 };
@@ -4086,6 +4410,9 @@ const requiredInfoDocKey = (doc?: RequiredInfoDoc, index = 0): string =>
 const isRequiredInfoTextDoc = (doc: RequiredInfoDoc): boolean =>
   doc.docType === 'DRIVER_LICENSE_NUMBER' ||
   doc.docType === 'SOCIAL_SECURITY_NUMBER';
+
+const isRequiredInfoDocMandatory = (doc: RequiredInfoDoc): boolean =>
+  doc.mandatory !== false;
 
 const firstRequiredInfoUploadDocKey = (
   docs: RequiredInfoDoc[]

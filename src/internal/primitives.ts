@@ -15,6 +15,7 @@ import type {
   OtpResendOptions,
   OutcomeShellOptions,
   PaymentMethod,
+  PaymentMethodSkeletonRowsOptions,
   ProviderFrameOptions,
   SelectFieldOptions,
   SourceActionOptions,
@@ -108,7 +109,9 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
       <span class="payment-method-title">${method.label}</span>
     </span>
     <span class="payment-method-meta-row">
-      <span class="payment-method-meta">${paymentMethodAccountLabel(method)}</span>
+      <span class="payment-method-meta"
+        >${paymentMethodAccountLabel(method)}</span
+      >
     </span>
   </span>
 `;
@@ -181,15 +184,23 @@ export const renderButton = ({
   type = 'button',
   icon,
   disabled = false,
+  loading = false,
 }: ButtonOptions): TemplateResult => html`
   <button
-    class="button button-${variant}"
+    class=${joinClassNames(
+      'button',
+      `button-${variant}`,
+      loading && 'button-loading'
+    )}
     type=${type}
     data-action=${ifDefined(action)}
-    ?disabled=${disabled}
+    aria-busy=${loading ? 'true' : 'false'}
+    ?disabled=${disabled || loading}
   >
     <span class="button-content">
-      ${icon
+      ${loading
+        ? html`<span class="button-spinner" aria-hidden="true"></span>`
+        : icon
         ? html`
             <span
               class="button-icon button-icon-${icon}"
@@ -369,22 +380,31 @@ export const renderOtpGroup = ({
 export const renderAlert = ({
   variant,
   message,
+  icon = true,
 }: AlertOptions): TemplateResult => html`
-  <div class="alert alert-${variant}" role="alert">${message}</div>
+  <div class="alert alert-${variant}" role="alert">
+    ${icon ? html`<span class="alert-icon" aria-hidden="true"></span>` : ''}
+    <span class="alert-message">${message}</span>
+  </div>
 `;
 
 export const renderOtpResend = ({
   label,
   action,
   disabled = false,
+  loading = false,
 }: OtpResendOptions): TemplateResult => html`
   <button
-    class="otp-resend"
+    class=${joinClassNames('otp-resend', loading && 'otp-resend-loading')}
     type="button"
     data-action=${action}
-    ?disabled=${disabled}
+    aria-busy=${loading ? 'true' : 'false'}
+    ?disabled=${disabled || loading}
   >
-    ${label}
+    ${loading
+      ? html`<span class="otp-resend-spinner" aria-hidden="true"></span>`
+      : ''}
+    <span class="otp-resend-label">${label}</span>
   </button>
 `;
 
@@ -404,25 +424,27 @@ export const renderStatusPill = ({
   <span class="status-pill status-${status}">${titleCase(status)}</span>
 `;
 
-export const renderPaymentMethodRow = ({
-  id,
-  label,
-  status,
-  type,
-  eyebrow,
-  brand,
-  last4,
-  disabled = false,
-}: PaymentMethod,
-{
-  variant = 'default',
-  deleteDisabled = false,
-  selected = false,
-}: {
-  variant?: 'default' | 'edit';
-  deleteDisabled?: boolean;
-  selected?: boolean;
-} = {}): TemplateResult => {
+export const renderPaymentMethodRow = (
+  {
+    id,
+    label,
+    status,
+    type,
+    eyebrow,
+    brand,
+    last4,
+    disabled = false,
+  }: PaymentMethod,
+  {
+    variant = 'default',
+    deleteDisabled = false,
+    selected = false,
+  }: {
+    variant?: 'default' | 'edit';
+    deleteDisabled?: boolean;
+    selected?: boolean;
+  } = {}
+): TemplateResult => {
   const method: PaymentMethod = {
     id,
     label,
@@ -436,14 +458,13 @@ export const renderPaymentMethodRow = ({
 
   if (variant === 'edit') {
     return html`
-      <div class="payment-method-row payment-method-row-edit" aria-label=${label}>
+      <div
+        class="payment-method-row payment-method-row-edit"
+        aria-label=${label}
+      >
         ${renderPaymentMethodContent(
           method,
-          renderPaymentMethodDeleteAction(
-            id,
-            `Delete ${label}`,
-            deleteDisabled
-          )
+          renderPaymentMethodDeleteAction(id, `Delete ${label}`, deleteDisabled)
         )}
       </div>
     `;
@@ -569,7 +590,7 @@ export const renderSourceAction = ({
       `;
 
 export const renderDetailList = (items: DetailItem[]): TemplateResult => html`
-  <div class="detail-list">
+  <div class="detail-list detail-list-compact">
     ${items.map(
       (item) => html`
         <div class="detail-row">
@@ -617,21 +638,56 @@ export const renderLoadingRow = ({
   </div>
 `;
 
+export const renderPaymentMethodSkeletonRows = ({
+  count = 3,
+  label = 'Loading payment methods',
+}: PaymentMethodSkeletonRowsOptions = {}): TemplateResult => html`
+  <div class="payment-method-skeletons" role="status" aria-live="polite">
+    <span class="payment-method-skeleton-label">${label}</span>
+    ${Array.from(
+      {length: count},
+      () => html`
+        <div class="payment-method-skeleton-row" aria-hidden="true">
+          <span class="payment-method-skeleton-icon"></span>
+          <span class="payment-method-skeleton-copy">
+            <span
+              class="payment-method-skeleton-line payment-method-skeleton-title"
+            ></span>
+            <span
+              class="payment-method-skeleton-line payment-method-skeleton-meta"
+            ></span>
+          </span>
+          <span class="payment-method-skeleton-trailing"></span>
+        </div>
+      `
+    )}
+  </div>
+`;
+
 export const renderProviderFrame = ({
   containerId,
   title,
   loadingLabel,
+  loading = false,
 }: ProviderFrameOptions): TemplateResult => html`
-  <div class="provider-frame">
-    ${title || loadingLabel
+  <div
+    class=${joinClassNames(
+      'provider-frame',
+      loading && 'provider-frame-loading'
+    )}
+    aria-busy=${loading ? 'true' : 'false'}
+  >
+    ${title
       ? html`
           <div class="provider-frame-header">
-            ${title
-              ? html`<p class="provider-frame-title">${title}</p>`
-              : ''}
-            ${loadingLabel
+            ${title ? html`<p class="provider-frame-title">${title}</p>` : ''}
+            ${loadingLabel && !loading
               ? html`
-                  <p class="provider-frame-status" role="status" aria-live="polite">
+                  <p
+                    class="provider-frame-status"
+                    role="status"
+                    aria-live="polite"
+                  >
                     ${loadingLabel}
                   </p>
                 `
@@ -640,8 +696,28 @@ export const renderProviderFrame = ({
         `
       : ''}
     <slot class="provider-frame-slot" name=${containerId}>
-      <div class="provider-frame-container" id=${containerId}></div>
+      <div
+        class=${joinClassNames(
+          'provider-frame-container',
+          loading && 'provider-frame-container-loading'
+        )}
+        id=${containerId}
+      ></div>
     </slot>
+    ${loading
+      ? html`
+          <div
+            class="provider-loading-overlay"
+            role="status"
+            aria-live="polite"
+          >
+            <span class="loading-spinner" aria-hidden="true"></span>
+            <span class="provider-loading-label">
+              ${loadingLabel ?? 'Loading provider'}
+            </span>
+          </div>
+        `
+      : ''}
   </div>
 `;
 
@@ -712,10 +788,17 @@ export const renderWidgetShell = ({
   showClose = true,
   showDivider = true,
   showFooter = true,
+  busy = false,
+  overlay,
 }: WidgetShellOptions): TemplateResult => html`
   <section
-    class="widget-shell ${width === 'wide' ? 'widget-shell-wide' : ''}"
+    class=${joinClassNames(
+      'widget-shell',
+      width === 'wide' && 'widget-shell-wide',
+      busy && 'widget-shell-busy'
+    )}
     aria-label=${ariaLabel}
+    aria-busy=${busy ? 'true' : 'false'}
   >
     ${showClose
       ? html`
@@ -740,6 +823,7 @@ export const renderWidgetShell = ({
       ? html`<div class="widget-divider" aria-hidden="true"></div>`
       : ''}
     <div class="widget-content">${content}</div>
+    ${overlay ? html`<div class="widget-loading-overlay">${overlay}</div>` : ''}
     ${showFooter ? renderPoweredByFooter() : ''}
   </section>
 `;

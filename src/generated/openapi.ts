@@ -20,7 +20,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/shipping-address/{id}": {
+    "/interaction/shipping-address": {
         parameters: {
             query?: never;
             header?: never;
@@ -29,14 +29,14 @@ export interface paths {
         };
         get?: never;
         put: operations["updateShippingAddress"];
-        post?: never;
-        delete: operations["deleteShippingAddress"];
+        post: operations["addShippingAddress"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/interaction/billing-address/{id}": {
+    "/interaction/billing-address": {
         parameters: {
             query?: never;
             header?: never;
@@ -45,8 +45,8 @@ export interface paths {
         };
         get?: never;
         put: operations["updateBillingAddress"];
-        post?: never;
-        delete: operations["deleteBillingAddress"];
+        post: operations["addBillingAddress"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -260,22 +260,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/shipping-address": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["addShippingAddress"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/interaction/otp/validate": {
         parameters: {
             query?: never;
@@ -324,7 +308,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/billing-address": {
+    "/interaction/doc/upload/{sourceId}/{docType}": {
         parameters: {
             query?: never;
             header?: never;
@@ -333,7 +317,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["addBillingAddress"];
+        post: operations["uploadDoc"];
         delete?: never;
         options?: never;
         head?: never;
@@ -575,6 +559,38 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["deleteSource"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interaction/shipping-address/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteShippingAddress"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interaction/billing-address/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteBillingAddress"];
         options?: never;
         head?: never;
         patch?: never;
@@ -916,9 +932,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
@@ -936,16 +950,18 @@ export interface operations {
             };
         };
     };
-    deleteShippingAddress: {
+    addShippingAddress: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Address"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -960,9 +976,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
@@ -980,23 +994,27 @@ export interface operations {
             };
         };
     };
-    deleteBillingAddress: {
+    addBillingAddress: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Address"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "*/*": components["schemas"]["StringHolder"];
+                };
             };
         };
     };
@@ -1310,28 +1328,6 @@ export interface operations {
             };
         };
     };
-    addShippingAddress: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Address"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     validateOTP_1: {
         parameters: {
             query?: never;
@@ -1396,16 +1392,22 @@ export interface operations {
             };
         };
     };
-    addBillingAddress: {
+    uploadDoc: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                sourceId: string;
+                docType: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
+            };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["Address"];
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
             };
         };
         responses: {
@@ -1414,9 +1416,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "*/*": components["schemas"]["StringHolder"];
-                };
+                content?: never;
             };
         };
     };
@@ -1756,6 +1756,46 @@ export interface operations {
             header?: never;
             path: {
                 sourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteShippingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteBillingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
             };
             cookie?: never;
         };
