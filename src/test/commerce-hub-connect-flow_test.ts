@@ -336,12 +336,16 @@ const completePayByBankFlow = async ({
   finalizedStatus,
   verificationStatus,
   verificationDocs = [{docType: 'BANK_STATEMENT', mandatory: true}] as const,
+  requiredInfoStep2Status,
+  requiredInfoFailurePath,
 }: {
   finalizedStatus: VerificationStatus;
   verificationStatus?: VerificationStatus;
   verificationDocs?: NonNullable<
     NonNullable<PaymentSource['verificationInfo']>['docs']
   >;
+  requiredInfoStep2Status?: VerificationStatus;
+  requiredInfoFailurePath?: string;
 }) => {
   const requests: CapturedRequest[] = [];
   let initConfig: TestPaymentSdkInitConfiguration | undefined;
@@ -364,6 +368,11 @@ const completePayByBankFlow = async ({
     finalizedStatus === 'REQUIRE_INFO'
       ? resolvedVerificationInfo
       : {status: finalizedStatus};
+  const requiredInfoFinalVerificationInfo = requiredInfoStep2Status
+    ? requiredInfoStep2Status === 'REQUIRE_INFO'
+      ? {status: requiredInfoStep2Status, docs: verificationDocs}
+      : {status: requiredInfoStep2Status}
+    : resolvedVerificationInfo;
 
   paymentSdkWindow.PaymentSDK = {
     init: (configuration) => {
@@ -426,6 +435,30 @@ const completePayByBankFlow = async ({
       );
     }
 
+    if (
+      pathname.startsWith('/interaction/doc/upload/') ||
+      pathname === '/interaction/verify/uploadField'
+    ) {
+      if (pathname === requiredInfoFailurePath) {
+        return new Response(
+          JSON.stringify({message: 'Document upload failed'}),
+          {
+            status: 400,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
+      }
+
+      return new Response(undefined, {status: 200});
+    }
+
+    if (pathname === '/interaction/verify/step2' && requiredInfoStep2Status) {
+      return new Response(JSON.stringify(requiredInfoFinalVerificationInfo), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    }
+
     if (pathname === '/interaction/source/bank-new/attach') {
       return new Response(
         JSON.stringify({
@@ -435,7 +468,7 @@ const completePayByBankFlow = async ({
             id: 'bank-new',
             tenderType: 'BankAccount',
             name: 'Operating account',
-            verificationInfo: resolvedVerificationInfo,
+            verificationInfo: requiredInfoFinalVerificationInfo,
             bankAccount: {
               bankName: 'Commerce National Bank',
               accountNumber: '9876543210',
@@ -446,7 +479,7 @@ const completePayByBankFlow = async ({
               id: 'bank-new',
               tenderType: 'BankAccount',
               name: 'Operating account',
-              verificationInfo: resolvedVerificationInfo,
+              verificationInfo: requiredInfoFinalVerificationInfo,
               bankAccount: {
                 bankName: 'Commerce National Bank',
                 accountNumber: '9876543210',
@@ -2872,10 +2905,16 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(
       el
         .shadowRoot!.querySelector(
-          '.primitive-footer [data-action="open-required-info-file-picker"]'
+          '.primitive-footer [data-action="submit-required-info"]'
         )
         ?.textContent?.trim(),
       'Verify'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '.primitive-footer [data-action="submit-required-info"]'
+      )?.disabled,
+      true
     );
     assert.equal(
       el
@@ -2924,6 +2963,151 @@ suite('commerce-hub-connect flow', () => {
         status: 'REQUIRE_INFO',
         docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
       }
+    );
+    assert.isUndefined(el.interactionResponse?.selectedSource);
+  });
+
+  test('Pay by Bank required-info Verify uploads selected documents, finalizes verification, and attaches verified sources', async () => {
+    const {el, requests, successEvents} = await completePayByBankFlow({
+      finalizedStatus: 'NOT_VERIFIED',
+      verificationStatus: 'REQUIRE_INFO',
+      verificationDocs: [
+        {docType: 'BANK_STATEMENT', mandatory: true},
+        {docType: 'DRIVER_LICENSE_PHOTO', mandatory: false},
+      ],
+      requiredInfoStep2Status: 'VERIFIED',
+    });
+
+    await selectRequiredInfoFile(el, 'may-bank-statement.pdf');
+    await clickAction(el, 'submit-required-info');
+    await waitForRequest(requests, '/interaction/source/bank-new/attach');
+
+    assert.deepEqual(
+      requests
+        .slice(3)
+        .map((request) => `${request.method} ${new URL(request.url).pathname}`),
+      [
+        'POST /interaction/doc/upload/bank-new/BANK_STATEMENT',
+        'POST /interaction/verify/step2',
+        'POST /interaction/source/bank-new/attach',
+      ]
+    );
+    assert.include(requests[3].headers.get('content-type') ?? '', 'multipart');
+    assert.equal(
+      requests[3].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.include(requests[3].bodyText, 'name="file"');
+    assert.include(requests[3].bodyText, 'filename="may-bank-statement.pdf"');
+    assert.equal(requests[4].bodyText, JSON.stringify({value: 'bank-new'}));
+    assert.equal(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
+      'VERIFIED'
+    );
+    assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-new');
+    assert.lengthOf(successEvents, 1);
+    assert.equal(successEvents[0].detail.id, 'bank-new');
+  });
+
+  test('Pay by Bank required-info Verify submits text documents through uploadField and shows under-review outcomes', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'NOT_VERIFIED',
+      verificationStatus: 'REQUIRE_INFO',
+      verificationDocs: [
+        {docType: 'DRIVER_LICENSE_NUMBER', mandatory: true},
+        {docType: 'SOCIAL_SECURITY_NUMBER', mandatory: true},
+      ],
+      requiredInfoStep2Status: 'UNDER_REVIEW',
+    });
+
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '.primitive-footer [data-action="submit-required-info"]'
+      )?.disabled,
+      true
+    );
+
+    await setRequiredInfoValue(el, 'Driver license number', 'D1234567');
+    await setRequiredInfoSsnSegments(el, ['123', '45', '6789']);
+    await clickAction(el, 'submit-required-info');
+    await waitForRequest(requests, '/interaction/verify/step2');
+
+    assert.deepEqual(
+      requests
+        .slice(3)
+        .map((request) => `${request.method} ${new URL(request.url).pathname}`),
+      [
+        'POST /interaction/verify/uploadField',
+        'POST /interaction/verify/uploadField',
+        'POST /interaction/verify/step2',
+      ]
+    );
+    assert.equal(
+      requests[3].bodyText,
+      JSON.stringify({
+        docType: 'DRIVER_LICENSE_NUMBER',
+        value: 'D1234567',
+        docValue: 'D1234567',
+      })
+    );
+    assert.equal(
+      requests[4].bodyText,
+      JSON.stringify({
+        docType: 'SOCIAL_SECURITY_NUMBER',
+        value: '123456789',
+        docValue: '123456789',
+      })
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank account pending review'
+    );
+    assert.equal(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
+      'UNDER_REVIEW'
+    );
+    assert.isFalse(
+      requests.some(
+        (request) =>
+          new URL(request.url).pathname ===
+          '/interaction/source/bank-new/attach'
+      )
+    );
+  });
+
+  test('Pay by Bank required-info upload failures stay on the form and show an inline error', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'NOT_VERIFIED',
+      verificationStatus: 'REQUIRE_INFO',
+      requiredInfoStep2Status: 'VERIFIED',
+      requiredInfoFailurePath:
+        '/interaction/doc/upload/bank-new/BANK_STATEMENT',
+    });
+
+    await selectRequiredInfoFile(el, 'may-bank-statement.pdf');
+    await clickAction(el, 'submit-required-info');
+    await waitFor(
+      () => Boolean(el.shadowRoot!.querySelector('.alert-danger')),
+      'upload error was not shown'
+    );
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Complete account verification'
+    );
+    assert.include(
+      el.shadowRoot!.querySelector('.alert-danger')?.textContent?.trim() ?? '',
+      'Document upload failed'
+    );
+    assert.deepEqual(
+      requests
+        .slice(3)
+        .map((request) => `${request.method} ${new URL(request.url).pathname}`),
+      ['POST /interaction/doc/upload/bank-new/BANK_STATEMENT']
+    );
+    assert.equal(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
+      'REQUIRE_INFO'
     );
     assert.isUndefined(el.interactionResponse?.selectedSource);
   });

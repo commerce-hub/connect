@@ -294,6 +294,14 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private requiredInfoValues: Record<string, string> = {};
 
+  @state()
+  private requiredInfoFileNames: Record<string, string> = {};
+
+  @state()
+  private requiredInfoSubmitError?: string;
+
+  private requiredInfoFiles: Record<string, File> = {};
+
   private pendingRequiredInfoDocKey?: string;
 
   private interactionRefreshInteractionId?: string;
@@ -664,6 +672,8 @@ export class CommerceHubConnect extends LitElement {
 
     const docs = requiredInfoDocs(source);
     const firstUploadDocKey = firstRequiredInfoUploadDocKey(docs);
+    const isSubmitting = this.pendingAction === 'submit-required-info';
+    const canSubmit = this.canSubmitRequiredInfo();
     const secondaryAction = isBankPaymentSource(source)
       ? {
           label: 'Use a different account',
@@ -697,12 +707,21 @@ export class CommerceHubConnect extends LitElement {
             </div>
           </div>
 
+          ${this.requiredInfoSubmitError
+            ? renderAlert({
+                variant: 'danger',
+                message: this.requiredInfoSubmitError,
+              })
+            : ''}
+
           <div class="required-info-documents">
             <p class="required-info-section-title">Required information</p>
             <div class="primitive-stack">
               ${docs.map((doc, index) => {
                 const key = requiredInfoDocKey(doc, index);
-                const currentValue = this.requiredInfoValues[key];
+                const currentValue = isRequiredInfoTextDoc(doc)
+                  ? this.requiredInfoValues[key]
+                  : this.requiredInfoFileNames[key];
 
                 if (isRequiredInfoTextDoc(doc)) {
                   return renderRequiredInfoTextField({
@@ -722,6 +741,7 @@ export class CommerceHubConnect extends LitElement {
                       requirements: requiredInfoDocLabel(doc),
                       actionLabel: currentValue ? 'Replace' : 'Choose file',
                       action: 'open-required-info-file-picker',
+                      disabled: isSubmitting,
                     })}
                     ${currentValue
                       ? html`
@@ -752,9 +772,10 @@ export class CommerceHubConnect extends LitElement {
             data-required-info-doc-key=${firstUploadDocKey ?? ''}
           >
             ${renderButton({
-              label: 'Verify',
-              action: 'open-required-info-file-picker',
-              disabled: !firstUploadDocKey,
+              label: isSubmitting ? 'Verifying...' : 'Verify',
+              action: 'submit-required-info',
+              loading: isSubmitting,
+              disabled: isSubmitting || !canSubmit,
             })}
             ${renderTextLinkButton(secondaryAction)}
           </div>
@@ -1227,6 +1248,11 @@ export class CommerceHubConnect extends LitElement {
       this.renderRoot
         .querySelector<HTMLInputElement>('.required-info-file-input')
         ?.click();
+      return;
+    }
+
+    if (action === 'submit-required-info') {
+      void this.submitRequiredInfo();
       return;
     }
 
@@ -2306,12 +2332,18 @@ export class CommerceHubConnect extends LitElement {
   private showRequiredInfoSource(source: PaymentSource) {
     this.requiredInfoSource = source;
     this.requiredInfoValues = {};
+    this.requiredInfoFileNames = {};
+    this.requiredInfoFiles = {};
+    this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
   }
 
   private resetRequiredInfo() {
     this.requiredInfoSource = undefined;
     this.requiredInfoValues = {};
+    this.requiredInfoFileNames = {};
+    this.requiredInfoFiles = {};
+    this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
   }
 
@@ -2328,6 +2360,7 @@ export class CommerceHubConnect extends LitElement {
       ...this.requiredInfoValues,
       [key]: value,
     };
+    this.requiredInfoSubmitError = undefined;
   }
 
   private storeRequiredInfoSelectedFile(file?: File) {
@@ -2341,11 +2374,192 @@ export class CommerceHubConnect extends LitElement {
     const key =
       this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
 
-    this.requiredInfoValues = {
-      ...this.requiredInfoValues,
+    this.requiredInfoFiles = {
+      ...this.requiredInfoFiles,
+      [key]: file,
+    };
+    this.requiredInfoFileNames = {
+      ...this.requiredInfoFileNames,
       [key]: file.name,
     };
+    this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
+  }
+
+  private canSubmitRequiredInfo(): boolean {
+    const source = this.requiredInfoSource;
+
+    if (!source?.id?.trim()) {
+      return false;
+    }
+
+    return requiredInfoDocs(source).every((doc, index) => {
+      if (!isRequiredInfoDocMandatory(doc)) {
+        return true;
+      }
+
+      const key = requiredInfoDocKey(doc, index);
+
+      if (isRequiredInfoTextDoc(doc)) {
+        return Boolean(this.requiredInfoValues[key]?.trim());
+      }
+
+      return Boolean(this.requiredInfoFiles[key]);
+    });
+  }
+
+  private async submitRequiredInfo() {
+    if (this.pendingAction === 'submit-required-info') {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+    const source = this.requiredInfoSource;
+    const sourceId = source?.id?.trim();
+
+    if (!interactionId || !source || !sourceId) {
+      return;
+    }
+
+    if (!this.canSubmitRequiredInfo()) {
+      this.requiredInfoSubmitError =
+        'Add all required information before verifying.';
+      return;
+    }
+
+    this.pendingAction = 'submit-required-info';
+    this.requiredInfoSubmitError = undefined;
+
+    try {
+      const docs = requiredInfoDocs(source);
+
+      for (const [index, doc] of docs.entries()) {
+        const key = requiredInfoDocKey(doc, index);
+        const docType = doc.docType;
+
+        if (!docType) {
+          continue;
+        }
+
+        if (isRequiredInfoTextDoc(doc)) {
+          const value = this.requiredInfoValues[key]?.trim();
+
+          if (value) {
+            await this.uploadRequiredInfoField(interactionId, docType, value);
+          }
+          continue;
+        }
+
+        const file = this.requiredInfoFiles[key];
+
+        if (file) {
+          await this.uploadRequiredInfoDocument(
+            interactionId,
+            sourceId,
+            docType,
+            file
+          );
+        }
+      }
+
+      const verificationResponse =
+        await this.requestCommerceHubJson<VerificationResponse>(
+          '/interaction/verify/step2',
+          interactionId,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({value: sourceId}),
+            credentials: 'include',
+          }
+        );
+      const verifiedSource = {
+        ...source,
+        verificationInfo: {
+          ...source.verificationInfo,
+          ...verificationResponse,
+        },
+      };
+      const nextInteractionResponse = withUpsertedSourcePreservingSelection(
+        {
+          ...(this.interactionResponse ?? {interactionId}),
+          selectedSource: this.interactionResponse?.selectedSource,
+          status: 'PAYMENT_SOURCE_REQUESTED',
+        },
+        verifiedSource
+      );
+
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
+
+      if (verifiedSource.verificationInfo?.status === 'VERIFIED') {
+        this.resetRequiredInfo();
+        this.pendingAction = undefined;
+        await this.attachPaymentSource(sourceId);
+        return;
+      }
+
+      if (requiresAdditionalVerificationInfo(verifiedSource)) {
+        this.requiredInfoSource = verifiedSource;
+        this.requiredInfoValues = {};
+        this.requiredInfoFileNames = {};
+        this.requiredInfoFiles = {};
+        return;
+      }
+
+      this.resetRequiredInfo();
+      this.savedSourceVerificationSource = verifiedSource;
+      this.savedSourceVerificationFailed = false;
+      this.selectedPaymentSourceId = verifiedSource.id;
+      this.paymentSourceView = 'list';
+    } catch (cause) {
+      this.requiredInfoSubmitError =
+        apiErrorMessage(cause) ||
+        'We could not submit the required information. Please try again.';
+    } finally {
+      if (this.pendingAction === 'submit-required-info') {
+        this.pendingAction = undefined;
+      }
+    }
+  }
+
+  private async uploadRequiredInfoField(
+    interactionId: string,
+    docType: NonNullable<RequiredInfoDoc['docType']>,
+    value: string
+  ) {
+    await this.requestCommerceHubJson<unknown>(
+      '/interaction/verify/uploadField',
+      interactionId,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({docType, value, docValue: value}),
+        credentials: 'include',
+      }
+    );
+  }
+
+  private async uploadRequiredInfoDocument(
+    interactionId: string,
+    sourceId: string,
+    docType: NonNullable<RequiredInfoDoc['docType']>,
+    file: File
+  ) {
+    const formData = new FormData();
+
+    formData.set('file', file);
+
+    await this.requestCommerceHubJson<unknown>(
+      `/interaction/doc/upload/${encodeURIComponent(
+        sourceId
+      )}/${encodeURIComponent(docType)}`,
+      interactionId,
+      {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      }
+    );
   }
 
   private async startPayByBankFlow() {
@@ -4196,6 +4410,9 @@ const requiredInfoDocKey = (doc?: RequiredInfoDoc, index = 0): string =>
 const isRequiredInfoTextDoc = (doc: RequiredInfoDoc): boolean =>
   doc.docType === 'DRIVER_LICENSE_NUMBER' ||
   doc.docType === 'SOCIAL_SECURITY_NUMBER';
+
+const isRequiredInfoDocMandatory = (doc: RequiredInfoDoc): boolean =>
+  doc.mandatory !== false;
 
 const firstRequiredInfoUploadDocKey = (
   docs: RequiredInfoDoc[]
