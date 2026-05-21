@@ -31,7 +31,11 @@ import {
   renderVerificationStatusBadge,
   renderWidgetShell,
 } from './internal/primitives.js';
-import type {FlowActionName, PaymentMethod} from './internal/types.js';
+import type {
+  FlowActionName,
+  PaymentMethod,
+  WidgetShellOptions,
+} from './internal/types.js';
 
 export {
   createCommerceHubClient,
@@ -63,6 +67,10 @@ type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
 };
+type BankAccountSourcePayload = Omit<BankPaymentSource, 'tenderType'> & {
+  tenderType: 'BANK_ACCOUNT';
+  bankAccount: NonNullable<BankPaymentSource['bankAccount']>;
+};
 type Address = components['schemas']['Address'];
 type BillingAddressResponse = components['schemas']['StringHolder'];
 type VerificationResponse = components['schemas']['VerificationResponse'];
@@ -83,7 +91,16 @@ type CardDraft = {
   state: string;
   zip: string;
 };
+type BankAccountDraft = {
+  routingNumber: string;
+  accountNumber: string;
+  accountNumberReEntered: string;
+};
 type SensitiveCardField = 'cardNumber' | 'cvv';
+type SensitiveBankAccountField =
+  | 'routingNumber'
+  | 'accountNumber'
+  | 'accountNumberReEntered';
 type CardEncryptionStatus =
   | 'idle'
   | 'dirty'
@@ -96,11 +113,19 @@ type CardFieldEncryptionState = {
   encryptedValue?: string;
 };
 type CardEncryptionState = Record<SensitiveCardField, CardFieldEncryptionState>;
+type BankAccountEncryptionState = Record<
+  SensitiveBankAccountField,
+  CardFieldEncryptionState
+>;
 type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
+type BankAccountDraftErrors = Partial<Record<keyof BankAccountDraft, string>>;
 type AllowedTenderOptions = {
   card: boolean;
   bankAccount: boolean;
 };
+type VerificationOverlayAction =
+  | 'verify-payment-source'
+  | 'submit-required-info';
 
 type PaymentSdkEvent = {
   type?: 'success' | 'failure' | 'cancel' | 'error' | string;
@@ -122,6 +147,7 @@ type PaymentSdkInitConfiguration = {
 };
 
 const OTP_LENGTH = 6;
+const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NEW_BILLING_ADDRESS_VALUE = '__new__';
 const BILLING_COUNTRY_OPTIONS = [
@@ -185,7 +211,6 @@ const BILLING_STATE_SELECT_OPTIONS = [
   {value: '', label: 'Select state'},
   ...BILLING_STATE_OPTIONS,
 ];
-
 const DEFAULT_PAY_BY_BANK_OPTIONS = {
   apiKey: 'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A',
   configId: 'cce84049-0940-4926-9a54-9eaca0c09830',
@@ -240,10 +265,13 @@ export class CommerceHubConnect extends LitElement {
   private pendingAction?: FlowActionName;
 
   @state()
+  private minimumVerificationOverlayAction?: VerificationOverlayAction;
+
+  @state()
   private otpErrorMessage?: string;
 
   @state()
-  private bankFlowScreen?: 'provider' | 'outcome';
+  private bankFlowScreen?: 'provider' | 'outcome' | 'manual';
 
   @state()
   private bankLinkLoading = false;
@@ -251,6 +279,19 @@ export class CommerceHubConnect extends LitElement {
   @state()
   @state()
   private bankOutcomeSource?: BankPaymentSource;
+
+  @state()
+  private bankAccountDraft: BankAccountDraft = createBankAccountDraft();
+
+  @state()
+  private bankAccountDraftErrors: BankAccountDraftErrors = {};
+
+  @state()
+  private bankAccountEncryption: BankAccountEncryptionState =
+    createBankAccountEncryptionState();
+
+  @state()
+  private bankAccountSubmitError?: string;
 
   @state()
   @state()
@@ -301,6 +342,7 @@ export class CommerceHubConnect extends LitElement {
 
   private interactionRefreshInteractionId?: string;
   private interactionRefreshPromise?: Promise<InteractionResponse>;
+  private minimumVerificationOverlayToken = 0;
 
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (
@@ -374,6 +416,33 @@ export class CommerceHubConnect extends LitElement {
     destroyPaymentSdk();
   }
 
+  private renderWidgetShell({
+    busy = false,
+    overlay,
+    ...options
+  }: WidgetShellOptions): TemplateResult {
+    const minimumOverlay = verificationActionLoadingOverlay(
+      this.minimumVerificationOverlayAction
+    );
+
+    return renderWidgetShell({
+      ...options,
+      busy: busy || Boolean(minimumOverlay),
+      overlay: overlay ?? minimumOverlay,
+    });
+  }
+
+  private showMinimumVerificationOverlay(action: VerificationOverlayAction) {
+    const overlayToken = (this.minimumVerificationOverlayToken += 1);
+
+    this.minimumVerificationOverlayAction = action;
+    window.setTimeout(() => {
+      if (this.minimumVerificationOverlayToken === overlayToken) {
+        this.minimumVerificationOverlayAction = undefined;
+      }
+    }, VERIFICATION_OVERLAY_MIN_DURATION_MS);
+  }
+
   private renderCurrentScreen(): TemplateResult {
     if (this.bankFlowScreen === 'provider') {
       return this.renderBankProviderScreen();
@@ -381,6 +450,10 @@ export class CommerceHubConnect extends LitElement {
 
     if (this.bankFlowScreen === 'outcome') {
       return this.renderBankOutcomeScreen();
+    }
+
+    if (this.bankFlowScreen === 'manual') {
+      return this.renderManualBankAccountScreen();
     }
 
     if (this.cardFlowScreen === 'form') {
@@ -420,7 +493,7 @@ export class CommerceHubConnect extends LitElement {
     const isResending = this.pendingAction === 'resend-otp';
     const destination = resolveOtpDestination(this.interactionResponse);
 
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle ?? defaultOtpSubtitle(destination),
       showClose: false,
@@ -504,7 +577,7 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceEditMode && paymentMethods.length > 0;
 
     if (this.shouldRenderPaymentSourceRefreshSkeleton()) {
-      return renderWidgetShell({
+      return this.renderWidgetShell({
         title: copy.title,
         showClose: false,
         content: html`
@@ -526,7 +599,7 @@ export class CommerceHubConnect extends LitElement {
       return this.renderSelectedPaymentSourceScreen();
     }
 
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: copy.title,
       headerAction: renderTextLinkButton({
         label: isEditingPaymentSources ? 'Done' : 'Edit',
@@ -595,7 +668,7 @@ export class CommerceHubConnect extends LitElement {
       return this.renderPaymentSourceScreen();
     }
 
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: 'Payment method saved',
       headerAction: renderTextLinkButton({
         label: 'Change',
@@ -662,7 +735,7 @@ export class CommerceHubConnect extends LitElement {
     const showHeaderBack =
       outcome.kind === 'declined' || outcome.kind === 'pending';
 
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: outcome.title,
       headerAction: showHeaderBack
         ? renderTextLinkButton({
@@ -706,7 +779,7 @@ export class CommerceHubConnect extends LitElement {
     const isSubmitting = this.pendingAction === 'submit-required-info';
     const canSubmit = this.canSubmitRequiredInfo();
 
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: 'Complete account verification',
       headerAction: renderTextLinkButton({
         label: 'Back',
@@ -814,7 +887,7 @@ export class CommerceHubConnect extends LitElement {
     const hasAddPaymentActions =
       allowedTenderOptions.card || allowedTenderOptions.bankAccount;
 
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
       showClose: false,
@@ -973,7 +1046,7 @@ export class CommerceHubConnect extends LitElement {
       );
     }
 
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: 'Add card',
       headerAction: renderTextLinkButton({
         label: 'Back',
@@ -1081,7 +1154,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderCardErrorScreen(): TemplateResult {
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: 'Credit card not saved',
       subtitle:
         'We could not save this card. Check the card details or use a different payment method.',
@@ -1107,7 +1180,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderBankProviderScreen(): TemplateResult {
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: 'Connect your bank',
       headerAction: renderTextLinkButton({
         label: 'Back',
@@ -1130,6 +1203,109 @@ export class CommerceHubConnect extends LitElement {
             loading: this.bankLinkLoading,
             loadingLabel: 'Connecting to your bank',
           })}
+          <div class="bank-provider-manual-link">
+            ${renderTextLinkButton({
+              label: 'Link Account Manually',
+              action: 'add-ach-manually',
+              disabled: this.bankLinkLoading,
+            })}
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  private renderManualBankAccountScreen(): TemplateResult {
+    const isSaving = this.pendingAction === 'save-ach-manual';
+
+    return this.renderWidgetShell({
+      title: 'Add ACH Manually',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-payment-methods',
+        disabled: isSaving,
+      }),
+      showClose: false,
+      showDivider: false,
+      busy: isSaving,
+      overlay: isSaving
+        ? renderWidgetLoadingOverlay({
+            title: 'Saving bank account',
+            helper: 'Securely saving your bank account, please wait.',
+          })
+        : undefined,
+      content: html`
+        <div class="payment-flow card-form-screen">
+          ${this.bankAccountSubmitError
+            ? renderAlert({
+                variant: 'danger',
+                message: this.bankAccountSubmitError,
+              })
+            : ''}
+          ${renderFormGrid([
+            renderTextField({
+              id: 'ach-routing-number',
+              name: 'routingNumber',
+              label: 'Routing number',
+              value: this.bankAccountDraft.routingNumber,
+              span: 'full',
+              variant: 'card-form',
+              autocomplete: 'off',
+              inputmode: 'numeric',
+              dataField: 'routingNumber',
+              dataFieldScope: 'bankAccount',
+              error: this.bankAccountDraftErrors.routingNumber,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'ach-account-number',
+              name: 'accountNumber',
+              label: 'Account number',
+              value: this.bankAccountDraft.accountNumber,
+              type: bankAccountInputType(
+                'accountNumber',
+                this.bankAccountDraft,
+                this.bankAccountEncryption
+              ),
+              span: 'full',
+              variant: 'card-form',
+              autocomplete: 'off',
+              inputmode: 'numeric',
+              dataField: 'accountNumber',
+              dataFieldScope: 'bankAccount',
+              error: this.bankAccountDraftErrors.accountNumber,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'ach-account-number-confirm',
+              name: 'accountNumberReEntered',
+              label: 'Confirm account number',
+              value: this.bankAccountDraft.accountNumberReEntered,
+              type: bankAccountInputType(
+                'accountNumberReEntered',
+                this.bankAccountDraft,
+                this.bankAccountEncryption
+              ),
+              span: 'full',
+              variant: 'card-form',
+              autocomplete: 'off',
+              inputmode: 'numeric',
+              dataField: 'accountNumberReEntered',
+              dataFieldScope: 'bankAccount',
+              error: this.bankAccountDraftErrors.accountNumberReEntered,
+              disabled: isSaving,
+            }),
+          ])}
+          <div class="primitive-footer card-form-primary">
+            <div class="card-form-primary">
+              ${renderButton({
+                label: isSaving ? 'Saving bank account' : 'Save bank account',
+                action: 'save-ach-manual',
+                loading: isSaving,
+                disabled: false,
+              })}
+            </div>
+          </div>
         </div>
       `,
     });
@@ -1140,7 +1316,7 @@ export class CommerceHubConnect extends LitElement {
     const showHeaderDone =
       outcome.kind === 'declined' || outcome.kind === 'pending';
 
-    return renderWidgetShell({
+    return this.renderWidgetShell({
       title: outcome.title,
       headerAction: showHeaderDone
         ? renderTextLinkButton({
@@ -1283,6 +1459,15 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'add-ach-manually') {
+      this.paymentSourceEditMode = false;
+      this.paymentSourceView = 'list';
+      this.resetCardFlow();
+      this.resetRequiredInfo();
+      this.showManualBankAccountScreen();
+      return;
+    }
+
     if (action === 'back-to-payment-methods') {
       this.resetCardFlow();
       this.resetBankFlow();
@@ -1307,6 +1492,11 @@ export class CommerceHubConnect extends LitElement {
 
     if (action === 'save-card') {
       void this.saveCard();
+      return;
+    }
+
+    if (action === 'save-ach-manual') {
+      void this.saveManualBankAccount();
       return;
     }
 
@@ -1342,6 +1532,22 @@ export class CommerceHubConnect extends LitElement {
       this.updateCardDraftField(
         cardInput.dataset.cardField as keyof CardDraft,
         cardInput.value
+      );
+      return;
+    }
+
+    const bankAccountInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          Boolean(item.dataset.bankAccountField)
+      );
+
+    if (bankAccountInput) {
+      this.updateBankAccountDraftField(
+        bankAccountInput.dataset.bankAccountField as keyof BankAccountDraft,
+        bankAccountInput.value
       );
       return;
     }
@@ -1480,13 +1686,29 @@ export class CommerceHubConnect extends LitElement {
           item instanceof HTMLSelectElement && Boolean(item.dataset.cardField)
       );
 
-    if (!cardSelect) {
+    if (cardSelect) {
+      this.updateCardDraftField(
+        cardSelect.dataset.cardField as keyof CardDraft,
+        cardSelect.value
+      );
       return;
     }
 
-    this.updateCardDraftField(
-      cardSelect.dataset.cardField as keyof CardDraft,
-      cardSelect.value
+    const bankAccountSelect = event
+      .composedPath()
+      .find(
+        (item): item is HTMLSelectElement =>
+          item instanceof HTMLSelectElement &&
+          Boolean(item.dataset.bankAccountField)
+      );
+
+    if (!bankAccountSelect) {
+      return;
+    }
+
+    this.updateBankAccountDraftField(
+      bankAccountSelect.dataset.bankAccountField as keyof BankAccountDraft,
+      bankAccountSelect.value
     );
   };
 
@@ -1548,7 +1770,7 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleFocusLost = (event: Event) => {
-    const input = event
+    const cardInput = event
       .composedPath()
       .find(
         (item): item is HTMLInputElement =>
@@ -1556,13 +1778,29 @@ export class CommerceHubConnect extends LitElement {
           isSensitiveCardField(item.dataset.cardField)
       );
 
-    if (!input) {
+    if (cardInput) {
+      void this.encryptCardField(
+        cardInput.dataset.cardField as SensitiveCardField,
+        cardInput.value
+      );
       return;
     }
 
-    void this.encryptCardField(
-      input.dataset.cardField as SensitiveCardField,
-      input.value
+    const bankAccountInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          isSensitiveBankAccountField(item.dataset.bankAccountField)
+      );
+
+    if (!bankAccountInput) {
+      return;
+    }
+
+    void this.encryptBankAccountField(
+      bankAccountInput.dataset.bankAccountField as SensitiveBankAccountField,
+      bankAccountInput.value
     );
   };
 
@@ -1773,6 +2011,62 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
+  private showManualBankAccountScreen() {
+    this.resetBankFlow();
+    this.bankFlowScreen = 'manual';
+    this.bankAccountDraft = createBankAccountDraft();
+    this.bankAccountDraftErrors = {};
+    this.bankAccountEncryption = createBankAccountEncryptionState();
+    this.bankAccountSubmitError = undefined;
+  }
+
+  private updateBankAccountDraftField(
+    field: keyof BankAccountDraft,
+    value: string
+  ) {
+    if (
+      isSensitiveBankAccountField(field) &&
+      isEncryptedBankAccountDisplayValue(
+        value,
+        this.bankAccountEncryption[field]
+      )
+    ) {
+      this.bankAccountDraft = {
+        ...this.bankAccountDraft,
+        [field]: value,
+      };
+      this.bankAccountSubmitError = undefined;
+      return;
+    }
+
+    const formattedValue = formatBankAccountDraftFieldValue(field, value);
+
+    this.bankAccountDraft = {
+      ...this.bankAccountDraft,
+      [field]: formattedValue,
+    };
+    this.bankAccountSubmitError = undefined;
+
+    if (isSensitiveBankAccountField(field)) {
+      if (
+        isEncryptedBankAccountDisplayValue(
+          formattedValue,
+          this.bankAccountEncryption[field]
+        )
+      ) {
+        return;
+      }
+
+      this.bankAccountEncryption = {
+        ...this.bankAccountEncryption,
+        [field]: resolveDirtyCardEncryptionState(
+          this.bankAccountEncryption[field],
+          normalizeBankAccountNumber(formattedValue)
+        ),
+      };
+    }
+  }
+
   private updateCardDraftField(field: keyof CardDraft, value: string) {
     const formattedValue = formatCardDraftFieldValue(field, value);
 
@@ -1892,6 +2186,110 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
+  private async encryptBankAccountField(
+    field: SensitiveBankAccountField,
+    value: string
+  ): Promise<void> {
+    const currentFieldState = this.bankAccountEncryption[field];
+
+    if (isEncryptedBankAccountDisplayValue(value, currentFieldState)) {
+      this.bankAccountDraft = {
+        ...this.bankAccountDraft,
+        [field]: value,
+      };
+      this.bankAccountSubmitError = undefined;
+      return;
+    }
+
+    this.updateBankAccountDraftField(field, value);
+
+    const normalizedValue = normalizeBankAccountNumber(value);
+
+    if (!normalizedValue) {
+      this.bankAccountDraftErrors = omitBankAccountDraftError(
+        this.bankAccountDraftErrors,
+        field
+      );
+      this.bankAccountEncryption = {
+        ...this.bankAccountEncryption,
+        [field]: createCardEncryptionFieldState(),
+      };
+      return;
+    }
+
+    if (
+      (currentFieldState.status === 'encrypting' ||
+        currentFieldState.status === 'encrypted') &&
+      currentFieldState.normalizedValue === normalizedValue
+    ) {
+      return;
+    }
+
+    this.bankAccountDraftErrors = omitBankAccountDraftError(
+      this.bankAccountDraftErrors,
+      field
+    );
+    this.bankAccountEncryption = {
+      ...this.bankAccountEncryption,
+      [field]: {
+        status: 'encrypting',
+        normalizedValue,
+      },
+    };
+
+    try {
+      const encryptedValue = await this.maskSensitiveBankAccountValue(
+        field,
+        normalizedValue
+      );
+
+      if (
+        normalizeBankAccountNumber(this.bankAccountDraft[field]) !==
+        normalizedValue
+      ) {
+        return;
+      }
+
+      this.bankAccountDraftErrors = omitBankAccountDraftError(
+        this.bankAccountDraftErrors,
+        field
+      );
+      this.bankAccountDraft = {
+        ...this.bankAccountDraft,
+        [field]: maskSensitiveDisplayValue(normalizedValue),
+      };
+      this.bankAccountEncryption = {
+        ...this.bankAccountEncryption,
+        [field]: {
+          status: 'encrypted',
+          normalizedValue,
+          encryptedValue,
+        },
+      };
+    } catch (cause) {
+      void cause;
+
+      if (
+        normalizeBankAccountNumber(this.bankAccountDraft[field]) !==
+        normalizedValue
+      ) {
+        return;
+      }
+
+      this.bankAccountDraftErrors = {
+        ...omitBankAccountDraftError(this.bankAccountDraftErrors, field),
+        [field]: buildBankAccountEncryptionErrorMessage(field),
+      };
+      this.bankAccountEncryption = {
+        ...this.bankAccountEncryption,
+        [field]: {
+          status: 'failed',
+          normalizedValue,
+        },
+      };
+    }
+  }
+
   private async maskSensitiveCardValue(
     field: SensitiveCardField,
     value: string
@@ -1917,6 +2315,36 @@ export class CommerceHubConnect extends LitElement {
 
     if (!encryptedValue) {
       throw new Error('The card encryption response did not include a value.');
+    }
+
+    return encryptedValue;
+  }
+
+  private async maskSensitiveBankAccountValue(
+    field: SensitiveBankAccountField,
+    value: string
+  ): Promise<string> {
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId) {
+      throw new Error('An interaction id is required to encrypt ACH details.');
+    }
+
+    const type = field === 'routingNumber' ? 'rt' : 'bn';
+    const response = await this.requestCommerceHubJson<{value?: string}>(
+      `/interaction/source/mask/${type}`,
+      interactionId,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({value}),
+        credentials: 'include',
+      }
+    );
+    const encryptedValue = response.value?.trim();
+
+    if (!encryptedValue) {
+      throw new Error('The ACH encryption response did not include a value.');
     }
 
     return encryptedValue;
@@ -2001,7 +2429,7 @@ export class CommerceHubConnect extends LitElement {
             body: JSON.stringify(cardSource),
             credentials: 'include',
           }
-      );
+        );
       const createdSource = this.sourceWithVerificationResponse(
         cardPaymentSourceFromPayload(cardSource, normalizedDraft.cardNumber),
         verificationResponse
@@ -2033,6 +2461,134 @@ export class CommerceHubConnect extends LitElement {
       this.cardFlowScreen = 'error';
     } finally {
       this.pendingAction = undefined;
+    }
+  }
+
+  private async saveManualBankAccount() {
+    if (this.pendingAction === 'save-ach-manual') {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId) {
+      return;
+    }
+
+    this.pendingAction = 'save-ach-manual';
+    this.bankAccountDraftErrors = {};
+    this.bankAccountSubmitError = undefined;
+
+    try {
+      await this.encryptChangedBankAccountFields();
+
+      const normalizedDraft = normalizeBankAccountDraft(this.bankAccountDraft);
+      const encryptedRoutingNumber = resolveBankAccountPayloadFieldValue(
+        'routingNumber',
+        this.bankAccountDraft,
+        this.bankAccountEncryption
+      );
+      const encryptedAccountNumber = resolveBankAccountPayloadFieldValue(
+        'accountNumber',
+        this.bankAccountDraft,
+        this.bankAccountEncryption
+      );
+      const encryptedAccountNumberReEntered =
+        resolveBankAccountPayloadFieldValue(
+          'accountNumberReEntered',
+          this.bankAccountDraft,
+          this.bankAccountEncryption
+        );
+      const displayAccountNumber = bankAccountFieldLastFour(
+        'accountNumber',
+        this.bankAccountEncryption,
+        normalizedDraft
+      );
+      const bankAccountSource: BankAccountSourcePayload = {
+        id: '',
+        tenderType: 'BANK_ACCOUNT',
+        bankAccount: {
+          routingNumber: encryptedRoutingNumber,
+          accountNumber: encryptedAccountNumber,
+          accountNumberReEntered: encryptedAccountNumberReEntered,
+          routingNumberEncrypted: encryptedRoutingNumber,
+          accountNumberEncrypted: encryptedAccountNumber,
+        },
+      };
+      const verificationResponse =
+        await this.requestCommerceHubJson<VerificationResponse>(
+          '/interaction/source/ach',
+          interactionId,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(bankAccountSource),
+            credentials: 'include',
+          }
+        );
+      const createdSource = this.sourceWithVerificationResponse(
+        bankPaymentSourceFromPayload(
+          bankAccountSource,
+          displayAccountNumber
+        ),
+        verificationResponse
+      ) as BankPaymentSource & {id: string};
+      const paymentSourceId = sourceIdFromVerificationResponse(
+        verificationResponse,
+        'The bank account creation response did not include a source id.'
+      );
+      const nextInteractionResponse = this.interactionResponseWithAddedSource(
+        interactionId,
+        createdSource
+      );
+
+      this.bankFlowScreen = undefined;
+      this.bankAccountDraft = createBankAccountDraft();
+      this.bankAccountDraftErrors = {};
+      this.bankAccountEncryption = createBankAccountEncryptionState();
+      this.bankAccountSubmitError = undefined;
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
+
+      if (createdSource.verificationInfo?.status === 'VERIFIED') {
+        await this.attachPaymentSource(paymentSourceId);
+        return;
+      }
+
+      this.showAddedPaymentSourceStatus(createdSource);
+    } catch (cause) {
+      this.bankAccountSubmitError = apiErrorMessage(cause);
+    } finally {
+      this.pendingAction = undefined;
+    }
+  }
+
+  private async encryptChangedBankAccountFields(): Promise<void> {
+    for (const field of [
+      'routingNumber',
+      'accountNumber',
+      'accountNumberReEntered',
+    ] as const) {
+      const value = this.bankAccountDraft[field];
+      const encryptedField = this.bankAccountEncryption[field];
+
+      if (isEncryptedBankAccountDisplayValue(value, encryptedField)) {
+        continue;
+      }
+
+      const normalizedValue = normalizeBankAccountNumber(value);
+
+      if (!normalizedValue) {
+        continue;
+      }
+
+      const isAlreadyEncrypted =
+        encryptedField.status === 'encrypted' &&
+        encryptedField.normalizedValue === normalizedValue &&
+        Boolean(encryptedField.encryptedValue);
+
+      if (!isAlreadyEncrypted) {
+        await this.encryptBankAccountField(field, value);
+      }
     }
   }
 
@@ -2666,6 +3222,8 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string,
     sourceId: string
   ): Promise<VerificationResponse> {
+    this.showMinimumVerificationOverlay('submit-required-info');
+
     return this.requestCommerceHubJson<VerificationResponse>(
       '/interaction/verify/step2',
       interactionId,
@@ -2826,9 +3384,8 @@ export class CommerceHubConnect extends LitElement {
               aggregatorSessionId,
               pToken
             );
-            const resolvedBankSource = bankPaymentSourceFromVerificationResponse(
-              verificationResponse
-            );
+            const resolvedBankSource =
+              bankPaymentSourceFromVerificationResponse(verificationResponse);
             const paymentSourceId = resolvedBankSource.id?.trim();
 
             if (!paymentSourceId) {
@@ -2836,10 +3393,11 @@ export class CommerceHubConnect extends LitElement {
                 'Connect your bank completed but the resolved bank payment source did not include an id.'
               );
             }
-            const nextInteractionResponse = this.interactionResponseWithAddedSource(
-              interactionId,
-              resolvedBankSource
-            );
+            const nextInteractionResponse =
+              this.interactionResponseWithAddedSource(
+                interactionId,
+                resolvedBankSource
+              );
 
             this.setInteractionResponseFromSdk(nextInteractionResponse);
             this.resetBankFlow();
@@ -2966,6 +3524,8 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string,
     source: PaymentSource
   ): Promise<PaymentSource> {
+    this.showMinimumVerificationOverlay('verify-payment-source');
+
     const verificationResponse =
       await this.requestCommerceHubJson<VerificationResponse>(
         '/interaction/verify/step1',
@@ -3018,6 +3578,10 @@ export class CommerceHubConnect extends LitElement {
     this.bankFlowScreen = undefined;
     this.bankOutcomeSource = undefined;
     this.bankLinkLoading = false;
+    this.bankAccountDraft = createBankAccountDraft();
+    this.bankAccountDraftErrors = {};
+    this.bankAccountEncryption = createBankAccountEncryptionState();
+    this.bankAccountSubmitError = undefined;
     this.removePayByBankProviderContainer();
   }
 
@@ -3263,6 +3827,12 @@ const createCardDraft = (): CardDraft => ({
   zip: '',
 });
 
+const createBankAccountDraft = (): BankAccountDraft => ({
+  routingNumber: '',
+  accountNumber: '',
+  accountNumberReEntered: '',
+});
+
 const createCardEncryptionFieldState = (): CardFieldEncryptionState => ({
   status: 'idle',
   normalizedValue: '',
@@ -3271,6 +3841,12 @@ const createCardEncryptionFieldState = (): CardFieldEncryptionState => ({
 const createCardEncryptionState = (): CardEncryptionState => ({
   cardNumber: createCardEncryptionFieldState(),
   cvv: createCardEncryptionFieldState(),
+});
+
+const createBankAccountEncryptionState = (): BankAccountEncryptionState => ({
+  routingNumber: createCardEncryptionFieldState(),
+  accountNumber: createCardEncryptionFieldState(),
+  accountNumberReEntered: createCardEncryptionFieldState(),
 });
 
 const sanitizeOtpValue = (value: string): string => value.replace(/\D/g, '');
@@ -3309,6 +3885,13 @@ const requiredInfoSsnInputMaxLength = (input: HTMLInputElement): number => {
 
 const isSensitiveCardField = (field?: string): field is SensitiveCardField =>
   field === 'cardNumber' || field === 'cvv';
+
+const isSensitiveBankAccountField = (
+  field?: string
+): field is SensitiveBankAccountField =>
+  field === 'routingNumber' ||
+  field === 'accountNumber' ||
+  field === 'accountNumberReEntered';
 
 const normalizeCardNumber = (value: string): string => value.replace(/\D/g, '');
 
@@ -3403,6 +3986,64 @@ const normalizeCardDraft = (draft: CardDraft): CardDraft => ({
   zip: draft.zip.trim(),
 });
 
+const normalizeBankAccountNumber = (value: string): string =>
+  value.replace(/\D/g, '');
+
+const isEncryptedBankAccountDisplayValue = (
+  value: string,
+  encryptedField: CardFieldEncryptionState
+): boolean =>
+  encryptedField.status === 'encrypted' &&
+  Boolean(encryptedField.normalizedValue) &&
+  value === maskSensitiveDisplayValue(encryptedField.normalizedValue);
+
+const maskSensitiveDisplayValue = (value: string): string => {
+  if (value.length <= 4) {
+    return value;
+  }
+
+  return `${'•'.repeat(value.length - 4)}${lastFour(value)}`;
+};
+
+const bankAccountInputType = (
+  field: SensitiveBankAccountField,
+  draft: BankAccountDraft,
+  encryption: BankAccountEncryptionState
+): 'password' | 'text' => {
+  if (field === 'routingNumber') {
+    return 'text';
+  }
+
+  return isEncryptedBankAccountDisplayValue(draft[field], encryption[field])
+    ? 'text'
+    : 'password';
+};
+
+const formatBankAccountDraftFieldValue = (
+  field: keyof BankAccountDraft,
+  value: string
+): string => {
+  if (field === 'routingNumber') {
+    return normalizeBankAccountNumber(value).slice(0, 9);
+  }
+
+  if (field === 'accountNumber' || field === 'accountNumberReEntered') {
+    return normalizeBankAccountNumber(value).slice(0, 17);
+  }
+
+  return value;
+};
+
+const normalizeBankAccountDraft = (
+  draft: BankAccountDraft
+): BankAccountDraft => ({
+  routingNumber: normalizeBankAccountNumber(draft.routingNumber),
+  accountNumber: normalizeBankAccountNumber(draft.accountNumber),
+  accountNumberReEntered: normalizeBankAccountNumber(
+    draft.accountNumberReEntered
+  ),
+});
+
 const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
   const errors: CardDraftErrors = {};
 
@@ -3478,6 +4119,13 @@ const buildCardEncryptionErrorMessage = (field: SensitiveCardField): string =>
     ? 'Unable to encrypt the card number. Try again.'
     : 'Unable to encrypt the CVC. Try again.';
 
+const buildBankAccountEncryptionErrorMessage = (
+  field: SensitiveBankAccountField
+): string =>
+  field === 'routingNumber'
+    ? 'Unable to encrypt the routing number. Try again.'
+    : 'Unable to encrypt the account number. Try again.';
+
 const resolveDirtyCardEncryptionState = (
   previous: CardFieldEncryptionState,
   normalizedValue: string
@@ -3503,6 +4151,17 @@ const omitCardDraftError = (
   errors: CardDraftErrors,
   field: keyof CardDraft
 ): CardDraftErrors => {
+  const nextErrors = {...errors};
+
+  delete nextErrors[field];
+
+  return nextErrors;
+};
+
+const omitBankAccountDraftError = (
+  errors: BankAccountDraftErrors,
+  field: keyof BankAccountDraft
+): BankAccountDraftErrors => {
   const nextErrors = {...errors};
 
   delete nextErrors[field];
@@ -3567,6 +4226,39 @@ const resolveEncryptedCardFieldValue = (
 
   return encryptedField.encryptedValue;
 };
+
+const resolveBankAccountPayloadFieldValue = (
+  field: SensitiveBankAccountField,
+  draft: BankAccountDraft,
+  encryption: BankAccountEncryptionState
+): string => {
+  const value = draft[field];
+  const normalizedValue = normalizeBankAccountNumber(value);
+  const encryptedField = encryption[field];
+  const matchesEncryptedValue =
+    isEncryptedBankAccountDisplayValue(value, encryptedField) ||
+    normalizedValue === encryptedField.normalizedValue;
+
+  if (
+    encryptedField.status === 'encrypted' &&
+    encryptedField.encryptedValue &&
+    matchesEncryptedValue
+  ) {
+    return encryptedField.encryptedValue;
+  }
+
+  if (!normalizedValue) {
+    return '';
+  }
+
+  throw new Error('ACH detail encryption must complete before saving.');
+};
+
+const bankAccountFieldLastFour = (
+  field: SensitiveBankAccountField,
+  encryption: BankAccountEncryptionState,
+  draft: BankAccountDraft
+): string => lastFour(encryption[field].normalizedValue || draft[field]);
 
 const isValidCardNumber = (value: string): boolean => {
   const digits = normalizeCardNumber(value);
@@ -3734,6 +4426,24 @@ const cardPaymentSourceFromPayload = (
   };
 };
 
+const bankPaymentSourceFromPayload = (
+  source: BankAccountSourcePayload,
+  displayAccountNumber?: string
+): BankPaymentSource => {
+  const displayLast4 = normalizeBankAccountNumber(
+    displayAccountNumber ?? ''
+  ).slice(-4);
+
+  return {
+    ...source,
+    tenderType: 'BankAccount',
+    bankAccount: {
+      ...source.bankAccount,
+      ...(displayLast4 ? {accountNumber: displayLast4} : {}),
+    },
+  };
+};
+
 const bankPaymentSourceFromVerificationResponse = (
   response: VerificationResponse
 ): BankPaymentSource & {id: string} => ({
@@ -3813,7 +4523,7 @@ const resolvePaymentMethodsCopy = (
     subtitle: copy?.subtitle ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
-    addCardTitle: copy?.addCardTitle ?? 'Add a credit or debit card',
+    addCardTitle: copy?.addCardTitle ?? 'Add credit or debit card',
     addCardSubtitle: copy?.addCardSubtitle ?? '',
     continueButton: copy?.continueButton ?? 'Confirm',
     continuingButton: copy?.continuingButton ?? 'Confirming...',
@@ -3832,7 +4542,7 @@ const resolveNoSavedPaymentMethodsCopy = (
     emptyMessage: copy?.emptyMessage ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
-    addCardTitle: copy?.addCardTitle ?? 'Add a credit or debit card',
+    addCardTitle: copy?.addCardTitle ?? 'Add credit or debit card',
     addCardSubtitle: copy?.addCardSubtitle ?? '',
   };
 };
@@ -4281,10 +4991,11 @@ const renderWidgetLoadingOverlay = ({
   helper,
 }: WidgetLoadingOverlayCopy): TemplateResult => html`
   <div class="widget-loading-status" role="status" aria-live="polite">
-    <span
-      class="loading-spinner loading-spinner-small"
-      aria-hidden="true"
-    ></span>
+    <span class="widget-loading-animation" aria-hidden="true">
+      <span class="widget-loading-animation-dot"></span>
+      <span class="widget-loading-animation-dot"></span>
+      <span class="widget-loading-animation-dot"></span>
+    </span>
     <span class="widget-loading-copy">
       <span class="widget-loading-title">${title}</span>
       <span class="widget-loading-helper">${helper}</span>
@@ -4292,14 +5003,31 @@ const renderWidgetLoadingOverlay = ({
   </div>
 `;
 
-const paymentSourceActionLoadingOverlay = (
-  action?: FlowActionName
+const verificationActionLoadingOverlay = (
+  action?: VerificationOverlayAction
 ): TemplateResult | undefined => {
   if (action === 'verify-payment-source') {
     return renderWidgetLoadingOverlay({
       title: 'Verifying payment method',
       helper: 'Verifying your payment method, please wait.',
     });
+  }
+
+  if (action === 'submit-required-info') {
+    return renderWidgetLoadingOverlay({
+      title: 'Verifying account',
+      helper: 'Reviewing your verification information, please wait.',
+    });
+  }
+
+  return undefined;
+};
+
+const paymentSourceActionLoadingOverlay = (
+  action?: FlowActionName
+): TemplateResult | undefined => {
+  if (action === 'verify-payment-source') {
+    return verificationActionLoadingOverlay(action);
   }
 
   if (action === 'delete-payment-source') {

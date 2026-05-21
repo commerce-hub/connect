@@ -1414,6 +1414,11 @@ export const primitiveStyles = css`
     gap: 0.875rem;
   }
 
+  .bank-provider-manual-link {
+    display: flex;
+    justify-content: center;
+  }
+
   .verification-outcome-flow {
     display: grid;
     gap: 0.75rem;
@@ -1481,6 +1486,30 @@ export const primitiveStyles = css`
     justify-items: center;
     gap: 0.75rem;
     padding: 1rem;
+  }
+
+  .widget-loading-animation {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 1rem;
+  }
+
+  .widget-loading-animation-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999rem;
+    background: var(--chc-primary);
+    animation: chc-loading-dot 900ms var(--chc-ease-standard) infinite;
+  }
+
+  .widget-loading-animation-dot:nth-child(2) {
+    animation-delay: 150ms;
+  }
+
+  .widget-loading-animation-dot:nth-child(3) {
+    animation-delay: 300ms;
   }
 
   .widget-loading-copy {
@@ -1699,6 +1728,20 @@ export const primitiveStyles = css`
     }
   }
 
+  @keyframes chc-loading-dot {
+    0%,
+    80%,
+    100% {
+      opacity: 0.42;
+      transform: translateY(0);
+    }
+
+    40% {
+      opacity: 1;
+      transform: translateY(-0.25rem);
+    }
+  }
+
   .powered-by-footer {
     display: flex;
     justify-content: center;
@@ -1774,6 +1817,7 @@ export const primitiveStyles = css`
     .loading-spinner,
     .button-spinner,
     .otp-resend-spinner,
+    .widget-loading-animation-dot,
     .payment-method-skeleton-icon,
     .payment-method-skeleton-line,
     .payment-method-skeleton-trailing {

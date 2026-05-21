@@ -233,6 +233,7 @@ export const renderTextField = ({
   inputmode,
   disabled = false,
   dataField,
+  dataFieldScope = 'card',
   error,
 }: TextFieldOptions): TemplateResult => {
   const fieldClasses = joinClassNames(
@@ -259,7 +260,12 @@ export const renderTextField = ({
       placeholder=${ifDefined(placeholder)}
       autocomplete=${ifDefined(autocomplete)}
       inputmode=${ifDefined(inputmode)}
-      data-card-field=${ifDefined(dataField)}
+      data-card-field=${ifDefined(
+        dataFieldScope === 'card' ? dataField : undefined
+      )}
+      data-bank-account-field=${ifDefined(
+        dataFieldScope === 'bankAccount' ? dataField : undefined
+      )}
       aria-invalid=${error ? 'true' : 'false'}
       aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
       ?disabled=${disabled}
@@ -291,6 +297,7 @@ export const renderSelectField = ({
   variant = 'default',
   disabled = false,
   dataField,
+  dataFieldScope = 'card',
   error,
 }: SelectFieldOptions): TemplateResult => {
   const fieldClasses = joinClassNames(
@@ -315,7 +322,12 @@ export const renderSelectField = ({
       id=${id}
       name=${ifDefined(name)}
       .value=${value}
-      data-card-field=${ifDefined(dataField)}
+      data-card-field=${ifDefined(
+        dataFieldScope === 'card' ? dataField : undefined
+      )}
+      data-bank-account-field=${ifDefined(
+        dataFieldScope === 'bankAccount' ? dataField : undefined
+      )}
       aria-invalid=${error ? 'true' : 'false'}
       aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
       ?disabled=${disabled}

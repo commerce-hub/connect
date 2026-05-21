@@ -175,6 +175,9 @@ suite('commerce-hub-connect payment selection', () => {
     assert.exists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
     );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
+    );
   });
 
   test('filters empty-state add actions by allowed tender types', async () => {
@@ -192,6 +195,9 @@ suite('commerce-hub-connect payment selection', () => {
     assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
     );
   });
 

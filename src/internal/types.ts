@@ -18,7 +18,9 @@ export type FlowActionName =
   | 'open-required-info-file-picker'
   | 'submit-required-info'
   | 'add-bank-account'
+  | 'add-ach-manually'
   | 'add-card'
+  | 'save-ach-manual'
   | 'save-card'
   | 'use-bank-account-instead'
   | 'edit-card-details'
@@ -84,6 +86,7 @@ export interface TextFieldOptions {
   inputmode?: TextFieldInputMode;
   disabled?: boolean;
   dataField?: string;
+  dataFieldScope?: 'card' | 'bankAccount';
   error?: string;
 }
 
@@ -102,6 +105,7 @@ export interface SelectFieldOptions {
   variant?: FieldVariant;
   disabled?: boolean;
   dataField?: string;
+  dataFieldScope?: 'card' | 'bankAccount';
   error?: string;
 }
 

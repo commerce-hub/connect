@@ -638,10 +638,11 @@ suite('commerce-hub-connect primitives', () => {
         busy: true,
         overlay: html`
           <div class="widget-loading-status" role="status" aria-live="polite">
-            <span
-              class="loading-spinner loading-spinner-small"
-              aria-hidden="true"
-            ></span>
+            <span class="widget-loading-animation" aria-hidden="true">
+              <span class="widget-loading-animation-dot"></span>
+              <span class="widget-loading-animation-dot"></span>
+              <span class="widget-loading-animation-dot"></span>
+            </span>
             <span class="widget-loading-copy">
               <span class="widget-loading-title">Saving payment method</span>
               <span class="widget-loading-helper"
@@ -665,6 +666,10 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(
       root.querySelector('.widget-loading-status')?.getAttribute('role'),
       'status'
+    );
+    assert.exists(root.querySelector('.widget-loading-animation'));
+    assert.notExists(
+      root.querySelector('.widget-loading-overlay .loading-spinner')
     );
   });
 
@@ -729,6 +734,7 @@ suite('commerce-hub-connect primitives', () => {
       '--chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1)'
     );
     assert.include(primitiveStyles.cssText, '@keyframes chc-spinner-rotate');
+    assert.include(primitiveStyles.cssText, '@keyframes chc-loading-dot');
     assert.include(primitiveStyles.cssText, 'animation: none');
     assert.include(primitiveStyles.cssText, 'transform: none');
   });
