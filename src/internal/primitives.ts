@@ -38,7 +38,7 @@ const normalizeCopyValue = (value?: string): string | undefined => {
   return normalized ? normalized : undefined;
 };
 
-const paymentMethodAccountLabel = ({
+const paymentMethodFallbackAccountLabel = ({
   label,
   brand,
   last4,
@@ -74,14 +74,14 @@ const paymentMethodStatusPresentation = (
   }
 
   if (status === 'require-info') {
-    return {label: 'More information needed', tone: 'warning'};
+    return {label: 'Need More Information', tone: 'warning'};
   }
 
   if (status === 'declined') {
-    return {label: 'Declined', tone: 'danger'};
+    return {label: "Can't Use", tone: 'danger'};
   }
 
-  return {label: 'Not verified yet', tone: 'danger'};
+  return {label: 'Action Required', tone: 'warning'};
 };
 
 export const renderVerificationStatusBadge = (
@@ -99,48 +99,55 @@ export const renderVerificationStatusBadge = (
   `;
 };
 
-const paymentMethodStatusIconTone = (
+const isPaymentMethodStatusClickable = (
   status: PaymentMethod['status']
-): 'warning' | 'danger' => (status === 'declined' ? 'danger' : 'warning');
+): boolean =>
+  status === 'verified' ||
+  status === 'require-info' ||
+  status === 'not-verified';
 
-const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => html`
-  <span class="payment-method-copy">
-    <span class="payment-method-title-row">
-      <span class="payment-method-title">${method.label}</span>
-    </span>
-    <span class="payment-method-meta-row">
-      <span class="payment-method-meta"
-        >${paymentMethodAccountLabel(method)}</span
-      >
-    </span>
-  </span>
-`;
+const isPaymentMethodRowClickable = (method: PaymentMethod): boolean =>
+  isPaymentMethodStatusClickable(method.status);
 
-const renderPaymentMethodSpacer = (): TemplateResult => html`
-  <span class="payment-method-row-spacer" aria-hidden="true"></span>
-`;
+const shouldRenderPaymentMethodStatus = (method: PaymentMethod): boolean =>
+  method.showVerificationStatus !== false && method.status !== 'verified';
 
-const renderPaymentMethodVerificationAction = (
-  status: PaymentMethod['status']
-): TemplateResult => {
-  const presentation = paymentMethodStatusPresentation(status);
+const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
+  const accountLabel =
+    normalizeCopyValue(method.accountLabel) ??
+    paymentMethodFallbackAccountLabel(method);
+  const title = normalizeCopyValue(method.label) ?? accountLabel;
+  const shouldRenderMeta = Boolean(accountLabel);
 
   return html`
+    <span class="payment-method-copy">
+      <span class="payment-method-title-row">
+        <span class="payment-method-title">${title}</span>
+      </span>
+      ${shouldRenderMeta
+        ? html`
+            <span class="payment-method-meta-row">
+              <span class="payment-method-meta">${accountLabel}</span>
+              ${shouldRenderPaymentMethodStatus(method)
+                ? renderVerificationStatusBadge(method.status)
+                : ''}
+            </span>
+          `
+        : ''}
+    </span>
+  `;
+};
+
+const renderPaymentMethodTrailing = (clickable: boolean): TemplateResult => {
+  return html`
     <span class="payment-method-trailing">
-      <span
-        class="payment-method-status-icon payment-method-status-icon-${paymentMethodStatusIconTone(
-          status
-        )}"
-        data-verification-status=${status}
-        role="img"
-        aria-label=${presentation.label}
-        title=${presentation.label}
-      >
-        !
-      </span>
-      <span class="payment-method-chevron" aria-hidden="true">
-        <span class="payment-method-chevron-icon"></span>
-      </span>
+      ${clickable
+        ? html`
+            <span class="payment-method-chevron" aria-hidden="true">
+              <span class="payment-method-chevron-icon"></span>
+            </span>
+          `
+        : ''}
     </span>
   `;
 };
@@ -380,10 +387,8 @@ export const renderOtpGroup = ({
 export const renderAlert = ({
   variant,
   message,
-  icon = true,
 }: AlertOptions): TemplateResult => html`
   <div class="alert alert-${variant}" role="alert">
-    ${icon ? html`<span class="alert-icon" aria-hidden="true"></span>` : ''}
     <span class="alert-message">${message}</span>
   </div>
 `;
@@ -432,7 +437,9 @@ export const renderPaymentMethodRow = (
     type,
     eyebrow,
     brand,
+    accountLabel,
     last4,
+    showVerificationStatus,
     disabled = false,
   }: PaymentMethod,
   {
@@ -452,25 +459,29 @@ export const renderPaymentMethodRow = (
     type,
     eyebrow,
     brand,
+    accountLabel,
     last4,
+    showVerificationStatus,
     disabled,
   };
 
   if (variant === 'edit') {
+    const editMethod = {...method, showVerificationStatus: false};
+
     return html`
       <div
         class="payment-method-row payment-method-row-edit"
         aria-label=${label}
       >
         ${renderPaymentMethodContent(
-          method,
+          editMethod,
           renderPaymentMethodDeleteAction(id, `Delete ${label}`, deleteDisabled)
         )}
       </div>
     `;
   }
 
-  if (status === 'verified') {
+  if (isPaymentMethodRowClickable(method)) {
     return html`
       <button
         class=${joinClassNames(
@@ -480,33 +491,26 @@ export const renderPaymentMethodRow = (
         )}
         type="button"
         aria-disabled=${disabled ? 'true' : 'false'}
-        data-action="attach-payment-source"
+        data-action=${status === 'verified'
+          ? 'attach-payment-source'
+          : 'verify-payment-source'}
         data-payment-method-id=${id}
         ?disabled=${disabled}
       >
-        ${renderPaymentMethodContent(method, renderPaymentMethodSpacer())}
+        ${renderPaymentMethodContent(method, renderPaymentMethodTrailing(true))}
       </button>
     `;
   }
 
   return html`
-    <button
-      class=${joinClassNames(
-        'payment-method-row',
-        'payment-method-row-action',
-        selected && 'payment-method-row-selected'
-      )}
-      type="button"
-      aria-disabled=${disabled ? 'true' : 'false'}
-      data-action="verify-payment-source"
+    <div
+      class=${joinClassNames('payment-method-row', 'payment-method-row-static')}
+      aria-label=${label}
+      aria-disabled="true"
       data-payment-method-id=${id}
-      ?disabled=${disabled}
     >
-      ${renderPaymentMethodContent(
-        method,
-        renderPaymentMethodVerificationAction(method.status)
-      )}
-    </button>
+      ${renderPaymentMethodContent(method, renderPaymentMethodTrailing(false))}
+    </div>
   `;
 };
 
@@ -517,7 +521,9 @@ export const renderSelectedPaymentMethod = ({
   type,
   eyebrow,
   brand,
+  accountLabel,
   last4,
+  showVerificationStatus,
 }: PaymentMethod): TemplateResult => {
   const method: PaymentMethod = {
     id,
@@ -526,12 +532,14 @@ export const renderSelectedPaymentMethod = ({
     type,
     eyebrow,
     brand,
+    accountLabel,
     last4,
+    showVerificationStatus,
   };
 
   return html`
     <div class="selected-payment-method" aria-label=${label}>
-      ${renderPaymentMethodContent(method, renderPaymentMethodSpacer())}
+      ${renderPaymentMethodContent(method, renderPaymentMethodTrailing(false))}
     </div>
   `;
 };
@@ -606,6 +614,7 @@ export const renderUploadRow = ({
   label,
   requirements,
   actionLabel,
+  fileName,
   action,
   error = false,
   disabled = false,
@@ -615,13 +624,12 @@ export const renderUploadRow = ({
     type="button"
     data-action=${ifDefined(action)}
     ?disabled=${disabled}
+    aria-label=${`${actionLabel}. ${label}. ${fileName ?? 'No file chosen'}`}
   >
-    <span class="upload-copy">
-      <span class="upload-icon" aria-hidden="true">↑</span>
-      <span class="upload-row-label">${label}</span>
-      <span class="upload-row-requirements">${requirements}</span>
-    </span>
     <span class="upload-row-action">${actionLabel}</span>
+    <span class="upload-row-file-name">${fileName ?? 'No file chosen'}</span>
+    <span class="upload-row-label">${label}</span>
+    <span class="upload-row-requirements">${requirements}</span>
   </button>
 `;
 
@@ -786,7 +794,6 @@ export const renderWidgetShell = ({
   ariaLabel = 'Commerce Hub Connect',
   closeAction = 'close',
   showClose = true,
-  showDivider = true,
   showFooter = true,
   busy = false,
   overlay,
@@ -819,9 +826,7 @@ export const renderWidgetShell = ({
         : ''}
     </div>
     ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
-    ${showDivider
-      ? html`<div class="widget-divider" aria-hidden="true"></div>`
-      : ''}
+    <div class="widget-divider" aria-hidden="true"></div>
     <div class="widget-content">${content}</div>
     ${overlay ? html`<div class="widget-loading-overlay">${overlay}</div>` : ''}
     ${showFooter ? renderPoweredByFooter() : ''}

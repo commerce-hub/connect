@@ -632,12 +632,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        AbstractSource: {
-            id?: string;
-            name?: string;
+        DocInfo: {
             /** @enum {string} */
-            tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD";
-            verificationInfo?: components["schemas"]["VerificationInfo"];
+            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
+            mandatory?: boolean;
+            value?: string;
+        };
+        VerificationResponse: {
+            sourceId?: string;
+            /** @enum {string} */
+            status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
+            docs?: components["schemas"]["DocInfo"][];
         };
         Address: {
             id?: string;
@@ -648,6 +653,79 @@ export interface components {
             stateOrProvince?: string;
             postalCode?: string;
             country?: string;
+        };
+        MPPSetupInfo: unknown;
+        MerchantData: {
+            clientId?: string;
+            merchantId?: string;
+            terminalId?: string;
+        };
+        RealmSetupInfo: {
+            merchantData?: components["schemas"]["MerchantData"];
+            realm?: string;
+            x402?: components["schemas"]["X402SetupInfo"];
+            mpp?: components["schemas"]["MPPSetupInfo"];
+            disabled?: boolean;
+        };
+        X402SetupInfo: unknown;
+        OTPValidateRequest: {
+            email?: string;
+            otp?: string;
+            /** @enum {string} */
+            channel?: "EMAIL" | "PHONE";
+        };
+        StringHolder: {
+            value?: string;
+        };
+        OTPResponse: {
+            email?: string;
+            phone?: components["schemas"]["PhoneDetails"];
+            /** @enum {string} */
+            channel?: "EMAIL" | "PHONE";
+        };
+        PhoneDetails: {
+            countryCode?: string;
+            phoneNumber?: string;
+            /** Format: int64 */
+            verifiedTimestamp?: number;
+        };
+        Challenge: {
+            id?: string;
+            realm?: string;
+            method?: string;
+            intent?: string;
+            request?: string;
+            digest?: string;
+            expiresAt?: string;
+            description?: string;
+        };
+        ConsumeTokenRequest: {
+            challenge?: components["schemas"]["Challenge"];
+        };
+        MachinePaymentResponse: {
+            success?: boolean;
+            paymentTokenId?: string;
+            message?: string;
+            referenceId?: string;
+        };
+        EntityData: {
+            firstName?: string;
+            lastName?: string;
+        };
+        InteractionRequest: {
+            email?: string;
+            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
+            merchantData?: components["schemas"]["MerchantData"];
+            entityData?: components["schemas"]["EntityData"];
+            advancedVerification?: boolean;
+            preAuthenticated?: boolean;
+        };
+        AbstractSource: {
+            id?: string;
+            name?: string;
+            /** @enum {string} */
+            tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD";
+            verificationInfo?: components["schemas"]["VerificationInfo"];
         };
         BankAccount: {
             tenderType: "BankAccount";
@@ -683,12 +761,6 @@ export interface components {
         DSCDisplayCard: {
             tenderType: "DSCDisplayCard";
         } & Omit<components["schemas"]["AbstractSource"], "tenderType">;
-        DocInfo: {
-            /** @enum {string} */
-            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
-            mandatory?: boolean;
-            value?: string;
-        };
         InteractionResponse: {
             interactionId?: string;
             /** @enum {string} */
@@ -700,12 +772,6 @@ export interface components {
             phone?: components["schemas"]["PhoneDetails"];
             billerAddress?: components["schemas"]["Address"][];
         };
-        PhoneDetails: {
-            countryCode?: string;
-            phoneNumber?: string;
-            /** Format: int64 */
-            verifiedTimestamp?: number;
-        };
         VerificationInfo: {
             token?: string;
             /** @enum {string} */
@@ -714,76 +780,11 @@ export interface components {
             lastTimestamp?: number;
             docs?: components["schemas"]["DocInfo"][];
         };
-        MPPSetupInfo: Record<string, never>;
-        MerchantData: {
-            clientId?: string;
-            merchantId?: string;
-            terminalId?: string;
-        };
-        RealmSetupInfo: {
-            merchantData?: components["schemas"]["MerchantData"];
-            realm?: string;
-            x402?: components["schemas"]["X402SetupInfo"];
-            mpp?: components["schemas"]["MPPSetupInfo"];
-            disabled?: boolean;
-        };
-        X402SetupInfo: Record<string, never>;
-        OTPValidateRequest: {
-            email?: string;
-            otp?: string;
-            /** @enum {string} */
-            channel?: "EMAIL" | "PHONE";
-        };
-        StringHolder: {
-            value?: string;
-        };
-        OTPResponse: {
-            email?: string;
-            phone?: components["schemas"]["PhoneDetails"];
-            /** @enum {string} */
-            channel?: "EMAIL" | "PHONE";
-        };
-        Challenge: {
-            id?: string;
-            realm?: string;
-            method?: string;
-            intent?: string;
-            request?: string;
-            digest?: string;
-            expiresAt?: string;
-            description?: string;
-        };
-        ConsumeTokenRequest: {
-            challenge?: components["schemas"]["Challenge"];
-        };
-        MachinePaymentResponse: {
-            success?: boolean;
-            paymentTokenId?: string;
-            message?: string;
-            referenceId?: string;
-        };
-        EntityData: {
-            firstName?: string;
-            lastName?: string;
-        };
-        InteractionRequest: {
-            email?: string;
-            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
-            merchantData?: components["schemas"]["MerchantData"];
-            entityData?: components["schemas"]["EntityData"];
-            advancedVerification?: boolean;
-            preAuthenticated?: boolean;
-        };
         DocFieldValue: {
             value?: string;
             /** @enum {string} */
             docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
             docValue?: string;
-        };
-        VerificationResponse: {
-            /** @enum {string} */
-            status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
-            docs?: components["schemas"]["DocInfo"][];
         };
         DSCCreateRequest: {
             /** Format: double */
@@ -923,7 +924,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["InteractionResponse"];
+                    "*/*": components["schemas"]["VerificationResponse"];
                 };
             };
         };
@@ -1299,7 +1300,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["InteractionResponse"];
+                    "*/*": components["schemas"]["VerificationResponse"];
                 };
             };
         };
@@ -1323,7 +1324,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["InteractionResponse"];
+                    "*/*": components["schemas"]["VerificationResponse"];
                 };
             };
         };
