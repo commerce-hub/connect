@@ -377,8 +377,9 @@ const completePayByBankFlow = async ({
         ] as const,
       }
     : {status: resolvedStatus};
-  const finalizedVerificationInfo =
-    finalizedStatus === 'REQUIRE_INFO'
+  const finalizedVerificationInfo = verificationStatus
+    ? resolvedVerificationInfo
+    : finalizedStatus === 'REQUIRE_INFO'
       ? resolvedVerificationInfo
       : {status: finalizedStatus};
   const requiredInfoFinalVerificationInfo = requiredInfoStep2Status
@@ -423,16 +424,8 @@ const completePayByBankFlow = async ({
     ) {
       return new Response(
         JSON.stringify({
-          selectedSource: {
-            id: 'bank-new',
-            tenderType: 'BankAccount',
-            name: 'Operating account',
-            verificationInfo: finalizedVerificationInfo,
-            bankAccount: {
-              bankName: 'Commerce National Bank',
-              accountNumber: '9876543210',
-            },
-          },
+          sourceId: verificationSourceId ?? 'bank-new',
+          ...finalizedVerificationInfo,
         }),
         {status: 200, headers: {'Content-Type': 'application/json'}}
       );
@@ -1533,17 +1526,8 @@ suite('commerce-hub-connect flow', () => {
       if (request.url.endsWith('/interaction/source/card')) {
         return new Response(
           JSON.stringify({
-            selectedSource: {
-              id: 'card-created-1',
-              tenderType: 'Card',
-              name: 'Ada corporate card',
-              verificationInfo: {status: 'VERIFIED'},
-              card: {
-                network: 'Visa',
-                cardNumber: '4111111111111111',
-              },
-            },
-            paymentSources: [],
+            sourceId: 'card-created-1',
+            status: 'VERIFIED',
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
@@ -1649,26 +1633,12 @@ suite('commerce-hub-connect flow', () => {
       if (pathname === '/interaction/source/card') {
         return new Response(
           JSON.stringify({
-            verificationStatus: {
-              status: 'REQUIRE_INFO',
-              docs: [
-                {docType: 'DRIVER_LICENSE_PHOTO', mandatory: true},
-                {docType: 'DRIVER_LICENSE_NUMBER', mandatory: false},
-              ],
-            },
-            selectedSource: {
-              id: 'card-created-1',
-              tenderType: 'Card',
-              name: 'Ada corporate card',
-              card: {
-                network: 'Visa',
-                nameOnCard: 'Ada Lovelace',
-                cardNumber: '4111111111111111',
-                expirationMonth: '04',
-                expirationYear: '2030',
-              },
-            },
-            paymentSources: [],
+            sourceId: 'card-created-1',
+            status: 'REQUIRE_INFO',
+            docs: [
+              {docType: 'DRIVER_LICENSE_PHOTO', mandatory: true},
+              {docType: 'DRIVER_LICENSE_NUMBER', mandatory: false},
+            ],
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
@@ -1774,18 +1744,8 @@ suite('commerce-hub-connect flow', () => {
       if (pathname === '/interaction/source/card') {
         return new Response(
           JSON.stringify({
-            selectedSource: {
-              id: 'card-created-1',
-              tenderType: 'Card',
-              name: 'Ada corporate card',
-              verificationInfo: {status: 'UNDER_REVIEW'},
-              card: {
-                network: 'Visa',
-                nameOnCard: 'Ada Lovelace',
-                cardNumber: '4111111111111111',
-              },
-            },
-            paymentSources: [],
+            sourceId: 'card-created-1',
+            status: 'UNDER_REVIEW',
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
@@ -1878,18 +1838,8 @@ suite('commerce-hub-connect flow', () => {
       if (pathname === '/interaction/source/card') {
         return new Response(
           JSON.stringify({
-            verificationStatus: 'DECLINED',
-            selectedSource: {
-              id: 'card-created-1',
-              tenderType: 'Card',
-              name: 'Ada corporate card',
-              card: {
-                network: 'Visa',
-                nameOnCard: 'Ada Lovelace',
-                cardNumber: '4111111111111111',
-              },
-            },
-            paymentSources: [],
+            sourceId: 'card-created-1',
+            status: 'DECLINED',
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
@@ -2117,28 +2067,8 @@ suite('commerce-hub-connect flow', () => {
       if (request.url.endsWith('/interaction/source/card')) {
         return new Response(
           JSON.stringify({
-            selectedSource: {
-              id: 'card-created-1',
-              tenderType: 'Card',
-              name: 'Card from source response',
-              verificationInfo: {status: 'VERIFIED'},
-              card: {
-                network: 'Mastercard',
-                cardNumber: '5555555555554444',
-              },
-            },
-            paymentSources: [
-              {
-                id: 'card-created-1',
-                tenderType: 'Card',
-                name: 'Card from source response',
-                verificationInfo: {status: 'VERIFIED'},
-                card: {
-                  network: 'Mastercard',
-                  cardNumber: '5555555555554444',
-                },
-              },
-            ],
+            sourceId: 'card-created-1',
+            status: 'VERIFIED',
           }),
           {
             status: 200,
@@ -2366,20 +2296,8 @@ suite('commerce-hub-connect flow', () => {
       if (request.url.endsWith('/interaction/source/card')) {
         return new Response(
           JSON.stringify({
-            selectedSource: {
-              id: 'card-created-1',
-              tenderType: 'Card',
-              name: 'Ada corporate card',
-              verificationInfo: {status: 'VERIFIED'},
-            },
-            paymentSources: [
-              {
-                id: 'card-created-1',
-                tenderType: 'Card',
-                name: 'Ada corporate card',
-                verificationInfo: {status: 'VERIFIED'},
-              },
-            ],
+            sourceId: 'card-created-1',
+            status: 'VERIFIED',
           }),
           {
             status: 200,
@@ -2516,28 +2434,8 @@ suite('commerce-hub-connect flow', () => {
       if (request.url.endsWith('/interaction/source/card')) {
         return new Response(
           JSON.stringify({
-            selectedSource: {
-              id: 'card-created-1',
-              tenderType: 'Card',
-              name: 'Card under review',
-              verificationInfo: {status: 'UNDER_REVIEW'},
-              card: {
-                network: 'Visa',
-                cardNumber: '4111111111111111',
-              },
-            },
-            paymentSources: [
-              {
-                id: 'card-created-1',
-                tenderType: 'Card',
-                name: 'Card under review',
-                verificationInfo: {status: 'UNDER_REVIEW'},
-                card: {
-                  network: 'Visa',
-                  cardNumber: '4111111111111111',
-                },
-              },
-            ],
+            sourceId: 'card-created-1',
+            status: 'UNDER_REVIEW',
           }),
           {
             status: 200,
@@ -3222,24 +3120,7 @@ suite('commerce-hub-connect flow', () => {
       ) {
         return new Response(
           JSON.stringify({
-            selectedSource: {
-              id: 'bank-new',
-              tenderType: 'BankAccount',
-              name: 'Operating account',
-              verificationInfo: {status: 'NOT_VERIFIED'},
-              bankAccount: {
-                bankName: 'Commerce National Bank',
-                accountNumber: '9876543210',
-              },
-            },
-          }),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
-        );
-      }
-
-      if (pathname === '/interaction/verify/step1') {
-        return new Response(
-          JSON.stringify({
+            sourceId: 'bank-new',
             status: 'UNDER_REVIEW',
             docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
           }),
@@ -3281,16 +3162,8 @@ suite('commerce-hub-connect flow', () => {
       [
         'GET /interaction/source/pbb/session',
         'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
-        'POST /interaction/verify/step1',
       ]
     );
-    const verifyRequest = requests[2];
-    assert.equal(verifyRequest.bodyText, JSON.stringify({value: 'bank-new'}));
-    assert.equal(
-      verifyRequest.headers.get('x-interaction-id'),
-      'interaction-payment'
-    );
-    assert.equal(verifyRequest.credentials, 'include');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Bank account pending review'
@@ -3377,7 +3250,8 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-new');
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');
-    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(successEvents, 1);
+    assert.equal(successEvents[0].detail.id, 'bank-new');
     assert.lengthOf(errorEvents, 0);
   });
 
@@ -3489,8 +3363,8 @@ suite('commerce-hub-connect flow', () => {
         ]
       ),
       [
-        ['name', 'Operating account'],
-        ['number', '•••• 3210'],
+        ['name', 'Saved bank account'],
+        ['number', '•••• ----'],
       ]
     );
     assert.equal(
@@ -3550,7 +3424,7 @@ suite('commerce-hub-connect flow', () => {
     assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
-  test('Connect your bank verification step1 REQUIRE_INFO opens the required-info screen and keeps file selection local only', async () => {
+  test('Connect your bank REQUIRE_INFO verification response opens the required-info screen and keeps file selection local only', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'NOT_VERIFIED',
       verificationStatus: 'REQUIRE_INFO',
@@ -3563,7 +3437,6 @@ suite('commerce-hub-connect flow', () => {
       [
         'GET /interaction/source/pbb/session',
         'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
-        'POST /interaction/verify/step1',
       ]
     );
     assert.equal(
@@ -3670,7 +3543,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.deepEqual(
       requests
-        .slice(3)
+        .slice(2)
         .map((request) => `${request.method} ${new URL(request.url).pathname}`),
       [
         'POST /interaction/doc/upload/bank-new/BANK_STATEMENT',
@@ -3678,14 +3551,14 @@ suite('commerce-hub-connect flow', () => {
         'POST /interaction/source/bank-verified/attach',
       ]
     );
-    assert.include(requests[3].headers.get('content-type') ?? '', 'multipart');
+    assert.include(requests[2].headers.get('content-type') ?? '', 'multipart');
     assert.equal(
-      requests[3].headers.get('x-interaction-id'),
+      requests[2].headers.get('x-interaction-id'),
       'interaction-payment'
     );
-    assert.include(requests[3].bodyText, 'name="file"');
-    assert.include(requests[3].bodyText, 'filename="may-bank-statement.pdf"');
-    assert.equal(requests[4].bodyText, JSON.stringify({value: 'bank-new'}));
+    assert.include(requests[2].bodyText, 'name="file"');
+    assert.include(requests[2].bodyText, 'filename="may-bank-statement.pdf"');
+    assert.equal(requests[3].bodyText, JSON.stringify({value: 'bank-new'}));
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
       'VERIFIED'
@@ -3732,7 +3605,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.deepEqual(
       requests
-        .slice(3)
+        .slice(2)
         .map((request) => `${request.method} ${new URL(request.url).pathname}`),
       [
         'POST /interaction/doc/upload/bank-new/BANK_STATEMENT',
@@ -3741,10 +3614,10 @@ suite('commerce-hub-connect flow', () => {
         'POST /interaction/verify/step2',
       ]
     );
-    assert.include(requests[3].bodyText, 'filename="may-bank-statement.pdf"');
-    assert.equal(requests[4].bodyText, JSON.stringify({value: 'bank-new'}));
-    assert.include(requests[5].bodyText, 'filename="driver-license.pdf"');
-    assert.equal(requests[6].bodyText, JSON.stringify({value: 'bank-new'}));
+    assert.include(requests[2].bodyText, 'filename="may-bank-statement.pdf"');
+    assert.equal(requests[3].bodyText, JSON.stringify({value: 'bank-new'}));
+    assert.include(requests[4].bodyText, 'filename="driver-license.pdf"');
+    assert.equal(requests[5].bodyText, JSON.stringify({value: 'bank-new'}));
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
       'UNDER_REVIEW'
@@ -3776,7 +3649,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.deepEqual(
       requests
-        .slice(3)
+        .slice(2)
         .map((request) => `${request.method} ${new URL(request.url).pathname}`),
       [
         'POST /interaction/verify/uploadField',
@@ -3785,7 +3658,7 @@ suite('commerce-hub-connect flow', () => {
       ]
     );
     assert.equal(
-      requests[3].bodyText,
+      requests[2].bodyText,
       JSON.stringify({
         docType: 'DRIVER_LICENSE_NUMBER',
         value: 'bank-new',
@@ -3793,7 +3666,7 @@ suite('commerce-hub-connect flow', () => {
       })
     );
     assert.equal(
-      requests[4].bodyText,
+      requests[3].bodyText,
       JSON.stringify({
         docType: 'SOCIAL_SECURITY_NUMBER',
         value: 'bank-new',
@@ -3843,7 +3716,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(
       requests
-        .slice(3)
+        .slice(2)
         .map((request) => `${request.method} ${new URL(request.url).pathname}`),
       ['POST /interaction/doc/upload/bank-new/BANK_STATEMENT']
     );
@@ -4040,7 +3913,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('Pay by Bank NOT_VERIFIED source runs verification and preselects when step1 returns VERIFIED', async () => {
+  test('Pay by Bank VERIFIED verification response preselects sourceId and attaches it', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'NOT_VERIFIED',
       verificationStatus: 'VERIFIED',
@@ -4054,11 +3927,9 @@ suite('commerce-hub-connect flow', () => {
       [
         'GET /interaction/source/pbb/session',
         'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
-        'POST /interaction/verify/step1',
         'POST /interaction/source/bank-verified/attach',
       ]
     );
-    assert.equal(requests[2].bodyText, JSON.stringify({value: 'bank-new'}));
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Payment method saved'

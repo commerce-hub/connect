@@ -4,1897 +4,1853 @@
  */
 
 export interface paths {
-  '/interaction/source/pbb/session/{aldSessionId}/{pToken}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/source/pbb/session/{aldSessionId}/{pToken}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["addPBBSource"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put: operations['addPBBSource'];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/shipping-address': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/shipping-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateShippingAddress"];
+        post: operations["addShippingAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put: operations['updateShippingAddress'];
-    post: operations['addShippingAddress'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/billing-address': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/billing-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateBillingAddress"];
+        post: operations["addBillingAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put: operations['updateBillingAddress'];
-    post: operations['addBillingAddress'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/setup/realm': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/setup/realm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["updatePhone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['updatePhone'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/open/otp/validate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/open/otp/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validateOTP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['validateOTP'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/open/authenticate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/open/authenticate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["authenticate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['authenticate'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/open/authenticate/email': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/open/authenticate/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["authenticateEmailOnly"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['authenticateEmailOnly'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/merchant/token/consume/{tokenId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/merchant/token/consume/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["consume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['consume'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/merchant/interaction/create': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/merchant/interaction/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createInteraction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['createInteraction'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/verify/uploadField': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/verify/uploadField": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["uploadField"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['uploadField'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/verify/step2': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/verify/step2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verifyStep2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['verifyStep2'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/verify/step1': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/verify/step1": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verifyStep1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['verifyStep1'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/source/{paymentSourceId}/attach': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/source/{paymentSourceId}/attach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["attachPaymentMethod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['attachPaymentMethod'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/source/mask/{type}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/source/mask/{type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["mask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['mask'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/source/card': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/source/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['addCard'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/source/ach': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/source/ach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addACH"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['addACH'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/otp/validate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/otp/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validateOTP_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['validateOTP_1'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/otp/send': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/otp/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sendOTP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['sendOTP'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/otp/send/email': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/otp/send/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sendOTPToEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['sendOTPToEmail'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/doc/upload/{sourceId}/{docType}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/doc/upload/{sourceId}/{docType}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["uploadDoc"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['uploadDoc'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer/phone': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["updatePhone_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['updatePhone_1'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer/phone/verify': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer/phone/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verifyPhoneOTP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['verifyPhoneOTP'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer/name': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["updateName"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['updateName'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer/dsc/create': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer/dsc/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createDynamicSessionCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['createDynamicSessionCard'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer/activity/search': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer/activity/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["findAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['findAll'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/agent/token': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/agent/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/agent/merchant/cancel/{tokenId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/agent/merchant/cancel/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations['cancel'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/agent/dsc': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/agent/dsc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getActiveDynamicSessionCards"];
+        put?: never;
+        post: operations["createDynamicSessionCard_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations['getActiveDynamicSessionCards'];
-    put?: never;
-    post: operations['createDynamicSessionCard_1'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations['getStatus'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/source/pbb/session': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/source/pbb/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAggregationSessionId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations['getAggregationSessionId'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCustomerProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations['getCustomerProfile'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer/machine-payments/{enable}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer/machine-payments/{enable}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["machinePayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations['machinePayments'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer/dsc/active': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer/dsc/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getActiveDynamicSessionCards_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations['getActiveDynamicSessionCards_1'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/merchant/token/cancel/{tokenId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/merchant/token/cancel/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["cancel_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete: operations['cancel_1'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/source/{sourceId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/source/{sourceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteSource"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete: operations['deleteSource'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/shipping-address/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/shipping-address/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteShippingAddress"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete: operations['deleteShippingAddress'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/interaction/billing-address/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/interaction/billing-address/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteBillingAddress"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete: operations['deleteBillingAddress'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/customer/dsc/cancel': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/customer/dsc/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["cancelDynamicSessionCard"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete: operations['cancelDynamicSessionCard'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/agent/dsc/{cardId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/agent/dsc/{cardId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["cancelDynamicSessionCard_1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete: operations['cancelDynamicSessionCard_1'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    AbstractSource: {
-      id?: string;
-      name?: string;
-      /** @enum {string} */
-      tenderType?: 'CARD' | 'BANK_ACCOUNT' | 'DYNAMIC_SESSION_CARD';
-      verificationInfo?: components['schemas']['VerificationInfo'];
-    };
-    Address: {
-      id?: string;
-      street?: string;
-      houseNumberOrName?: string;
-      recipientNameOrAddress?: string;
-      city?: string;
-      stateOrProvince?: string;
-      postalCode?: string;
-      country?: string;
-    };
-    BankAccount: {
-      tenderType: 'BankAccount';
-    } & (Omit<components['schemas']['AbstractSource'], 'tenderType'> & {
-      bankAccount?: components['schemas']['BankAccountDetail'];
-    });
-    BankAccountDetail: {
-      bankName?: string;
-      routingNumber?: string;
-      accountNumber?: string;
-      accountType?: string;
-      routingNumberEncrypted?: string;
-      accountNumberEncrypted?: string;
-      accountNumberReEntered?: string;
-    };
-    Card: {
-      tenderType: 'Card';
-    } & (Omit<components['schemas']['AbstractSource'], 'tenderType'> & {
-      billingAddressId?: string;
-      card?: components['schemas']['CardDetail'];
-    });
-    CardDetail: {
-      cardNumber?: string;
-      nameOnCard?: string;
-      expirationMonth?: string;
-      expirationYear?: string;
-      cvv?: string;
-      /** @enum {string} */
-      network?: 'Visa' | 'Mastercard' | 'AmericanExpress' | 'Discover';
-      cardNumberEncrypted?: string;
-      cvvEncrypted?: string;
-    };
-    DSCDisplayCard: {
-      tenderType: 'DSCDisplayCard';
-    } & Omit<components['schemas']['AbstractSource'], 'tenderType'>;
-    DocInfo: {
-      /** @enum {string} */
-      docType?:
-        | 'DRIVER_LICENSE_NUMBER'
-        | 'DRIVER_LICENSE_PHOTO'
-        | 'BANK_STATEMENT'
-        | 'SOCIAL_SECURITY_NUMBER';
-      mandatory?: boolean;
-      value?: string;
-    };
-    InteractionResponse: {
-      interactionId?: string;
-      /** @enum {string} */
-      status?:
-        | 'OTP_VALIDATION_PENDING'
-        | 'OTP_VALIDATION_FAILED'
-        | 'PAYMENT_SOURCE_REQUESTED'
-        | 'PAYMENT_SOURCE_ATTACHED'
-        | 'COMPLETE';
-      email?: string;
-      selectedSource?:
-        | components['schemas']['BankAccount']
-        | components['schemas']['Card']
-        | components['schemas']['DSCDisplayCard'];
-      allowedTenderTypes?: ('CARD' | 'BANK_ACCOUNT' | 'DYNAMIC_SESSION_CARD')[];
-      paymentSources?: (
-        | components['schemas']['BankAccount']
-        | components['schemas']['Card']
-        | components['schemas']['DSCDisplayCard']
-      )[];
-      phone?: components['schemas']['PhoneDetails'];
-      billerAddress?: components['schemas']['Address'][];
-    };
-    PhoneDetails: {
-      countryCode?: string;
-      phoneNumber?: string;
-      /** Format: int64 */
-      verifiedTimestamp?: number;
-    };
-    VerificationInfo: {
-      token?: string;
-      /** @enum {string} */
-      status?:
-        | 'NOT_VERIFIED'
-        | 'REQUIRE_INFO'
-        | 'UNDER_REVIEW'
-        | 'DECLINED'
-        | 'VERIFIED';
-      /** Format: int64 */
-      lastTimestamp?: number;
-      docs?: components['schemas']['DocInfo'][];
-    };
-    MPPSetupInfo: unknown;
-    MerchantData: {
-      clientId?: string;
-      merchantId?: string;
-      terminalId?: string;
-    };
-    RealmSetupInfo: {
-      merchantData?: components['schemas']['MerchantData'];
-      realm?: string;
-      x402?: components['schemas']['X402SetupInfo'];
-      mpp?: components['schemas']['MPPSetupInfo'];
-      disabled?: boolean;
-    };
-    X402SetupInfo: unknown;
-    OTPValidateRequest: {
-      email?: string;
-      otp?: string;
-      /** @enum {string} */
-      channel?: 'EMAIL' | 'PHONE';
-    };
-    StringHolder: {
-      value?: string;
-    };
-    OTPResponse: {
-      email?: string;
-      phone?: components['schemas']['PhoneDetails'];
-      /** @enum {string} */
-      channel?: 'EMAIL' | 'PHONE';
-    };
-    Challenge: {
-      id?: string;
-      realm?: string;
-      method?: string;
-      intent?: string;
-      request?: string;
-      digest?: string;
-      expiresAt?: string;
-      description?: string;
-    };
-    ConsumeTokenRequest: {
-      challenge?: components['schemas']['Challenge'];
-    };
-    MachinePaymentResponse: {
-      success?: boolean;
-      paymentTokenId?: string;
-      message?: string;
-      referenceId?: string;
-    };
-    EntityData: {
-      firstName?: string;
-      lastName?: string;
-    };
-    InteractionRequest: {
-      email?: string;
-      allowedTenderTypes?: ('CARD' | 'BANK_ACCOUNT' | 'DYNAMIC_SESSION_CARD')[];
-      merchantData?: components['schemas']['MerchantData'];
-      entityData?: components['schemas']['EntityData'];
-      advancedVerification?: boolean;
-      preAuthenticated?: boolean;
-    };
-    DocFieldValue: {
-      value?: string;
-      /** @enum {string} */
-      docType?:
-        | 'DRIVER_LICENSE_NUMBER'
-        | 'DRIVER_LICENSE_PHOTO'
-        | 'BANK_STATEMENT'
-        | 'SOCIAL_SECURITY_NUMBER';
-      docValue?: string;
-    };
-    VerificationResponse: {
-      sourceId?: string;
-      /** @enum {string} */
-      status?:
-        | 'NOT_VERIFIED'
-        | 'REQUIRE_INFO'
-        | 'UNDER_REVIEW'
-        | 'DECLINED'
-        | 'VERIFIED';
-      docs?: components['schemas']['DocInfo'][];
-    };
-    DSCCreateRequest: {
-      /** Format: double */
-      amount?: number;
-      /** @enum {string} */
-      currency?: 'USD';
-      paymentSourceId?: string;
-      /** Format: int32 */
-      expiryMinutes?: number;
-      realm?: string;
-    };
-    DynamicSessionCard: {
-      email?: string;
-      id?: string;
-      source?:
-        | components['schemas']['BankAccount']
-        | components['schemas']['Card']
-        | components['schemas']['DSCDisplayCard'];
-      /** @enum {string} */
-      currency?: 'USD';
-      /** Format: int64 */
-      createTimestamp?: number;
-      /** Format: int64 */
-      expiryTimestamp?: number;
-      /** Format: double */
-      totalAmount?: number;
-      /** Format: double */
-      saleAmount?: number;
-      /** Format: double */
-      remainingAmount?: number;
-      /** Format: double */
-      finalRefundedAmount?: number;
-      /** @enum {string} */
-      status?: 'ACTIVE' | 'INACTIVE';
-      realm?: string;
-      merchantData?: components['schemas']['MerchantData'];
-    };
-    PaymentsSearchRequest: {
-      /** Format: int32 */
-      fromDate?: number;
-      /** Format: int32 */
-      toDate?: number;
-    };
-    Payment: {
-      email?: string;
-      merchantTransactionId?: string;
-      agentId?: string;
-      merchantOrderId?: string;
-      merchantInvoiceNumber?: string;
-      /** @enum {string} */
-      type?: 'CREDIT' | 'DEBIT';
-      /** Format: double */
-      amount?: number;
-      /** @enum {string} */
-      currency?: 'USD';
-      /** Format: int64 */
-      timestamp?: number;
-      source?:
-        | components['schemas']['BankAccount']
-        | components['schemas']['Card']
-        | components['schemas']['DSCDisplayCard'];
-      /** @enum {string} */
-      channel?: 'ONLINE' | 'MACHINE';
-      /** @enum {string} */
-      status?: 'PENDING' | 'APPROVED' | 'DECLINED';
-      referenceMerchantTransactionId?: string;
-      realm?: string;
-      merchantData?: components['schemas']['MerchantData'];
-      apiTraceId?: string;
-      message?: string;
-    };
-    CreateTokenRequest: {
-      cardId?: string;
-      agentId?: string;
-      challenge?: components['schemas']['Challenge'];
-    };
-    CreateTokenResponse: {
-      tokenId?: string;
-      expiresAt?: string;
-    };
-    SessionData: {
-      publicKey?: string;
-      tokenID?: string;
-      aggregatorSessionId?: string;
-      pToken?: string;
-    };
-    LoginInfo: {
-      /** Format: int64 */
-      timestamp?: number;
-      browser?: string;
-      os?: string;
-      device?: string;
-    };
-    OTPInfo: {
-      referenceId?: string;
-      /** Format: int64 */
-      suspendedUntil?: number;
-      /** @enum {string} */
-      channel?: 'EMAIL' | 'PHONE';
-    };
-    Profile: {
-      email?: string;
-      name?: string;
-      phoneDetails?: components['schemas']['PhoneDetails'];
-      shippingAddress?: components['schemas']['Address'][];
-      billingAddress?: components['schemas']['Address'][];
-      sources?: (
-        | components['schemas']['BankAccount']
-        | components['schemas']['Card']
-        | components['schemas']['DSCDisplayCard']
-      )[];
-      machinePayments?: boolean;
-      logins?: {
-        [key: string]: components['schemas']['LoginInfo'];
-      };
-      otpInfo?: components['schemas']['OTPInfo'];
-      associations?: {
-        [key: string]: {
-          [key: string]: components['schemas']['VerificationInfo'];
+    schemas: {
+        DocInfo: {
+            /** @enum {string} */
+            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
+            mandatory?: boolean;
+            value?: string;
         };
-      };
+        VerificationResponse: {
+            sourceId?: string;
+            /** @enum {string} */
+            status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
+            docs?: components["schemas"]["DocInfo"][];
+        };
+        Address: {
+            id?: string;
+            street?: string;
+            houseNumberOrName?: string;
+            recipientNameOrAddress?: string;
+            city?: string;
+            stateOrProvince?: string;
+            postalCode?: string;
+            country?: string;
+        };
+        MPPSetupInfo: unknown;
+        MerchantData: {
+            clientId?: string;
+            merchantId?: string;
+            terminalId?: string;
+        };
+        RealmSetupInfo: {
+            merchantData?: components["schemas"]["MerchantData"];
+            realm?: string;
+            x402?: components["schemas"]["X402SetupInfo"];
+            mpp?: components["schemas"]["MPPSetupInfo"];
+            disabled?: boolean;
+        };
+        X402SetupInfo: unknown;
+        OTPValidateRequest: {
+            email?: string;
+            otp?: string;
+            /** @enum {string} */
+            channel?: "EMAIL" | "PHONE";
+        };
+        StringHolder: {
+            value?: string;
+        };
+        OTPResponse: {
+            email?: string;
+            phone?: components["schemas"]["PhoneDetails"];
+            /** @enum {string} */
+            channel?: "EMAIL" | "PHONE";
+        };
+        PhoneDetails: {
+            countryCode?: string;
+            phoneNumber?: string;
+            /** Format: int64 */
+            verifiedTimestamp?: number;
+        };
+        Challenge: {
+            id?: string;
+            realm?: string;
+            method?: string;
+            intent?: string;
+            request?: string;
+            digest?: string;
+            expiresAt?: string;
+            description?: string;
+        };
+        ConsumeTokenRequest: {
+            challenge?: components["schemas"]["Challenge"];
+        };
+        MachinePaymentResponse: {
+            success?: boolean;
+            paymentTokenId?: string;
+            message?: string;
+            referenceId?: string;
+        };
+        EntityData: {
+            firstName?: string;
+            lastName?: string;
+        };
+        InteractionRequest: {
+            email?: string;
+            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
+            merchantData?: components["schemas"]["MerchantData"];
+            entityData?: components["schemas"]["EntityData"];
+            advancedVerification?: boolean;
+            preAuthenticated?: boolean;
+        };
+        AbstractSource: {
+            id?: string;
+            name?: string;
+            /** @enum {string} */
+            tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD";
+            verificationInfo?: components["schemas"]["VerificationInfo"];
+        };
+        BankAccount: {
+            tenderType: "BankAccount";
+        } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
+            bankAccount?: components["schemas"]["BankAccountDetail"];
+        });
+        BankAccountDetail: {
+            bankName?: string;
+            routingNumber?: string;
+            accountNumber?: string;
+            accountType?: string;
+            routingNumberEncrypted?: string;
+            accountNumberEncrypted?: string;
+            accountNumberReEntered?: string;
+        };
+        Card: {
+            tenderType: "Card";
+        } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
+            billingAddressId?: string;
+            card?: components["schemas"]["CardDetail"];
+        });
+        CardDetail: {
+            cardNumber?: string;
+            nameOnCard?: string;
+            expirationMonth?: string;
+            expirationYear?: string;
+            cvv?: string;
+            /** @enum {string} */
+            network?: "Visa" | "Mastercard" | "AmericanExpress" | "Discover";
+            cardNumberEncrypted?: string;
+            cvvEncrypted?: string;
+        };
+        DSCDisplayCard: {
+            tenderType: "DSCDisplayCard";
+        } & Omit<components["schemas"]["AbstractSource"], "tenderType">;
+        InteractionResponse: {
+            interactionId?: string;
+            /** @enum {string} */
+            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "PAYMENT_SOURCE_REQUESTED" | "PAYMENT_SOURCE_ATTACHED" | "COMPLETE";
+            email?: string;
+            selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
+            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
+            paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
+            phone?: components["schemas"]["PhoneDetails"];
+            billerAddress?: components["schemas"]["Address"][];
+        };
+        VerificationInfo: {
+            token?: string;
+            /** @enum {string} */
+            status?: "NOT_VERIFIED" | "REQUIRE_INFO" | "UNDER_REVIEW" | "DECLINED" | "VERIFIED";
+            /** Format: int64 */
+            lastTimestamp?: number;
+            docs?: components["schemas"]["DocInfo"][];
+        };
+        DocFieldValue: {
+            value?: string;
+            /** @enum {string} */
+            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
+            docValue?: string;
+        };
+        DSCCreateRequest: {
+            /** Format: double */
+            amount?: number;
+            /** @enum {string} */
+            currency?: "USD";
+            paymentSourceId?: string;
+            /** Format: int32 */
+            expiryMinutes?: number;
+            realm?: string;
+        };
+        DynamicSessionCard: {
+            email?: string;
+            id?: string;
+            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
+            /** @enum {string} */
+            currency?: "USD";
+            /** Format: int64 */
+            createTimestamp?: number;
+            /** Format: int64 */
+            expiryTimestamp?: number;
+            /** Format: double */
+            totalAmount?: number;
+            /** Format: double */
+            saleAmount?: number;
+            /** Format: double */
+            remainingAmount?: number;
+            /** Format: double */
+            finalRefundedAmount?: number;
+            /** @enum {string} */
+            status?: "ACTIVE" | "INACTIVE";
+            realm?: string;
+            merchantData?: components["schemas"]["MerchantData"];
+        };
+        PaymentsSearchRequest: {
+            /** Format: int32 */
+            fromDate?: number;
+            /** Format: int32 */
+            toDate?: number;
+        };
+        Payment: {
+            email?: string;
+            merchantTransactionId?: string;
+            agentId?: string;
+            merchantOrderId?: string;
+            merchantInvoiceNumber?: string;
+            /** @enum {string} */
+            type?: "CREDIT" | "DEBIT";
+            /** Format: double */
+            amount?: number;
+            /** @enum {string} */
+            currency?: "USD";
+            /** Format: int64 */
+            timestamp?: number;
+            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
+            /** @enum {string} */
+            channel?: "ONLINE" | "MACHINE";
+            /** @enum {string} */
+            status?: "PENDING" | "APPROVED" | "DECLINED";
+            referenceMerchantTransactionId?: string;
+            realm?: string;
+            merchantData?: components["schemas"]["MerchantData"];
+            apiTraceId?: string;
+            message?: string;
+        };
+        CreateTokenRequest: {
+            cardId?: string;
+            agentId?: string;
+            challenge?: components["schemas"]["Challenge"];
+        };
+        CreateTokenResponse: {
+            tokenId?: string;
+            expiresAt?: string;
+        };
+        SessionData: {
+            publicKey?: string;
+            tokenID?: string;
+            aggregatorSessionId?: string;
+            pToken?: string;
+        };
+        LoginInfo: {
+            /** Format: int64 */
+            timestamp?: number;
+            browser?: string;
+            os?: string;
+            device?: string;
+        };
+        OTPInfo: {
+            referenceId?: string;
+            /** Format: int64 */
+            suspendedUntil?: number;
+            /** @enum {string} */
+            channel?: "EMAIL" | "PHONE";
+        };
+        Profile: {
+            email?: string;
+            name?: string;
+            phoneDetails?: components["schemas"]["PhoneDetails"];
+            shippingAddress?: components["schemas"]["Address"][];
+            billingAddress?: components["schemas"]["Address"][];
+            sources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
+            machinePayments?: boolean;
+            logins?: {
+                [key: string]: components["schemas"]["LoginInfo"];
+            };
+            otpInfo?: components["schemas"]["OTPInfo"];
+            associations?: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["VerificationInfo"];
+                };
+            };
+        };
     };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  addPBBSource: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        aldSessionId: string;
-        pToken: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  updateShippingAddress: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['Address'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  addShippingAddress: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['Address'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  updateBillingAddress: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['Address'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  addBillingAddress: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['Address'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['StringHolder'];
-        };
-      };
-    };
-  };
-  updatePhone: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RealmSetupInfo'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  validateOTP: {
-    parameters: {
-      query?: never;
-      header: {
-        'User-Agent': string;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['OTPValidateRequest'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  authenticate: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['OTPResponse'];
-        };
-      };
-    };
-  };
-  authenticateEmailOnly: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['OTPResponse'];
-        };
-      };
-    };
-  };
-  consume: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        tokenId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ConsumeTokenRequest'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['MachinePaymentResponse'];
-        };
-      };
-    };
-  };
-  createInteraction: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['InteractionRequest'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  uploadField: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['DocFieldValue'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  verifyStep2: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['VerificationResponse'];
-        };
-      };
-    };
-  };
-  verifyStep1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['VerificationResponse'];
-        };
-      };
-    };
-  };
-  attachPaymentMethod: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        paymentSourceId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  mask: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        type: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['StringHolder'];
-        };
-      };
-    };
-  };
-  addCard: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['Card'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  addACH: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['BankAccount'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  validateOTP_1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['OTPValidateRequest'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  sendOTP: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  sendOTPToEmail: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  uploadDoc: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        sourceId: string;
-        docType:
-          | 'DRIVER_LICENSE_NUMBER'
-          | 'DRIVER_LICENSE_PHOTO'
-          | 'BANK_STATEMENT'
-          | 'SOCIAL_SECURITY_NUMBER';
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        'multipart/form-data': {
-          /** Format: binary */
-          file: string;
-        };
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  updatePhone_1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PhoneDetails'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  verifyPhoneOTP: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  updateName: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  createDynamicSessionCard: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['DSCCreateRequest'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['DynamicSessionCard'];
-        };
-      };
-    };
-  };
-  findAll: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PaymentsSearchRequest'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['Payment'][];
-        };
-      };
-    };
-  };
-  create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateTokenRequest'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['CreateTokenResponse'];
-        };
-      };
-    };
-  };
-  cancel: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        tokenId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['MachinePaymentResponse'];
-        };
-      };
-    };
-  };
-  getActiveDynamicSessionCards: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['DynamicSessionCard'][];
-        };
-      };
-    };
-  };
-  createDynamicSessionCard_1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['DSCCreateRequest'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['DynamicSessionCard'];
-        };
-      };
-    };
-  };
-  getStatus: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['InteractionResponse'];
-        };
-      };
-    };
-  };
-  getAggregationSessionId: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['SessionData'];
-        };
-      };
-    };
-  };
-  getCustomerProfile: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['Profile'];
-        };
-      };
-    };
-  };
-  machinePayments: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        enable: boolean;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  getActiveDynamicSessionCards_1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['DynamicSessionCard'][];
-        };
-      };
-    };
-  };
-  cancel_1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        tokenId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          '*/*': components['schemas']['MachinePaymentResponse'];
-        };
-      };
-    };
-  };
-  deleteSource: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        sourceId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  deleteShippingAddress: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  deleteBillingAddress: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  cancelDynamicSessionCard: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['StringHolder'];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  cancelDynamicSessionCard_1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        cardId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
+    addPBBSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                aldSessionId: string;
+                pToken: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerificationResponse"];
+                };
+            };
+        };
+    };
+    updateShippingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Address"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    addShippingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Address"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateBillingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Address"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    addBillingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Address"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StringHolder"];
+                };
+            };
+        };
+    };
+    updatePhone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RealmSetupInfo"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    validateOTP: {
+        parameters: {
+            query?: never;
+            header: {
+                "User-Agent": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OTPValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    authenticate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OTPResponse"];
+                };
+            };
+        };
+    };
+    authenticateEmailOnly: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OTPResponse"];
+                };
+            };
+        };
+    };
+    consume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsumeTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MachinePaymentResponse"];
+                };
+            };
+        };
+    };
+    createInteraction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InteractionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InteractionResponse"];
+                };
+            };
+        };
+    };
+    uploadField: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocFieldValue"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    verifyStep2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerificationResponse"];
+                };
+            };
+        };
+    };
+    verifyStep1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerificationResponse"];
+                };
+            };
+        };
+    };
+    attachPaymentMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentSourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InteractionResponse"];
+                };
+            };
+        };
+    };
+    mask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StringHolder"];
+                };
+            };
+        };
+    };
+    addCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Card"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerificationResponse"];
+                };
+            };
+        };
+    };
+    addACH: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankAccount"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["VerificationResponse"];
+                };
+            };
+        };
+    };
+    validateOTP_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OTPValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InteractionResponse"];
+                };
+            };
+        };
+    };
+    sendOTP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InteractionResponse"];
+                };
+            };
+        };
+    };
+    sendOTPToEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InteractionResponse"];
+                };
+            };
+        };
+    };
+    uploadDoc: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: string;
+                docType: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "SOCIAL_SECURITY_NUMBER";
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updatePhone_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneDetails"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    verifyPhoneOTP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createDynamicSessionCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DSCCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DynamicSessionCard"];
+                };
+            };
+        };
+    };
+    findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentsSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Payment"][];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CreateTokenResponse"];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MachinePaymentResponse"];
+                };
+            };
+        };
+    };
+    getActiveDynamicSessionCards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DynamicSessionCard"][];
+                };
+            };
+        };
+    };
+    createDynamicSessionCard_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DSCCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DynamicSessionCard"];
+                };
+            };
+        };
+    };
+    getStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InteractionResponse"];
+                };
+            };
+        };
+    };
+    getAggregationSessionId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionData"];
+                };
+            };
+        };
+    };
+    getCustomerProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Profile"];
+                };
+            };
+        };
+    };
+    machinePayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                enable: boolean;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getActiveDynamicSessionCards_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DynamicSessionCard"][];
+                };
+            };
+        };
+    };
+    cancel_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MachinePaymentResponse"];
+                };
+            };
+        };
+    };
+    deleteSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteShippingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteBillingAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cancelDynamicSessionCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cancelDynamicSessionCard_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }

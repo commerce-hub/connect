@@ -60,23 +60,11 @@ export const ON_ERROR_EVENT = 'onError';
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
 type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
 type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
-type VerificationStatus = NonNullable<VerificationInfo['status']>;
-type VerificationStatusResponse = VerificationInfo | VerificationStatus;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
 };
 type Address = components['schemas']['Address'];
 type BillingAddressResponse = components['schemas']['StringHolder'];
-type SourceListResponse = PaymentSource[] | InteractionResponse;
-type CreatedPaymentSourceResponse =
-  | PaymentSource[]
-  | (InteractionResponse & {
-      id?: string;
-      source?: PaymentSource;
-      sourceId?: string;
-      paymentSourceId?: string;
-      verificationStatus?: VerificationStatusResponse;
-    });
 type VerificationResponse = components['schemas']['VerificationResponse'];
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
@@ -1975,8 +1963,8 @@ export class CommerceHubConnect extends LitElement {
           network: detectCardNetwork(normalizedDraft.cardNumber),
         },
       };
-      const sourceResponse =
-        await this.requestCommerceHubJson<CreatedPaymentSourceResponse>(
+      const verificationResponse =
+        await this.requestCommerceHubJson<VerificationResponse>(
           '/interaction/source/card',
           interactionId,
           {
@@ -1985,12 +1973,17 @@ export class CommerceHubConnect extends LitElement {
             body: JSON.stringify(cardSource),
             credentials: 'include',
           }
-        );
-      const createdSource = resolveCreatedPaymentSource(sourceResponse);
-      const paymentSourceId = createdSource.id;
+      );
+      const createdSource = this.sourceWithVerificationResponse(
+        cardPaymentSourceFromPayload(cardSource, normalizedDraft.cardNumber),
+        verificationResponse
+      ) as CardPaymentSource & {id: string};
+      const paymentSourceId = sourceIdFromVerificationResponse(
+        verificationResponse,
+        'The card creation response did not include a source id.'
+      );
       const nextInteractionResponse = this.interactionResponseWithAddedSource(
         interactionId,
-        sourceResponse,
         createdSource
       );
 
@@ -2000,17 +1993,13 @@ export class CommerceHubConnect extends LitElement {
       this.cardEncryption = createCardEncryptionState();
       this.cardSubmitError = undefined;
       this.setInteractionResponseFromSdk(nextInteractionResponse);
-      const addedSource = {
-        ...createdSource,
-        id: paymentSourceId,
-      };
 
-      if (addedSource.verificationInfo?.status === 'VERIFIED') {
+      if (createdSource.verificationInfo?.status === 'VERIFIED') {
         await this.attachPaymentSource(paymentSourceId);
         return;
       }
 
-      this.showAddedPaymentSourceStatus(addedSource);
+      this.showAddedPaymentSourceStatus(createdSource);
     } catch (cause) {
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
@@ -2342,19 +2331,13 @@ export class CommerceHubConnect extends LitElement {
 
   private interactionResponseWithAddedSource(
     interactionId: string,
-    sourceResponse: SourceListResponse,
     source: PaymentSource
   ): InteractionResponse {
     const sourceId = source.id?.trim();
     const shouldPreselectSource =
       Boolean(sourceId) && shouldPreselectAddedPaymentSource(source);
-    const sourceInteractionResponse = interactionResponseWithSourceList(
-      this.interactionResponse ?? {interactionId},
-      sourceResponse,
-      shouldPreselectSource ? sourceId : undefined
-    );
     const baseInteractionResponse = {
-      ...sourceInteractionResponse,
+      ...(this.interactionResponse ?? {interactionId}),
       status: 'PAYMENT_SOURCE_REQUESTED' as const,
     };
 
@@ -2810,16 +2793,13 @@ export class CommerceHubConnect extends LitElement {
           }
 
           try {
-            const sourceResponse = await this.finalizePayByBankSession(
+            const verificationResponse = await this.finalizePayByBankSession(
               interactionId,
               aggregatorSessionId,
               pToken
             );
-            const bankSource =
-              resolvePayByBankSourceFromSourceResponse(sourceResponse);
-            const resolvedBankSource = await this.resolvePayByBankOutcomeSource(
-              interactionId,
-              bankSource
+            const resolvedBankSource = bankPaymentSourceFromVerificationResponse(
+              verificationResponse
             );
             const paymentSourceId = resolvedBankSource.id?.trim();
 
@@ -2828,67 +2808,21 @@ export class CommerceHubConnect extends LitElement {
                 'Connect your bank completed but the resolved bank payment source did not include an id.'
               );
             }
-            const shouldPreselectSource =
-              shouldPreselectAddedPaymentSource(resolvedBankSource);
-            const sourceInteractionResponse = interactionResponseWithSourceList(
-              this.interactionResponse ?? {interactionId},
-              sourceResponse,
-              shouldPreselectSource ? paymentSourceId : undefined
+            const nextInteractionResponse = this.interactionResponseWithAddedSource(
+              interactionId,
+              resolvedBankSource
             );
-            let nextInteractionResponse = shouldPreselectSource
-              ? withUpsertedSource(
-                  {
-                    ...sourceInteractionResponse,
-                    status: 'PAYMENT_SOURCE_REQUESTED',
-                  },
-                  resolvedBankSource
-                )
-              : withUpsertedSourcePreservingSelection(
-                  {
-                    ...sourceInteractionResponse,
-                    selectedSource: this.interactionResponse?.selectedSource,
-                    status: 'PAYMENT_SOURCE_REQUESTED',
-                  },
-                  resolvedBankSource
-                );
-
-            if (shouldPreselectSource) {
-              try {
-                const attachedInteractionResponse =
-                  await this.requestCommerceHubJson<InteractionResponse>(
-                    `/interaction/source/${encodeURIComponent(
-                      paymentSourceId
-                    )}/attach`,
-                    interactionId,
-                    {method: 'POST', credentials: 'include'}
-                  );
-                const refreshedInteractionResponse =
-                  interactionResponseWithSelection(
-                    nextInteractionResponse,
-                    attachedInteractionResponse,
-                    paymentSourceId
-                  );
-                const attachedSource =
-                  selectedPaymentSourceFromInteractionResponse(
-                    refreshedInteractionResponse,
-                    paymentSourceId
-                  ) ??
-                  refreshedInteractionResponse.paymentSources?.find(
-                    (paymentSource) => paymentSource.id === paymentSourceId
-                  ) ??
-                  resolvedBankSource;
-
-                nextInteractionResponse = withUpsertedSource(
-                  refreshedInteractionResponse,
-                  attachedSource
-                );
-              } catch (cause) {
-                void cause;
-              }
-            }
 
             this.setInteractionResponseFromSdk(nextInteractionResponse);
             this.resetBankFlow();
+
+            if (resolvedBankSource.verificationInfo?.status === 'VERIFIED') {
+              await this.attachPaymentSource(paymentSourceId);
+              settled = true;
+              resolve();
+              return;
+            }
+
             this.showAddedPaymentSourceStatus(resolvedBankSource);
             settled = true;
             resolve();
@@ -2990,35 +2924,14 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string,
     aggregatorSessionId: string,
     pToken: string
-  ): Promise<SourceListResponse> {
-    return this.requestCommerceHubJson<SourceListResponse>(
+  ): Promise<VerificationResponse> {
+    return this.requestCommerceHubJson<VerificationResponse>(
       `/interaction/source/pbb/session/${encodeURIComponent(
         aggregatorSessionId
       )}/${encodeURIComponent(pToken)}`,
       interactionId,
       {method: 'PUT', credentials: 'include'}
     );
-  }
-
-  private async resolvePayByBankOutcomeSource(
-    interactionId: string,
-    source: BankPaymentSource
-  ): Promise<BankPaymentSource> {
-    if (source.verificationInfo?.status !== 'NOT_VERIFIED') {
-      return source;
-    }
-
-    return this.verifyPayByBankSource(interactionId, source);
-  }
-
-  private async verifyPayByBankSource(
-    interactionId: string,
-    source: BankPaymentSource
-  ): Promise<BankPaymentSource> {
-    return this.verifyPaymentSourceStep1(
-      interactionId,
-      source
-    ) as Promise<BankPaymentSource>;
   }
 
   private async verifyPaymentSourceStep1(
@@ -3777,154 +3690,55 @@ const createLocalBillingAddressId = (): string => {
   )}-${billingAddressIdCounter.toString(36)}`;
 };
 
-const createdPaymentSourcesFromResponse = (
-  response?: CreatedPaymentSourceResponse
-): PaymentSource[] => {
-  if (!response) {
-    return [];
-  }
-
-  if (Array.isArray(response)) {
-    return response;
-  }
-
-  return [
-    response.selectedSource,
-    response.source,
-    ...(response.paymentSources ?? []),
-  ].filter((source): source is PaymentSource => Boolean(source));
-};
-
-const resolveCreatedPaymentSource = (
-  response?: CreatedPaymentSourceResponse
-): PaymentSource & {id: string} => {
-  const paymentSourceId = resolveCreatedPaymentSourceId(response);
-  const source =
-    createdPaymentSourcesFromResponse(response).find(
-      (paymentSource) => paymentSource.id?.trim() === paymentSourceId
-    ) ??
-    createdPaymentSourcesFromResponse(response).find((paymentSource) =>
-      paymentSource.id?.trim()
-    );
-
-  if (!source) {
-    throw new Error(
-      'The card creation response did not include a created source.'
-    );
-  }
-
-  if (!isCardPaymentSource(source)) {
-    throw new Error(
-      'The card creation response did not include a card source.'
-    );
-  }
-
-  return normalizeCreatedPaymentSource(source, paymentSourceId, response);
-};
-
-const normalizeCreatedPaymentSource = (
-  source: CardPaymentSource,
-  paymentSourceId: string,
-  response?: CreatedPaymentSourceResponse
-): CardPaymentSource & {id: string} => {
-  const verificationInfo = createdPaymentSourceVerificationInfo(
-    source,
-    response
-  );
+const cardPaymentSourceFromPayload = (
+  source: CardSourcePayload,
+  displayCardNumber?: string
+): CardPaymentSource => {
+  const displayLast4 = normalizeCardNumber(displayCardNumber ?? '').slice(-4);
 
   return {
     ...source,
-    id: paymentSourceId,
-    ...(verificationInfo ? {verificationInfo} : {}),
+    tenderType: 'Card',
+    card: {
+      ...source.card,
+      ...(displayLast4 ? {cardNumber: displayLast4} : {}),
+    },
   };
 };
 
-const createdPaymentSourceVerificationInfo = (
-  source: PaymentSource,
-  response?: CreatedPaymentSourceResponse
-): VerificationInfo | undefined => {
-  const sourceVerificationInfo = verificationInfoFromStatusResponse(
-    (source as PaymentSource & {verificationStatus?: unknown})
-      .verificationStatus
-  );
-  const responseVerificationInfo = verificationInfoFromStatusResponse(
-    !Array.isArray(response) ? response?.verificationStatus : undefined
-  );
-  const verificationInfo = {
-    ...source.verificationInfo,
-    ...sourceVerificationInfo,
-    ...responseVerificationInfo,
-  };
+const bankPaymentSourceFromVerificationResponse = (
+  response: VerificationResponse
+): BankPaymentSource & {id: string} => ({
+  id: sourceIdFromVerificationResponse(
+    response,
+    'Connect your bank completed but the verification response did not include a source id.'
+  ),
+  tenderType: 'BankAccount',
+  verificationInfo: verificationInfoFromVerificationResponse(response),
+  bankAccount: {},
+});
 
-  return verificationInfo.status || verificationInfo.docs
-    ? verificationInfo
-    : undefined;
-};
-
-const verificationInfoFromStatusResponse = (
-  response: unknown
-): VerificationInfo | undefined => {
-  if (isVerificationStatus(response)) {
-    return {status: response};
-  }
-
-  if (!response || typeof response !== 'object') {
-    return undefined;
-  }
-
-  const verificationInfo = response as Partial<VerificationInfo>;
-
-  if (!isVerificationStatus(verificationInfo.status)) {
-    return undefined;
-  }
-
-  return {
-    ...verificationInfo,
-    status: verificationInfo.status,
-  };
-};
-
-const VERIFICATION_STATUSES = [
-  'NOT_VERIFIED',
-  'REQUIRE_INFO',
-  'UNDER_REVIEW',
-  'DECLINED',
-  'VERIFIED',
-] as const;
-
-const isVerificationStatus = (value: unknown): value is VerificationStatus =>
-  typeof value === 'string' &&
-  VERIFICATION_STATUSES.some((status) => status === value);
-
-const resolveCreatedPaymentSourceId = (
-  response?: CreatedPaymentSourceResponse
+const sourceIdFromVerificationResponse = (
+  response: VerificationResponse,
+  errorMessage: string
 ): string => {
-  if (Array.isArray(response)) {
-    const paymentSourceId = response
-      .find((source) => source.id?.trim())
-      ?.id?.trim();
+  const sourceId = response.sourceId?.trim();
 
-    if (paymentSourceId) {
-      return paymentSourceId;
-    }
+  if (!sourceId) {
+    throw new Error(errorMessage);
   }
 
-  const paymentSourceId =
-    !Array.isArray(response) &&
-    (response?.selectedSource?.id?.trim() ||
-      response?.source?.id?.trim() ||
-      response?.sourceId?.trim() ||
-      response?.paymentSourceId?.trim() ||
-      response?.id?.trim() ||
-      response?.paymentSources
-        ?.find((source) => source.id?.trim())
-        ?.id?.trim());
+  return sourceId;
+};
 
-  if (!paymentSourceId) {
-    throw new Error('The card creation response did not include a source id.');
-  }
+const verificationInfoFromVerificationResponse = (
+  response: VerificationResponse
+): VerificationInfo => {
+  const {sourceId, ...verificationInfo} = response;
 
-  return paymentSourceId;
+  void sourceId;
+
+  return verificationInfo;
 };
 
 const defaultOtpSubtitle = (destination?: string): string =>
@@ -4220,36 +4034,6 @@ const selectedPaymentSourceFromInteractionResponse = (
   return interactionResponse?.selectedSource;
 };
 
-const paymentSourcesFromSourceListResponse = (
-  response: SourceListResponse
-): PaymentSource[] =>
-  Array.isArray(response) ? response : response.paymentSources ?? [];
-
-const interactionResponseWithSourceList = (
-  current: InteractionResponse,
-  response: SourceListResponse,
-  preferredPaymentSourceId?: string
-): InteractionResponse => {
-  const paymentSources = paymentSourcesFromSourceListResponse(response);
-  const base = Array.isArray(response)
-    ? current
-    : {
-        ...current,
-        ...response,
-      };
-  const selectedSource =
-    resolvePreferredPaymentSource(
-      paymentSources,
-      preferredPaymentSourceId ?? base.selectedSource?.id
-    ) ?? base.selectedSource;
-
-  return {
-    ...base,
-    selectedSource,
-    paymentSources,
-  };
-};
-
 const interactionResponseWithSelection = (
   current: InteractionResponse,
   response: InteractionResponse,
@@ -4398,37 +4182,6 @@ const isTerminalPaymentSdkEvent = (event: PaymentSdkEvent): boolean =>
   event.type === 'cancel' ||
   event.type === 'failure' ||
   event.type === 'error';
-
-const resolvePayByBankSourceFromSourceResponse = (
-  response: SourceListResponse
-): BankPaymentSource => {
-  const paymentSources = Array.isArray(response)
-    ? response
-    : [response.selectedSource, ...(response.paymentSources ?? [])];
-  const source = paymentSources.find(
-    (paymentSource): paymentSource is BankPaymentSource =>
-      Boolean(paymentSource && isBankPaymentSource(paymentSource))
-  );
-
-  if (!source) {
-    throw new Error(
-      'Connect your bank completed but no bank payment source was returned by /interaction/source/pbb/session.'
-    );
-  }
-
-  const paymentSourceId = source.id?.trim();
-
-  if (!paymentSourceId) {
-    throw new Error(
-      'Connect your bank completed but the returned bank payment source did not include an id.'
-    );
-  }
-
-  return {
-    ...source,
-    id: paymentSourceId,
-  };
-};
 
 const withUpsertedSource = (
   interactionResponse: InteractionResponse,
