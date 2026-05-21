@@ -47,6 +47,8 @@ suite('demo host page', () => {
     assert.include(html, 'id="interaction-merchant-id"');
     assert.include(html, 'id="interaction-terminal-id"');
     assert.include(html, 'id="interaction-client-id"');
+    assert.include(html, 'id="commerce-hub-api-base-url-mode"');
+    assert.include(html, 'id="commerce-hub-api-custom-base-url"');
     assert.include(html, 'id="interaction-first-name"');
     assert.include(html, 'id="interaction-last-name"');
     assert.include(html, 'id="interaction-advanced-verification"');
@@ -141,9 +143,7 @@ suite('demo host page', () => {
       /const scenarios = \{([\s\S]*?)\n\s{6}\};/
     );
     const scenarioObjectNames = [
-      ...(scenarioObjectMatch?.[1] ?? '').matchAll(
-        /^\s{8}([a-zA-Z0-9]+): /gm
-      ),
+      ...(scenarioObjectMatch?.[1] ?? '').matchAll(/^\s{8}([a-zA-Z0-9]+): /gm),
     ].map((match) => match[1]);
 
     assert.sameOrderedMembers(scenarioButtonNames, expectedScenarioNames);
@@ -159,6 +159,11 @@ suite('demo host page', () => {
     assert.include(html, 'createInitialInteractionResponse(');
     assert.include(html, 'body: JSON.stringify(interactionRequest)');
     assert.include(html, 'widget.designConfig = designConfig');
+    assert.include(html, 'widget.baseURL = resolveWidgetBaseURL()');
+    assert.include(html, "createApiUrl('/merchant/interaction/create')");
+    assert.include(html, 'resolveCreateInteractionBaseURL()');
+    assert.include(html, "baseURLMode: 'CUSTOM'");
+    assert.include(html, 'customBaseURL: initialApiBaseUrl');
     assert.notInclude(html, '<textarea id="interaction-request"');
     assert.notInclude(html, 'JSON.parse(requestInput.value)');
     assert.notInclude(

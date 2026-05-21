@@ -34,6 +34,30 @@ handles OTP validation or OTP resend, it uses
 `interactionId` is missing, the widget does not call the CommerceHub API and
 keeps the current screen stable.
 
+SDK-managed requests use `http://localhost:8080` by default. Set `.baseURL` to
+route those requests to a CommerceHub preset or custom origin. `DEV`, `QA`, and
+`PROD` currently resolve to `https://qa.openfx-nonprod.aws.fisv.cloud`.
+
+```ts
+{% raw %}
+html`<commerce-hub-connect
+  .interactionResponse=${interactionResponse}
+  .baseURL=${'QA'}
+></commerce-hub-connect>`;
+{% endraw %}
+```
+
+Custom origins can be passed directly:
+
+```ts
+{% raw %}
+html`<commerce-hub-connect
+  .interactionResponse=${interactionResponse}
+  .baseURL=${'https://api.example.com'}
+></commerce-hub-connect>`;
+{% endraw %}
+```
+
 Saved payment-method confirmation does not call
 `/interaction/payment-source/{paymentSourceId}/attach`. After a shopper selects
 a saved method and presses Continue, the widget emits `onSuccess` with the
@@ -50,6 +74,7 @@ screen copy. The object and all nested fields are optional.
 {% raw %}
 html`<commerce-hub-connect
   .interactionResponse=${interactionResponse}
+  .baseURL=${'QA'}
   .designConfig=${{
     colors: {
       primary: '#084acc',
