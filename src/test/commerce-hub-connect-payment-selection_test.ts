@@ -124,6 +124,77 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(rows[1].dataset.action, undefined);
   });
 
+  test('renders all saved payment methods while filtering add actions by allowed tender types', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+        {
+          tenderType: 'DSCDisplayCard',
+          id: 'dynamic-card-1',
+          name: 'Dynamic credit card',
+          verificationInfo: {status: 'VERIFIED'},
+        },
+      ],
+    });
+
+    const rows = [
+      ...el.shadowRoot!.querySelectorAll<HTMLElement>('.payment-method-row'),
+    ];
+
+    assert.deepEqual(
+      rows.map((row) => row.dataset.paymentMethodId),
+      ['card-1', 'bank-1', 'dynamic-card-1']
+    );
+    assert.equal(
+      rows[1].querySelector('.payment-method-title')?.textContent?.trim(),
+      'Operating account'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+    );
+  });
+
+  test('filters empty-state add actions by allowed tender types', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['CARD'],
+      paymentSources: [],
+    });
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add payment method'
+    );
+    assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+    );
+  });
+
   test('Edit toggles payment source edit mode and hides add actions', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',

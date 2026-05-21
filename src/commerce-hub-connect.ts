@@ -97,6 +97,10 @@ type CardFieldEncryptionState = {
 };
 type CardEncryptionState = Record<SensitiveCardField, CardFieldEncryptionState>;
 type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
+type AllowedTenderOptions = {
+  card: boolean;
+  bankAccount: boolean;
+};
 
 type PaymentSdkEvent = {
   type?: 'success' | 'failure' | 'cancel' | 'error' | string;
@@ -487,6 +491,11 @@ export class CommerceHubConnect extends LitElement {
     const paymentMethods = paymentMethodsFromInteractionResponse(
       this.interactionResponse
     );
+    const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
+      this.interactionResponse
+    );
+    const hasAddPaymentActions =
+      allowedTenderOptions.card || allowedTenderOptions.bankAccount;
     const isPaymentSourceActionPending =
       this.pendingAction === 'attach-payment-source' ||
       this.pendingAction === 'verify-payment-source' ||
@@ -546,22 +555,28 @@ export class CommerceHubConnect extends LitElement {
           </div>
           ${isEditingPaymentSources
             ? ''
+            : !hasAddPaymentActions
+            ? ''
             : html`
                 <div class="payment-action-links">
-                  ${renderSourceAction({
-                    label: copy.addCardTitle,
-                    action: 'add-card',
-                    icon: 'card',
-                    variant: 'link',
-                    disabled: isPaymentSourceActionPending,
-                  })}
-                  ${renderSourceAction({
-                    label: copy.addBankAccountTitle,
-                    action: 'add-bank-account',
-                    icon: 'bank',
-                    variant: 'link',
-                    disabled: isPaymentSourceActionPending,
-                  })}
+                  ${allowedTenderOptions.card
+                    ? renderSourceAction({
+                        label: copy.addCardTitle,
+                        action: 'add-card',
+                        icon: 'card',
+                        variant: 'link',
+                        disabled: isPaymentSourceActionPending,
+                      })
+                    : ''}
+                  ${allowedTenderOptions.bankAccount
+                    ? renderSourceAction({
+                        label: copy.addBankAccountTitle,
+                        action: 'add-bank-account',
+                        icon: 'bank',
+                        variant: 'link',
+                        disabled: isPaymentSourceActionPending,
+                      })
+                    : ''}
                 </div>
               `}
         </div>
@@ -793,6 +808,11 @@ export class CommerceHubConnect extends LitElement {
     const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
     const showHelperCopy = Boolean(copy.emptyTitle || copy.emptyMessage);
     const isDeletePending = this.pendingAction === 'delete-payment-source';
+    const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
+      this.interactionResponse
+    );
+    const hasAddPaymentActions =
+      allowedTenderOptions.card || allowedTenderOptions.bankAccount;
 
     return renderWidgetShell({
       title: copy.title,
@@ -807,24 +827,32 @@ export class CommerceHubConnect extends LitElement {
                 message: copy.emptyMessage,
               })
             : ''}
-          <div class="payment-action-links">
-            ${renderSourceAction({
-              label: copy.addCardTitle,
-              subtitle: copy.addCardSubtitle,
-              action: 'add-card',
-              icon: 'card',
-              variant: 'link',
-              disabled: isDeletePending,
-            })}
-            ${renderSourceAction({
-              label: copy.addBankAccountTitle,
-              subtitle: copy.addBankAccountSubtitle,
-              action: 'add-bank-account',
-              icon: 'bank',
-              variant: 'link',
-              disabled: isDeletePending,
-            })}
-          </div>
+          ${hasAddPaymentActions
+            ? html`
+                <div class="payment-action-links">
+                  ${allowedTenderOptions.card
+                    ? renderSourceAction({
+                        label: copy.addCardTitle,
+                        subtitle: copy.addCardSubtitle,
+                        action: 'add-card',
+                        icon: 'card',
+                        variant: 'link',
+                        disabled: isDeletePending,
+                      })
+                    : ''}
+                  ${allowedTenderOptions.bankAccount
+                    ? renderSourceAction({
+                        label: copy.addBankAccountTitle,
+                        subtitle: copy.addBankAccountSubtitle,
+                        action: 'add-bank-account',
+                        icon: 'bank',
+                        variant: 'link',
+                        disabled: isDeletePending,
+                      })
+                    : ''}
+                </div>
+              `
+            : ''}
         </div>
       `,
     });
@@ -3887,6 +3915,21 @@ const paymentMethodsFromInteractionResponse = (
   }
 
   return paymentSources.map((source) => paymentSourceToPaymentMethod(source));
+};
+
+const allowedTenderOptionsFromInteractionResponse = (
+  interactionResponse?: InteractionResponse
+): AllowedTenderOptions => {
+  const allowedTenderTypes = interactionResponse?.allowedTenderTypes;
+
+  if (!allowedTenderTypes) {
+    return {card: true, bankAccount: true};
+  }
+
+  return {
+    card: allowedTenderTypes.includes('CARD'),
+    bankAccount: allowedTenderTypes.includes('BANK_ACCOUNT'),
+  };
 };
 
 const paymentSourceToPaymentMethod = (
