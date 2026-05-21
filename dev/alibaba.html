@@ -806,14 +806,14 @@
       const buildInteractionRequest = () => {
         const interactionRequest = {
           email: buyerEmail.textContent.trim(),
-          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'NATIVE_ACCOUNT'],
           merchantData: {
             clientId: 'marriot',
             merchantId: '101475000000009',
-            terminalId: '10000001',
+            terminalId: '99',
           },
           advancedVerification: false,
-          preAuthenticated: false,
+          mode: 'FULL',
         };
 
         return interactionRequest;

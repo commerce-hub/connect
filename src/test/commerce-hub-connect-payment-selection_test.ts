@@ -128,7 +128,11 @@ suite('commerce-hub-connect payment selection', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      allowedTenderTypes: ['BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+      allowedTenderTypes: [
+        'BANK_ACCOUNT',
+        'DYNAMIC_SESSION_CARD',
+        'NATIVE_ACCOUNT',
+      ],
       paymentSources: [
         {
           tenderType: 'Card',
@@ -156,6 +160,17 @@ suite('commerce-hub-connect payment selection', () => {
           name: 'Dynamic credit card',
           verificationInfo: {status: 'VERIFIED'},
         },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          name: 'Digital wallet',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            accountHandle: 'wallet-handle-7890',
+            accountName: 'Commerce wallet',
+            accountType: 'Wallet',
+          },
+        },
       ],
     });
 
@@ -165,12 +180,21 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.deepEqual(
       rows.map((row) => row.dataset.paymentMethodId),
-      ['card-1', 'bank-1', 'dynamic-card-1']
+      ['card-1', 'bank-1', 'dynamic-card-1', 'native-account-1']
     );
     assert.equal(
       rows[1].querySelector('.payment-method-title')?.textContent?.trim(),
       'Operating account'
     );
+    assert.equal(
+      rows[3].querySelector('.payment-method-title')?.textContent?.trim(),
+      'Commerce wallet'
+    );
+    assert.equal(
+      rows[3].querySelector('.payment-method-meta')?.textContent?.trim(),
+      'Wallet •••• 7890'
+    );
+    assert.exists(rows[3].querySelector('[data-payment-method-icon="native"]'));
     assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.exists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')

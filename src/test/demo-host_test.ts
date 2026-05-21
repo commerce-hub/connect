@@ -160,12 +160,14 @@ suite('demo host page', () => {
     assert.deepEqual(createRequestBody?.allowedTenderTypes, [
       'CARD',
       'BANK_ACCOUNT',
+      'NATIVE_ACCOUNT',
     ]);
     assert.deepEqual(createRequestBody?.merchantData, {
       clientId: 'marriot',
       merchantId: '101475000000009',
       terminalId: '10000001',
     });
+    assert.propertyVal(createRequestBody, 'mode', 'FULL');
     assert.equal(
       pageDocument
         .querySelector('#alibaba-rewards-sdk-panel')
@@ -336,6 +338,7 @@ suite('demo host page', () => {
       merchantId: '101475000000009',
       terminalId: '10000001',
     });
+    assert.propertyVal(createRequestBody, 'mode', 'FULL');
     assert.equal(
       pageDocument
         .querySelector('#clover-pay-sdk-panel')
@@ -378,7 +381,8 @@ suite('demo host page', () => {
     assert.include(html, 'id="interaction-first-name"');
     assert.include(html, 'id="interaction-last-name"');
     assert.include(html, 'id="interaction-advanced-verification"');
-    assert.include(html, 'id="interaction-pre-authenticated"');
+    assert.include(html, 'id="interaction-mode"');
+    assert.include(html, 'id="interaction-allow-native-account"');
     assert.include(html, 'name="allowedTenderTypes"');
     assert.include(html, '<pre id="interaction-request-preview"');
     assert.isAtLeast(
@@ -513,11 +517,12 @@ suite('demo host page', () => {
     assert.include(html, "merchantId: '101475000000009'");
     assert.include(html, "terminalId: '10000001'");
     assert.include(html, 'advancedVerification: true');
-    assert.include(html, 'preAuthenticated: true');
+    assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, 'allowCard: true');
     assert.include(html, 'allowBankAccount: true');
     assert.include(html, 'allowDynamicSessionCard: false');
-    assert.include(html, 'preAuthenticated: requestFormState.preAuthenticated');
+    assert.include(html, 'allowNativeAccount: false');
+    assert.include(html, 'mode: requestFormState.mode');
   });
 
   test('uses editable default values for the design config passed to the SDK', async () => {

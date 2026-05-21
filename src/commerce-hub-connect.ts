@@ -68,6 +68,10 @@ export const ON_ERROR_EVENT = 'onError';
 
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
 type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
+type NativePaymentSource = Extract<
+  PaymentSource,
+  {tenderType: 'NativeAccount'}
+>;
 type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
@@ -127,6 +131,7 @@ type BankAccountDraftErrors = Partial<Record<keyof BankAccountDraft, string>>;
 type AllowedTenderOptions = {
   card: boolean;
   bankAccount: boolean;
+  nativeAccount: boolean;
 };
 type VerificationOverlayAction =
   | 'verify-payment-source'
@@ -2538,10 +2543,7 @@ export class CommerceHubConnect extends LitElement {
           }
         );
       const createdSource = this.sourceWithVerificationResponse(
-        bankPaymentSourceFromPayload(
-          bankAccountSource,
-          displayAccountNumber
-        ),
+        bankPaymentSourceFromPayload(bankAccountSource, displayAccountNumber),
         verificationResponse
       ) as BankPaymentSource & {id: string};
       const paymentSourceId = sourceIdFromVerificationResponse(
@@ -4648,12 +4650,13 @@ const allowedTenderOptionsFromInteractionResponse = (
   const allowedTenderTypes = interactionResponse?.allowedTenderTypes;
 
   if (!allowedTenderTypes) {
-    return {card: true, bankAccount: true};
+    return {card: true, bankAccount: true, nativeAccount: true};
   }
 
   return {
     card: allowedTenderTypes.includes('CARD'),
     bankAccount: allowedTenderTypes.includes('BANK_ACCOUNT'),
+    nativeAccount: allowedTenderTypes.includes('NATIVE_ACCOUNT'),
   };
 };
 
@@ -4667,7 +4670,7 @@ const paymentSourceToPaymentMethod = (
   return {
     id: sourceId || sourceName || source.tenderType,
     label: paymentSourceDisplayName(source, {selected}),
-    type: isBankPaymentSource(source) ? 'bank' : 'card',
+    type: paymentSourcePaymentMethodType(source),
     brand: paymentSourceBrand(source),
     accountLabel: paymentSourceAccountLabel(source),
     last4: paymentSourceLast4(source),
@@ -4706,6 +4709,14 @@ const paymentSourceDisplayName = (
     );
   }
 
+  if (isNativePaymentSource(source)) {
+    return (
+      source.account?.accountName?.trim() ||
+      source.name?.trim() ||
+      paymentSourceLabel(source)
+    );
+  }
+
   return source.name?.trim() || paymentSourceLabel(source);
 };
 
@@ -4716,6 +4727,10 @@ const paymentSourceLabel = (source: PaymentSource): string => {
 
   if (isBankPaymentSource(source)) {
     return source.bankAccount?.bankName ?? 'Saved bank account';
+  }
+
+  if (isNativePaymentSource(source)) {
+    return 'Native account';
   }
 
   return 'Dynamic session card';
@@ -4730,11 +4745,25 @@ const paymentSourceBrand = (source: PaymentSource): string => {
     return source.bankAccount?.bankName ?? 'Bank account';
   }
 
+  if (isNativePaymentSource(source)) {
+    return source.account?.accountType ?? 'Native account';
+  }
+
   return 'DSC';
 };
 
-const paymentSourceAccountLabel = (source: PaymentSource): string =>
-  `•••• ${paymentSourceLast4(source)}`;
+const paymentSourceAccountLabel = (source: PaymentSource): string => {
+  const last4 = paymentSourceLast4(source);
+  const masked = `•••• ${last4}`;
+
+  if (isNativePaymentSource(source)) {
+    const accountType = source.account?.accountType?.trim();
+
+    return accountType ? `${accountType} ${masked}` : masked;
+  }
+
+  return masked;
+};
 
 const paymentSourceLast4 = (source: PaymentSource): string => {
   if (isCardPaymentSource(source)) {
@@ -4745,7 +4774,25 @@ const paymentSourceLast4 = (source: PaymentSource): string => {
     return lastFour(source.bankAccount?.accountNumber);
   }
 
+  if (isNativePaymentSource(source)) {
+    return lastFour(source.account?.accountHandle);
+  }
+
   return lastFour(source.id);
+};
+
+const paymentSourcePaymentMethodType = (
+  source: PaymentSource
+): PaymentMethod['type'] => {
+  if (isBankPaymentSource(source)) {
+    return 'bank';
+  }
+
+  if (isNativePaymentSource(source)) {
+    return 'native';
+  }
+
+  return 'card';
 };
 
 const resolveSelectedPaymentSourceId = (
@@ -5384,6 +5431,10 @@ const requiredInfoSourceTypeLabel = (source: PaymentSource): string => {
     return 'Card';
   }
 
+  if (isNativePaymentSource(source)) {
+    return 'Native account';
+  }
+
   return 'Dynamic session card';
 };
 
@@ -5400,6 +5451,14 @@ const requiredInfoSourceName = (source: PaymentSource): string => {
     return (
       source.name?.trim() ||
       source.bankAccount?.bankName?.trim() ||
+      paymentSourceLabel(source)
+    );
+  }
+
+  if (isNativePaymentSource(source)) {
+    return (
+      source.account?.accountName?.trim() ||
+      source.name?.trim() ||
       paymentSourceLabel(source)
     );
   }
@@ -5435,7 +5494,7 @@ const requiredInfoSourceExpiry = (
 const paymentSourceIconMethod = (
   source: PaymentSource
 ): Pick<PaymentMethod, 'type' | 'brand'> => ({
-  type: isBankPaymentSource(source) ? 'bank' : 'card',
+  type: paymentSourcePaymentMethodType(source),
   brand: paymentSourceBrand(source),
 });
 
@@ -5511,7 +5570,11 @@ const requiresAdditionalVerificationInfo = (source: PaymentSource): boolean =>
   source.verificationInfo?.status === 'REQUIRE_INFO';
 
 const paymentSourceVerificationSubject = (source?: PaymentSource): string =>
-  source && isBankPaymentSource(source) ? 'Bank account' : 'Payment method';
+  source && isBankPaymentSource(source)
+    ? 'Bank account'
+    : source && isNativePaymentSource(source)
+    ? 'Native account'
+    : 'Payment method';
 
 const isBankPaymentSource = (
   source: PaymentSource
@@ -5523,6 +5586,12 @@ const isCardPaymentSource = (
   source: PaymentSource
 ): source is CardPaymentSource =>
   source.tenderType === 'Card' || (source.tenderType as string) === 'CARD';
+
+const isNativePaymentSource = (
+  source: PaymentSource
+): source is NativePaymentSource =>
+  source.tenderType === 'NativeAccount' ||
+  (source.tenderType as string) === 'NATIVE_ACCOUNT';
 
 let paymentSdkScriptPromise: Promise<void> | undefined;
 let paymentSdkScriptUrl: string | undefined;
