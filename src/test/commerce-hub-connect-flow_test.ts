@@ -278,6 +278,35 @@ const deferredResponse = () => {
   return {promise, resolve};
 };
 
+const captureMinimumOverlayTimer = () => {
+  const originalSetTimeout = window.setTimeout;
+  let capturedDelay: number | undefined;
+  let capturedHandler: (() => void) | undefined;
+
+  window.setTimeout = ((handler: TimerHandler, timeout?: number) => {
+    capturedDelay = Number(timeout);
+    capturedHandler = () => {
+      if (typeof handler === 'function') {
+        handler();
+      }
+    };
+
+    return 1;
+  }) as typeof window.setTimeout;
+
+  return {
+    get delay() {
+      return capturedDelay;
+    },
+    release() {
+      capturedHandler?.();
+    },
+    restore() {
+      window.setTimeout = originalSetTimeout;
+    },
+  };
+};
+
 const fillNewCardForm = async (el: CommerceHubConnect) => {
   await setFieldValue(el, 'card-label', 'Ada corporate card');
   await setFieldValue(el, 'name-on-card', 'Ada Lovelace');
@@ -605,7 +634,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.include(
       el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
-      'We send a one-time code to gregory.jablonski@fiserv.com.'
+      'We sent a one-time code to gregory.jablonski@fiserv.com.'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
     assert.exists(el.shadowRoot!.querySelector('.widget-divider'));
@@ -918,7 +947,7 @@ suite('commerce-hub-connect flow', () => {
       [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
         (item) => item.textContent?.trim()
       ),
-      ['Add a credit or debit card', 'Add bank account']
+      ['Add credit or debit card', 'Add bank account']
     );
     const addCardLink = el.shadowRoot!.querySelector<HTMLElement>(
       '[data-action="add-card"]'
@@ -1244,7 +1273,7 @@ suite('commerce-hub-connect flow', () => {
       [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
         (item) => item.textContent?.trim()
       ),
-      ['Add a credit or debit card', 'Add bank account']
+      ['Add credit or debit card', 'Add bank account']
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
@@ -1595,6 +1624,297 @@ suite('commerce-hub-connect flow', () => {
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
         'Payment method saved',
       'card save did not complete'
+    );
+  });
+
+  test('Connect your bank shows Link Account Manually under the provider and opens manual bank account entry', async () => {
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
+    );
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Connect your bank'
+    );
+    assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="add-ach-manually"]')
+        ?.textContent?.trim(),
+      'Link Account Manually'
+    );
+
+    await clickAction(el, 'add-ach-manually');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add ACH Manually'
+    );
+    assert.exists(el.shadowRoot!.querySelector('#ach-routing-number'));
+    assert.exists(el.shadowRoot!.querySelector('#ach-account-number'));
+    assert.exists(el.shadowRoot!.querySelector('#ach-account-number-confirm'));
+    assert.notExists(el.shadowRoot!.querySelector('#ach-label'));
+    assert.notExists(el.shadowRoot!.querySelector('#ach-account-type'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="save-ach-manual"]')
+        ?.textContent?.trim(),
+      'Save bank account'
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('#commerce-hub-pbb-provider')
+    );
+  });
+
+  test('manual ACH save encrypts entered values without local validation, masks the screen values, and shows verification outcome', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/interaction/source/mask/rt') {
+        return new Response(JSON.stringify({value: 'enc-routing-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (pathname === '/interaction/source/mask/bn') {
+        return new Response(
+          JSON.stringify({
+            value:
+              JSON.parse(bodyText).value === '123456789'
+                ? 'enc-account-1'
+                : 'enc-account-confirm-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          sourceId: 'bank-manual-1',
+          status: 'UNDER_REVIEW',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+    await clickAction(el, 'add-ach-manually');
+    assert.isFalse(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#ach-account-number')
+        ?.type,
+      'password'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>(
+        '#ach-account-number-confirm'
+      )?.type,
+      'password'
+    );
+
+    await setFieldValue(el, 'ach-routing-number', '021000021');
+    await setFieldValue(el, 'ach-account-number', '123456789');
+    await setFieldValue(el, 'ach-account-number-confirm', '987654321');
+    await blurField(el, 'ach-routing-number');
+    await blurField(el, 'ach-account-number');
+    await blurField(el, 'ach-account-number-confirm');
+    await waitForRequest(requests, '/interaction/source/mask/rt');
+    await waitFor(
+      () =>
+        requests.filter(
+          (request) =>
+            new URL(request.url).pathname === '/interaction/source/mask/bn'
+        ).length === 2,
+      'both bank account number mask requests were not sent'
+    );
+
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#ach-routing-number')
+        ?.value,
+      '•••••0021'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#ach-account-number')
+        ?.value,
+      '•••••6789'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#ach-account-number')
+        ?.type,
+      'text'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>(
+        '#ach-account-number-confirm'
+      )?.value,
+      '•••••4321'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>(
+        '#ach-account-number-confirm'
+      )?.type,
+      'text'
+    );
+
+    const requestsAfterMask = requests.length;
+    el
+      .shadowRoot!.querySelector<HTMLInputElement>('#ach-account-number')!
+      .dispatchEvent(new FocusEvent('focus', {bubbles: true}));
+    await blurField(el, 'ach-account-number');
+    el
+      .shadowRoot!.querySelector<HTMLInputElement>(
+        '#ach-account-number-confirm'
+      )!
+      .dispatchEvent(new FocusEvent('focus', {bubbles: true}));
+    await blurField(el, 'ach-account-number-confirm');
+
+    assert.lengthOf(requests, requestsAfterMask);
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#ach-account-number')
+        ?.value,
+      '•••••6789'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>(
+        '#ach-account-number-confirm'
+      )?.value,
+      '•••••4321'
+    );
+
+    await clickAction(el, 'save-ach-manual');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Bank account pending review',
+      'manual ACH outcome was not shown'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      [
+        'GET /interaction/source/pbb/session',
+        'POST /interaction/source/mask/rt',
+        'POST /interaction/source/mask/bn',
+        'POST /interaction/source/mask/bn',
+        'POST /interaction/source/ach',
+      ]
+    );
+    assert.equal(
+      requests[4].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(requests[4].credentials, 'include');
+    assert.deepEqual(
+      requests
+        .filter((request) =>
+          new URL(request.url).pathname.startsWith('/interaction/source/mask/')
+        )
+        .map((request) => JSON.parse(request.bodyText)),
+      [{value: '021000021'}, {value: '123456789'}, {value: '987654321'}]
+    );
+    assert.deepEqual(JSON.parse(requests[4].bodyText), {
+      id: '',
+      tenderType: 'BANK_ACCOUNT',
+      bankAccount: {
+        routingNumber: 'enc-routing-1',
+        accountNumber: 'enc-account-1',
+        accountNumberReEntered: 'enc-account-confirm-1',
+        routingNumberEncrypted: 'enc-routing-1',
+        accountNumberEncrypted: 'enc-account-1',
+      },
+    });
+    assert.equal(
+      el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
+      'UNDER_REVIEW'
     );
   });
 
@@ -3002,6 +3322,75 @@ suite('commerce-hub-connect flow', () => {
     await flushElement(el);
   });
 
+  test('saved payment verification shows an animated overlay for at least two seconds after verify step 1 returns', async () => {
+    const timer = captureMinimumOverlayTimer();
+
+    try {
+      window.fetch = async (input: RequestInfo | URL) => {
+        const request = input instanceof Request ? input : new Request(input);
+        const pathname = new URL(request.url).pathname;
+
+        if (pathname === '/interaction/verify/step1') {
+          return new Response(
+            JSON.stringify({
+              status: 'REQUIRE_INFO',
+              docs: [{docType: 'BANK_STATEMENT', mandatory: true}],
+            }),
+            {status: 200, headers: {'Content-Type': 'application/json'}}
+          );
+        }
+
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      };
+
+      const el = await renderConnect({
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [
+          {
+            tenderType: 'BankAccount',
+            id: 'bank-1',
+            name: 'Operating account',
+            verificationInfo: {status: 'NOT_VERIFIED'},
+            bankAccount: {
+              bankName: 'Commerce National Bank',
+              accountNumber: '9876543210',
+            },
+          },
+        ],
+      });
+
+      await clickAction(el, 'verify-payment-source');
+      await flushElement(el);
+
+      assert.equal(timer.delay, 2000);
+      assert.equal(
+        el
+          .shadowRoot!.querySelector('.widget-loading-title')
+          ?.textContent?.trim(),
+        'Verifying payment method'
+      );
+      assert.exists(el.shadowRoot!.querySelector('.widget-loading-animation'));
+      assert.notExists(
+        el.shadowRoot!.querySelector('.widget-loading-overlay .loading-spinner')
+      );
+      assert.equal(
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+        'Complete account verification'
+      );
+
+      timer.release();
+      await flushElement(el);
+
+      assert.notExists(el.shadowRoot!.querySelector('.widget-loading-overlay'));
+    } finally {
+      timer.restore();
+    }
+  });
+
   test('Connect your bank shows a loading frame until PaymentSDK init is ready', async () => {
     const pendingSession = deferredResponse();
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
@@ -3632,6 +4021,45 @@ suite('commerce-hub-connect flow', () => {
         'Payment method saved',
       'verified source was not attached'
     );
+  });
+
+  test('required-info verification keeps the animated overlay visible for at least two seconds after verify step 2 returns', async () => {
+    const timer = captureMinimumOverlayTimer();
+
+    try {
+      const {el} = await completePayByBankFlow({
+        finalizedStatus: 'NOT_VERIFIED',
+        verificationStatus: 'REQUIRE_INFO',
+        requiredInfoStep2Status: 'VERIFIED',
+      });
+
+      await selectRequiredInfoFile(el, 'may-bank-statement.pdf');
+      await clickAction(el, 'submit-required-info');
+      await flushElement(el);
+
+      assert.equal(timer.delay, 2000);
+      assert.equal(
+        el
+          .shadowRoot!.querySelector('.widget-loading-title')
+          ?.textContent?.trim(),
+        'Verifying account'
+      );
+      assert.exists(el.shadowRoot!.querySelector('.widget-loading-animation'));
+      assert.notExists(
+        el.shadowRoot!.querySelector('.widget-loading-overlay .loading-spinner')
+      );
+      assert.equal(
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+        'Payment method saved'
+      );
+
+      timer.release();
+      await flushElement(el);
+
+      assert.notExists(el.shadowRoot!.querySelector('.widget-loading-overlay'));
+    } finally {
+      timer.restore();
+    }
   });
 
   test('Connect your bank required-info Verify uploads selected documents, finalizes verification, and attaches verified sources', async () => {

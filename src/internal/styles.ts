@@ -39,8 +39,6 @@ export const primitiveStyles = css`
     --chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
     --chc-spinner-duration: 900ms;
     --chc-shell-padding: 1.1875rem 1.1875rem 1rem;
-    --chc-shell-shadow: 0 0.0625rem 0.125rem rgba(15, 23, 42, 0.04),
-      0 0.875rem 1.75rem rgba(15, 23, 42, 0.08);
     display: block;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
@@ -78,7 +76,6 @@ export const primitiveStyles = css`
     border: 0;
     border-radius: 0;
     background: var(--chc-widget-background);
-    box-shadow: var(--chc-shell-shadow);
     text-align: left;
   }
 
@@ -137,6 +134,7 @@ export const primitiveStyles = css`
     color: var(--chc-copy);
     font-weight: inherit;
     font-size: 0.9375em;
+    text-align: center;
   }
 
   .widget-divider {
@@ -419,7 +417,6 @@ export const primitiveStyles = css`
     font-weight: 600;
     transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
       background-color var(--chc-motion-fast) var(--chc-ease-standard),
-      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
       transform var(--chc-motion-fast) var(--chc-ease-emphasized);
     cursor: pointer;
   }
@@ -464,8 +461,6 @@ export const primitiveStyles = css`
   .button-primary {
     background: var(--chc-primary);
     color: #fff;
-    box-shadow: 0 0.5rem 1.25rem
-      color-mix(in srgb, var(--chc-primary) 16%, transparent);
   }
 
   .button-secondary {
@@ -944,9 +939,9 @@ export const primitiveStyles = css`
   }
 
   .payment-method-delete-button:focus-visible {
-    outline: 0;
-    box-shadow: 0 0 0 0.125rem
+    outline: 0.125rem solid
       color-mix(in srgb, var(--chc-danger) 24%, transparent);
+    outline-offset: 0.125rem;
   }
 
   .payment-method-delete-button:disabled {
@@ -1414,6 +1409,11 @@ export const primitiveStyles = css`
     gap: 0.875rem;
   }
 
+  .bank-provider-manual-link {
+    display: flex;
+    justify-content: center;
+  }
+
   .verification-outcome-flow {
     display: grid;
     gap: 0.75rem;
@@ -1481,6 +1481,30 @@ export const primitiveStyles = css`
     justify-items: center;
     gap: 0.75rem;
     padding: 1rem;
+  }
+
+  .widget-loading-animation {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 1rem;
+  }
+
+  .widget-loading-animation-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999rem;
+    background: var(--chc-primary);
+    animation: chc-loading-dot 900ms var(--chc-ease-standard) infinite;
+  }
+
+  .widget-loading-animation-dot:nth-child(2) {
+    animation-delay: 150ms;
+  }
+
+  .widget-loading-animation-dot:nth-child(3) {
+    animation-delay: 300ms;
   }
 
   .widget-loading-copy {
@@ -1699,6 +1723,20 @@ export const primitiveStyles = css`
     }
   }
 
+  @keyframes chc-loading-dot {
+    0%,
+    80%,
+    100% {
+      opacity: 0.42;
+      transform: translateY(0);
+    }
+
+    40% {
+      opacity: 1;
+      transform: translateY(-0.25rem);
+    }
+  }
+
   .powered-by-footer {
     display: flex;
     justify-content: center;
@@ -1774,6 +1812,7 @@ export const primitiveStyles = css`
     .loading-spinner,
     .button-spinner,
     .otp-resend-spinner,
+    .widget-loading-animation-dot,
     .payment-method-skeleton-icon,
     .payment-method-skeleton-line,
     .payment-method-skeleton-trailing {

@@ -19,7 +19,194 @@ const expectedScenarioNames = [
   'bankNotVerified',
 ];
 
+const waitFor = async (
+  predicate: () => boolean,
+  failureMessage: string
+): Promise<void> => {
+  const deadline = Date.now() + 5000;
+
+  while (Date.now() < deadline) {
+    if (predicate()) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  assert.fail(failureMessage);
+};
+
 suite('demo host page', () => {
+  test('provides a Clover Pay checkout demo that initializes the SDK with the displayed recipient email address', async () => {
+    const response = await fetch('/dev/clover-pay.html');
+    const html = await response.text();
+
+    assert.isTrue(response.ok, 'expected Clover Pay demo page to be served');
+    assert.include(html, '<title>Clover Pay Demo</title>');
+    assert.include(html, 'The Coral Gallery');
+    assert.include(html, 'class="clover-logo"');
+    assert.include(html, 'Gregory Jablonski');
+    assert.include(html, 'gregory.jablonski@fiserv.com');
+    assert.include(html, 'id="checkout-recipient-email"');
+    assert.include(html, '$0.01');
+    assert.include(html, 'Select payment method');
+    assert.notInclude(html, 'Credit or debit card');
+    assert.notInclude(html, 'Pay By Bank');
+    assert.notInclude(html, 'Paze');
+    assert.include(html, 'Google Pay');
+    assert.include(html, 'Samsung Pay');
+    assert.include(html, 'Clover Pay');
+    assert.include(html, 'class="clover-pay-logo"');
+    assert.include(html, 'viewBox="0 0 40 40"');
+    assert.include(html, 'M18.026 10.433c0-4.974-4.037-9.013-9.015-9.013');
+    assert.include(html, 'id="payment-method-clover-pay"');
+    assert.include(html, 'id="clover-pay-sdk-host"');
+    assert.include(html, 'name="paymentMethod"');
+    assert.include(html, 'id="checkout-pay-button"');
+    assert.include(html, 'disabled');
+    assert.include(html, 'initializePaymentSelection');
+    assert.include(html, 'setHostedWalletPayButton');
+    assert.include(html, 'Buy with <span class="google-pay-mark">G</span> Pay');
+    assert.include(
+      html,
+      'Pay with <span class="samsung-pay-mark">SAMSUNG</span> Pay &gt;'
+    );
+    assert.include(html, '@media (min-width: 600px)');
+    assert.include(html, 'max-width: 790px');
+    assert.include(html, 'padding: 40px 16px');
+    assert.notInclude(html, '@media (min-width: 840px)');
+    assert.notInclude(html, 'grid-template-columns: minmax(300px');
+    assert.include(html, "'/merchant/interaction/create'");
+    assert.include(html, 'email: recipientEmail.textContent.trim()');
+    assert.include(html, "await import('./../commerce-hub-connect.js')");
+    assert.include(html, "document.createElement('commerce-hub-connect')");
+    assert.include(html, 'widget.interactionResponse = interactionResponse');
+    assert.notInclude(html, 'id="interaction-email"');
+    assert.notInclude(html, 'Anoop Agarwal');
+    assert.notInclude(html, 'anoop.agarwal@Fiserv.com');
+  });
+
+  test('starts Clover Pay from the selected radio option and uses the recipient email in the create request body', async () => {
+    const iframe = document.createElement('iframe');
+    const iframeLoaded = new Promise<void>((resolve) => {
+      iframe.addEventListener('load', () => resolve(), {once: true});
+    });
+    iframe.src = '/dev/clover-pay.html?apiBaseUrl=http://commercehub.test';
+    document.body.append(iframe);
+    await iframeLoaded;
+
+    const pageWindow = iframe.contentWindow;
+    const pageDocument = iframe.contentDocument;
+    assert.isOk(pageWindow, 'expected Clover Pay iframe window');
+    assert.isOk(pageDocument, 'expected Clover Pay iframe document');
+
+    const createRequest = {
+      body: undefined as Record<string, unknown> | undefined,
+    };
+    pageWindow.fetch = (async (_input, init) => {
+      createRequest.body = JSON.parse(String(init?.body));
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'clover-pay-demo-interaction',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+          paymentSources: [],
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    }) as typeof fetch;
+
+    const googlePayInput = pageDocument.querySelector<HTMLInputElement>(
+      '#payment-method-google-pay'
+    );
+    const samsungPayInput = pageDocument.querySelector<HTMLInputElement>(
+      '#payment-method-samsung-pay'
+    );
+    const cloverPayInput = pageDocument.querySelector<HTMLInputElement>(
+      '#payment-method-clover-pay'
+    );
+    const payButton = pageDocument.querySelector<HTMLButtonElement>(
+      '#checkout-pay-button'
+    );
+
+    assert.isNull(
+      pageDocument.querySelector('input[name="paymentMethod"]:checked'),
+      'expected no payment method to be selected by default'
+    );
+    assert.isTrue(
+      payButton?.disabled,
+      'expected the pay button to be disabled by default'
+    );
+    assert.equal(payButton?.dataset.wallet, 'clover-pay');
+    assert.equal(
+      pageDocument
+        .querySelector('#clover-pay-sdk-panel')
+        ?.getAttribute('data-active'),
+      'false'
+    );
+
+    googlePayInput?.click();
+    assert.equal(
+      createRequest.body,
+      undefined,
+      'expected non-Clover payment methods not to create an interaction'
+    );
+    assert.equal(payButton?.dataset.wallet, 'google-pay');
+    assert.isFalse(payButton?.disabled);
+    assert.equal(payButton?.getAttribute('aria-label'), 'Buy with Google Pay');
+    assert.include(payButton?.innerHTML ?? '', 'google-pay-mark');
+    assert.include(payButton?.innerText ?? '', 'Buy with');
+    assert.include(payButton?.innerText ?? '', 'Pay');
+
+    samsungPayInput?.click();
+    assert.equal(
+      createRequest.body,
+      undefined,
+      'expected Samsung Pay not to create an interaction'
+    );
+    assert.equal(payButton?.dataset.wallet, 'samsung-pay');
+    assert.isFalse(payButton?.disabled);
+    assert.equal(payButton?.getAttribute('aria-label'), 'Pay with Samsung Pay');
+    assert.include(payButton?.innerHTML ?? '', 'samsung-pay-mark');
+    assert.include(payButton?.innerText ?? '', 'SAMSUNG');
+
+    cloverPayInput?.click();
+
+    await waitFor(
+      () => pageDocument.querySelector('#clover-pay-connect-widget') !== null,
+      'expected Clover Pay to mount the CommerceHub Connect SDK'
+    );
+
+    const createRequestBody = createRequest.body;
+    assert.isDefined(createRequestBody);
+    assert.propertyVal(
+      createRequestBody,
+      'email',
+      'gregory.jablonski@fiserv.com'
+    );
+    assert.deepEqual(createRequestBody?.allowedTenderTypes, [
+      'CARD',
+      'BANK_ACCOUNT',
+    ]);
+    assert.deepEqual(createRequestBody?.merchantData, {
+      clientId: 'marriot',
+      merchantId: '101475000000009',
+      terminalId: '10000001',
+    });
+    assert.equal(
+      pageDocument
+        .querySelector('#clover-pay-sdk-panel')
+        ?.getAttribute('data-active'),
+      'true'
+    );
+
+    iframe.remove();
+  });
+
   test('creates the merchant interaction from the structured request builder only when the request form is submitted', async () => {
     const response = await fetch('/dev/index.html');
     const html = await response.text();

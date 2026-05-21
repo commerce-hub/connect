@@ -190,7 +190,7 @@ test('renders link-style source actions with a trailing chevron and no subtitle 
       ${primitiveStyles.cssText}
     </style>
     ${renderSourceAction({
-      label: 'Add a credit or debit card',
+      label: 'Add credit or debit card',
       action: 'add-card',
       icon: 'card',
       variant: 'link',
