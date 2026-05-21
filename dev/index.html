@@ -17,22 +17,25 @@
       }
 
       .demo-layout {
-        width: min(1080px, 100%);
+        width: min(1440px, 100%);
         margin: 0 auto;
         display: grid;
-        grid-template-columns: minmax(360px, 480px) minmax(320px, 1fr);
+        grid-template-columns:
+          minmax(360px, 1.1fr) minmax(320px, 0.9fr)
+          minmax(300px, 0.9fr);
         gap: 24px;
         align-items: start;
       }
 
-      .demo-widget-panel {
+      .payload-panel,
+      .demo-widget-panel,
+      .demo-output-panel {
         display: grid;
         gap: 16px;
       }
 
-      .payload-panel {
-        display: grid;
-        gap: 16px;
+      .demo-widget-panel {
+        min-width: 0;
       }
 
       .payload-card {
@@ -243,9 +246,25 @@
         white-space: pre-wrap;
       }
 
-      @media (max-width: 860px) {
+      @media (max-width: 1180px) {
         .demo-layout {
+          grid-template-columns: minmax(360px, 1fr) minmax(320px, 1fr);
+        }
+
+        .demo-output-panel {
+          grid-column: 1 / -1;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 860px) {
+        .demo-layout,
+        .demo-output-panel {
           grid-template-columns: 1fr;
+        }
+
+        .demo-output-panel {
+          grid-column: auto;
         }
       }
 
@@ -397,8 +416,13 @@
             </div>
           </form>
         </article>
+      </section>
 
-        <details class="payload-card" id="design-config-card">
+      <section
+        class="demo-widget-panel"
+        aria-label="CommerceHub Connect widget"
+      >
+        <details class="payload-card" id="design-config-card" open>
           <summary>
             <h2>Design config</h2>
           </summary>
@@ -478,6 +502,29 @@
                     id="design-config-border-color"
                     type="text"
                     placeholder="#cbd5e1"
+                  />
+                </label>
+
+                <label class="field" for="design-config-widget-background">
+                  <span class="field-label">Widget background</span>
+                  <input
+                    class="field-input"
+                    id="design-config-widget-background"
+                    type="text"
+                    placeholder="#ffffff"
+                  />
+                </label>
+
+                <label
+                  class="field"
+                  for="design-config-payment-method-background"
+                >
+                  <span class="field-label">Payment selection background</span>
+                  <input
+                    class="field-input"
+                    id="design-config-payment-method-background"
+                    type="text"
+                    placeholder="#f8fafc"
                   />
                 </label>
               </div>
@@ -564,7 +611,9 @@
             </div>
           </div>
         </details>
+      </section>
 
+      <section class="demo-output-panel" aria-label="Demo controls and output">
         <div class="form-actions" id="create-interaction-actions">
           <button
             class="primary-button"
@@ -575,9 +624,7 @@
             Create interaction
           </button>
         </div>
-      </section>
 
-      <section class="demo-widget-panel">
         <div id="connect-widget-host"></div>
 
         <article class="payload-card">
@@ -592,6 +639,42 @@
             </button>
             <button type="button" data-scenario="noSavedPaymentMethods">
               No saved methods
+            </button>
+            <button type="button" data-scenario="attachedCard">
+              Attached card
+            </button>
+            <button type="button" data-scenario="attachedBankAccount">
+              Attached bank
+            </button>
+            <button type="button" data-scenario="cardVerified">
+              Card verified
+            </button>
+            <button type="button" data-scenario="cardUnderReview">
+              Card under review
+            </button>
+            <button type="button" data-scenario="cardRequireInfo">
+              Card needs info
+            </button>
+            <button type="button" data-scenario="cardDeclined">
+              Card declined
+            </button>
+            <button type="button" data-scenario="cardNotVerified">
+              Card not verified
+            </button>
+            <button type="button" data-scenario="bankVerified">
+              Bank verified
+            </button>
+            <button type="button" data-scenario="bankUnderReview">
+              Bank under review
+            </button>
+            <button type="button" data-scenario="bankRequireInfo">
+              Bank needs info
+            </button>
+            <button type="button" data-scenario="bankDeclined">
+              Bank declined
+            </button>
+            <button type="button" data-scenario="bankNotVerified">
+              Bank not verified
             </button>
           </div>
         </article>
@@ -609,61 +692,244 @@
     </main>
 
     <script type="module">
-      const savedSources = [
-        {
+      const cardSources = {
+        verified: {
           tenderType: 'Card',
-          id: 'card-1',
+          id: 'card-verified',
           name: 'Corporate card',
           verificationInfo: {status: 'VERIFIED'},
           card: {
             network: 'Visa',
+            nameOnCard: 'Ada Lovelace',
             cardNumber: '4111111111114242',
+            expirationMonth: '03',
+            expirationYear: '2030',
           },
         },
-        {
-          tenderType: 'BankAccount',
-          id: 'bank-1',
-          name: 'Operating account',
+        underReview: {
+          tenderType: 'Card',
+          id: 'card-under-review',
+          name: 'Travel card',
           verificationInfo: {status: 'UNDER_REVIEW'},
+          card: {
+            network: 'Mastercard',
+            nameOnCard: 'Grace Hopper',
+            cardNumber: '5555555555554444',
+            expirationMonth: '11',
+            expirationYear: '2029',
+          },
+        },
+        requireInfo: {
+          tenderType: 'Card',
+          id: 'card-require-info',
+          name: 'Verification card',
+          verificationInfo: {
+            status: 'REQUIRE_INFO',
+            docs: [
+              {docType: 'DRIVER_LICENSE_PHOTO', mandatory: true},
+              {docType: 'DRIVER_LICENSE_NUMBER', mandatory: false},
+            ],
+          },
+          card: {
+            network: 'AmericanExpress',
+            nameOnCard: 'Katherine Johnson',
+            cardNumber: '378282246310005',
+            expirationMonth: '08',
+            expirationYear: '2028',
+          },
+        },
+        declined: {
+          tenderType: 'Card',
+          id: 'card-declined',
+          name: 'Declined card',
+          verificationInfo: {status: 'DECLINED'},
+          card: {
+            network: 'Discover',
+            nameOnCard: 'Margaret Hamilton',
+            cardNumber: '6011111111111117',
+            expirationMonth: '01',
+            expirationYear: '2027',
+          },
+        },
+        notVerified: {
+          tenderType: 'Card',
+          id: 'card-not-verified',
+          name: 'New card',
+          verificationInfo: {status: 'NOT_VERIFIED'},
+          card: {
+            network: 'Visa',
+            nameOnCard: 'Mary Jackson',
+            cardNumber: '4000000000000002',
+            expirationMonth: '12',
+            expirationYear: '2026',
+          },
+        },
+      };
+      const bankSources = {
+        verified: {
+          tenderType: 'BankAccount',
+          id: 'bank-verified',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
           bankAccount: {
             bankName: 'Commerce National Bank',
             accountNumber: '9876543210',
           },
         },
+        underReview: {
+          tenderType: 'BankAccount',
+          id: 'bank-under-review',
+          name: 'Payroll account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'First Merchant Bank',
+            accountNumber: '2468135790',
+          },
+        },
+        requireInfo: {
+          tenderType: 'BankAccount',
+          id: 'bank-require-info',
+          name: 'Reserve account',
+          verificationInfo: {
+            status: 'REQUIRE_INFO',
+            docs: [
+              {docType: 'BANK_STATEMENT', mandatory: true},
+              {docType: 'DRIVER_LICENSE_NUMBER', mandatory: false},
+              {docType: 'SOCIAL_SECURITY_NUMBER', mandatory: false},
+            ],
+          },
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '1357924680',
+          },
+        },
+        declined: {
+          tenderType: 'BankAccount',
+          id: 'bank-declined',
+          name: 'Closed account',
+          verificationInfo: {status: 'DECLINED'},
+          bankAccount: {
+            bankName: 'Old Town Credit Union',
+            accountNumber: '0000456789',
+          },
+        },
+        notVerified: {
+          tenderType: 'BankAccount',
+          id: 'bank-not-verified',
+          name: 'New bank account',
+          verificationInfo: {status: 'NOT_VERIFIED'},
+          bankAccount: {
+            bankName: 'Harbor Trust',
+            accountNumber: '8642097531',
+          },
+        },
+      };
+      const savedSources = [
+        cardSources.verified,
+        bankSources.underReview,
+        cardSources.declined,
       ];
+      const baseScenario = {
+        email: 'gregory.jablonski@fiserv.com',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+      };
+      const sourceScenario = (interactionId, source) => ({
+        ...baseScenario,
+        interactionId,
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [source],
+      });
+      const attachedScenario = (interactionId, source) => ({
+        ...baseScenario,
+        interactionId,
+        status: 'PAYMENT_SOURCE_ATTACHED',
+        selectedSource: source,
+        paymentSources: [source],
+      });
+      const openPaymentSource = async (paymentSourceId) => {
+        await widget?.updateComplete;
+        widget?.shadowRoot
+          ?.querySelector(`[data-payment-method-id="${paymentSourceId}"]`)
+          ?.click();
+        await widget?.updateComplete;
+      };
 
       const scenarios = {
         otpPending: {
+          ...baseScenario,
           interactionId: 'demo-interaction-otp-pending',
           status: 'OTP_VALIDATION_PENDING',
-          email: 'gregory.jablonski@fiserv.com',
-          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
         },
         otpFailed: {
+          ...baseScenario,
           interactionId: 'demo-interaction-otp-failed',
           status: 'OTP_VALIDATION_FAILED',
-          email: 'gregory.jablonski@fiserv.com',
-          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
         },
         savedPaymentMethods: {
+          ...baseScenario,
           interactionId: 'demo-interaction-saved-methods',
           status: 'PAYMENT_SOURCE_REQUESTED',
-          email: 'gregory.jablonski@fiserv.com',
-          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
-          selectedSource: {
-            tenderType: 'Card',
-            id: 'card-1',
-            name: 'Corporate card',
-          },
+          selectedSource: cardSources.verified,
           paymentSources: savedSources,
         },
         noSavedPaymentMethods: {
+          ...baseScenario,
           interactionId: 'demo-interaction-no-saved-methods',
           status: 'PAYMENT_SOURCE_REQUESTED',
-          email: 'gregory.jablonski@fiserv.com',
-          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
           paymentSources: [],
         },
+        attachedCard: attachedScenario(
+          'demo-interaction-attached-card',
+          cardSources.verified
+        ),
+        attachedBankAccount: attachedScenario(
+          'demo-interaction-attached-bank-account',
+          bankSources.verified
+        ),
+        cardVerified: sourceScenario(
+          'demo-interaction-card-verified',
+          cardSources.verified
+        ),
+        cardUnderReview: sourceScenario(
+          'demo-interaction-card-under-review',
+          cardSources.underReview
+        ),
+        cardRequireInfo: sourceScenario(
+          'demo-interaction-card-require-info',
+          cardSources.requireInfo
+        ),
+        cardDeclined: sourceScenario(
+          'demo-interaction-card-declined',
+          cardSources.declined
+        ),
+        cardNotVerified: sourceScenario(
+          'demo-interaction-card-not-verified',
+          cardSources.notVerified
+        ),
+        bankVerified: sourceScenario(
+          'demo-interaction-bank-verified',
+          bankSources.verified
+        ),
+        bankUnderReview: sourceScenario(
+          'demo-interaction-bank-under-review',
+          bankSources.underReview
+        ),
+        bankRequireInfo: sourceScenario(
+          'demo-interaction-bank-require-info',
+          bankSources.requireInfo
+        ),
+        bankDeclined: sourceScenario(
+          'demo-interaction-bank-declined',
+          bankSources.declined
+        ),
+        bankNotVerified: sourceScenario(
+          'demo-interaction-bank-not-verified',
+          bankSources.notVerified
+        ),
+      };
+      const scenarioActions = {
+        cardRequireInfo: () => openPaymentSource(cardSources.requireInfo.id),
+        bankRequireInfo: () => openPaymentSource(bankSources.requireInfo.id),
       };
       const widgetHost = document.querySelector('#connect-widget-host');
       const input = document.querySelector('#interaction-input');
@@ -702,12 +968,20 @@
       };
       const designConfigFields = {
         baseFontSize: document.querySelector('#design-config-base-font-size'),
-        baseFontWeight: document.querySelector('#design-config-base-font-weight'),
+        baseFontWeight: document.querySelector(
+          '#design-config-base-font-weight'
+        ),
         shellPadding: document.querySelector('#design-config-shell-padding'),
         primaryColor: document.querySelector('#design-config-primary-color'),
         textColor: document.querySelector('#design-config-text-color'),
         copyColor: document.querySelector('#design-config-copy-color'),
         borderColor: document.querySelector('#design-config-border-color'),
+        widgetBackground: document.querySelector(
+          '#design-config-widget-background'
+        ),
+        paymentMethodBackground: document.querySelector(
+          '#design-config-payment-method-background'
+        ),
         otpTitle: document.querySelector('#design-config-otp-title'),
         otpVerifyButton: document.querySelector(
           '#design-config-otp-verify-button'
@@ -749,6 +1023,8 @@
         textColor: '#101828',
         copyColor: '#9f9f9f',
         borderColor: '#cbd5e1',
+        widgetBackground: '#ffffff',
+        paymentMethodBackground: '#f8fafc',
         otpTitle: 'Confirm your email',
         otpVerifyButton: 'Verify',
         paymentMethodsTitle: 'Choose payment method',
@@ -858,6 +1134,16 @@
           'border',
           designConfigFormState.borderColor
         );
+        setOptionalTextValue(
+          colors,
+          'widgetBackground',
+          designConfigFormState.widgetBackground
+        );
+        setOptionalTextValue(
+          colors,
+          'paymentMethodBackground',
+          designConfigFormState.paymentMethodBackground
+        );
         setOptionalTextValue(otp, 'title', designConfigFormState.otpTitle);
         setOptionalTextValue(
           otp,
@@ -930,6 +1216,9 @@
         textColor: designConfigFields.textColor.value,
         copyColor: designConfigFields.copyColor.value,
         borderColor: designConfigFields.borderColor.value,
+        widgetBackground: designConfigFields.widgetBackground.value,
+        paymentMethodBackground:
+          designConfigFields.paymentMethodBackground.value,
         otpTitle: designConfigFields.otpTitle.value,
         otpVerifyButton: designConfigFields.otpVerifyButton.value,
         paymentMethodsTitle: designConfigFields.paymentMethodsTitle.value,
@@ -970,6 +1259,10 @@
         designConfigFields.copyColor.value = designConfigFormState.copyColor;
         designConfigFields.borderColor.value =
           designConfigFormState.borderColor;
+        designConfigFields.widgetBackground.value =
+          designConfigFormState.widgetBackground;
+        designConfigFields.paymentMethodBackground.value =
+          designConfigFormState.paymentMethodBackground;
         designConfigFields.otpTitle.value = designConfigFormState.otpTitle;
         designConfigFields.otpVerifyButton.value =
           designConfigFormState.otpVerifyButton;
@@ -1080,6 +1373,7 @@
         }
 
         setActiveScenario(name);
+        await scenarioActions[name]?.();
       };
 
       const readJson = async (response) => {

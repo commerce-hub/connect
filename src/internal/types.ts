@@ -153,7 +153,6 @@ export type AlertVariant = 'success' | 'danger' | 'warning';
 export interface AlertOptions {
   variant: AlertVariant;
   message: string;
-  icon?: boolean;
 }
 
 export type PaymentMethodStatus =
@@ -172,11 +171,13 @@ export interface StatusPillOptions {
 export interface PaymentMethod {
   id: string;
   label: string;
+  accountLabel?: string;
   type?: 'bank' | 'card';
   eyebrow?: string;
   brand: string;
   last4: string;
   status: PaymentMethodStatus;
+  showVerificationStatus?: boolean;
   disabled?: boolean;
 }
 
@@ -208,6 +209,7 @@ export interface UploadRowOptions {
   label: string;
   requirements: string;
   actionLabel: string;
+  fileName?: string;
   action?: string;
   error?: boolean;
   disabled?: boolean;

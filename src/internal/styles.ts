@@ -7,9 +7,11 @@ export const primitiveStyles = css`
     --chc-muted: #6b7280;
     --chc-placeholder: #9ca3af;
     --chc-surface: #ffffff;
+    --chc-widget-background: var(--chc-surface);
     --chc-soft-surface: #f8fafc;
     --chc-border: #d9e1ec;
     --chc-border-strong: #c6d0dd;
+    --chc-payment-method-background: var(--chc-surface);
     --chc-primary: #1d4ed8;
     --chc-success: #047857;
     --chc-success-bg: #ecfdf3;
@@ -25,7 +27,6 @@ export const primitiveStyles = css`
     --chc-font-family: Inter, 'Segoe UI', Arial, sans-serif;
     --chc-radius-control: 0.625rem;
     --chc-radius-card: 0.75rem;
-    --chc-radius-shell: 1.375rem;
     --chc-input-height: 2.5rem;
     --chc-font-weight: 400;
     --chc-divider: #ebeef2;
@@ -71,13 +72,12 @@ export const primitiveStyles = css`
 
   .widget-shell {
     width: 100%;
-    max-width: 20.25rem;
+    max-width: 25.25rem;
     position: relative;
     padding: var(--chc-shell-padding);
-    border: 0.0625rem solid
-      color-mix(in srgb, var(--chc-border) 84%, var(--chc-surface));
-    border-radius: var(--chc-radius-shell);
-    background: var(--chc-surface);
+    border: 0;
+    border-radius: 0;
+    background: var(--chc-widget-background);
     box-shadow: var(--chc-shell-shadow);
     text-align: left;
   }
@@ -146,7 +146,6 @@ export const primitiveStyles = css`
   }
 
   .widget-content {
-    max-width: 17.875rem;
     margin-top: 1.125rem;
     margin-right: auto;
     margin-left: auto;
@@ -218,46 +217,98 @@ export const primitiveStyles = css`
     gap: 0.75rem;
   }
 
-  .required-info-source-summary {
+  .required-info-card {
     display: grid;
-    gap: 0.5rem;
-    border: 0.0625rem solid var(--chc-border);
-    border-radius: var(--chc-radius-card);
-    padding: 0.75rem;
-    background: var(--chc-soft-surface);
+    gap: 0.75rem;
+    min-height: 9.75rem;
+    border-radius: min(1rem, calc(var(--chc-radius-card) * 1.5));
+    padding: 1rem;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--chc-primary) 86%, #052e16),
+      color-mix(in srgb, var(--chc-primary) 72%, #052e16)
+    );
+    color: #ffffff;
+    overflow: hidden;
   }
 
-  .required-info-summary-row {
+  .required-info-card-top,
+  .required-info-card-bottom {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .required-info-card-heading,
+  .required-info-card-detail {
     display: grid;
-    grid-template-columns: 5.5rem minmax(0, 1fr);
-    gap: 0.5rem;
-    align-items: center;
+    min-width: 0;
+    gap: 0.25rem;
   }
 
-  .required-info-summary-label {
-    color: var(--chc-muted);
-    font-weight: 500;
+  .required-info-card-label {
+    color: color-mix(in srgb, #ffffff 72%, transparent);
+    font-size: 0.6875em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
-  .required-info-summary-value {
+  .required-info-card-field {
     min-width: 0;
     overflow: hidden;
-    color: var(--chc-text);
-    font-weight: 600;
+    color: #ffffff;
+    font-weight: 700;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .required-info-summary-status {
+  .required-info-card-name {
+    font-size: 1.0625em;
+  }
+
+  .required-info-card-number {
+    font-size: 1.25em;
+    letter-spacing: 0.12em;
+  }
+
+  .required-info-card-expiry {
+    font-size: 1em;
+  }
+
+  .required-info-card-icon-chip {
+    width: 3.75rem;
+    height: 2.375rem;
+    flex: 0 0 auto;
     display: inline-flex;
-    justify-self: start;
-    border: 0.0625rem solid var(--chc-warning-border);
-    border-radius: 999rem;
-    padding: 0.1875rem 0.5rem;
-    background: var(--chc-warning-bg);
-    color: var(--chc-warning);
-    font-size: 0.75em;
-    font-weight: 600;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, #ffffff 94%, transparent);
+    box-shadow: 0 0.5rem 1rem rgba(15, 23, 42, 0.16);
+  }
+
+  .required-info-card-icon-image {
+    max-width: 3rem;
+    max-height: 1.625rem;
+    display: block;
+  }
+
+  .required-info-card-icon-image[data-required-info-card-icon='bank'] {
+    width: 1.625rem;
+    height: 1.625rem;
+    opacity: 0.78;
+  }
+
+  .required-info-card-status {
+    display: inline-flex;
+  }
+
+  .required-info-card-status .verification-status-badge {
+    border-color: color-mix(in srgb, #ffffff 52%, transparent);
+    background: color-mix(in srgb, #ffffff 92%, transparent);
   }
 
   .required-info-documents {
@@ -463,6 +514,51 @@ export const primitiveStyles = css`
     font-size: 0.875em;
   }
 
+  .field-label-row,
+  .required-info-document-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .required-info-document-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--chc-text);
+    font-size: 0.875em;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .required-info-requirement-badge {
+    display: inline-flex;
+    flex: 0 0 auto;
+    border-radius: 999rem;
+    padding: 0.125rem 0.4375rem;
+    font-size: 0.6875em;
+    font-weight: 600;
+  }
+
+  .required-info-requirement-badge-required {
+    background: color-mix(
+      in srgb,
+      var(--chc-warning) 12%,
+      var(--chc-warning-bg)
+    );
+    color: var(--chc-warning);
+  }
+
+  .required-info-requirement-badge-optional {
+    background: color-mix(
+      in srgb,
+      var(--chc-muted) 10%,
+      var(--chc-soft-surface)
+    );
+    color: var(--chc-muted);
+  }
+
   .field-input {
     width: 100%;
     min-height: var(--chc-input-height);
@@ -641,26 +737,12 @@ export const primitiveStyles = css`
 
   .alert {
     min-height: 0;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: 0.5rem;
+    display: block;
     border: 0.0625rem solid;
     border-radius: var(--chc-radius-control);
     padding: 0.625rem 0.75rem;
     font-weight: 500;
     text-align: left;
-  }
-
-  .alert-icon {
-    width: 1rem;
-    height: 1rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999rem;
-    font-size: 0.75rem;
-    font-weight: 700;
   }
 
   .alert-message {
@@ -673,28 +755,16 @@ export const primitiveStyles = css`
     color: var(--chc-success);
   }
 
-  .alert-success .alert-icon::before {
-    content: '✓';
-  }
-
   .alert-danger {
     border-color: var(--chc-danger-border);
     background: var(--chc-danger-bg);
     color: var(--chc-danger);
   }
 
-  .alert-danger .alert-icon::before {
-    content: '!';
-  }
-
   .alert-warning {
     border-color: var(--chc-warning-border);
     background: var(--chc-warning-bg);
     color: var(--chc-warning);
-  }
-
-  .alert-warning .alert-icon::before {
-    content: '!';
   }
 
   .status-pill {
@@ -733,12 +803,12 @@ export const primitiveStyles = css`
   .selected-payment-method {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
     gap: 0.625rem;
     align-items: center;
     border-radius: var(--chc-radius-card);
     padding: 0.625rem;
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
     color: var(--chc-text);
     text-align: left;
     border: 0.0625rem solid var(--chc-border);
@@ -752,7 +822,11 @@ export const primitiveStyles = css`
   }
 
   .payment-method-row-edit {
-    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    cursor: default;
+  }
+
+  .payment-method-row-static {
     cursor: default;
   }
 
@@ -760,7 +834,7 @@ export const primitiveStyles = css`
     border-color: var(--chc-border-strong);
     background: color-mix(
       in srgb,
-      var(--chc-surface) 92%,
+      var(--chc-payment-method-background) 92%,
       var(--chc-soft-surface)
     );
     box-shadow: 0 0.625rem 1.125rem rgba(17, 24, 39, 0.05);
@@ -768,7 +842,11 @@ export const primitiveStyles = css`
 
   .payment-method-row-selected {
     border-color: color-mix(in srgb, var(--chc-primary) 24%, var(--chc-border));
-    background: color-mix(in srgb, var(--chc-primary) 4%, var(--chc-surface));
+    background: color-mix(
+      in srgb,
+      var(--chc-primary) 4%,
+      var(--chc-payment-method-background)
+    );
   }
 
   .payment-method-row-action:hover:not(:disabled),
@@ -776,7 +854,7 @@ export const primitiveStyles = css`
     border-color: var(--chc-border-strong);
     background: color-mix(
       in srgb,
-      var(--chc-surface) 88%,
+      var(--chc-payment-method-background) 88%,
       var(--chc-soft-surface)
     );
     box-shadow: 0 0.5rem 1rem rgba(17, 24, 39, 0.05);
@@ -788,7 +866,7 @@ export const primitiveStyles = css`
 
   .payment-method-row-action:disabled {
     border-color: var(--chc-border);
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
     color: var(--chc-placeholder);
     cursor: not-allowed;
   }
@@ -803,33 +881,13 @@ export const primitiveStyles = css`
   }
 
   .payment-method-trailing {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    justify-self: end;
-  }
-
-  .payment-method-status-icon {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1rem;
+    height: 1rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-  }
-
-  .payment-method-status-icon-warning {
-    border: 0.0625rem solid var(--chc-warning-border);
-    background: var(--chc-warning-bg);
-    color: var(--chc-warning);
-  }
-
-  .payment-method-status-icon-danger {
-    border: 0.0625rem solid var(--chc-danger-border);
-    background: var(--chc-danger-bg);
-    color: var(--chc-danger);
+    gap: 0.375rem;
+    justify-self: end;
   }
 
   .payment-method-chevron {
@@ -930,21 +988,22 @@ export const primitiveStyles = css`
   }
 
   .payment-method-icon-chip {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 1.75rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0.6875rem;
-    background: var(--chc-soft-surface);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
     color: var(--chc-primary);
-    overflow: hidden;
   }
 
   .payment-method-icon-image {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 2.75rem;
+    height: 1.75rem;
     display: block;
+    object-fit: contain;
   }
 
   .payment-method-copy {
@@ -970,7 +1029,7 @@ export const primitiveStyles = css`
   .payment-method-meta-row {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 0.375rem;
     min-width: 0;
     flex-wrap: nowrap;
@@ -1038,14 +1097,14 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
     padding: 0.75rem;
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
     color: var(--chc-text);
     text-align: left;
     cursor: pointer;
   }
 
   .source-action:disabled {
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
     color: var(--chc-placeholder);
     cursor: not-allowed;
   }
@@ -1097,7 +1156,7 @@ export const primitiveStyles = css`
     border-style: dashed;
     border-radius: var(--chc-radius-card);
     padding: 0.625rem;
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
     color: var(--chc-text);
     text-align: left;
     cursor: pointer;
@@ -1111,7 +1170,7 @@ export const primitiveStyles = css`
     border-color: var(--chc-border-strong);
     background: color-mix(
       in srgb,
-      var(--chc-surface) 90%,
+      var(--chc-payment-method-background) 90%,
       var(--chc-soft-surface)
     );
     box-shadow: 0 0.5rem 1rem rgba(17, 24, 39, 0.04);
@@ -1122,7 +1181,7 @@ export const primitiveStyles = css`
   }
 
   .source-action-link:disabled {
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
     color: var(--chc-muted);
     cursor: not-allowed;
   }
@@ -1183,7 +1242,7 @@ export const primitiveStyles = css`
     display: grid;
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
     overflow: hidden;
     text-align: left;
   }
@@ -1237,15 +1296,16 @@ export const primitiveStyles = css`
 
   .upload-row {
     width: 100%;
-    min-height: 3.5rem;
+    min-height: 2.5rem;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 0.75rem;
-    border: 0.0625rem dashed var(--chc-border-strong);
-    border-radius: var(--chc-radius-card);
-    padding: 0 0.75rem;
-    background: var(--chc-surface);
+    gap: 0;
+    overflow: hidden;
+    border: 0.0625rem solid var(--chc-border-strong);
+    border-radius: 0.5rem;
+    padding: 0;
+    background: var(--chc-payment-method-background);
     color: var(--chc-copy);
     text-align: left;
     cursor: pointer;
@@ -1256,22 +1316,8 @@ export const primitiveStyles = css`
     background: var(--chc-danger-bg);
   }
 
-  .upload-copy {
-    display: flex;
-    min-width: 0;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .upload-icon {
-    width: 2rem;
-    color: var(--chc-primary);
-    font-size: 1.5em;
-    font-weight: 700;
-    text-align: center;
-  }
-
-  .upload-row-label {
+  .upload-row-label,
+  .upload-row-requirements {
     width: 0.0625rem;
     height: 0.0625rem;
     position: absolute;
@@ -1280,14 +1326,23 @@ export const primitiveStyles = css`
     white-space: nowrap;
   }
 
-  .upload-row-requirements {
+  .upload-row-file-name {
+    min-width: 0;
     overflow: hidden;
+    padding: 0 0.75rem;
+    color: var(--chc-copy);
+    font-size: 0.8125em;
     font-weight: inherit;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .upload-row-action {
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    background: var(--chc-soft-surface);
     color: var(--chc-primary);
     font-weight: 600;
     white-space: nowrap;
@@ -1302,7 +1357,7 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
     padding: 0.875rem 1rem;
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
     text-align: left;
   }
 
@@ -1587,7 +1642,7 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
     padding: 0.625rem;
-    background: var(--chc-surface);
+    background: var(--chc-payment-method-background);
   }
 
   .payment-method-skeleton-icon,
@@ -1656,7 +1711,6 @@ export const primitiveStyles = css`
   }
 
   .powered-by-brand {
-    color: var(--chc-primary);
     font-weight: 700;
   }
 

@@ -6,11 +6,14 @@ import {
   createCommerceHubClient,
   DEFAULT_COMMERCE_HUB_BASE_URL,
 } from './internal/api-client.js';
+import {
+  resolvePaymentMethodIconDataUri,
+  resolvePaymentMethodIconName,
+} from './internal/payment-method-icons.js';
 import {primitiveStyles} from './internal/styles.js';
 import {
   renderAlert,
   renderButton,
-  renderDetailList,
   renderEmptyState,
   renderFormGrid,
   renderOutcomeShell,
@@ -56,6 +59,9 @@ export const ON_ERROR_EVENT = 'onError';
 
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
 type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
+type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
+type VerificationStatus = NonNullable<VerificationInfo['status']>;
+type VerificationStatusResponse = VerificationInfo | VerificationStatus;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
 };
@@ -69,6 +75,7 @@ type CreatedPaymentSourceResponse =
       source?: PaymentSource;
       sourceId?: string;
       paymentSourceId?: string;
+      verificationStatus?: VerificationStatusResponse;
     });
 type VerificationResponse = components['schemas']['VerificationResponse'];
 type PayByBankSession = components['schemas']['SessionData'] & {
@@ -244,20 +251,16 @@ export class CommerceHubConnect extends LitElement {
   private otpErrorMessage?: string;
 
   @state()
-  private bankFlowScreen?: 'provider' | 'provider-error' | 'outcome';
+  private bankFlowScreen?: 'provider' | 'outcome';
 
   @state()
   private bankLinkLoading = false;
 
   @state()
-  private bankProviderError?: string;
-
   @state()
   private bankOutcomeSource?: BankPaymentSource;
 
   @state()
-  private bankTerminalEvent?: PaymentSdkEvent;
-
   @state()
   private cardFlowScreen?: 'form' | 'error';
 
@@ -384,10 +387,6 @@ export class CommerceHubConnect extends LitElement {
       return this.renderBankProviderScreen();
     }
 
-    if (this.bankFlowScreen === 'provider-error') {
-      return this.renderBankProviderErrorScreen();
-    }
-
     if (this.bankFlowScreen === 'outcome') {
       return this.renderBankOutcomeScreen();
     }
@@ -434,6 +433,18 @@ export class CommerceHubConnect extends LitElement {
       subtitle: copy.subtitle ?? defaultOtpSubtitle(destination),
       showClose: false,
       showDivider: false,
+      busy: isSubmitting || isResending,
+      overlay: isSubmitting
+        ? renderWidgetLoadingOverlay({
+            title: 'Verifying code',
+            helper: 'Verifying your code, please wait.',
+          })
+        : isResending
+        ? renderWidgetLoadingOverlay({
+            title: 'Sending code',
+            helper: 'Sending a new code, please wait.',
+          })
+        : undefined,
       content: html`
         <div class="otp-flow">
           ${isFailed
@@ -526,6 +537,8 @@ export class CommerceHubConnect extends LitElement {
         disabled: isPaymentSourceActionPending,
       }),
       showClose: false,
+      busy: isPaymentSourceActionPending,
+      overlay: paymentSourceActionLoadingOverlay(this.pendingAction),
       content: html`
         <div class="payment-flow">
           <div class="primitive-stack" aria-label="Payment methods">
@@ -581,26 +594,28 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       title: 'Payment method saved',
+      headerAction: renderTextLinkButton({
+        label: 'Change',
+        action: 'change-payment-source',
+        disabled: this.pendingAction === 'attach-payment-source',
+      }),
       showClose: false,
       showDivider: false,
+      busy: this.pendingAction === 'attach-payment-source',
+      overlay:
+        this.pendingAction === 'attach-payment-source'
+          ? renderWidgetLoadingOverlay({
+              title: isBankPaymentSource(selectedSource)
+                ? 'Saving bank account'
+                : 'Saving payment method',
+              helper: 'Saving your payment method, please wait.',
+            })
+          : undefined,
       content: html`
         <div class="payment-flow">
-          ${renderAlert({
-            variant: 'success',
-            message: 'Your payment method has been saved.',
-          })}
           ${renderSelectedPaymentMethod(
-            paymentSourceToPaymentMethod(selectedSource)
+            paymentSourceToPaymentMethod(selectedSource, {selected: true})
           )}
-          <div class="primitive-footer">
-            ${renderButton({
-              label: 'Manage payment methods',
-              variant: 'secondary',
-              action: 'change-payment-source',
-              loading: this.pendingAction === 'attach-payment-source',
-              disabled: this.pendingAction === 'attach-payment-source',
-            })}
-          </div>
         </div>
       `,
     });
@@ -641,23 +656,36 @@ export class CommerceHubConnect extends LitElement {
       source,
       this.savedSourceVerificationFailed
     );
+    const showHeaderBack =
+      outcome.kind === 'declined' || outcome.kind === 'pending';
 
     return renderWidgetShell({
       title: outcome.title,
+      headerAction: showHeaderBack
+        ? renderTextLinkButton({
+            label: 'Back',
+            action: 'done-payment-source-verification',
+          })
+        : undefined,
       showClose: false,
       showDivider: false,
       content: html`
         <div class="verification-outcome-flow">
-          ${renderAlert({variant: outcome.variant, message: outcome.message})}
-          ${source
-            ? renderDetailList(paymentSourceVerificationDetails(source))
-            : ''}
-          <div class="primitive-footer">
-            ${renderButton({
-              label: 'Back to payment methods',
-              action: 'done-payment-source-verification',
-            })}
-          </div>
+          ${renderAlert({
+            variant: outcome.variant,
+            message: outcome.message,
+          })}
+          ${source ? renderRequiredInfoSourceCard(source) : ''}
+          ${showHeaderBack
+            ? ''
+            : html`
+                <div class="primitive-footer">
+                  ${renderButton({
+                    label: 'Back to payment methods',
+                    action: 'done-payment-source-verification',
+                  })}
+                </div>
+              `}
         </div>
       `,
     });
@@ -674,39 +702,26 @@ export class CommerceHubConnect extends LitElement {
     const firstUploadDocKey = firstRequiredInfoUploadDocKey(docs);
     const isSubmitting = this.pendingAction === 'submit-required-info';
     const canSubmit = this.canSubmitRequiredInfo();
-    const secondaryAction = isBankPaymentSource(source)
-      ? {
-          label: 'Use a different account',
-          action: 'use-different-bank-account' as const,
-        }
-      : {
-          label: 'Use a different method',
-          action: 'use-different-method' as const,
-        };
 
     return renderWidgetShell({
       title: 'Complete account verification',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-payment-methods',
+        disabled: isSubmitting,
+      }),
       showClose: false,
       showDivider: false,
+      busy: isSubmitting,
+      overlay: isSubmitting
+        ? renderWidgetLoadingOverlay({
+            title: 'Verifying account',
+            helper: 'Reviewing your verification information, please wait.',
+          })
+        : undefined,
       content: html`
         <div class="required-info-flow">
-          <div
-            class="required-info-source-summary"
-            aria-label="Payment source requiring verification"
-          >
-            ${requiredInfoSummaryRows(source).map(
-              (item) => html`
-                <div class="required-info-summary-row">
-                  <span class="required-info-summary-label">${item.label}</span>
-                  <span class="required-info-summary-value">${item.value}</span>
-                </div>
-              `
-            )}
-            <div class="required-info-summary-status">
-              Verification incomplete
-            </div>
-          </div>
-
+          ${renderRequiredInfoSourceCard(source)}
           ${this.requiredInfoSubmitError
             ? renderAlert({
                 variant: 'danger',
@@ -733,23 +748,26 @@ export class CommerceHubConnect extends LitElement {
 
                 return html`
                   <div
-                    class="required-info-document required-document-row"
+                    class="required-info-document required-document-text-row"
                     data-required-info-doc-key=${key}
+                    data-required-info-requirement=${requiredInfoRequirementKind(
+                      doc
+                    )}
                   >
+                    <div class="required-info-document-heading">
+                      <span class="required-info-document-name"
+                        >${requiredInfoDocLabel(doc)}</span
+                      >
+                      ${renderRequiredInfoRequirementBadge(doc)}
+                    </div>
                     ${renderUploadRow({
                       label: 'Required document',
                       requirements: requiredInfoDocLabel(doc),
-                      actionLabel: currentValue ? 'Replace' : 'Choose file',
+                      actionLabel: 'Choose file',
+                      fileName: currentValue,
                       action: 'open-required-info-file-picker',
                       disabled: isSubmitting,
                     })}
-                    ${currentValue
-                      ? html`
-                          <p class="required-info-selected-file">
-                            ${currentValue}
-                          </p>
-                        `
-                      : ''}
                   </div>
                 `;
               })}
@@ -777,7 +795,6 @@ export class CommerceHubConnect extends LitElement {
               loading: isSubmitting,
               disabled: isSubmitting || !canSubmit,
             })}
-            ${renderTextLinkButton(secondaryAction)}
           </div>
         </div>
       `,
@@ -942,36 +959,19 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       title: 'Add card',
-      headerAction: html`
-        <div class="card-form-back-header">
-          ${renderTextLinkButton({
-            label: 'Back',
-            action: 'back-to-payment-methods',
-            disabled: isSaving,
-          })}
-        </div>
-      `,
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-payment-methods',
+        disabled: isSaving,
+      }),
       showClose: false,
       showDivider: false,
       busy: isSaving,
       overlay: isSaving
-        ? html`
-            <div class="widget-loading-status" role="status" aria-live="polite">
-              <span
-                class="loading-spinner loading-spinner-small"
-                aria-hidden="true"
-              ></span>
-              <span class="widget-loading-copy">
-                <span class="widget-loading-title">
-                  Saving payment method
-                </span>
-                <span class="widget-loading-helper">
-                  Keep this window open while we are securely saving your
-                  payment method.
-                </span>
-              </span>
-            </div>
-          `
+        ? renderWidgetLoadingOverlay({
+            title: 'Saving card',
+            helper: 'Securely saving your card, please wait.',
+          })
         : undefined,
       content: html`
         <div class="payment-flow card-form-screen">
@@ -1092,18 +1092,21 @@ export class CommerceHubConnect extends LitElement {
 
   private renderBankProviderScreen(): TemplateResult {
     return renderWidgetShell({
-      title: 'Pay by bank',
-      headerAction: html`
-        <div class="bank-provider-back-header">
-          ${renderTextLinkButton({
-            label: 'Back',
-            action: 'back-to-payment-methods',
-            disabled: this.bankLinkLoading,
-          })}
-        </div>
-      `,
+      title: 'Connect your bank',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-payment-methods',
+        disabled: this.bankLinkLoading,
+      }),
       showClose: false,
       showDivider: false,
+      busy: this.bankLinkLoading,
+      overlay: this.bankLinkLoading
+        ? renderWidgetLoadingOverlay({
+            title: 'Connecting to your bank',
+            helper: 'Securely opening your bank connection, please wait.',
+          })
+        : undefined,
       content: html`
         <div class="bank-provider-flow">
           ${renderProviderFrame({
@@ -1116,73 +1119,58 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
-  private renderBankProviderErrorScreen(): TemplateResult {
-    return renderWidgetShell({
-      title: 'Bank connection unavailable',
-      subtitle:
-        this.bankProviderError ??
-        'We could not connect to your bank provider right now.',
-      showClose: false,
-      content: renderOutcomeShell({
-        variant: 'danger',
-        message: describePaymentSdkTerminalEvent(this.bankTerminalEvent),
-        actions: html`
-          ${renderButton({
-            label: this.bankLinkLoading ? 'Retrying' : 'Retry',
-            action: 'retry-bank-provider',
-            loading: this.bankLinkLoading,
-            disabled: this.bankLinkLoading,
-          })}
-          ${renderTextLinkButton({
-            label: 'Back',
-            action: 'back-to-payment-methods',
-            disabled: this.bankLinkLoading,
-          })}
-        `,
-      }),
-    });
-  }
-
   private renderBankOutcomeScreen(): TemplateResult {
     const outcome = resolveBankOutcome(this.bankOutcomeSource);
+    const showHeaderDone =
+      outcome.kind === 'declined' || outcome.kind === 'pending';
 
     return renderWidgetShell({
       title: outcome.title,
+      headerAction: showHeaderDone
+        ? renderTextLinkButton({
+            label: 'Done',
+            action: 'done-bank-outcome',
+          })
+        : undefined,
       showClose: false,
       showDivider: false,
       content: html`
         <div class="verification-outcome-flow">
           ${renderAlert({variant: outcome.variant, message: outcome.message})}
           ${this.bankOutcomeSource
-            ? renderDetailList(
-                bankSourceVerificationDetails(this.bankOutcomeSource)
-              )
+            ? renderRequiredInfoSourceCard(this.bankOutcomeSource)
             : ''}
-          <div class="primitive-footer">
-            ${outcome.kind === 'verified'
-              ? renderButton({
-                  label: 'Continue',
-                  action: 'continue-bank-outcome',
-                })
-              : outcome.kind === 'pending'
-              ? renderButton({
-                  label: 'Done',
-                  action: 'done-bank-outcome',
-                })
-              : html`
-                  ${renderButton({
-                    label: this.bankLinkLoading ? 'Retrying' : 'Try again',
-                    action: 'retry-bank-provider',
-                    loading: this.bankLinkLoading,
-                    disabled: this.bankLinkLoading,
-                  })}
-                  ${renderTextLinkButton({
-                    label: 'Use a different account',
-                    action: 'use-different-bank-account',
-                    disabled: this.bankLinkLoading,
-                  })}
-                `}
-          </div>
+          ${showHeaderDone
+            ? ''
+            : html`
+                <div class="primitive-footer">
+                  ${outcome.kind === 'verified'
+                    ? renderButton({
+                        label: 'Continue',
+                        action: 'continue-bank-outcome',
+                      })
+                    : outcome.kind === 'pending'
+                    ? renderButton({
+                        label: 'Done',
+                        action: 'done-bank-outcome',
+                      })
+                    : html`
+                        ${renderButton({
+                          label: this.bankLinkLoading
+                            ? 'Retrying'
+                            : 'Try again',
+                          action: 'retry-bank-provider',
+                          loading: this.bankLinkLoading,
+                          disabled: this.bankLinkLoading,
+                        })}
+                        ${renderTextLinkButton({
+                          label: 'Use a different account',
+                          action: 'use-different-bank-account',
+                          disabled: this.bankLinkLoading,
+                        })}
+                      `}
+                </div>
+              `}
         </div>
       `,
     });
@@ -1209,9 +1197,8 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'change-payment-source') {
-      this.paymentSourceEditMode = false;
-      this.paymentSourceView = 'list';
       this.resetRequiredInfo();
+      this.showPaymentSourceList({refresh: true});
       return;
     }
 
@@ -1236,8 +1223,8 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'done-payment-source-verification') {
-      this.paymentSourceEditMode = false;
       this.resetSavedSourceVerification();
+      this.showPaymentSourceList({refresh: true});
       return;
     }
 
@@ -1281,16 +1268,16 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'back-to-payment-methods') {
-      this.paymentSourceEditMode = false;
-      this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetBankFlow();
       this.resetRequiredInfo();
+      this.showPaymentSourceList({refresh: true});
       return;
     }
 
     if (action === 'continue-bank-outcome' || action === 'done-bank-outcome') {
       this.resetBankFlow();
+      this.showPaymentSourceList({refresh: true});
       return;
     }
 
@@ -1313,10 +1300,9 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'use-different-method') {
-      this.paymentSourceEditMode = false;
-      this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
+      this.showPaymentSourceList({refresh: true});
       return;
     }
   };
@@ -2002,32 +1988,29 @@ export class CommerceHubConnect extends LitElement {
         );
       const createdSource = resolveCreatedPaymentSource(sourceResponse);
       const paymentSourceId = createdSource.id;
-
-      if (createdSource.verificationInfo?.status !== 'VERIFIED') {
-        throw new Error('The card could not be verified.');
-      }
-
-      const sourceInteractionResponse = interactionResponseWithSourceList(
-        this.interactionResponse ?? {interactionId},
+      const nextInteractionResponse = this.interactionResponseWithAddedSource(
+        interactionId,
         sourceResponse,
-        paymentSourceId
+        createdSource
       );
+
       this.cardFlowScreen = undefined;
       this.cardDraft = createCardDraft();
       this.cardDraftErrors = {};
       this.cardEncryption = createCardEncryptionState();
       this.cardSubmitError = undefined;
-      this.selectedPaymentSourceId = paymentSourceId;
-      this.setInteractionResponseFromSdk(
-        withUpsertedSource(
-          {
-            ...sourceInteractionResponse,
-            status: 'PAYMENT_SOURCE_REQUESTED',
-          },
-          createdSource
-        )
-      );
-      this.paymentSourceView = 'selected';
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
+      const addedSource = {
+        ...createdSource,
+        id: paymentSourceId,
+      };
+
+      if (addedSource.verificationInfo?.status === 'VERIFIED') {
+        await this.attachPaymentSource(paymentSourceId);
+        return;
+      }
+
+      this.showAddedPaymentSourceStatus(addedSource);
     } catch (cause) {
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
@@ -2153,6 +2136,7 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.selectedPaymentSourceId = paymentSourceId;
     this.paymentSourceView = 'selected';
     this.pendingAction = 'attach-payment-source';
 
@@ -2203,10 +2187,6 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (source.verificationInfo?.status === 'VERIFIED') {
-      return;
-    }
-
     if (requiresAdditionalVerificationInfo(source)) {
       this.savedSourceVerificationSource = undefined;
       this.savedSourceVerificationFailed = false;
@@ -2216,50 +2196,58 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (source.verificationInfo?.status !== 'NOT_VERIFIED') {
+      return;
+    }
+
+    this.savedSourceVerificationSource = undefined;
+    this.savedSourceVerificationFailed = false;
+    this.selectedPaymentSourceId = undefined;
+    this.paymentSourceView = 'list';
     this.pendingAction = 'verify-payment-source';
 
     try {
       const verifiedSource = await this.verifyPaymentSourceStep1(
         interactionId,
-        source
+        {
+          ...source,
+          id: paymentSourceId,
+        }
       );
-      const nextInteractionResponse = withUpsertedSource(
+      const nextInteractionResponse = withUpsertedSourcePreservingSelection(
         {
           ...(this.interactionResponse ?? {interactionId}),
+          selectedSource: this.interactionResponse?.selectedSource,
           status: 'PAYMENT_SOURCE_REQUESTED',
         },
         verifiedSource
       );
 
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
+
       if (requiresAdditionalVerificationInfo(verifiedSource)) {
-        this.savedSourceVerificationSource = undefined;
-        this.savedSourceVerificationFailed = false;
-        this.selectedPaymentSourceId = undefined;
-        this.paymentSourceView = 'list';
-        this.setInteractionResponseFromSdk(
-          withUpsertedSourcePreservingSelection(
-            {
-              ...(this.interactionResponse ?? {interactionId}),
-              selectedSource: this.interactionResponse?.selectedSource,
-              status: 'PAYMENT_SOURCE_REQUESTED',
-            },
-            verifiedSource
-          )
-        );
         this.showRequiredInfoSource(verifiedSource);
+        return;
+      }
+
+      if (verifiedSource.verificationInfo?.status === 'VERIFIED') {
+        const verifiedSourceId = verifiedSource.id?.trim() || paymentSourceId;
+
+        this.pendingAction = undefined;
+        await this.attachPaymentSource(verifiedSourceId);
         return;
       }
 
       this.savedSourceVerificationSource = verifiedSource;
       this.savedSourceVerificationFailed = false;
-      this.selectedPaymentSourceId = verifiedSource.id;
-      this.setInteractionResponseFromSdk(nextInteractionResponse);
     } catch (cause) {
       void cause;
       this.savedSourceVerificationSource = source;
       this.savedSourceVerificationFailed = true;
     } finally {
-      this.pendingAction = undefined;
+      if (this.pendingAction === 'verify-payment-source') {
+        this.pendingAction = undefined;
+      }
     }
   }
 
@@ -2329,6 +2317,92 @@ export class CommerceHubConnect extends LitElement {
     this.savedSourceVerificationFailed = false;
   }
 
+  private showPaymentSourceList({refresh = false}: {refresh?: boolean} = {}) {
+    this.paymentSourceEditMode = false;
+    this.paymentSourceView = 'list';
+
+    if (refresh) {
+      void this.refreshPaymentSourcesForList();
+    }
+  }
+
+  private async refreshPaymentSourcesForList() {
+    const interactionId = this.interactionResponse?.interactionId;
+
+    if (!interactionId) {
+      return;
+    }
+
+    try {
+      await this.fetchInteraction(interactionId);
+    } catch (cause) {
+      void cause;
+    }
+  }
+
+  private interactionResponseWithAddedSource(
+    interactionId: string,
+    sourceResponse: SourceListResponse,
+    source: PaymentSource
+  ): InteractionResponse {
+    const sourceId = source.id?.trim();
+    const shouldPreselectSource =
+      Boolean(sourceId) && shouldPreselectAddedPaymentSource(source);
+    const sourceInteractionResponse = interactionResponseWithSourceList(
+      this.interactionResponse ?? {interactionId},
+      sourceResponse,
+      shouldPreselectSource ? sourceId : undefined
+    );
+    const baseInteractionResponse = {
+      ...sourceInteractionResponse,
+      status: 'PAYMENT_SOURCE_REQUESTED' as const,
+    };
+
+    if (shouldPreselectSource) {
+      return withUpsertedSource(baseInteractionResponse, source);
+    }
+
+    return withUpsertedSourcePreservingSelection(
+      {
+        ...baseInteractionResponse,
+        selectedSource: this.interactionResponse?.selectedSource,
+      },
+      source
+    );
+  }
+
+  private showAddedPaymentSourceStatus(source: PaymentSource) {
+    const sourceId = source.id?.trim();
+
+    this.resetSavedSourceVerification();
+    this.resetRequiredInfo();
+
+    if (requiresAdditionalVerificationInfo(source)) {
+      this.selectedPaymentSourceId = undefined;
+      this.paymentSourceView = 'list';
+      this.showRequiredInfoSource(source);
+      return;
+    }
+
+    if (source.verificationInfo?.status === 'VERIFIED') {
+      this.selectedPaymentSourceId = sourceId;
+      this.paymentSourceView = 'selected';
+      return;
+    }
+
+    this.selectedPaymentSourceId = undefined;
+    this.paymentSourceView = 'list';
+
+    if (isBankPaymentSource(source)) {
+      this.bankOutcomeSource = source;
+      this.bankFlowScreen = 'outcome';
+      return;
+    }
+
+    this.savedSourceVerificationSource = source;
+    this.savedSourceVerificationFailed = false;
+  }
+
   private showRequiredInfoSource(source: PaymentSource) {
     this.requiredInfoSource = source;
     this.requiredInfoValues = {};
@@ -2393,11 +2467,7 @@ export class CommerceHubConnect extends LitElement {
       return false;
     }
 
-    return requiredInfoDocs(source).every((doc, index) => {
-      if (!isRequiredInfoDocMandatory(doc)) {
-        return true;
-      }
-
+    return requiredInfoDocs(source).some((doc, index) => {
       const key = requiredInfoDocKey(doc, index);
 
       if (isRequiredInfoTextDoc(doc)) {
@@ -2423,7 +2493,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (!this.canSubmitRequiredInfo()) {
       this.requiredInfoSubmitError =
-        'Add all required information before verifying.';
+        'Add required or optional information before verifying.';
       return;
     }
 
@@ -2432,54 +2502,47 @@ export class CommerceHubConnect extends LitElement {
 
     try {
       const docs = requiredInfoDocs(source);
+      const requiredEntries = this.providedRequiredInfoEntries(docs, true);
+      const optionalEntries = this.providedRequiredInfoEntries(docs, false);
+      let verifiedSource = source;
 
-      for (const [index, doc] of docs.entries()) {
-        const key = requiredInfoDocKey(doc, index);
-        const docType = doc.docType;
+      if (requiredEntries.length > 0) {
+        await this.uploadRequiredInfoEntries(
+          interactionId,
+          sourceId,
+          requiredEntries
+        );
+        verifiedSource = this.sourceWithVerificationResponse(
+          verifiedSource,
+          await this.verifyRequiredInfoStep2(interactionId, sourceId)
+        );
 
-        if (!docType) {
-          continue;
-        }
-
-        if (isRequiredInfoTextDoc(doc)) {
-          const value = this.requiredInfoValues[key]?.trim();
-
-          if (value) {
-            await this.uploadRequiredInfoField(interactionId, docType, value);
-          }
-          continue;
-        }
-
-        const file = this.requiredInfoFiles[key];
-
-        if (file) {
-          await this.uploadRequiredInfoDocument(
+        if (
+          requiresAdditionalVerificationInfo(verifiedSource) &&
+          optionalEntries.length > 0
+        ) {
+          await this.uploadRequiredInfoEntries(
             interactionId,
             sourceId,
-            docType,
-            file
+            optionalEntries
+          );
+          verifiedSource = this.sourceWithVerificationResponse(
+            verifiedSource,
+            await this.verifyRequiredInfoStep2(interactionId, sourceId)
           );
         }
+      } else {
+        await this.uploadRequiredInfoEntries(
+          interactionId,
+          sourceId,
+          optionalEntries
+        );
+        verifiedSource = this.sourceWithVerificationResponse(
+          verifiedSource,
+          await this.verifyRequiredInfoStep2(interactionId, sourceId)
+        );
       }
 
-      const verificationResponse =
-        await this.requestCommerceHubJson<VerificationResponse>(
-          '/interaction/verify/step2',
-          interactionId,
-          {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({value: sourceId}),
-            credentials: 'include',
-          }
-        );
-      const verifiedSource = {
-        ...source,
-        verificationInfo: {
-          ...source.verificationInfo,
-          ...verificationResponse,
-        },
-      };
       const nextInteractionResponse = withUpsertedSourcePreservingSelection(
         {
           ...(this.interactionResponse ?? {interactionId}),
@@ -2492,9 +2555,11 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(nextInteractionResponse);
 
       if (verifiedSource.verificationInfo?.status === 'VERIFIED') {
+        const verifiedSourceId = verifiedSource.id?.trim() || sourceId;
+
         this.resetRequiredInfo();
         this.pendingAction = undefined;
-        await this.attachPaymentSource(sourceId);
+        await this.attachPaymentSource(verifiedSourceId);
         return;
       }
 
@@ -2522,10 +2587,108 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
+  private providedRequiredInfoEntries(
+    docs: RequiredInfoDoc[],
+    required: boolean
+  ): {doc: RequiredInfoDoc; index: number}[] {
+    return docs
+      .map((doc, index) => ({doc, index}))
+      .filter(
+        ({doc, index}) =>
+          (required ? doc.mandatory === true : doc.mandatory !== true) &&
+          this.hasRequiredInfoValue(doc, index)
+      );
+  }
+
+  private hasRequiredInfoValue(doc: RequiredInfoDoc, index: number): boolean {
+    const key = requiredInfoDocKey(doc, index);
+
+    if (isRequiredInfoTextDoc(doc)) {
+      return Boolean(this.requiredInfoValues[key]?.trim());
+    }
+
+    return Boolean(this.requiredInfoFiles[key]);
+  }
+
+  private async uploadRequiredInfoEntries(
+    interactionId: string,
+    sourceId: string,
+    entries: {doc: RequiredInfoDoc; index: number}[]
+  ) {
+    for (const {doc, index} of entries) {
+      const docType = doc.docType;
+
+      if (!docType) {
+        continue;
+      }
+
+      const key = requiredInfoDocKey(doc, index);
+
+      if (isRequiredInfoTextDoc(doc)) {
+        const value = this.requiredInfoValues[key]?.trim();
+
+        if (value) {
+          await this.uploadRequiredInfoField(
+            interactionId,
+            sourceId,
+            docType,
+            value
+          );
+        }
+        continue;
+      }
+
+      const file = this.requiredInfoFiles[key];
+
+      if (file) {
+        await this.uploadRequiredInfoDocument(
+          interactionId,
+          sourceId,
+          docType,
+          file
+        );
+      }
+    }
+  }
+
+  private async verifyRequiredInfoStep2(
+    interactionId: string,
+    sourceId: string
+  ): Promise<VerificationResponse> {
+    return this.requestCommerceHubJson<VerificationResponse>(
+      '/interaction/verify/step2',
+      interactionId,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({value: sourceId}),
+        credentials: 'include',
+      }
+    );
+  }
+
+  private sourceWithVerificationResponse(
+    source: PaymentSource,
+    verificationResponse: VerificationResponse
+  ): PaymentSource {
+    const {sourceId, ...verificationInfo} = verificationResponse;
+    const verifiedSourceId = sourceId?.trim();
+
+    return {
+      ...source,
+      id: verifiedSourceId || source.id,
+      verificationInfo: {
+        ...source.verificationInfo,
+        ...verificationInfo,
+      },
+    };
+  }
+
   private async uploadRequiredInfoField(
     interactionId: string,
+    sourceId: string,
     docType: NonNullable<RequiredInfoDoc['docType']>,
-    value: string
+    docValue: string
   ) {
     await this.requestCommerceHubJson<unknown>(
       '/interaction/verify/uploadField',
@@ -2533,7 +2696,7 @@ export class CommerceHubConnect extends LitElement {
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({docType, value, docValue: value}),
+        body: JSON.stringify({docType, value: sourceId, docValue}),
         credentials: 'include',
       }
     );
@@ -2574,9 +2737,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     this.bankFlowScreen = 'provider';
-    this.bankProviderError = undefined;
     this.bankOutcomeSource = undefined;
-    this.bankTerminalEvent = undefined;
     this.bankLinkLoading = true;
     this.ensurePayByBankProviderContainer(PAY_BY_BANK_PROVIDER_CONTAINER_ID);
     await this.updateComplete;
@@ -2587,8 +2748,9 @@ export class CommerceHubConnect extends LitElement {
         PAY_BY_BANK_PROVIDER_CONTAINER_ID
       );
     } catch (cause) {
-      this.bankProviderError = apiErrorMessage(cause);
-      this.bankFlowScreen = 'provider-error';
+      void cause;
+      this.resetBankFlow();
+      this.showPaymentSourceList({refresh: true});
     } finally {
       this.bankLinkLoading = false;
     }
@@ -2637,12 +2799,13 @@ export class CommerceHubConnect extends LitElement {
             return;
           }
 
-          this.bankTerminalEvent = event;
           destroyPaymentSdk();
 
           if (event.type !== 'success') {
             settled = true;
-            reject(new Error(describePaymentSdkTerminalEvent(event)));
+            this.resetBankFlow();
+            this.showPaymentSourceList({refresh: true});
+            resolve();
             return;
           }
 
@@ -2662,7 +2825,7 @@ export class CommerceHubConnect extends LitElement {
 
             if (!paymentSourceId) {
               throw new Error(
-                'Pay by Bank completed but the resolved bank payment source did not include an id.'
+                'Connect your bank completed but the resolved bank payment source did not include an id.'
               );
             }
             const shouldPreselectSource =
@@ -2724,20 +2887,9 @@ export class CommerceHubConnect extends LitElement {
               }
             }
 
-            this.resetBankFlow();
-
-            if (requiresAdditionalVerificationInfo(resolvedBankSource)) {
-              this.selectedPaymentSourceId = undefined;
-              this.paymentSourceView = 'list';
-              this.showRequiredInfoSource(resolvedBankSource);
-            } else if (shouldPreselectSource) {
-              this.selectedPaymentSourceId = paymentSourceId;
-              this.paymentSourceView = 'selected';
-            } else {
-              this.paymentSourceView = 'list';
-            }
-
             this.setInteractionResponseFromSdk(nextInteractionResponse);
+            this.resetBankFlow();
+            this.showAddedPaymentSourceStatus(resolvedBankSource);
             settled = true;
             resolve();
           } catch (cause) {
@@ -2885,13 +3037,7 @@ export class CommerceHubConnect extends LitElement {
         }
       );
 
-    return {
-      ...source,
-      verificationInfo: {
-        ...source.verificationInfo,
-        ...verificationResponse,
-      },
-    };
+    return this.sourceWithVerificationResponse(source, verificationResponse);
   }
 
   private async requestCommerceHubJson<T>(
@@ -2929,9 +3075,7 @@ export class CommerceHubConnect extends LitElement {
 
   private resetBankFlow() {
     this.bankFlowScreen = undefined;
-    this.bankProviderError = undefined;
     this.bankOutcomeSource = undefined;
-    this.bankTerminalEvent = undefined;
     this.bankLinkLoading = false;
     this.removePayByBankProviderContainer();
   }
@@ -3068,7 +3212,12 @@ export interface DesignConfigColors {
   muted?: string;
   placeholder?: string;
   surface?: string;
+  widgetBackground?: string;
+  widgetBorder?: string;
+  borderBackground?: string;
   softSurface?: string;
+  paymentMethodBackground?: string;
+  paymentSelectionBackground?: string;
   border?: string;
   borderStrong?: string;
   success?: string;
@@ -3670,11 +3819,82 @@ const resolveCreatedPaymentSource = (
     );
   }
 
+  return normalizeCreatedPaymentSource(source, paymentSourceId, response);
+};
+
+const normalizeCreatedPaymentSource = (
+  source: CardPaymentSource,
+  paymentSourceId: string,
+  response?: CreatedPaymentSourceResponse
+): CardPaymentSource & {id: string} => {
+  const verificationInfo = createdPaymentSourceVerificationInfo(
+    source,
+    response
+  );
+
   return {
     ...source,
     id: paymentSourceId,
+    ...(verificationInfo ? {verificationInfo} : {}),
   };
 };
+
+const createdPaymentSourceVerificationInfo = (
+  source: PaymentSource,
+  response?: CreatedPaymentSourceResponse
+): VerificationInfo | undefined => {
+  const sourceVerificationInfo = verificationInfoFromStatusResponse(
+    (source as PaymentSource & {verificationStatus?: unknown})
+      .verificationStatus
+  );
+  const responseVerificationInfo = verificationInfoFromStatusResponse(
+    !Array.isArray(response) ? response?.verificationStatus : undefined
+  );
+  const verificationInfo = {
+    ...source.verificationInfo,
+    ...sourceVerificationInfo,
+    ...responseVerificationInfo,
+  };
+
+  return verificationInfo.status || verificationInfo.docs
+    ? verificationInfo
+    : undefined;
+};
+
+const verificationInfoFromStatusResponse = (
+  response: unknown
+): VerificationInfo | undefined => {
+  if (isVerificationStatus(response)) {
+    return {status: response};
+  }
+
+  if (!response || typeof response !== 'object') {
+    return undefined;
+  }
+
+  const verificationInfo = response as Partial<VerificationInfo>;
+
+  if (!isVerificationStatus(verificationInfo.status)) {
+    return undefined;
+  }
+
+  return {
+    ...verificationInfo,
+    status: verificationInfo.status,
+  };
+};
+
+const VERIFICATION_STATUSES = [
+  'NOT_VERIFIED',
+  'REQUIRE_INFO',
+  'UNDER_REVIEW',
+  'DECLINED',
+  'VERIFIED',
+] as const;
+
+const isVerificationStatus = (value: unknown): value is VerificationStatus =>
+  typeof value === 'string' &&
+  VERIFICATION_STATUSES.some((status) => status === value);
 
 const resolveCreatedPaymentSourceId = (
   response?: CreatedPaymentSourceResponse
@@ -3798,7 +4018,18 @@ const designConfigColorProperties: {
   {field: 'muted', property: '--chc-muted'},
   {field: 'placeholder', property: '--chc-placeholder'},
   {field: 'surface', property: '--chc-surface'},
+  {field: 'widgetBackground', property: '--chc-widget-background'},
+  {field: 'borderBackground', property: '--chc-border'},
+  {field: 'widgetBorder', property: '--chc-border'},
   {field: 'softSurface', property: '--chc-soft-surface'},
+  {
+    field: 'paymentSelectionBackground',
+    property: '--chc-payment-method-background',
+  },
+  {
+    field: 'paymentMethodBackground',
+    property: '--chc-payment-method-background',
+  },
   {field: 'border', property: '--chc-border'},
   {field: 'borderStrong', property: '--chc-border-strong'},
   {field: 'success', property: '--chc-success'},
@@ -3833,7 +4064,7 @@ const paymentMethodsFromInteractionResponse = (
       selectedPaymentSourceFromInteractionResponse(interactionResponse);
 
     if (selectedSource) {
-      return [paymentSourceToPaymentMethod(selectedSource)];
+      return [paymentSourceToPaymentMethod(selectedSource, {selected: true})];
     }
 
     return interactionResponse?.status === 'PAYMENT_SOURCE_REQUESTED'
@@ -3844,20 +4075,56 @@ const paymentMethodsFromInteractionResponse = (
   return paymentSources.map((source) => paymentSourceToPaymentMethod(source));
 };
 
-const paymentSourceToPaymentMethod = (source: PaymentSource): PaymentMethod => {
+const paymentSourceToPaymentMethod = (
+  source: PaymentSource,
+  {selected = false}: {selected?: boolean} = {}
+): PaymentMethod => {
   const sourceId = source.id?.trim();
   const sourceName = source.name?.trim();
 
   return {
     id: sourceId || sourceName || source.tenderType,
-    label: sourceName || paymentSourceLabel(source),
+    label: paymentSourceDisplayName(source, {selected}),
     type: isBankPaymentSource(source) ? 'bank' : 'card',
     brand: paymentSourceBrand(source),
+    accountLabel: paymentSourceAccountLabel(source),
     last4: paymentSourceLast4(source),
     status: verificationStatusToPaymentMethodStatus(
       source.verificationInfo?.status
     ),
+    showVerificationStatus: Boolean(source.verificationInfo?.status),
   };
+};
+
+const paymentSourceDisplayName = (
+  source: PaymentSource,
+  {selected = false}: {selected?: boolean} = {}
+): string => {
+  if (isCardPaymentSource(source)) {
+    if (selected) {
+      return (
+        source.name?.trim() ||
+        source.card?.nameOnCard?.trim() ||
+        paymentSourceLabel(source)
+      );
+    }
+
+    return (
+      source.card?.nameOnCard?.trim() ||
+      source.name?.trim() ||
+      paymentSourceLabel(source)
+    );
+  }
+
+  if (isBankPaymentSource(source)) {
+    return (
+      source.name?.trim() ||
+      source.bankAccount?.bankName?.trim() ||
+      paymentSourceLabel(source)
+    );
+  }
+
+  return source.name?.trim() || paymentSourceLabel(source);
 };
 
 const paymentSourceLabel = (source: PaymentSource): string => {
@@ -3883,6 +4150,9 @@ const paymentSourceBrand = (source: PaymentSource): string => {
 
   return 'DSC';
 };
+
+const paymentSourceAccountLabel = (source: PaymentSource): string =>
+  `•••• ${paymentSourceLast4(source)}`;
 
 const paymentSourceLast4 = (source: PaymentSource): string => {
   if (isCardPaymentSource(source)) {
@@ -4129,22 +4399,6 @@ const isTerminalPaymentSdkEvent = (event: PaymentSdkEvent): boolean =>
   event.type === 'failure' ||
   event.type === 'error';
 
-const describePaymentSdkTerminalEvent = (event?: PaymentSdkEvent): string => {
-  if (typeof event?.payload === 'string' && event.payload.trim()) {
-    return event.payload;
-  }
-
-  if (event?.type === 'cancel') {
-    return 'Pay by Bank was cancelled.';
-  }
-
-  if (event?.type === 'failure' || event?.type === 'error') {
-    return 'Pay by Bank failed.';
-  }
-
-  return 'Pay by Bank did not complete successfully.';
-};
-
 const resolvePayByBankSourceFromSourceResponse = (
   response: SourceListResponse
 ): BankPaymentSource => {
@@ -4158,7 +4412,7 @@ const resolvePayByBankSourceFromSourceResponse = (
 
   if (!source) {
     throw new Error(
-      'Pay by Bank completed but no bank payment source was returned by /interaction/source/pbb/session.'
+      'Connect your bank completed but no bank payment source was returned by /interaction/source/pbb/session.'
     );
   }
 
@@ -4166,7 +4420,7 @@ const resolvePayByBankSourceFromSourceResponse = (
 
   if (!paymentSourceId) {
     throw new Error(
-      'Pay by Bank completed but the returned bank payment source did not include an id.'
+      'Connect your bank completed but the returned bank payment source did not include an id.'
     );
   }
 
@@ -4220,6 +4474,54 @@ const upsertPaymentSources = (
 
 const shouldPreselectAddedPaymentSource = (source: PaymentSource): boolean =>
   source.verificationInfo?.status === 'VERIFIED';
+
+type WidgetLoadingOverlayCopy = {
+  title: string;
+  helper: string;
+};
+
+const renderWidgetLoadingOverlay = ({
+  title,
+  helper,
+}: WidgetLoadingOverlayCopy): TemplateResult => html`
+  <div class="widget-loading-status" role="status" aria-live="polite">
+    <span
+      class="loading-spinner loading-spinner-small"
+      aria-hidden="true"
+    ></span>
+    <span class="widget-loading-copy">
+      <span class="widget-loading-title">${title}</span>
+      <span class="widget-loading-helper">${helper}</span>
+    </span>
+  </div>
+`;
+
+const paymentSourceActionLoadingOverlay = (
+  action?: FlowActionName
+): TemplateResult | undefined => {
+  if (action === 'verify-payment-source') {
+    return renderWidgetLoadingOverlay({
+      title: 'Verifying payment method',
+      helper: 'Verifying your payment method, please wait.',
+    });
+  }
+
+  if (action === 'delete-payment-source') {
+    return renderWidgetLoadingOverlay({
+      title: 'Deleting payment method',
+      helper: 'Deleting your payment method, please wait.',
+    });
+  }
+
+  if (action === 'attach-payment-source') {
+    return renderWidgetLoadingOverlay({
+      title: 'Saving payment method',
+      helper: 'Saving your payment method, please wait.',
+    });
+  }
+
+  return undefined;
+};
 
 type BankOutcome = {
   kind: 'verified' | 'pending' | 'requires-info' | 'declined' | 'failed';
@@ -4275,22 +4577,6 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     message: 'This bank account is not verified yet.',
   };
 };
-
-const bankSourceVerificationDetails = (
-  source: BankPaymentSource
-): {label: string; value: string | TemplateResult}[] => [
-  {label: 'Bank', value: source.bankAccount?.bankName ?? 'Bank account'},
-  {
-    label: 'Last 4 digits',
-    value: lastFour(source.bankAccount?.accountNumber),
-  },
-  {
-    label: 'Verification status',
-    value: renderVerificationStatusBadge(
-      verificationStatusToPaymentMethodStatus(source.verificationInfo?.status)
-    ),
-  },
-];
 
 const resolveSavedSourceVerificationOutcome = (
   source?: PaymentSource,
@@ -4368,29 +4654,6 @@ const resolveSavedSourceVerificationOutcome = (
   };
 };
 
-const paymentSourceVerificationDetails = (
-  source: PaymentSource
-): {label: string; value: string | TemplateResult}[] => [
-  {
-    label: isBankPaymentSource(source) ? 'Bank' : 'Card',
-    value: isBankPaymentSource(source)
-      ? source.bankAccount?.bankName ?? 'Bank account'
-      : isCardPaymentSource(source)
-      ? source.card?.network ?? 'Card'
-      : 'Dynamic session card',
-  },
-  {
-    label: 'Last 4 digits',
-    value: paymentSourceLast4(source),
-  },
-  {
-    label: 'Verification status',
-    value: renderVerificationStatusBadge(
-      verificationStatusToPaymentMethodStatus(source.verificationInfo?.status)
-    ),
-  },
-];
-
 type RequiredInfoDoc = NonNullable<
   NonNullable<PaymentSource['verificationInfo']>['docs']
 >[number];
@@ -4413,6 +4676,26 @@ const isRequiredInfoTextDoc = (doc: RequiredInfoDoc): boolean =>
 
 const isRequiredInfoDocMandatory = (doc: RequiredInfoDoc): boolean =>
   doc.mandatory !== false;
+
+const requiredInfoRequirementKind = (
+  doc: RequiredInfoDoc
+): 'required' | 'optional' =>
+  isRequiredInfoDocMandatory(doc) ? 'required' : 'optional';
+
+const requiredInfoRequirementLabel = (doc: RequiredInfoDoc): string =>
+  isRequiredInfoDocMandatory(doc) ? 'Required' : 'Optional';
+
+const renderRequiredInfoRequirementBadge = (
+  doc: RequiredInfoDoc
+): TemplateResult => html`
+  <span
+    class="required-info-requirement-badge required-info-requirement-badge-${requiredInfoRequirementKind(
+      doc
+    )}"
+  >
+    ${requiredInfoRequirementLabel(doc)}
+  </span>
+`;
 
 const firstRequiredInfoUploadDocKey = (
   docs: RequiredInfoDoc[]
@@ -4450,11 +4733,18 @@ const renderRequiredInfoTextField = ({
   const id = `required-info-${key}`;
 
   return html`
-    <div class="required-info-document required-info-text-document">
+    <div
+      class="required-info-document required-info-text-document required-document-text-row"
+      data-required-info-doc-key=${key}
+      data-required-info-requirement=${requiredInfoRequirementKind(doc)}
+    >
       <div class="field field-full">
-        <label class="field-label" for=${id}
-          >${requiredInfoDocLabel(doc)}</label
-        >
+        <div class="field-label-row">
+          <label class="field-label" for=${id}
+            >${requiredInfoDocLabel(doc)}</label
+          >
+          ${renderRequiredInfoRequirementBadge(doc)}
+        </div>
         <input
           class="field-input required-info-text-input"
           id=${id}
@@ -4486,10 +4776,15 @@ const renderRequiredInfoSsnField = ({
 
   return html`
     <div
-      class="required-info-document required-info-text-document required-info-ssn-document"
+      class="required-info-document required-info-text-document required-info-ssn-document required-document-text-row"
+      data-required-info-doc-key=${key}
+      data-required-info-requirement=${requiredInfoRequirementKind(doc)}
     >
       <div class="field field-full">
-        <label class="field-label" for=${id}>${label}</label>
+        <div class="field-label-row">
+          <label class="field-label" for=${id}>${label}</label>
+          ${renderRequiredInfoRequirementBadge(doc)}
+        </div>
         <div class="required-info-ssn-control" role="group" aria-label=${label}>
           ${REQUIRED_INFO_SSN_SEGMENT_LENGTHS.map(
             (length, index) => html`
@@ -4553,13 +4848,125 @@ const requiredInfoSourceTypeLabel = (source: PaymentSource): string => {
   return 'Dynamic session card';
 };
 
-const requiredInfoSummaryRows = (
+const requiredInfoSourceName = (source: PaymentSource): string => {
+  if (isCardPaymentSource(source)) {
+    return (
+      source.card?.nameOnCard?.trim() ||
+      source.name?.trim() ||
+      paymentSourceLabel(source)
+    );
+  }
+
+  if (isBankPaymentSource(source)) {
+    return (
+      source.name?.trim() ||
+      source.bankAccount?.bankName?.trim() ||
+      paymentSourceLabel(source)
+    );
+  }
+
+  return source.name?.trim() || paymentSourceLabel(source);
+};
+
+const requiredInfoSourceMaskedNumber = (source: PaymentSource): string =>
+  isCardPaymentSource(source)
+    ? `•••• •••• •••• ${paymentSourceLast4(source)}`
+    : `•••• ${paymentSourceLast4(source)}`;
+
+const requiredInfoSourceExpiry = (
   source: PaymentSource
-): {label: string; value: string}[] => [
-  {label: 'Type', value: requiredInfoSourceTypeLabel(source)},
-  {label: 'Account', value: `•••• ${paymentSourceLast4(source)}`},
-  {label: 'Name', value: source.name?.trim() || paymentSourceLabel(source)},
-];
+): string | undefined => {
+  if (!isCardPaymentSource(source)) {
+    return undefined;
+  }
+
+  const month = source.card?.expirationMonth?.trim();
+  const year = source.card?.expirationYear?.trim();
+
+  if (!month || !year) {
+    return undefined;
+  }
+
+  const normalizedMonth = month.padStart(2, '0');
+  const normalizedYear = year.slice(-2);
+
+  return `${normalizedMonth}/${normalizedYear}`;
+};
+
+const paymentSourceIconMethod = (
+  source: PaymentSource
+): Pick<PaymentMethod, 'type' | 'brand'> => ({
+  type: isBankPaymentSource(source) ? 'bank' : 'card',
+  brand: paymentSourceBrand(source),
+});
+
+const renderRequiredInfoSourceCard = (
+  source: PaymentSource
+): TemplateResult => {
+  const iconMethod = paymentSourceIconMethod(source);
+  const iconName = resolvePaymentMethodIconName(iconMethod);
+  const expiry = requiredInfoSourceExpiry(source);
+
+  return html`
+    <div
+      class="required-info-card"
+      aria-label="Payment source requiring verification"
+    >
+      <div class="required-info-card-top">
+        <div class="required-info-card-heading">
+          <span class="required-info-card-label"
+            >${requiredInfoSourceTypeLabel(source)}</span
+          >
+          <span
+            class="required-info-card-field required-info-card-name"
+            data-required-info-card-field="name"
+            >${requiredInfoSourceName(source)}</span
+          >
+        </div>
+        <span class="required-info-card-icon-chip" aria-hidden="true">
+          <img
+            class="required-info-card-icon-image"
+            data-required-info-card-icon=${iconName}
+            src=${resolvePaymentMethodIconDataUri(iconMethod)}
+            alt=""
+          />
+        </span>
+      </div>
+
+      <div
+        class="required-info-card-field required-info-card-number"
+        data-required-info-card-field="number"
+      >
+        ${requiredInfoSourceMaskedNumber(source)}
+      </div>
+
+      <div class="required-info-card-bottom">
+        <div class="required-info-card-detail">
+          <span class="required-info-card-label">Status</span>
+          <span class="required-info-card-status">
+            ${renderVerificationStatusBadge(
+              verificationStatusToPaymentMethodStatus(
+                source.verificationInfo?.status
+              )
+            )}
+          </span>
+        </div>
+        ${expiry
+          ? html`
+              <div class="required-info-card-detail">
+                <span class="required-info-card-label">Expiry</span>
+                <span
+                  class="required-info-card-field required-info-card-expiry"
+                  data-required-info-card-field="expiry"
+                  >${expiry}</span
+                >
+              </div>
+            `
+          : ''}
+      </div>
+    </div>
+  `;
+};
 
 const requiresAdditionalVerificationInfo = (source: PaymentSource): boolean =>
   source.verificationInfo?.status === 'REQUIRE_INFO';
@@ -4612,7 +5019,9 @@ const loadPaymentSdkScript = async (scriptUrl: string): Promise<void> => {
       cleanup();
       paymentSdkScriptPromise = undefined;
       paymentSdkScriptUrl = undefined;
-      reject(new Error(`Unable to load Pay by Bank script: ${scriptUrl}`));
+      reject(
+        new Error(`Unable to load Connect your bank script: ${scriptUrl}`)
+      );
     };
 
     script.addEventListener('load', handleLoad, {once: true});
@@ -4630,7 +5039,7 @@ const loadPaymentSdkScript = async (scriptUrl: string): Promise<void> => {
 
   if (!window.PaymentSDK?.init) {
     throw new Error(
-      `Pay by Bank script loaded but window.PaymentSDK.init is unavailable: ${scriptUrl}`
+      `Connect your bank script loaded but window.PaymentSDK.init is unavailable: ${scriptUrl}`
     );
   }
 };

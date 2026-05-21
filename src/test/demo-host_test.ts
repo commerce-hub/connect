@@ -1,5 +1,24 @@
 import {assert} from '@open-wc/testing';
 
+const expectedScenarioNames = [
+  'otpPending',
+  'otpFailed',
+  'savedPaymentMethods',
+  'noSavedPaymentMethods',
+  'attachedCard',
+  'attachedBankAccount',
+  'cardVerified',
+  'cardUnderReview',
+  'cardRequireInfo',
+  'cardDeclined',
+  'cardNotVerified',
+  'bankVerified',
+  'bankUnderReview',
+  'bankRequireInfo',
+  'bankDeclined',
+  'bankNotVerified',
+];
+
 suite('demo host page', () => {
   test('creates the merchant interaction from the structured request builder only when the request form is submitted', async () => {
     const response = await fetch('/dev/index.html');
@@ -8,14 +27,15 @@ suite('demo host page', () => {
     const createInteractionIndex = html.indexOf(
       "'/merchant/interaction/create'"
     );
-    const payloadPanelIndex = html.indexOf('<section class="payload-panel"');
-    const widgetPanelIndex = html.indexOf(
-      '<section class="demo-widget-panel">'
-    );
+    const payloadPanelIndex = html.indexOf('class="payload-panel"');
+    const widgetPanelIndex = html.indexOf('class="demo-widget-panel"');
+    const outputPanelIndex = html.indexOf('class="demo-output-panel"');
     const designConfigIndex = html.indexOf('id="design-config-card"');
+    const widgetHostIndex = html.indexOf('id="connect-widget-host"');
     const createInteractionActionsIndex = html.indexOf(
       'id="create-interaction-actions"'
     );
+    const scenarioControlsIndex = html.indexOf('id="scenario-controls"');
 
     assert.isAtLeast(
       createInteractionIndex,
@@ -43,16 +63,37 @@ suite('demo host page', () => {
       0,
       'expected widget panel markup to be present'
     );
+    assert.isAtLeast(
+      outputPanelIndex,
+      0,
+      'expected demo output panel markup to be present'
+    );
+    assert.isAtLeast(
+      widgetHostIndex,
+      0,
+      'expected widget host markup to be present'
+    );
+    assert.isAtLeast(
+      scenarioControlsIndex,
+      0,
+      'expected scenario controls markup to be present'
+    );
     assert.isBelow(
       payloadPanelIndex,
       widgetPanelIndex,
-      'expected create interaction and design config to appear in the first column'
+      'expected the create interaction request to appear before the widget column'
     );
-    assert.include(html, '<details class="payload-card" id="design-config-card">');
-    assert.notInclude(
-      html,
-      '<details class="payload-card" id="design-config-card" open'
+    assert.isBelow(
+      widgetPanelIndex,
+      designConfigIndex,
+      'expected design config to appear in the widget column'
     );
+    assert.isBelow(
+      widgetPanelIndex,
+      outputPanelIndex,
+      'expected SDK controls and output cards to appear after the config column'
+    );
+    assert.include(html, 'id="design-config-card" open');
     assert.include(html, 'id="design-config-form"');
     assert.include(html, 'id="design-config-base-font-size"');
     assert.include(html, 'id="design-config-base-font-weight"');
@@ -73,9 +114,19 @@ suite('demo host page', () => {
       'expected create interaction action row markup to be present'
     );
     assert.isBelow(
-      designConfigIndex,
+      outputPanelIndex,
       createInteractionActionsIndex,
-      'expected the create interaction action row after the design config section'
+      'expected the create interaction action row in the output column'
+    );
+    assert.isBelow(
+      createInteractionActionsIndex,
+      widgetHostIndex,
+      'expected the SDK widget host below the create interaction action row'
+    );
+    assert.isBelow(
+      widgetHostIndex,
+      scenarioControlsIndex,
+      'expected the SDK widget host above the scenario controls'
     );
     assert.include(html, 'id="create-interaction-actions"');
     assert.include(html, 'type="submit"');
@@ -83,6 +134,20 @@ suite('demo host page', () => {
     assert.include(html, "createForm.addEventListener('submit'");
     assert.include(html, 'requestForm.addEventListener(');
     assert.include(html, 'designConfigForm.addEventListener(');
+    const scenarioButtonNames = [
+      ...html.matchAll(/data-scenario="([^"]+)"/g),
+    ].map((match) => match[1]);
+    const scenarioObjectMatch = html.match(
+      /const scenarios = \{([\s\S]*?)\n\s{6}\};/
+    );
+    const scenarioObjectNames = [
+      ...(scenarioObjectMatch?.[1] ?? '').matchAll(
+        /^\s{8}([a-zA-Z0-9]+): /gm
+      ),
+    ].map((match) => match[1]);
+
+    assert.sameOrderedMembers(scenarioButtonNames, expectedScenarioNames);
+    assert.sameOrderedMembers(scenarioObjectNames, expectedScenarioNames);
     assert.include(
       html,
       'const interactionRequest = buildInteractionRequest(requestFormState)'
@@ -121,10 +186,7 @@ suite('demo host page', () => {
     assert.include(html, 'allowCard: true');
     assert.include(html, 'allowBankAccount: true');
     assert.include(html, 'allowDynamicSessionCard: false');
-    assert.include(
-      html,
-      'preAuthenticated: requestFormState.preAuthenticated'
-    );
+    assert.include(html, 'preAuthenticated: requestFormState.preAuthenticated');
   });
 
   test('uses editable default values for the design config passed to the SDK', async () => {
@@ -138,6 +200,8 @@ suite('demo host page', () => {
     assert.include(html, "textColor: '#101828'");
     assert.include(html, "copyColor: '#9f9f9f'");
     assert.include(html, "borderColor: '#cbd5e1'");
+    assert.include(html, "widgetBackground: '#ffffff'");
+    assert.include(html, "paymentMethodBackground: '#f8fafc'");
     assert.include(html, "otpTitle: 'Confirm your email'");
     assert.include(html, "otpVerifyButton: 'Verify'");
     assert.include(html, "paymentMethodsTitle: 'Choose payment method'");

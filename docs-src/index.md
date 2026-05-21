@@ -55,6 +55,8 @@ html`<commerce-hub-connect
       primary: '#084acc',
       text: '#101828',
       border: '#cbd5e1',
+      widgetBackground: '#ffffff',
+      paymentMethodBackground: '#f8fafc',
     },
     baseFontSize: '16px',
     baseFontWeight: '300',
