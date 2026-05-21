@@ -37,6 +37,145 @@ const waitFor = async (
 };
 
 suite('demo host page', () => {
+  test('provides an Alibaba checkout demo with an Alibaba Rewards Account SDK payment method', async () => {
+    const response = await fetch('/dev/alibaba.html');
+    const html = await response.text();
+
+    assert.isTrue(response.ok, 'expected Alibaba demo page to be served');
+    assert.include(html, '<title>Alibaba Rewards Demo</title>');
+    assert.include(html, 'Alibaba.com');
+    assert.include(
+      html,
+      'https://s.alicdn.com/@logo/logo_en_light_horizontal_default_full.png'
+    );
+    assert.include(html, 'alt="Alibaba.com"');
+    assert.include(html, 'Trade Assurance Checkout');
+    assert.include(html, 'Trade Assurance');
+    assert.include(html, 'Credit/Debit Card');
+    assert.include(html, 'PayPal');
+    assert.include(
+      html,
+      'https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg'
+    );
+    assert.include(html, 'class="method-logo paypal-logo"');
+    assert.include(html, 'Apple Pay');
+    assert.include(
+      html,
+      'https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg'
+    );
+    assert.include(html, 'class="method-logo apple-logo"');
+    assert.include(html, 'Alibaba Rewards Account');
+    assert.include(
+      html,
+      'https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/alibaba-icon.png'
+    );
+    assert.include(html, 'class="method-logo rewards-logo"');
+    assert.include(html, 'id="alibaba-buyer-email"');
+    assert.include(html, 'gregory.jablonski@fiserv.com');
+    assert.include(html, 'id="alibaba-rewards-sdk-host"');
+    assert.include(html, 'margin: 0 auto');
+    assert.include(html, 'id="payment-method-alibaba-rewards"');
+    assert.include(html, "'/merchant/interaction/create'");
+    assert.include(html, 'email: buyerEmail.textContent.trim()');
+    assert.include(html, "await import('./../commerce-hub-connect.js')");
+    assert.include(html, "document.createElement('commerce-hub-connect')");
+    assert.include(html, 'widget.interactionResponse = interactionResponse');
+  });
+
+  test('starts the Alibaba Rewards Account flow from its selected radio option', async () => {
+    const iframe = document.createElement('iframe');
+    const iframeLoaded = new Promise<void>((resolve) => {
+      iframe.addEventListener('load', () => resolve(), {once: true});
+    });
+    iframe.src = '/dev/alibaba.html?apiBaseUrl=http://commercehub.test';
+    document.body.append(iframe);
+    await iframeLoaded;
+
+    const pageWindow = iframe.contentWindow;
+    const pageDocument = iframe.contentDocument;
+    assert.isOk(pageWindow, 'expected Alibaba iframe window');
+    assert.isOk(pageDocument, 'expected Alibaba iframe document');
+
+    const createRequest = {
+      body: undefined as Record<string, unknown> | undefined,
+    };
+    pageWindow.fetch = (async (_input, init) => {
+      createRequest.body = JSON.parse(String(init?.body));
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'alibaba-rewards-demo-interaction',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          paymentSources: [],
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    }) as typeof fetch;
+
+    const rewardsInput = pageDocument.querySelector<HTMLInputElement>(
+      '#payment-method-alibaba-rewards'
+    );
+
+    assert.isNull(
+      pageDocument.querySelector('input[name="paymentMethod"]:checked'),
+      'expected no payment method to be selected by default'
+    );
+    assert.equal(
+      createRequest.body,
+      undefined,
+      'expected no default selection to create an interaction'
+    );
+    assert.equal(
+      pageDocument
+        .querySelector('[data-method-panel="card"]')
+        ?.getAttribute('data-active'),
+      'false'
+    );
+    assert.equal(
+      pageDocument
+        .querySelector('#alibaba-rewards-sdk-panel')
+        ?.getAttribute('data-active'),
+      'false'
+    );
+
+    rewardsInput?.click();
+
+    await waitFor(
+      () =>
+        pageDocument.querySelector('#alibaba-rewards-connect-widget') !== null,
+      'expected Alibaba Rewards Account to mount the CommerceHub Connect SDK'
+    );
+
+    const createRequestBody = createRequest.body;
+    assert.isDefined(createRequestBody);
+    assert.propertyVal(
+      createRequestBody,
+      'email',
+      'gregory.jablonski@fiserv.com'
+    );
+    assert.deepEqual(createRequestBody?.allowedTenderTypes, [
+      'CARD',
+      'BANK_ACCOUNT',
+    ]);
+    assert.deepEqual(createRequestBody?.merchantData, {
+      clientId: 'marriot',
+      merchantId: '101475000000009',
+      terminalId: '10000001',
+    });
+    assert.equal(
+      pageDocument
+        .querySelector('#alibaba-rewards-sdk-panel')
+        ?.getAttribute('data-active'),
+      'true'
+    );
+
+    iframe.remove();
+  });
+
   test('provides a Clover Pay checkout demo that initializes the SDK with the displayed recipient email address', async () => {
     const response = await fetch('/dev/clover-pay.html');
     const html = await response.text();

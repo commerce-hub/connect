@@ -1413,6 +1413,9 @@
         widget.baseURL = resolveWidgetBaseURL();
         widget.interactionResponse = interactionResponse;
         widget.designConfig = designConfig;
+        widget.addEventListener('onSuccess', (event) => {
+          console.log('onSuccess', event.detail);
+        });
         widgetHost.replaceChildren(widget);
         latestInteractionResponse = interactionResponse;
         latestWidgetPropertiesMessage = undefined;
