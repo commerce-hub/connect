@@ -190,6 +190,65 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
+  test('does not apply box shadows to the SDK shell or buttons', async () => {
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+
+    await el.updateComplete;
+
+    const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
+    const buttonShadowSelectors =
+      primitiveStyles.cssText.match(
+        /[^{}]*button[^{}]*\{[^{}]*box-shadow\s*:/g
+      ) ?? [];
+
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderButton({
+        label: 'Continue',
+        variant: 'primary',
+        action: 'continue',
+      })}
+      ${renderButton({label: 'Back', variant: 'secondary', action: 'back'})}
+    `);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const primaryButton = root.querySelector<HTMLElement>(
+      'button.button-primary'
+    )!;
+    const secondaryButton = root.querySelector<HTMLElement>(
+      'button.button-secondary'
+    )!;
+
+    assert.equal(getComputedStyle(shell).boxShadow, 'none');
+    assert.equal(getComputedStyle(primaryButton).boxShadow, 'none');
+    assert.equal(getComputedStyle(secondaryButton).boxShadow, 'none');
+    assert.deepEqual(buttonShadowSelectors, []);
+  });
+
+  test('centers widget subtitle text', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderWidgetShell({
+        title: 'Enter verification code',
+        subtitle: 'We sent a one-time code to your email.',
+        showClose: false,
+        content: html`<span>Code form</span>`,
+      })}
+    `);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const subtitle =
+      root.querySelector<HTMLElement>('.widget-subtitle')!;
+
+    assert.equal(getComputedStyle(subtitle).textAlign, 'center');
+  });
+
   test('applies partial designConfig color and typography without resizing controls', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect

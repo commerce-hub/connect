@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clover Pay Demo</title>
+    <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
+    <script src="../node_modules/lit/polyfill-support.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, 'Open Sans', Arial, Helvetica, sans-serif;
+        color: #111827;
+        background: #f3f4f6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f3f4f6;
+      }
+
+      .page-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .checkout-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 80px;
+        padding: 16px max(16px, calc((100vw - 390px) / 2 + 16px));
+        background: #ffffff;
+        border-bottom: 1px solid #dedede;
+      }
+
+      .merchant-mark {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        color: #000000;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 22px;
+      }
+
+      .clover-logo {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 auto;
+        display: block;
+      }
+
+      .language-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: #0050b5;
+        font: inherit;
+        font-size: 12px;
+        line-height: 18px;
+        white-space: nowrap;
+      }
+
+      .flag-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: linear-gradient(
+            #b22234 0 14%,
+            #ffffff 14% 28%,
+            #b22234 28% 42%,
+            #ffffff 42% 56%,
+            #b22234 56% 70%,
+            #ffffff 70% 84%,
+            #b22234 84%
+          ),
+          #b22234;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      }
+
+      .checkout-main {
+        width: 100%;
+        margin: 0 auto;
+        padding: 24px 16px 16px;
+      }
+
+      .checkout-card {
+        overflow: hidden;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 12px 26px rgba(17, 24, 39, 0.08);
+      }
+
+      .checkout-section {
+        padding: 24px 20px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .checkout-section:last-child {
+        border-bottom: 0;
+      }
+
+      .amount {
+        margin: 0 0 10px;
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 34px;
+        color: #000000;
+      }
+
+      .due-date {
+        margin: 0 0 14px;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 24px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        padding: 5px 14px;
+        border-radius: 999px;
+        background: #ffe7e7;
+        color: #cc0000;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 20px;
+      }
+
+      .party-list {
+        display: grid;
+        gap: 24px;
+        margin-top: 34px;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .party {
+        display: grid;
+        gap: 7px;
+      }
+
+      .label {
+        font-weight: 800;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
+
+      .party p,
+      .line-item p,
+      .helper-text,
+      .footer-copy,
+      .legal-footer p {
+        margin: 0;
+      }
+
+      .invoice-heading {
+        margin: 0 0 18px;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 24px;
+      }
+
+      .invoice-heading strong {
+        font-weight: 800;
+      }
+
+      .section-title {
+        margin: 0 0 14px;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 24px;
+      }
+
+      .line-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 0 18px;
+        border-bottom: 1px solid #d9d9d9;
+      }
+
+      .totals {
+        display: grid;
+        gap: 12px;
+        padding-top: 18px;
+      }
+
+      .total-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .total-row strong {
+        font-weight: 800;
+      }
+
+      .note-field {
+        width: 100%;
+        min-height: 50px;
+        resize: none;
+        border: 1px solid #bdbdbd;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .note-field:focus {
+        border-color: #228800;
+        outline: 3px solid rgba(34, 136, 0, 0.18);
+      }
+
+      .payment-options {
+        display: grid;
+        margin: 0;
+        padding: 0;
+        border: 1px solid #dedede;
+        border-radius: 4px;
+      }
+
+      .payment-option {
+        display: grid;
+        grid-template-columns: 22px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 64px;
+        padding: 14px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        cursor: pointer;
+      }
+
+      .payment-option:last-child {
+        border-bottom: 0;
+      }
+
+      .payment-option input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: #228800;
+      }
+
+      .payment-copy {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .payment-title {
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 22px;
+      }
+
+      .helper-text {
+        color: #4b5563;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .pay-logo {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 24px;
+        color: #111827;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 14px;
+      }
+
+      .gpay-logo {
+        border: 1px solid #9ca3af;
+        border-radius: 999px;
+        padding: 3px 7px;
+        font-weight: 700;
+      }
+
+      .gpay-logo::first-letter {
+        color: #4285f4;
+      }
+
+      .samsung-logo {
+        display: grid;
+        gap: 0;
+        text-align: center;
+        font-size: 9px;
+        line-height: 9px;
+        text-transform: uppercase;
+      }
+
+      .clover-pay-logo {
+        display: block;
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+      }
+
+      .sdk-panel {
+        display: none;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .sdk-panel[data-active='true'] {
+        display: block;
+        margin: auto;
+      }
+
+      .sdk-status {
+        margin: 0 0 12px;
+        color: #4b5563;
+        font-size: 13px;
+        line-height: 18px;
+      }
+
+      .sdk-status[data-tone='error'] {
+        color: #b42318;
+      }
+
+      .sdk-host {
+        display: grid;
+        gap: 12px;
+      }
+
+      .pay-button {
+        display: block;
+        width: 100%;
+        min-height: 48px;
+        margin-top: 50px;
+        border: 0;
+        border-radius: 8px;
+        background: #c7c7c7;
+        color: #ffffff;
+        font: inherit;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 22px;
+      }
+
+      .pay-button[data-ready='true'] {
+        background: #228800;
+        cursor: pointer;
+      }
+
+      .pay-button:disabled {
+        cursor: not-allowed;
+      }
+
+      .pay-button[data-wallet='google-pay'],
+      .pay-button[data-wallet='samsung-pay'] {
+        background: #000000;
+        color: #ffffff;
+        cursor: pointer;
+      }
+
+      .pay-button[data-wallet='google-pay'] {
+        width: 100%;
+        border-radius: 2px;
+        font-size: 22px;
+        font-weight: 500;
+        line-height: 28px;
+      }
+
+      .pay-button[data-wallet='samsung-pay'] {
+        width: min(250px, 100%);
+        min-height: 50px;
+        margin: 42px auto 0;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 22px;
+      }
+
+      .google-pay-mark {
+        color: #4285f4;
+        font-weight: 800;
+      }
+
+      .samsung-pay-mark {
+        margin: 0 5px;
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .footer-copy {
+        margin-top: 26px;
+        color: #6b7280;
+        font-size: 14px;
+        line-height: 21px;
+        text-align: center;
+      }
+
+      a {
+        color: #0050b5;
+      }
+
+      .legal-footer {
+        display: grid;
+        gap: 12px;
+        justify-items: center;
+        padding: 28px 32px;
+        background: #242424;
+        color: #ffffff;
+        font-size: 14px;
+        line-height: 20px;
+        text-align: center;
+      }
+
+      .legal-footer nav {
+        display: flex;
+        gap: 16px;
+      }
+
+      .legal-footer a {
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      @media (min-width: 600px) {
+        .checkout-main {
+          max-width: 790px;
+          padding: 40px 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="checkout-header">
+        <div class="merchant-mark" aria-label="The Coral Gallery">
+          <svg
+            class="clover-logo"
+            xmlns="http://www.w3.org/2000/svg"
+            width="34"
+            height="34"
+            viewBox="0 0 40 40"
+            fill="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              fill="#280"
+              d="M18.026 10.433c0-4.974-4.037-9.013-9.015-9.013-4.976 0-9.01 4.034-9.01 9.008s4.034 9.018 9.012 9.018h9.013zM20.554 10.433c0-4.974 4.037-9.013 9.015-9.013 4.976 0 9.01 4.034 9.01 9.008s-4.034 9.018-9.012 9.018h-9.013zM20.554 30.987A9.013 9.013 0 0 0 29.57 40a9.01 9.01 0 0 0 9.01-9.01c0-4.974-4.036-9.016-9.013-9.016h-9.013zM18.026 30.987A9.013 9.013 0 0 1 9.01 40 9.01 9.01 0 0 1 0 30.99c0-4.974 4.036-9.016 9.013-9.016h9.013zM9.01 37.46c3.577 0 6.487-2.902 6.487-6.469v-6.486H9.018c-3.578 0-6.49 2.921-6.49 6.486 0 3.567 2.908 6.469 6.482 6.469"
+            />
+          </svg>
+          <span>The Coral Gallery</span>
+        </div>
+        <button class="language-button" type="button">
+          <span class="flag-dot" aria-hidden="true"></span>
+          <span>English (United States)</span>
+        </button>
+      </header>
+
+      <main class="checkout-main">
+        <article class="checkout-card" aria-label="Invoice checkout">
+          <section class="checkout-section summary-section">
+            <p class="amount">$0.01</p>
+            <p class="due-date">Due May 8, 2026</p>
+            <span class="status-pill">Overdue</span>
+
+            <div class="party-list">
+              <div class="party">
+                <span class="label">To</span>
+                <p>Gregory Jablonski</p>
+                <p id="checkout-recipient-email">
+                  gregory.jablonski@fiserv.com
+                </p>
+              </div>
+
+              <div class="party">
+                <span class="label">From</span>
+                <p>The Coral Gallery</p>
+                <p>nvladik@gmail.com</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="checkout-section details-section">
+            <h1 class="invoice-heading">
+              <strong>Invoice #</strong> SBEMK2A2P2MEE
+            </h1>
+
+            <h2 class="section-title">Item details</h2>
+            <div class="line-item">
+              <p>Custom Item</p>
+              <p>$0.01</p>
+            </div>
+
+            <div class="totals" aria-label="Invoice totals">
+              <div class="total-row">
+                <span>Subtotal</span>
+                <span>$0.01</span>
+              </div>
+              <div class="total-row">
+                <strong>Total</strong>
+                <strong>$0.01</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="checkout-section additional-section">
+            <h2 class="section-title">Additional information</h2>
+            <label class="party" for="checkout-note">
+              <span>Note</span>
+              <textarea class="note-field" id="checkout-note"></textarea>
+            </label>
+          </section>
+
+          <section class="checkout-section payment-section">
+            <h2 class="section-title">Select payment method</h2>
+            <fieldset class="payment-options">
+              <legend class="sr-only">Payment method</legend>
+
+              <label class="payment-option" for="payment-method-google-pay">
+                <input
+                  id="payment-method-google-pay"
+                  name="paymentMethod"
+                  type="radio"
+                  value="google-pay"
+                />
+                <span class="payment-copy">
+                  <span class="payment-title">Google Pay</span>
+                </span>
+                <span class="pay-logo gpay-logo" aria-hidden="true">G Pay</span>
+              </label>
+
+              <label class="payment-option" for="payment-method-samsung-pay">
+                <input
+                  id="payment-method-samsung-pay"
+                  name="paymentMethod"
+                  type="radio"
+                  value="samsung-pay"
+                />
+                <span class="payment-copy">
+                  <span class="payment-title">Samsung Pay</span>
+                </span>
+                <span class="pay-logo samsung-logo" aria-hidden="true">
+                  <span>Samsung</span>
+                  <span>Pay</span>
+                </span>
+              </label>
+
+              <label class="payment-option" for="payment-method-clover-pay">
+                <input
+                  id="payment-method-clover-pay"
+                  name="paymentMethod"
+                  type="radio"
+                  value="clover-pay"
+                />
+                <span class="payment-copy">
+                  <span class="payment-title">Clover Pay</span>
+                </span>
+                <svg
+                  class="clover-pay-logo"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 40 40"
+                  fill="none"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    fill="#280"
+                    d="M18.026 10.433c0-4.974-4.037-9.013-9.015-9.013-4.976 0-9.01 4.034-9.01 9.008s4.034 9.018 9.012 9.018h9.013zM20.554 10.433c0-4.974 4.037-9.013 9.015-9.013 4.976 0 9.01 4.034 9.01 9.008s-4.034 9.018-9.012 9.018h-9.013zM20.554 30.987A9.013 9.013 0 0 0 29.57 40a9.01 9.01 0 0 0 9.01-9.01c0-4.974-4.036-9.016-9.013-9.016h-9.013zM18.026 30.987A9.013 9.013 0 0 1 9.01 40 9.01 9.01 0 0 1 0 30.99c0-4.974 4.036-9.016 9.013-9.016h9.013zM9.01 37.46c3.577 0 6.487-2.902 6.487-6.469v-6.486H9.018c-3.578 0-6.49 2.921-6.49 6.486 0 3.567 2.908 6.469 6.482 6.469"
+                  />
+                </svg>
+              </label>
+
+              <div
+                class="sdk-panel"
+                id="clover-pay-sdk-panel"
+                data-active="false"
+              >
+                <p class="sdk-status" id="clover-pay-sdk-status">
+                  Choose Clover Pay to continue.
+                </p>
+                <div class="sdk-host" id="clover-pay-sdk-host"></div>
+              </div>
+            </fieldset>
+
+            <button
+              class="pay-button"
+              id="checkout-pay-button"
+              type="button"
+              disabled
+            >
+              Pay $0.01
+            </button>
+
+            <p class="footer-copy">
+              By paying the invoice, you agree to Clover's
+              <br />
+              <a href="https://www.clover.com/legal/terms" rel="noreferrer">
+                Terms of Service
+              </a>
+              and
+              <a href="https://www.clover.com/legal/privacy" rel="noreferrer">
+                Privacy Policy
+              </a>
+            </p>
+          </section>
+        </article>
+      </main>
+
+      <footer class="legal-footer">
+        <nav aria-label="Legal">
+          <a href="https://www.clover.com/legal/terms" rel="noreferrer">
+            Terms
+          </a>
+          <a href="https://www.clover.com/legal/privacy" rel="noreferrer">
+            Privacy Policy
+          </a>
+        </nav>
+        <p>Other trademarks are the property of their respective owners</p>
+      </footer>
+    </div>
+
+    <script type="module">
+      const commerceHubApiBaseUrl =
+        new URLSearchParams(window.location.search).get('apiBaseUrl') ??
+        'http://localhost:8080';
+
+      const cloverPayInput = document.querySelector(
+        '#payment-method-clover-pay'
+      );
+      const paymentMethodInputs = document.querySelectorAll(
+        'input[name="paymentMethod"]'
+      );
+      const sdkPanel = document.querySelector('#clover-pay-sdk-panel');
+      const sdkStatus = document.querySelector('#clover-pay-sdk-status');
+      const sdkHost = document.querySelector('#clover-pay-sdk-host');
+      const payButton = document.querySelector('#checkout-pay-button');
+      const recipientEmail = document.querySelector(
+        '#checkout-recipient-email'
+      );
+
+      let widget;
+      let cloverPayInitialized = false;
+      let cloverPayPending = false;
+
+      const createApiUrl = (path) =>
+        new URL(path, commerceHubApiBaseUrl).toString();
+
+      const setSdkStatus = (message, tone = 'neutral') => {
+        sdkStatus.textContent = message;
+        sdkStatus.dataset.tone = tone;
+      };
+
+      const setCloverPayButtonReady = (isReady) => {
+        payButton.dataset.wallet = 'clover-pay';
+        payButton.dataset.ready = isReady ? 'true' : 'false';
+        payButton.disabled = !isReady;
+        payButton.textContent = 'Pay $0.01';
+        payButton.setAttribute('aria-label', 'Pay $0.01');
+      };
+
+      const setHostedWalletPayButton = (wallet) => {
+        payButton.dataset.wallet = wallet;
+        payButton.dataset.ready = 'true';
+        payButton.disabled = false;
+
+        if (wallet === 'google-pay') {
+          payButton.innerHTML =
+            'Buy with <span class="google-pay-mark">G</span> Pay';
+          payButton.setAttribute('aria-label', 'Buy with Google Pay');
+          return;
+        }
+
+        payButton.innerHTML =
+          'Pay with <span class="samsung-pay-mark">SAMSUNG</span> Pay &gt;';
+        payButton.setAttribute('aria-label', 'Pay with Samsung Pay');
+      };
+
+      const buildInteractionRequest = () => {
+        const interactionRequest = {
+          email: recipientEmail.textContent.trim(),
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          merchantData: {
+            clientId: 'marriot',
+            merchantId: '101475000000009',
+            terminalId: '10000001',
+          },
+          advancedVerification: false,
+          preAuthenticated: false,
+        };
+
+        return interactionRequest;
+      };
+
+      const readJson = async (response) => {
+        const text = await response.text();
+
+        return text ? JSON.parse(text) : undefined;
+      };
+
+      const apiErrorMessage = (error) => {
+        if (typeof error === 'string') {
+          return error;
+        }
+
+        if (
+          error &&
+          typeof error === 'object' &&
+          'message' in error &&
+          typeof error.message === 'string'
+        ) {
+          return error.message;
+        }
+
+        return 'CommerceHub API request failed.';
+      };
+
+      const createInitialInteractionResponse = async () => {
+        const interactionRequest = buildInteractionRequest();
+        const response = await fetch(
+          createApiUrl('/merchant/interaction/create'),
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(interactionRequest),
+          }
+        );
+        const responseBody = await readJson(response);
+
+        if (response.ok) {
+          return responseBody;
+        }
+
+        throw new Error(apiErrorMessage(responseBody));
+      };
+
+      const initializeCloverPay = async () => {
+        if (cloverPayInitialized || cloverPayPending) {
+          return;
+        }
+
+        cloverPayPending = true;
+        setCloverPayButtonReady(false);
+        setSdkStatus('Initializing...');
+
+        try {
+          const interactionResponse = await createInitialInteractionResponse();
+          await import('../commerce-hub-connect.js');
+
+          widget = document.createElement('commerce-hub-connect');
+          widget.id = 'clover-pay-connect-widget';
+          widget.interactionResponse = interactionResponse;
+          widget.designConfig = {
+            baseFontSize: '16px',
+            baseFontWeight: '400',
+            shellPadding: '0',
+            colors: {
+              primary: '#228800',
+              text: '#111827',
+              copy: '#4b5563',
+              border: '#d9d9d9',
+              widgetBackground: '#ffffff',
+              paymentMethodBackground: '#ffffff',
+            },
+            copy: {
+              otp: {
+                title: '',
+                verifyButton: 'Verify',
+              },
+              paymentMethods: {
+                title: '',
+                continueButton: 'Use selected method',
+              },
+              noSavedPaymentMethods: {
+                title: 'Clover Pay',
+                emptyTitle: '',
+              },
+            },
+          };
+          sdkHost.replaceChildren(widget);
+          cloverPayInitialized = true;
+          setCloverPayButtonReady(true);
+          setSdkStatus('');
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'CommerceHub API request failed.';
+
+          setSdkStatus(message, 'error');
+        } finally {
+          cloverPayPending = false;
+        }
+      };
+
+      const handlePaymentMethodChange = () => {
+        const isCloverPaySelected = cloverPayInput.checked;
+        const selectedPaymentMethod = document.querySelector(
+          'input[name="paymentMethod"]:checked'
+        )?.value;
+
+        sdkPanel.dataset.active = isCloverPaySelected ? 'true' : 'false';
+
+        if (isCloverPaySelected) {
+          setCloverPayButtonReady(cloverPayInitialized);
+          void initializeCloverPay();
+          return;
+        }
+
+        if (
+          selectedPaymentMethod === 'google-pay' ||
+          selectedPaymentMethod === 'samsung-pay'
+        ) {
+          setHostedWalletPayButton(selectedPaymentMethod);
+          return;
+        }
+
+        setCloverPayButtonReady(false);
+      };
+
+      const initializePaymentSelection = () => {
+        paymentMethodInputs.forEach((input) => {
+          input.checked = false;
+        });
+        sdkPanel.dataset.active = 'false';
+        setCloverPayButtonReady(false);
+      };
+
+      paymentMethodInputs.forEach((input) => {
+        input.addEventListener('change', handlePaymentMethodChange);
+      });
+
+      initializePaymentSelection();
+    </script>
+  </body>
+</html>

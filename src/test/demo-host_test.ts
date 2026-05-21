@@ -37,15 +37,17 @@ const waitFor = async (
 };
 
 suite('demo host page', () => {
-  test('provides a Clover Pay checkout demo that initializes the SDK without an email address', async () => {
+  test('provides a Clover Pay checkout demo that initializes the SDK with the displayed recipient email address', async () => {
     const response = await fetch('/dev/clover-pay.html');
     const html = await response.text();
 
     assert.isTrue(response.ok, 'expected Clover Pay demo page to be served');
     assert.include(html, '<title>Clover Pay Demo</title>');
     assert.include(html, 'The Coral Gallery');
+    assert.include(html, 'class="clover-logo"');
     assert.include(html, 'Gregory Jablonski');
     assert.include(html, 'gregory.jablonski@fiserv.com');
+    assert.include(html, 'id="checkout-recipient-email"');
     assert.include(html, '$0.01');
     assert.include(html, 'Select payment method');
     assert.notInclude(html, 'Credit or debit card');
@@ -54,20 +56,37 @@ suite('demo host page', () => {
     assert.include(html, 'Google Pay');
     assert.include(html, 'Samsung Pay');
     assert.include(html, 'Clover Pay');
+    assert.include(html, 'class="clover-pay-logo"');
+    assert.include(html, 'viewBox="0 0 40 40"');
+    assert.include(html, 'M18.026 10.433c0-4.974-4.037-9.013-9.015-9.013');
     assert.include(html, 'id="payment-method-clover-pay"');
     assert.include(html, 'id="clover-pay-sdk-host"');
     assert.include(html, 'name="paymentMethod"');
+    assert.include(html, 'id="checkout-pay-button"');
+    assert.include(html, 'disabled');
+    assert.include(html, 'initializePaymentSelection');
+    assert.include(html, 'setHostedWalletPayButton');
+    assert.include(html, 'Buy with <span class="google-pay-mark">G</span> Pay');
+    assert.include(
+      html,
+      'Pay with <span class="samsung-pay-mark">SAMSUNG</span> Pay &gt;'
+    );
+    assert.include(html, '@media (min-width: 600px)');
+    assert.include(html, 'max-width: 790px');
+    assert.include(html, 'padding: 40px 16px');
+    assert.notInclude(html, '@media (min-width: 840px)');
+    assert.notInclude(html, 'grid-template-columns: minmax(300px');
     assert.include(html, "'/merchant/interaction/create'");
+    assert.include(html, 'email: recipientEmail.textContent.trim()');
     assert.include(html, "await import('./../commerce-hub-connect.js')");
     assert.include(html, "document.createElement('commerce-hub-connect')");
     assert.include(html, 'widget.interactionResponse = interactionResponse');
     assert.notInclude(html, 'id="interaction-email"');
-    assert.notInclude(html, "email: 'gregory.jablonski@fiserv.com'");
     assert.notInclude(html, 'Anoop Agarwal');
     assert.notInclude(html, 'anoop.agarwal@Fiserv.com');
   });
 
-  test('starts Clover Pay from the selected radio option and omits email from the create request body', async () => {
+  test('starts Clover Pay from the selected radio option and uses the recipient email in the create request body', async () => {
     const iframe = document.createElement('iframe');
     const iframeLoaded = new Promise<void>((resolve) => {
       iframe.addEventListener('load', () => resolve(), {once: true});
@@ -104,8 +123,30 @@ suite('demo host page', () => {
     const googlePayInput = pageDocument.querySelector<HTMLInputElement>(
       '#payment-method-google-pay'
     );
+    const samsungPayInput = pageDocument.querySelector<HTMLInputElement>(
+      '#payment-method-samsung-pay'
+    );
     const cloverPayInput = pageDocument.querySelector<HTMLInputElement>(
       '#payment-method-clover-pay'
+    );
+    const payButton = pageDocument.querySelector<HTMLButtonElement>(
+      '#checkout-pay-button'
+    );
+
+    assert.isNull(
+      pageDocument.querySelector('input[name="paymentMethod"]:checked'),
+      'expected no payment method to be selected by default'
+    );
+    assert.isTrue(
+      payButton?.disabled,
+      'expected the pay button to be disabled by default'
+    );
+    assert.equal(payButton?.dataset.wallet, 'clover-pay');
+    assert.equal(
+      pageDocument
+        .querySelector('#clover-pay-sdk-panel')
+        ?.getAttribute('data-active'),
+      'false'
     );
 
     googlePayInput?.click();
@@ -114,6 +155,24 @@ suite('demo host page', () => {
       undefined,
       'expected non-Clover payment methods not to create an interaction'
     );
+    assert.equal(payButton?.dataset.wallet, 'google-pay');
+    assert.isFalse(payButton?.disabled);
+    assert.equal(payButton?.getAttribute('aria-label'), 'Buy with Google Pay');
+    assert.include(payButton?.innerHTML ?? '', 'google-pay-mark');
+    assert.include(payButton?.innerText ?? '', 'Buy with');
+    assert.include(payButton?.innerText ?? '', 'Pay');
+
+    samsungPayInput?.click();
+    assert.equal(
+      createRequest.body,
+      undefined,
+      'expected Samsung Pay not to create an interaction'
+    );
+    assert.equal(payButton?.dataset.wallet, 'samsung-pay');
+    assert.isFalse(payButton?.disabled);
+    assert.equal(payButton?.getAttribute('aria-label'), 'Pay with Samsung Pay');
+    assert.include(payButton?.innerHTML ?? '', 'samsung-pay-mark');
+    assert.include(payButton?.innerText ?? '', 'SAMSUNG');
 
     cloverPayInput?.click();
 
@@ -124,11 +183,14 @@ suite('demo host page', () => {
 
     const createRequestBody = createRequest.body;
     assert.isDefined(createRequestBody);
-    assert.notProperty(createRequestBody, 'email');
+    assert.propertyVal(
+      createRequestBody,
+      'email',
+      'gregory.jablonski@fiserv.com'
+    );
     assert.deepEqual(createRequestBody?.allowedTenderTypes, [
       'CARD',
       'BANK_ACCOUNT',
-      'DYNAMIC_SESSION_CARD',
     ]);
     assert.deepEqual(createRequestBody?.merchantData, {
       clientId: 'marriot',

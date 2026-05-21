@@ -39,8 +39,6 @@ export const primitiveStyles = css`
     --chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
     --chc-spinner-duration: 900ms;
     --chc-shell-padding: 1.1875rem 1.1875rem 1rem;
-    --chc-shell-shadow: 0 0.0625rem 0.125rem rgba(15, 23, 42, 0.04),
-      0 0.875rem 1.75rem rgba(15, 23, 42, 0.08);
     display: block;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
@@ -78,7 +76,6 @@ export const primitiveStyles = css`
     border: 0;
     border-radius: 0;
     background: var(--chc-widget-background);
-    box-shadow: var(--chc-shell-shadow);
     text-align: left;
   }
 
@@ -137,6 +134,7 @@ export const primitiveStyles = css`
     color: var(--chc-copy);
     font-weight: inherit;
     font-size: 0.9375em;
+    text-align: center;
   }
 
   .widget-divider {
@@ -419,7 +417,6 @@ export const primitiveStyles = css`
     font-weight: 600;
     transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
       background-color var(--chc-motion-fast) var(--chc-ease-standard),
-      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
       transform var(--chc-motion-fast) var(--chc-ease-emphasized);
     cursor: pointer;
   }
@@ -464,8 +461,6 @@ export const primitiveStyles = css`
   .button-primary {
     background: var(--chc-primary);
     color: #fff;
-    box-shadow: 0 0.5rem 1.25rem
-      color-mix(in srgb, var(--chc-primary) 16%, transparent);
   }
 
   .button-secondary {
@@ -944,9 +939,9 @@ export const primitiveStyles = css`
   }
 
   .payment-method-delete-button:focus-visible {
-    outline: 0;
-    box-shadow: 0 0 0 0.125rem
+    outline: 0.125rem solid
       color-mix(in srgb, var(--chc-danger) 24%, transparent);
+    outline-offset: 0.125rem;
   }
 
   .payment-method-delete-button:disabled {

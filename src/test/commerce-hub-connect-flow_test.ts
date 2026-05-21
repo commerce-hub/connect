@@ -634,7 +634,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.include(
       el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
-      'We send a one-time code to gregory.jablonski@fiserv.com.'
+      'We sent a one-time code to gregory.jablonski@fiserv.com.'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
     assert.exists(el.shadowRoot!.querySelector('.widget-divider'));

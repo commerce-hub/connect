@@ -4495,7 +4495,7 @@ const verificationInfoFromVerificationResponse = (
 };
 
 const defaultOtpSubtitle = (destination?: string): string =>
-  `We send a one-time code to ${destination ?? 'your contact method'}.`;
+  `We sent a one-time code to ${destination ?? 'your contact method'}.`;
 
 const resolveOtpDestination = (
   interactionResponse?: InteractionResponse
