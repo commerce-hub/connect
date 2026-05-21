@@ -1334,6 +1334,7 @@
 
         widget = document.createElement('commerce-hub-connect');
         widget.id = 'connect-widget';
+        widget.baseURL = commerceHubApiBaseUrl;
         widget.interactionResponse = interactionResponse;
         widget.designConfig = designConfig;
         widgetHost.replaceChildren(widget);
@@ -1349,6 +1350,7 @@
         syncWidgetPropertiesPreview(designConfig);
 
         if (widget) {
+          widget.baseURL = commerceHubApiBaseUrl;
           widget.interactionResponse = interactionResponse;
           widget.designConfig = designConfig;
         }

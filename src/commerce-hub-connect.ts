@@ -4,7 +4,8 @@ import {customElement, property, state} from 'lit/decorators.js';
 import type {components} from './generated/openapi.js';
 import {
   createCommerceHubClient,
-  DEFAULT_COMMERCE_HUB_BASE_URL,
+  resolveCommerceHubBaseURL,
+  type CommerceHubBaseURLInput,
 } from './internal/api-client.js';
 import {
   resolvePaymentMethodIconDataUri,
@@ -34,8 +35,12 @@ import {
 import type {FlowActionName, PaymentMethod} from './internal/types.js';
 
 export {
+  COMMERCE_HUB_BASE_URLS,
   createCommerceHubClient,
   DEFAULT_COMMERCE_HUB_BASE_URL,
+  resolveCommerceHubBaseURL,
+  type CommerceHubBaseURLInput,
+  type CommerceHubBaseURLPreset,
   type CommerceHubClient,
   type CommerceHubClientOptions,
 } from './internal/api-client.js';
@@ -225,6 +230,12 @@ export class CommerceHubConnect extends LitElement {
 
   @property({attribute: false})
   designConfig?: DesignConfig;
+
+  /**
+   * CommerceHub API base URL preset or custom origin for SDK-managed requests.
+   */
+  @property({attribute: 'base-url'})
+  baseURL?: CommerceHubBaseURLInput;
 
   @state()
   private selectedPaymentSourceId?: string;
@@ -1973,7 +1984,7 @@ export class CommerceHubConnect extends LitElement {
             body: JSON.stringify(cardSource),
             credentials: 'include',
           }
-      );
+        );
       const createdSource = this.sourceWithVerificationResponse(
         cardPaymentSourceFromPayload(cardSource, normalizedDraft.cardNumber),
         verificationResponse
@@ -2798,9 +2809,8 @@ export class CommerceHubConnect extends LitElement {
               aggregatorSessionId,
               pToken
             );
-            const resolvedBankSource = bankPaymentSourceFromVerificationResponse(
-              verificationResponse
-            );
+            const resolvedBankSource =
+              bankPaymentSourceFromVerificationResponse(verificationResponse);
             const paymentSourceId = resolvedBankSource.id?.trim();
 
             if (!paymentSourceId) {
@@ -2808,10 +2818,11 @@ export class CommerceHubConnect extends LitElement {
                 'Connect your bank completed but the resolved bank payment source did not include an id.'
               );
             }
-            const nextInteractionResponse = this.interactionResponseWithAddedSource(
-              interactionId,
-              resolvedBankSource
-            );
+            const nextInteractionResponse =
+              this.interactionResponseWithAddedSource(
+                interactionId,
+                resolvedBankSource
+              );
 
             this.setInteractionResponseFromSdk(nextInteractionResponse);
             this.resetBankFlow();
@@ -2966,10 +2977,13 @@ export class CommerceHubConnect extends LitElement {
 
     headers.set('x-interaction-id', interactionId);
 
-    const request = new Request(`${DEFAULT_COMMERCE_HUB_BASE_URL}${path}`, {
-      ...init,
-      headers,
-    });
+    const request = new Request(
+      `${resolveCommerceHubBaseURL(this.baseURL)}${path}`,
+      {
+        ...init,
+        headers,
+      }
+    );
     const response = await fetch(request);
     const contentType = response.headers.get('content-type') ?? '';
     const body =
@@ -3042,6 +3056,7 @@ export class CommerceHubConnect extends LitElement {
 
   private createSdkClient(interactionId: string) {
     return createCommerceHubClient({
+      baseURL: this.baseURL,
       getHeaders: () => ({'x-interaction-id': interactionId}),
     });
   }

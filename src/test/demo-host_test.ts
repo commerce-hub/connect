@@ -141,9 +141,7 @@ suite('demo host page', () => {
       /const scenarios = \{([\s\S]*?)\n\s{6}\};/
     );
     const scenarioObjectNames = [
-      ...(scenarioObjectMatch?.[1] ?? '').matchAll(
-        /^\s{8}([a-zA-Z0-9]+): /gm
-      ),
+      ...(scenarioObjectMatch?.[1] ?? '').matchAll(/^\s{8}([a-zA-Z0-9]+): /gm),
     ].map((match) => match[1]);
 
     assert.sameOrderedMembers(scenarioButtonNames, expectedScenarioNames);
@@ -159,6 +157,7 @@ suite('demo host page', () => {
     assert.include(html, 'createInitialInteractionResponse(');
     assert.include(html, 'body: JSON.stringify(interactionRequest)');
     assert.include(html, 'widget.designConfig = designConfig');
+    assert.include(html, 'widget.baseURL = commerceHubApiBaseUrl');
     assert.notInclude(html, '<textarea id="interaction-request"');
     assert.notInclude(html, 'JSON.parse(requestInput.value)');
     assert.notInclude(
