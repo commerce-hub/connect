@@ -13,6 +13,7 @@ slice for OTP verification and saved payment-method selection.
   status pills, payment method rows, source actions, detail rows, and form grids
 - SDK-owned OTP validation and saved payment-source confirmation actions
 - Optional `designConfig` input for merchant-safe colors, typography, and copy
+- Optional `baseURL` input for SDK-managed CommerceHub API requests
 
 ## Development
 
@@ -71,6 +72,30 @@ as the `x-interaction-id` header. OTP validation and OTP resend require that
 `interactionId`; if it is missing, the widget keeps the current screen stable
 and does not call the API.
 
+Set the optional `.baseURL` property to route SDK-managed widget requests to a
+CommerceHub environment preset or a custom origin. The `DEV`, `QA`, and `PROD`
+presets currently resolve to
+`https://qa.openfx-nonprod.aws.fisv.cloud`.
+
+```ts
+html`<commerce-hub-connect
+  .interactionResponse=${interactionResponse}
+  .baseURL=${'QA'}
+></commerce-hub-connect>`;
+```
+
+Custom origins can be passed directly:
+
+```ts
+html`<commerce-hub-connect
+  .interactionResponse=${interactionResponse}
+  .baseURL=${'https://api.example.com'}
+></commerce-hub-connect>`;
+```
+
+The exported `createCommerceHubClient` helper accepts `baseUrl` and `baseURL`;
+if both are provided, `baseUrl` takes precedence.
+
 Saved payment-method confirmation is local: after the shopper selects a saved
 method and presses Continue, the widget does not call
 `/interaction/payment-source/{paymentSourceId}/attach`. Instead, it emits
@@ -109,6 +134,7 @@ const designConfig: DesignConfig = {
 
 html`<commerce-hub-connect
   .interactionResponse=${interactionResponse}
+  .baseURL=${'QA'}
   .designConfig=${designConfig}
 ></commerce-hub-connect>`;
 ```

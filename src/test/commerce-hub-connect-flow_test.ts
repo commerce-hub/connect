@@ -2,9 +2,11 @@ import {fixture, assert, html as testingHtml} from '@open-wc/testing';
 
 import '../commerce-hub-connect.js';
 import {
+  COMMERCE_HUB_BASE_URLS,
   DEFAULT_COMMERCE_HUB_BASE_URL,
   type InteractionResponse,
   type PaymentSource,
+  type CommerceHubBaseURLInput,
 } from '../commerce-hub-connect.js';
 import type {CommerceHubConnect} from '../commerce-hub-connect.js';
 
@@ -42,12 +44,14 @@ const flushElement = async (el: CommerceHubConnect) => {
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
-  designConfig?: unknown
+  designConfig?: unknown,
+  baseURL?: CommerceHubBaseURLInput
 ) => {
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
       .interactionResponse=${interactionResponse}
       .designConfig=${designConfig}
+      .baseURL=${baseURL}
     ></commerce-hub-connect>`
   )) as CommerceHubConnect;
 
@@ -2961,6 +2965,51 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('baseURL QA preset routes SDK-managed OTP validation requests to the CommerceHub preset origin', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-otp',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-otp',
+        status: 'OTP_VALIDATION_PENDING',
+        email: 'gregory.jablonski@fiserv.com',
+      },
+      undefined,
+      'QA'
+    );
+
+    await setOtpValue(el, '123456');
+    await clickAction(el, 'verify-otp');
+
+    await waitForRequest(requests, '/interaction/otp/validate', 'POST');
+
+    assert.equal(
+      requests[0].url,
+      `${COMMERCE_HUB_BASE_URLS.QA}/interaction/otp/validate`
+    );
+  });
+
   test('resend code posts to email OTP endpoint with x-interaction-id', async () => {
     const requests: CapturedRequest[] = [];
 
@@ -3006,6 +3055,62 @@ suite('commerce-hub-connect flow', () => {
       'interaction-otp'
     );
     assert.equal(requests[0].bodyText, '');
+  });
+
+  test('custom baseURL routes direct SDK-managed CommerceHub JSON requests to the custom origin', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      undefined,
+      'https://custom-commercehub.example.test'
+    );
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+
+    assert.equal(
+      requests[0].url,
+      'https://custom-commercehub.example.test/interaction/source/pbb/session'
+    );
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
   });
 
   test('confirming a selected method refreshes payment info, emits onSuccess, and shows the selected payment review', async () => {
@@ -3461,6 +3566,10 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       ['GET /interaction/source/pbb/session']
+    );
+    assert.equal(
+      requests[0].url,
+      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/source/pbb/session`
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
@@ -4661,9 +4770,17 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(scriptFailureEl, 'add-bank-account');
-    const script = document.querySelector<HTMLScriptElement>(
-      'script[data-commerce-hub-pay-by-bank-sdk="true"]'
+    const paymentSdkScriptSelector =
+      'script[data-commerce-hub-pay-by-bank-sdk="true"]';
+
+    await waitFor(
+      () => Boolean(document.querySelector(paymentSdkScriptSelector)),
+      'PaymentSDK script was not added'
     );
+    const script = document.querySelector<HTMLScriptElement>(
+      paymentSdkScriptSelector
+    );
+
     assert.exists(script);
     script!.dispatchEvent(new Event('error'));
     await flushElement(scriptFailureEl);
