@@ -47,6 +47,8 @@ suite('demo host page', () => {
     assert.include(html, 'id="interaction-merchant-id"');
     assert.include(html, 'id="interaction-terminal-id"');
     assert.include(html, 'id="interaction-client-id"');
+    assert.include(html, 'id="commerce-hub-api-base-url-mode"');
+    assert.include(html, 'id="commerce-hub-api-custom-base-url"');
     assert.include(html, 'id="interaction-first-name"');
     assert.include(html, 'id="interaction-last-name"');
     assert.include(html, 'id="interaction-advanced-verification"');
@@ -157,7 +159,11 @@ suite('demo host page', () => {
     assert.include(html, 'createInitialInteractionResponse(');
     assert.include(html, 'body: JSON.stringify(interactionRequest)');
     assert.include(html, 'widget.designConfig = designConfig');
-    assert.include(html, 'widget.baseURL = commerceHubApiBaseUrl');
+    assert.include(html, 'widget.baseURL = resolveWidgetBaseURL()');
+    assert.include(html, "createApiUrl('/merchant/interaction/create')");
+    assert.include(html, 'resolveCreateInteractionBaseURL()');
+    assert.include(html, "baseURLMode: 'CUSTOM'");
+    assert.include(html, 'customBaseURL: initialApiBaseUrl');
     assert.notInclude(html, '<textarea id="interaction-request"');
     assert.notInclude(html, 'JSON.parse(requestInput.value)');
     assert.notInclude(

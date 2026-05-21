@@ -283,6 +283,29 @@
           <form id="interaction-create-form">
             <div class="form-body">
               <div class="field-grid">
+                <label class="field" for="commerce-hub-api-base-url-mode">
+                  <span class="field-label">CommerceHub API environment</span>
+                  <select
+                    class="field-input"
+                    id="commerce-hub-api-base-url-mode"
+                  >
+                    <option value="CUSTOM">Custom URL</option>
+                    <option value="DEV">DEV</option>
+                    <option value="QA">QA</option>
+                    <option value="PROD">PROD</option>
+                  </select>
+                </label>
+
+                <label class="field" for="commerce-hub-api-custom-base-url">
+                  <span class="field-label">Custom base URL</span>
+                  <input
+                    class="field-input"
+                    id="commerce-hub-api-custom-base-url"
+                    type="url"
+                    required
+                  />
+                </label>
+
                 <label class="field" for="interaction-email">
                   <span class="field-label">Email</span>
                   <input
@@ -946,6 +969,10 @@
       const createButton = document.querySelector('#create-interaction-button');
       const scenarioControls = document.querySelector('#scenario-controls');
       const requestFields = {
+        baseURLMode: document.querySelector('#commerce-hub-api-base-url-mode'),
+        customBaseURL: document.querySelector(
+          '#commerce-hub-api-custom-base-url'
+        ),
         email: document.querySelector('#interaction-email'),
         clientId: document.querySelector('#interaction-client-id'),
         merchantId: document.querySelector('#interaction-merchant-id'),
@@ -1002,7 +1029,18 @@
       let latestInteractionResponse;
       let latestWidgetPropertiesMessage;
 
+      const COMMERCE_HUB_BASE_URLS = {
+        DEV: 'https://qa.openfx-nonprod.aws.fisv.cloud',
+        QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
+        PROD: 'https://qa.openfx-nonprod.aws.fisv.cloud',
+      };
+      const CUSTOM_BASE_URL_MODE = 'CUSTOM';
+      const initialApiBaseUrl =
+        new URLSearchParams(window.location.search).get('apiBaseUrl') ??
+        'http://localhost:8080';
       const initialRequestFormState = {
+        baseURLMode: 'CUSTOM',
+        customBaseURL: initialApiBaseUrl,
         email: 'gregory.jablonski@fiserv.com',
         clientId: 'marriot',
         merchantId: '101475000000009',
@@ -1034,12 +1072,45 @@
       };
       const initialWidgetPropertiesMessage =
         'Submit the create request or choose a scenario to see the widget properties.';
-      const commerceHubApiBaseUrl =
-        new URLSearchParams(window.location.search).get('apiBaseUrl') ??
-        'http://localhost:8080';
 
       const createApiUrl = (path) =>
-        new URL(path, commerceHubApiBaseUrl).toString();
+        new URL(path, resolveCreateInteractionBaseURL()).toString();
+
+      const resolveWidgetBaseURL = () => {
+        const mode = requestFields.baseURLMode.value;
+
+        if (mode === CUSTOM_BASE_URL_MODE) {
+          return requestFields.customBaseURL.value.trim();
+        }
+
+        return mode;
+      };
+
+      const resolveCreateInteractionBaseURL = () => {
+        const baseURL = resolveWidgetBaseURL();
+
+        return COMMERCE_HUB_BASE_URLS[baseURL] ?? baseURL;
+      };
+
+      const syncBaseURLControls = () => {
+        const isCustom =
+          requestFields.baseURLMode.value === CUSTOM_BASE_URL_MODE;
+
+        requestFields.customBaseURL.disabled = !isCustom;
+        requestFields.customBaseURL.required = isCustom;
+      };
+
+      const applyWidgetBaseURL = () => {
+        syncBaseURLControls();
+
+        if (widget) {
+          widget.baseURL = resolveWidgetBaseURL();
+        }
+
+        syncWidgetPropertiesPreview(
+          buildDesignConfig(readDesignConfigFormState())
+        );
+      };
 
       const resolveAllowedTenderTypes = (requestFormState) => {
         const allowedTenderTypes = [];
@@ -1195,6 +1266,8 @@
       };
 
       const readRequestFormState = () => ({
+        baseURLMode: requestFields.baseURLMode.value,
+        customBaseURL: requestFields.customBaseURL.value,
         email: requestFields.email.value,
         clientId: requestFields.clientId.value,
         merchantId: requestFields.merchantId.value,
@@ -1229,6 +1302,9 @@
       });
 
       const writeRequestFormState = (requestFormState) => {
+        requestFields.baseURLMode.value = requestFormState.baseURLMode;
+        requestFields.customBaseURL.value = requestFormState.customBaseURL;
+        syncBaseURLControls();
         requestFields.email.value = requestFormState.email;
         requestFields.clientId.value = requestFormState.clientId;
         requestFields.merchantId.value = requestFormState.merchantId;
@@ -1284,7 +1360,7 @@
       };
 
       const syncWidgetPropertiesPreview = (designConfig) => {
-        const payload = {designConfig};
+        const payload = {baseURL: resolveWidgetBaseURL(), designConfig};
 
         if (latestInteractionResponse) {
           payload.interactionResponse = latestInteractionResponse;
@@ -1334,7 +1410,7 @@
 
         widget = document.createElement('commerce-hub-connect');
         widget.id = 'connect-widget';
-        widget.baseURL = commerceHubApiBaseUrl;
+        widget.baseURL = resolveWidgetBaseURL();
         widget.interactionResponse = interactionResponse;
         widget.designConfig = designConfig;
         widgetHost.replaceChildren(widget);
@@ -1350,7 +1426,7 @@
         syncWidgetPropertiesPreview(designConfig);
 
         if (widget) {
-          widget.baseURL = commerceHubApiBaseUrl;
+          widget.baseURL = resolveWidgetBaseURL();
           widget.interactionResponse = interactionResponse;
           widget.designConfig = designConfig;
         }
@@ -1464,11 +1540,13 @@
       requestForm.addEventListener('input', () => {
         requestError.textContent = '';
         syncRequestPreview();
+        applyWidgetBaseURL();
       });
 
       requestForm.addEventListener('change', () => {
         requestError.textContent = '';
         syncRequestPreview();
+        applyWidgetBaseURL();
       });
 
       designConfigForm.addEventListener('input', () => {
