@@ -821,6 +821,15 @@ export const primitiveStyles = css`
     cursor: default;
   }
 
+  .payment-method-row-delete-confirming {
+    border-color: var(--chc-danger-border);
+    background: color-mix(
+      in srgb,
+      var(--chc-danger-bg) 70%,
+      var(--chc-payment-method-background)
+    );
+  }
+
   .payment-method-row-static {
     cursor: default;
   }
@@ -978,19 +987,92 @@ export const primitiveStyles = css`
 
   .payment-method-delete-action {
     min-width: 0;
+    max-width: 100%;
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
     gap: 0.5rem;
   }
 
+  .payment-method-delete-confirmation-group {
+    max-width: min(20rem, 54vw);
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
   .payment-method-delete-confirmation {
-    max-width: min(8rem, 28vw);
+    max-width: min(9rem, 28vw);
     color: var(--chc-danger);
     font-size: 0.75rem;
     font-weight: 600;
     text-align: right;
     white-space: normal;
+  }
+
+  .payment-method-delete-confirmation-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .payment-method-delete-confirm-button {
+    min-height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0.0625rem solid var(--chc-border-strong);
+    border-radius: 0.625rem;
+    padding: 0 0.75rem;
+    background: var(--chc-surface);
+    color: var(--chc-copy);
+    font-family: inherit;
+    font-style: inherit;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard),
+      color var(--chc-motion-fast) var(--chc-ease-standard);
+    touch-action: manipulation;
+  }
+
+  .payment-method-delete-confirm-button:hover:not(:disabled),
+  .payment-method-delete-confirm-button:focus-visible {
+    border-color: var(--chc-border-strong);
+    background: var(--chc-soft-surface);
+    color: var(--chc-text);
+  }
+
+  .payment-method-delete-confirm-button:focus-visible {
+    outline: 0.125rem solid var(--chc-focus-ring);
+    outline-offset: 0.125rem;
+  }
+
+  .payment-method-delete-confirm-button:disabled {
+    color: var(--chc-muted);
+    cursor: not-allowed;
+  }
+
+  .payment-method-delete-confirm-button-danger {
+    border-color: var(--chc-danger);
+    background: var(--chc-danger);
+    color: #ffffff;
+  }
+
+  .payment-method-delete-confirm-button-danger:hover:not(:disabled),
+  .payment-method-delete-confirm-button-danger:focus-visible {
+    border-color: color-mix(in srgb, var(--chc-danger) 84%, black);
+    background: color-mix(in srgb, var(--chc-danger) 84%, black);
+    color: #ffffff;
+  }
+
+  .payment-method-delete-confirm-button-danger:disabled {
+    border-color: var(--chc-danger-border);
+    background: var(--chc-danger-border);
+    color: var(--chc-muted);
   }
 
   .payment-method-delete-icon {
@@ -1845,7 +1927,8 @@ export const primitiveStyles = css`
     .field-control-card-form,
     .payment-method-row,
     .source-action-link,
-    .payment-method-delete-button {
+    .payment-method-delete-button,
+    .payment-method-delete-confirm-button {
       transition: none;
     }
 

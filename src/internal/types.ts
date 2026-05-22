@@ -14,6 +14,7 @@ export type FlowActionName =
   | 'toggle-payment-source-edit-mode'
   | 'verify-payment-source'
   | 'delete-payment-source'
+  | 'cancel-delete-payment-source'
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
   | 'submit-required-info'
