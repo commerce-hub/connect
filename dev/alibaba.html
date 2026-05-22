@@ -438,6 +438,39 @@
         font-size: 14px;
         font-weight: 800;
         line-height: 20px;
+        cursor: pointer;
+      }
+
+      .pay-now[data-ready='true'] {
+        animation: payPulse 1.35s ease-in-out infinite;
+      }
+
+      .pay-now:not(:disabled):hover {
+        background: #f05f00;
+      }
+
+      .pay-now:disabled {
+        background: #d7dbe2;
+        color: #7a8493;
+        cursor: not-allowed;
+        animation: none;
+      }
+
+      @keyframes payPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(255, 106, 0, 0.42);
+          transform: translateY(0);
+        }
+
+        70% {
+          box-shadow: 0 0 0 12px rgba(255, 106, 0, 0);
+          transform: translateY(-1px);
+        }
+
+        100% {
+          box-shadow: 0 0 0 0 rgba(255, 106, 0, 0);
+          transform: translateY(0);
+        }
       }
 
       .security-card {
@@ -454,6 +487,126 @@
         color: #777777;
         font-size: 12px;
         line-height: 18px;
+      }
+
+      .success-view[hidden] {
+        display: none;
+      }
+
+      .success-card {
+        width: min(820px, 100%);
+        margin: 0 auto;
+        padding: 34px;
+        background: #ffffff;
+        border: 1px solid #e3e6eb;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(31, 41, 55, 0.08);
+      }
+
+      .success-header {
+        display: flex;
+        gap: 18px;
+        align-items: flex-start;
+        padding-bottom: 26px;
+        border-bottom: 1px solid #eceff3;
+      }
+
+      .success-checkmark {
+        position: relative;
+        display: inline-flex;
+        width: 56px;
+        height: 56px;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #e7fff2;
+        border: 2px solid #18a957;
+      }
+
+      .success-checkmark::after {
+        display: block;
+        width: 15px;
+        height: 28px;
+        margin-top: -4px;
+        border: solid #18a957;
+        border-width: 0 4px 4px 0;
+        content: '';
+        transform: rotate(45deg);
+      }
+
+      .success-eyebrow {
+        margin: 0 0 6px;
+        color: #18a957;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 18px;
+      }
+
+      .success-title {
+        margin: 0;
+        color: #222222;
+        font-size: 28px;
+        line-height: 34px;
+      }
+
+      .success-copy {
+        margin: 8px 0 0;
+        color: #666666;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .success-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        padding-top: 24px;
+      }
+
+      .success-section {
+        min-width: 0;
+        padding: 18px;
+        border: 1px solid #eceff3;
+        border-radius: 6px;
+        background: #fafafa;
+      }
+
+      .success-section h2 {
+        margin: 0 0 14px;
+        color: #333333;
+        font-size: 15px;
+        line-height: 20px;
+      }
+
+      .success-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        color: #666666;
+        font-size: 13px;
+        line-height: 19px;
+      }
+
+      .success-row + .success-row {
+        margin-top: 10px;
+      }
+
+      .success-row strong {
+        color: #333333;
+        text-align: right;
+      }
+
+      .success-total {
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid #eceff3;
+      }
+
+      .success-total strong {
+        color: #ff6a00;
+        font-size: 20px;
+        line-height: 26px;
       }
 
       @media (max-width: 900px) {
@@ -491,6 +644,18 @@
         .field-grid {
           grid-template-columns: 1fr;
         }
+
+        .success-card {
+          padding: 24px 18px;
+        }
+
+        .success-header {
+          flex-direction: column;
+        }
+
+        .success-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -504,7 +669,7 @@
       <div class="checkout-title">Trade Assurance Checkout</div>
     </header>
 
-    <main class="page-body">
+    <main class="page-body" id="alibaba-checkout-view">
       <div class="assurance-bar">
         <div class="assurance-title">
           <span class="assurance-badge" aria-hidden="true">S</span>
@@ -757,7 +922,15 @@
               <span>Pay in <strong>USD</strong></span>
               <strong>USD 324.77</strong>
             </div>
-            <button class="pay-now" type="button">Pay Now</button>
+            <button
+              class="pay-now"
+              id="alibaba-pay-now-button"
+              type="button"
+              data-ready="false"
+              disabled
+            >
+              Pay Now
+            </button>
             <p class="buyer-email">
               Buyer email:
               <span id="alibaba-buyer-email">gregory.jablonski@fiserv.com</span>
@@ -770,6 +943,86 @@
           </section>
         </aside>
       </div>
+    </main>
+
+    <main class="page-body success-view" id="alibaba-success-view" hidden>
+      <section class="success-card" aria-labelledby="alibaba-success-title">
+        <div class="success-header">
+          <span
+            class="success-checkmark"
+            aria-label="Payment verified"
+            role="img"
+          ></span>
+          <div>
+            <p class="success-eyebrow">Payment verified</p>
+            <h1 class="success-title" id="alibaba-success-title">
+              Order paid successfully
+            </h1>
+            <p class="success-copy">
+              Alibaba Rewards Account is verified and the Trade Assurance order
+              is ready for supplier processing.
+            </p>
+          </div>
+        </div>
+
+        <div class="success-grid">
+          <section
+            class="success-section"
+            id="alibaba-success-order-summary"
+            aria-label="Order summary"
+          >
+            <h2>Order summary</h2>
+            <div class="success-row">
+              <span>Item</span>
+              <strong>2021 Customized Students Bags ...</strong>
+            </div>
+            <div class="success-row">
+              <span>Order</span>
+              <strong>Order No. 140578887511258745</strong>
+            </div>
+            <div class="success-row">
+              <span>Product amount</span>
+              <strong>USD 241.34</strong>
+            </div>
+            <div class="success-row">
+              <span>Logistics fee</span>
+              <strong>USD 74.00</strong>
+            </div>
+            <div class="success-row">
+              <span>Transaction fee</span>
+              <strong>USD 9.43</strong>
+            </div>
+          </section>
+
+          <section class="success-section" aria-label="Payment info">
+            <h2>Payment info</h2>
+            <div id="alibaba-success-payment-info">
+              <div class="success-row">
+                <span>Method</span>
+                <strong id="alibaba-success-payment-method">
+                  Alibaba Rewards Account
+                </strong>
+              </div>
+              <div class="success-row">
+                <span>Account</span>
+                <strong id="alibaba-success-payment-account">
+                  Alibaba Rewards Account
+                </strong>
+              </div>
+              <div class="success-row">
+                <span>Buyer</span>
+                <strong id="alibaba-success-buyer-email">
+                  gregory.jablonski@fiserv.com
+                </strong>
+              </div>
+              <div class="success-row success-total">
+                <span>Total</span>
+                <strong id="alibaba-success-total">USD 324.77</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
     </main>
 
     <script type="module">
@@ -790,10 +1043,24 @@
       );
       const rewardsHost = document.querySelector('#alibaba-rewards-sdk-host');
       const buyerEmail = document.querySelector('#alibaba-buyer-email');
+      const payNowButton = document.querySelector('#alibaba-pay-now-button');
+      const checkoutView = document.querySelector('#alibaba-checkout-view');
+      const successView = document.querySelector('#alibaba-success-view');
+      const successPaymentMethod = document.querySelector(
+        '#alibaba-success-payment-method'
+      );
+      const successPaymentAccount = document.querySelector(
+        '#alibaba-success-payment-account'
+      );
+      const successBuyerEmail = document.querySelector(
+        '#alibaba-success-buyer-email'
+      );
 
       let widget;
       let rewardsInitialized = false;
       let rewardsPending = false;
+      let rewardsPaymentReady = false;
+      let selectedRewardsPaymentSource;
 
       const createApiUrl = (path) =>
         new URL(path, commerceHubApiBaseUrl).toString();
@@ -801,6 +1068,11 @@
       const setRewardsStatus = (message, tone = 'neutral') => {
         rewardsStatus.textContent = message;
         rewardsStatus.dataset.tone = tone;
+      };
+
+      const setPayNowReady = (ready) => {
+        payNowButton.disabled = !ready;
+        payNowButton.dataset.ready = ready ? 'true' : 'false';
       };
 
       const buildInteractionRequest = () => {
@@ -861,6 +1133,59 @@
         throw new Error(apiErrorMessage(responseBody));
       };
 
+      const paymentSourceField = (source, fields) => {
+        if (!source || typeof source !== 'object') {
+          return undefined;
+        }
+
+        for (const field of fields) {
+          if (field in source && typeof source[field] === 'string') {
+            return source[field];
+          }
+        }
+
+        return undefined;
+      };
+
+      const paymentSourceLabel = (source) =>
+        paymentSourceField(source, [
+          'accountName',
+          'displayName',
+          'name',
+          'nickname',
+        ]) ?? 'Alibaba Rewards Account';
+
+      const paymentSourceAccountSummary = (source) => {
+        const label = paymentSourceLabel(source);
+        const last4 = paymentSourceField(source, ['last4', 'accountLast4']);
+
+        return last4 ? `${label} ending in ${last4}` : label;
+      };
+
+      const handleRewardsSuccess = (event) => {
+        selectedRewardsPaymentSource = event.detail;
+        rewardsPaymentReady = true;
+        setPayNowReady(rewardsInput.checked);
+        setRewardsStatus('Alibaba Rewards Account verified. Pay Now is ready.');
+      };
+
+      const showSuccessPage = () => {
+        if (!rewardsPaymentReady) {
+          return;
+        }
+
+        successPaymentMethod.textContent = paymentSourceLabel(
+          selectedRewardsPaymentSource
+        );
+        successPaymentAccount.textContent = paymentSourceAccountSummary(
+          selectedRewardsPaymentSource
+        );
+        successBuyerEmail.textContent = buyerEmail.textContent.trim();
+        checkoutView.hidden = true;
+        successView.hidden = false;
+        window.scrollTo({top: 0, behavior: 'smooth'});
+      };
+
       const initializeAlibabaRewards = async () => {
         if (rewardsInitialized || rewardsPending) {
           return;
@@ -875,6 +1200,7 @@
 
           widget = document.createElement('commerce-hub-connect');
           widget.id = 'alibaba-rewards-connect-widget';
+          widget.addEventListener('onSuccess', handleRewardsSuccess);
           widget.interactionResponse = interactionResponse;
           widget.designConfig = {
             baseFontSize: '15px',
@@ -928,6 +1254,7 @@
 
         const isRewardsSelected = rewardsInput.checked;
         rewardsPanel.dataset.active = isRewardsSelected ? 'true' : 'false';
+        setPayNowReady(isRewardsSelected && rewardsPaymentReady);
 
         if (isRewardsSelected) {
           void initializeAlibabaRewards();
@@ -939,6 +1266,8 @@
           setActivePaymentMethod(input.value);
         });
       });
+
+      payNowButton.addEventListener('click', showSuccessPage);
     </script>
   </body>
 </html>

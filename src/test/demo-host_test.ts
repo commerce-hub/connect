@@ -75,10 +75,21 @@ suite('demo host page', () => {
     assert.include(html, 'id="alibaba-rewards-sdk-host"');
     assert.include(html, 'margin: 0 auto');
     assert.include(html, 'id="payment-method-alibaba-rewards"');
+    assert.include(html, 'id="alibaba-pay-now-button"');
+    assert.include(html, 'disabled');
+    assert.include(html, '@keyframes payPulse');
+    assert.include(html, "data-ready='true'");
+    assert.include(html, 'id="alibaba-checkout-view"');
+    assert.include(html, 'id="alibaba-success-view"');
+    assert.include(html, 'success-checkmark');
+    assert.include(html, 'Order summary');
+    assert.include(html, 'Payment info');
+    assert.include(html, 'id="alibaba-success-total"');
     assert.include(html, "'/merchant/interaction/create'");
     assert.include(html, 'email: buyerEmail.textContent.trim()');
     assert.include(html, "await import('./../commerce-hub-connect.js')");
     assert.include(html, "document.createElement('commerce-hub-connect')");
+    assert.include(html, "widget.addEventListener('onSuccess'");
     assert.include(html, 'widget.interactionResponse = interactionResponse');
   });
 
@@ -119,11 +130,19 @@ suite('demo host page', () => {
     const rewardsInput = pageDocument.querySelector<HTMLInputElement>(
       '#payment-method-alibaba-rewards'
     );
+    const payNowButton = pageDocument.querySelector<HTMLButtonElement>(
+      '#alibaba-pay-now-button'
+    );
 
     assert.isNull(
       pageDocument.querySelector('input[name="paymentMethod"]:checked'),
       'expected no payment method to be selected by default'
     );
+    assert.isTrue(
+      payNowButton?.disabled,
+      'expected Pay Now to be disabled before SDK success'
+    );
+    assert.equal(payNowButton?.dataset.ready, 'false');
     assert.equal(
       createRequest.body,
       undefined,
@@ -165,7 +184,7 @@ suite('demo host page', () => {
     assert.deepEqual(createRequestBody?.merchantData, {
       clientId: 'marriot',
       merchantId: '101475000000009',
-      terminalId: '10000001',
+      terminalId: '99',
     });
     assert.propertyVal(createRequestBody, 'mode', 'FULL');
     assert.equal(
@@ -174,6 +193,56 @@ suite('demo host page', () => {
         ?.getAttribute('data-active'),
       'true'
     );
+
+    const rewardsWidget = pageDocument.querySelector(
+      '#alibaba-rewards-connect-widget'
+    );
+    rewardsWidget?.dispatchEvent(
+      new CustomEvent('onSuccess', {
+        detail: {
+          displayName: 'Alibaba Rewards Account',
+          accountName: 'Alibaba Rewards Plus',
+          last4: '8842',
+        },
+      })
+    );
+
+    assert.isFalse(
+      payNowButton?.disabled,
+      'expected Pay Now to be enabled after SDK success'
+    );
+    assert.equal(payNowButton?.dataset.ready, 'true');
+
+    payNowButton?.click();
+
+    assert.isTrue(
+      pageDocument.querySelector<HTMLElement>('#alibaba-checkout-view')?.hidden,
+      'expected checkout view to be hidden after Pay Now'
+    );
+    assert.isFalse(
+      pageDocument.querySelector<HTMLElement>('#alibaba-success-view')?.hidden,
+      'expected success view to be visible after Pay Now'
+    );
+    assert.include(
+      pageDocument.querySelector('#alibaba-success-payment-info')
+        ?.textContent ?? '',
+      'Alibaba Rewards Plus'
+    );
+    assert.include(
+      pageDocument.querySelector('#alibaba-success-payment-info')
+        ?.textContent ?? '',
+      '8842'
+    );
+    assert.include(
+      pageDocument.querySelector('#alibaba-success-order-summary')
+        ?.textContent ?? '',
+      'Order No. 140578887511258745'
+    );
+    assert.include(
+      pageDocument.querySelector('#alibaba-success-total')?.textContent ?? '',
+      'USD 324.77'
+    );
+    assert.isNotNull(pageDocument.querySelector('.success-checkmark'));
 
     iframe.remove();
   });
@@ -344,6 +413,210 @@ suite('demo host page', () => {
         .querySelector('#clover-pay-sdk-panel')
         ?.getAttribute('data-active'),
       'true'
+    );
+
+    iframe.remove();
+  });
+
+  test('provides a Clover merchant dashboard demo with the bank information section as the main content', async () => {
+    const response = await fetch('/dev/clover-merchant.html');
+    const html = await response.text();
+
+    assert.isTrue(
+      response.ok,
+      'expected Clover merchant demo page to be served'
+    );
+    assert.include(html, '<title>Clover Merchant Demo</title>');
+    assert.include(html, 'class="clover-logo"');
+    assert.include(html, 'Business name here');
+    assert.include(html, 'id="merchant-dashboard-email"');
+    assert.include(html, 'gregory.jablonski@fiserv.com');
+    assert.include(html, 'id="bank-accounts-page"');
+    assert.include(html, 'Bank information');
+    assert.include(html, 'Funding account');
+    assert.include(html, 'Reporting disabled');
+    assert.include(html, 'Enable reporting');
+    assert.include(html, 'JP Morgan Chase – 3651');
+    assert.include(html, 'class="bank-verified-badge"');
+    assert.include(html, 'Verified');
+    assert.include(html, 'Operating account');
+    assert.include(html, '122100024');
+    assert.include(html, 'Checking');
+    assert.include(html, '••••3651');
+    assert.include(html, 'id="bank-details-dialog"');
+    assert.include(html, 'id="change-bank-account-button"');
+    assert.include(html, 'Change bank account');
+    assert.include(html, 'id="clover-merchant-sdk-host"');
+    assert.include(html, '--sdk-dialog-widget-width: 25.25rem');
+    assert.include(html, 'calc(var(--sdk-dialog-widget-width) + 88px)');
+    assert.include(html, 'calc(100vw - 32px)');
+    assert.include(html, 'justify-items: center');
+    assert.include(html, 'width: min(var(--sdk-dialog-widget-width), 100%)');
+    assert.include(html, "'/merchant/interaction/create'");
+    assert.include(
+      html,
+      "const MERCHANT_EMAIL = 'gregory.jablonski@fiserv.com'"
+    );
+    assert.include(html, 'email: MERCHANT_EMAIL');
+    assert.include(html, "entityData: {firstName: 'Neer'}");
+    assert.include(html, 'advancedVerification: true');
+    assert.include(html, "mode: 'PRE_AUTHENTICATED'");
+    assert.include(html, "await import('./../commerce-hub-connect.js')");
+    assert.include(html, "document.createElement('commerce-hub-connect')");
+    assert.include(html, "widget.addEventListener('onSuccess'");
+    assert.include(html, 'widget.interactionResponse = interactionResponse');
+    assert.notInclude(html, 'Developer Info');
+    assert.notInclude(html, 'Chris Doe (Individual Developer)');
+    assert.notInclude(html, 'id="open-bank-details-button"');
+    assert.notInclude(html, 'id="developer-info-page"');
+  });
+
+  test('opens the Clover merchant SDK dialog from Change bank account and updates the bank information section from SDK success', async () => {
+    const iframe = document.createElement('iframe');
+    const iframeLoaded = new Promise<void>((resolve) => {
+      iframe.addEventListener('load', () => resolve(), {once: true});
+    });
+    iframe.src = '/dev/clover-merchant.html?apiBaseUrl=http://commercehub.test';
+    document.body.append(iframe);
+    await iframeLoaded;
+
+    const pageWindow = iframe.contentWindow;
+    const pageDocument = iframe.contentDocument;
+    assert.isOk(pageWindow, 'expected Clover merchant iframe window');
+    assert.isOk(pageDocument, 'expected Clover merchant iframe document');
+
+    const createRequest = {
+      body: undefined as Record<string, unknown> | undefined,
+    };
+    pageWindow.fetch = (async (_input, init) => {
+      createRequest.body = JSON.parse(String(init?.body));
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'clover-merchant-bank-demo-interaction',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          allowedTenderTypes: ['BANK_ACCOUNT'],
+          paymentSources: [],
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    }) as typeof fetch;
+
+    const bankAccountsPage = pageDocument.querySelector<HTMLElement>(
+      '#bank-accounts-page'
+    );
+    const bankDetailsDialog = pageDocument.querySelector<HTMLDialogElement>(
+      '#bank-details-dialog'
+    );
+
+    assert.isFalse(
+      bankAccountsPage?.hidden ?? false,
+      'expected bank information section to be visible by default'
+    );
+    assert.isFalse(
+      bankDetailsDialog?.open ?? true,
+      'expected bank details dialog to be closed by default'
+    );
+    assert.equal(
+      createRequest.body,
+      undefined,
+      'expected no interaction to be created on page load'
+    );
+
+    assert.include(
+      pageDocument.querySelector('#bank-list-bank-account')?.textContent ?? '',
+      '••••3651'
+    );
+    assert.include(
+      pageDocument.querySelector('#bank-information-card')?.textContent ?? '',
+      'Operating account'
+    );
+    assert.include(
+      pageDocument.querySelector('#bank-information-card')?.textContent ?? '',
+      '122100024'
+    );
+    assert.include(
+      pageDocument.querySelector('#bank-information-card')?.textContent ?? '',
+      'Checking'
+    );
+
+    pageDocument
+      .querySelector<HTMLButtonElement>('#change-bank-account-button')
+      ?.click();
+
+    assert.isTrue(
+      bankDetailsDialog?.open,
+      'expected Change Bank Account to open the SDK dialog'
+    );
+
+    await waitFor(
+      () =>
+        pageDocument.querySelector('#clover-merchant-connect-widget') !== null,
+      'expected Change bank account to mount the CommerceHub Connect SDK'
+    );
+
+    const createRequestBody = createRequest.body;
+    assert.isDefined(createRequestBody);
+    assert.propertyVal(
+      createRequestBody,
+      'email',
+      'gregory.jablonski@fiserv.com'
+    );
+    assert.deepEqual(createRequestBody?.allowedTenderTypes, ['BANK_ACCOUNT']);
+    assert.deepEqual(createRequestBody?.merchantData, {
+      clientId: 'marriot',
+      merchantId: '101475000000009',
+      terminalId: '10000001',
+    });
+    assert.deepEqual(createRequestBody?.entityData, {firstName: 'Neer'});
+    assert.propertyVal(createRequestBody, 'advancedVerification', true);
+    assert.propertyVal(createRequestBody, 'mode', 'PRE_AUTHENTICATED');
+
+    const widget = pageDocument.querySelector(
+      '#clover-merchant-connect-widget'
+    );
+    widget?.dispatchEvent(
+      new CustomEvent('onSuccess', {
+        detail: {
+          tenderType: 'BankAccount',
+          id: 'bank-sdk-1',
+          name: 'Neer SDK Settlement Account',
+          bankAccount: {
+            bankName: 'Wells Fargo',
+            routingNumber: '091000019',
+            accountNumber: '000123456789',
+            accountType: 'Savings',
+          },
+        },
+      })
+    );
+
+    assert.include(
+      pageDocument.querySelector('#bank-list-bank-account')?.textContent ?? '',
+      '••••6789'
+    );
+    assert.include(
+      pageDocument.querySelector('#bank-list-account-name')?.textContent ?? '',
+      'Neer SDK Settlement Account'
+    );
+    assert.include(
+      pageDocument.querySelector('#bank-list-routing-code')?.textContent ?? '',
+      '091000019'
+    );
+    assert.include(
+      pageDocument.querySelector('#bank-list-account-type')?.textContent ?? '',
+      'Savings'
+    );
+    assert.include(
+      pageDocument.querySelector('#bank-list-bank-name')?.textContent ?? '',
+      'Wells Fargo – 6789'
+    );
+    assert.isFalse(
+      bankDetailsDialog?.open ?? true,
+      'expected bank details dialog to close after SDK success'
     );
 
     iframe.remove();

@@ -876,13 +876,40 @@ export const primitiveStyles = css`
   }
 
   .payment-method-trailing {
-    width: 1rem;
-    height: 1rem;
+    width: auto;
+    min-width: 1rem;
+    min-height: 1rem;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 0.375rem;
     justify-self: end;
+  }
+
+  .payment-method-balance {
+    display: inline-flex;
+    justify-content: flex-end;
+    color: var(--chc-text);
+    font-size: 0.875em;
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .payment-method-balance-loading {
+    width: 3.75rem;
+    height: 0.875rem;
+    display: inline-flex;
+    border-radius: 999rem;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--chc-border) 70%, transparent),
+      color-mix(in srgb, var(--chc-soft-surface) 96%, white),
+      color-mix(in srgb, var(--chc-border) 70%, transparent)
+    );
+    background-size: 200% 100%;
+    animation: chc-skeleton-shimmer var(--chc-motion-provider)
+      var(--chc-ease-standard) infinite;
   }
 
   .payment-method-chevron {
@@ -1815,7 +1842,8 @@ export const primitiveStyles = css`
     .widget-loading-animation-dot,
     .payment-method-skeleton-icon,
     .payment-method-skeleton-line,
-    .payment-method-skeleton-trailing {
+    .payment-method-skeleton-trailing,
+    .payment-method-balance-loading {
       animation: none;
     }
   }
