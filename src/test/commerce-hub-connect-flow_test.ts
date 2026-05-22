@@ -1643,7 +1643,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('Connect your bank shows Link Account Manually under the provider and opens manual bank account entry', async () => {
+  test('Connect your bank shows Connect another way under the provider and opens manual bank account entry', async () => {
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
     paymentSdkWindow.PaymentSDK = {
@@ -1698,14 +1698,14 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('[data-action="add-ach-manually"]')
         ?.textContent?.trim(),
-      'Link Account Manually'
+      'Connect another way'
     );
 
     await clickAction(el, 'add-ach-manually');
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add ACH Manually'
+      'Enter bank details'
     );
     assert.exists(el.shadowRoot!.querySelector('#ach-routing-number'));
     assert.exists(el.shadowRoot!.querySelector('#ach-account-number'));
