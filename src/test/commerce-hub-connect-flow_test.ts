@@ -1723,7 +1723,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('manual ACH save encrypts entered values without local validation, masks the screen values, and shows verification outcome', async () => {
+  test('manual ACH save enables only after valid encrypted values, masks the screen values, and shows verification outcome', async () => {
     const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
@@ -1798,7 +1798,7 @@ suite('commerce-hub-connect flow', () => {
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
     await flushElement(el);
     await clickAction(el, 'add-ach-manually');
-    assert.isFalse(
+    assert.isTrue(
       el.shadowRoot!.querySelector<HTMLButtonElement>(
         '[data-action="save-ach-manual"]'
       )?.disabled
@@ -1816,8 +1816,20 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await setFieldValue(el, 'ach-routing-number', '021000021');
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
+    );
+
     await setFieldValue(el, 'ach-account-number', '123456789');
-    await setFieldValue(el, 'ach-account-number-confirm', '987654321');
+    await setFieldValue(el, 'ach-account-number-confirm', '123456789');
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
+    );
+
     await blurField(el, 'ach-routing-number');
     await blurField(el, 'ach-account-number');
     await blurField(el, 'ach-account-number-confirm');
@@ -1850,7 +1862,7 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector<HTMLInputElement>(
         '#ach-account-number-confirm'
       )?.value,
-      '•••••4321'
+      '•••••6789'
     );
     assert.equal(
       el.shadowRoot!.querySelector<HTMLInputElement>(
@@ -1881,7 +1893,12 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector<HTMLInputElement>(
         '#ach-account-number-confirm'
       )?.value,
-      '•••••4321'
+      '•••••6789'
+    );
+    assert.isFalse(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
     );
 
     await clickAction(el, 'save-ach-manual');
@@ -1915,7 +1932,7 @@ suite('commerce-hub-connect flow', () => {
           new URL(request.url).pathname.startsWith('/interaction/source/mask/')
         )
         .map((request) => JSON.parse(request.bodyText)),
-      [{value: '021000021'}, {value: '123456789'}, {value: '987654321'}]
+      [{value: '021000021'}, {value: '123456789'}, {value: '123456789'}]
     );
     assert.deepEqual(JSON.parse(requests[4].bodyText), {
       id: '',
@@ -1923,7 +1940,7 @@ suite('commerce-hub-connect flow', () => {
       bankAccount: {
         routingNumber: 'enc-routing-1',
         accountNumber: 'enc-account-1',
-        accountNumberReEntered: 'enc-account-confirm-1',
+        accountNumberReEntered: 'enc-account-1',
         routingNumberEncrypted: 'enc-routing-1',
         accountNumberEncrypted: 'enc-account-1',
       },
@@ -1931,6 +1948,204 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
       'UNDER_REVIEW'
+    );
+  });
+
+  test('manual ACH shows an account mismatch error and does not save', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/interaction/source/mask/rt') {
+        return new Response(JSON.stringify({value: 'enc-routing-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (pathname === '/interaction/source/mask/bn') {
+        return new Response(JSON.stringify({value: 'enc-account-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          sourceId: 'bank-manual-1',
+          status: 'UNDER_REVIEW',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+    await clickAction(el, 'add-ach-manually');
+
+    await setFieldValue(el, 'ach-routing-number', '021000021');
+    await setFieldValue(el, 'ach-account-number', '123456789');
+    await setFieldValue(el, 'ach-account-number-confirm', '987654321');
+
+    assert.include(
+      el.shadowRoot!.textContent,
+      'Account numbers must match.'
+    );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
+    );
+
+    await blurField(el, 'ach-routing-number');
+    await blurField(el, 'ach-account-number');
+    await blurField(el, 'ach-account-number-confirm');
+    await waitForRequest(requests, '/interaction/source/mask/rt');
+    await waitFor(
+      () =>
+        requests.filter(
+          (request) =>
+            new URL(request.url).pathname === '/interaction/source/mask/bn'
+        ).length === 2,
+      'both bank account number mask requests were not sent'
+    );
+    await flushElement(el);
+
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
+    );
+    await clickAction(el, 'save-ach-manual');
+
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/ach'
+    );
+  });
+
+  test('manual ACH shows a routing number error until nine digits are entered', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/interaction/source/mask/bn') {
+        return new Response(JSON.stringify({value: 'enc-account-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          sourceId: 'bank-manual-1',
+          status: 'UNDER_REVIEW',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+    await clickAction(el, 'add-ach-manually');
+
+    await setFieldValue(el, 'ach-routing-number', '02100002');
+    await setFieldValue(el, 'ach-account-number', '123456789');
+    await setFieldValue(el, 'ach-account-number-confirm', '123456789');
+
+    assert.include(
+      el.shadowRoot!.textContent,
+      'Enter a 9-digit routing number.'
+    );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
+    );
+
+    await clickAction(el, 'save-ach-manual');
+
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/ach'
     );
   });
 
