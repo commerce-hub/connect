@@ -1085,8 +1085,17 @@ suite('commerce-hub-connect payment selection', () => {
 
     await clickAction(el, 'add-card');
     await waitFor(() =>
-      Boolean(el.shadowRoot!.querySelector('#billing-address'))
+      Boolean(el.shadowRoot!.querySelector('.billing-address-summary'))
     );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.billing-address-summary-value')
+        ?.textContent?.trim(),
+      '1 Main St, New York, NY 10001'
+    );
+    await clickAction(el, 'change-billing-address');
+
+    assert.exists(el.shadowRoot!.querySelector('#billing-address'));
 
     assert.deepEqual(
       [

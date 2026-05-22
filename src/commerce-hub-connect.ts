@@ -358,6 +358,9 @@ export class CommerceHubConnect extends LitElement {
   private billingAddresses: Address[] = [];
 
   @state()
+  private billingAddressSelectorExpanded = false;
+
+  @state()
   private nativeAccountBalances: NativeAccountBalanceMap = {};
 
   @state()
@@ -1030,24 +1033,52 @@ export class CommerceHubConnect extends LitElement {
         label: 'Add new billing address',
       },
     ];
+    const selectedBillingAddress = this.billingAddresses.find(
+      (address) => address.id === this.cardDraft.billingAddressValue
+    );
+    const shouldRenderBillingAddressSummary =
+      Boolean(selectedBillingAddress) && !this.billingAddressSelectorExpanded;
+    const shouldRenderBillingAddressSelector =
+      !shouldRenderBillingAddressSummary;
     const shouldRenderNewBillingAddressFields =
+      shouldRenderBillingAddressSelector &&
       this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE;
     const billingAddressFields: TemplateResult[] = [];
 
-    billingAddressFields.push(
-      renderSelectField({
-        id: 'billing-address',
-        name: 'billingAddress',
-        label: 'Billing address',
-        value: this.cardDraft.billingAddressValue,
-        options: billingAddressOptions,
-        span: 'full',
-        variant: 'card-form',
-        dataField: 'billingAddressValue',
-        error: this.cardDraftErrors.billingAddressValue,
-        disabled: isSaving,
-      })
-    );
+    if (selectedBillingAddress && shouldRenderBillingAddressSummary) {
+      billingAddressFields.push(html`
+        <div class="billing-address-summary field field-full">
+          <div class="billing-address-summary-heading">
+            <span class="billing-address-summary-label field-label"
+              >Billing address</span
+            >
+            ${renderTextLinkButton({
+              label: 'Change',
+              action: 'change-billing-address',
+              disabled: isSaving,
+            })}
+          </div>
+          <p class="billing-address-summary-value">
+            ${billingAddressLabel(selectedBillingAddress)}
+          </p>
+        </div>
+      `);
+    } else {
+      billingAddressFields.push(
+        renderSelectField({
+          id: 'billing-address',
+          name: 'billingAddress',
+          label: 'Billing address',
+          value: this.cardDraft.billingAddressValue,
+          options: billingAddressOptions,
+          span: 'full',
+          variant: 'card-form',
+          dataField: 'billingAddressValue',
+          error: this.cardDraftErrors.billingAddressValue,
+          disabled: isSaving,
+        })
+      );
+    }
 
     if (shouldRenderNewBillingAddressFields) {
       billingAddressFields.push(
@@ -1593,6 +1624,11 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'change-billing-address') {
+      this.billingAddressSelectorExpanded = true;
+      return;
+    }
+
     if (action === 'save-card') {
       void this.saveCard();
       return;
@@ -2094,6 +2130,9 @@ export class CommerceHubConnect extends LitElement {
     this.resetBankFlow();
     this.cardFlowScreen = 'form';
     this.cardSubmitError = undefined;
+    this.billingAddressSelectorExpanded =
+      this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE ||
+      !this.billingAddresses.length;
 
     const interactionId = this.interactionResponse?.interactionId;
     const hasSavedSourceContext = Boolean(
@@ -2193,6 +2232,11 @@ export class CommerceHubConnect extends LitElement {
       ...this.cardDraft,
       [field]: formattedValue,
     };
+
+    if (field === 'billingAddressValue') {
+      this.billingAddressSelectorExpanded =
+        formattedValue === NEW_BILLING_ADDRESS_VALUE;
+    }
 
     this.cardSubmitError = undefined;
 
@@ -3801,6 +3845,8 @@ export class CommerceHubConnect extends LitElement {
       this.cardDraft,
       this.billingAddresses
     );
+    this.billingAddressSelectorExpanded =
+      this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE;
   }
 
   private async finalizePayByBankSession(
@@ -3891,6 +3937,7 @@ export class CommerceHubConnect extends LitElement {
     this.cardDraftErrors = {};
     this.cardEncryption = createCardEncryptionState();
     this.cardSubmitError = undefined;
+    this.billingAddressSelectorExpanded = false;
   }
 
   private ensurePayByBankProviderContainer(containerId: string): HTMLElement {

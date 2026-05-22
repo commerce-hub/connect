@@ -34,6 +34,8 @@ Do not commit secrets, merchant tokens, or real customer data. Keep API fixtures
 
 ## Codex Learnings
 
+- 2026-05-22: `BROWSERS=chromium npm run test:dev -- --files test/commerce-hub-connect-flow_test`.js → 61 passed.
+
 - 2026-05-22: Passed: `BROWSERS=chromium npm run test:dev -- --files test/commerce-hub-connect-flow_test`.js → 58 passed.
 
 - 2026-05-20: Npm run lint → lit-analyzer 0 problems, ESLint clean.
