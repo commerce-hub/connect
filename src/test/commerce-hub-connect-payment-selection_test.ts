@@ -33,6 +33,17 @@ const waitFor = async (
   throw new Error(message);
 };
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return {promise, resolve, reject};
+};
+
 const flushElement = async (el: CommerceHubConnect) => {
   await el.updateComplete;
   await nextFrame();
@@ -125,10 +136,20 @@ suite('commerce-hub-connect payment selection', () => {
   });
 
   test('renders all saved payment methods while filtering add actions by allowed tender types', async () => {
+    window.fetch = async () =>
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      allowedTenderTypes: ['BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+      allowedTenderTypes: [
+        'BANK_ACCOUNT',
+        'DYNAMIC_SESSION_CARD',
+        'NATIVE_ACCOUNT',
+      ],
       paymentSources: [
         {
           tenderType: 'Card',
@@ -156,6 +177,17 @@ suite('commerce-hub-connect payment selection', () => {
           name: 'Dynamic credit card',
           verificationInfo: {status: 'VERIFIED'},
         },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          name: 'Digital wallet',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            accountHandle: 'wallet-handle-7890',
+            accountName: 'Commerce wallet',
+            accountType: 'Wallet',
+          },
+        },
       ],
     });
 
@@ -165,18 +197,350 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.deepEqual(
       rows.map((row) => row.dataset.paymentMethodId),
-      ['card-1', 'bank-1', 'dynamic-card-1']
+      ['card-1', 'bank-1', 'dynamic-card-1', 'native-account-1']
     );
     assert.equal(
       rows[1].querySelector('.payment-method-title')?.textContent?.trim(),
       'Operating account'
     );
+    assert.equal(
+      rows[3].querySelector('.payment-method-title')?.textContent?.trim(),
+      'Commerce wallet'
+    );
+    assert.equal(
+      rows[3].querySelector('.payment-method-meta')?.textContent?.trim(),
+      'Wallet •••• 7890'
+    );
+    assert.exists(rows[3].querySelector('[data-payment-method-icon="native"]'));
     assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.exists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
+    );
+  });
+
+  test('fetches native account balances and renders them right aligned after row loading state', async () => {
+    const requests: CapturedRequest[] = [];
+    const balanceResponse = createDeferred<Response>();
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return balanceResponse.promise;
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['NATIVE_ACCOUNT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            accountHandle: 'wallet-handle-7890',
+            accountName: 'Commerce wallet',
+            accountType: 'Wallet',
+          },
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-2',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            accountHandle: 'wallet-handle-4321',
+            accountName: 'Rewards wallet',
+            accountType: 'Rewards',
+          },
+        },
+      ],
+    });
+
+    await waitFor(
+      () => requests.length === 1,
+      'expected native balance request'
+    );
+
+    assert.include(requests[0].url, '/interaction/source/native/balances');
+    assert.equal(requests[0].method, 'GET');
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+
+    assert.notExists(
+      el
+        .shadowRoot!.querySelector('[data-payment-method-id="card-1"]')
+        ?.querySelector('.payment-method-balance-loading')
+    );
+    assert.exists(
+      el
+        .shadowRoot!.querySelector(
+          '[data-payment-method-id="native-account-1"]'
+        )
+        ?.querySelector('.payment-method-balance-loading')
+    );
+    assert.exists(
+      el
+        .shadowRoot!.querySelector(
+          '[data-payment-method-id="native-account-2"]'
+        )
+        ?.querySelector('.payment-method-balance-loading')
+    );
+
+    balanceResponse.resolve(
+      new Response(
+        JSON.stringify({
+          'native-account-1': {
+            id: 'native-account-1',
+            balance: 125.5,
+          },
+          'wallet-handle-4321': {
+            id: 'wallet-handle-4321',
+            balance: 9,
+          },
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      )
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector(
+            '[data-payment-method-id="native-account-1"]'
+          )
+          ?.querySelector('.payment-method-balance')
+          ?.textContent?.trim() === '$125.50',
+      'expected native account balance to render'
+    );
+
+    assert.equal(
+      el
+        .shadowRoot!.querySelector(
+          '[data-payment-method-id="native-account-2"]'
+        )
+        ?.querySelector('.payment-method-balance')
+        ?.textContent?.trim(),
+      '$9.00'
+    );
+    assert.equal(
+      getComputedStyle(
+        el
+          .shadowRoot!.querySelector(
+            '[data-payment-method-id="native-account-1"]'
+          )!
+          .querySelector<HTMLElement>('.payment-method-balance')!
+      ).textAlign,
+      'right'
+    );
+  });
+
+  test('shows native account balance when selected payment method is displayed', async () => {
+    const requests: CapturedRequest[] = [];
+    const balanceResponse = createDeferred<Response>();
+    const nativeSource: PaymentSource = {
+      tenderType: 'NativeAccount',
+      id: 'native-account-1',
+      verificationInfo: {status: 'VERIFIED'},
+      account: {
+        accountHandle: 'wallet-handle-7890',
+        accountName: 'Commerce wallet',
+        accountType: 'Wallet',
+      },
+    };
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/native/balances') {
+        return balanceResponse.promise;
+      }
+
+      if (pathname === '/interaction/source/native-account-1/attach') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_ATTACHED',
+            selectedSource: nativeSource,
+            paymentSources: [nativeSource],
+          }),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['NATIVE_ACCOUNT'],
+      paymentSources: [nativeSource],
+    });
+
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.method === 'GET' &&
+            new URL(request.url).pathname ===
+              '/interaction/source/native/balances'
+        ),
+      'expected native balance request'
+    );
+
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-payment-method-id="native-account-1"]'
+    )!.click();
+    await flushElement(el);
+
+    assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.exists(
+      el.shadowRoot!.querySelector(
+        '.selected-payment-method .payment-method-balance-loading'
+      )
+    );
+
+    balanceResponse.resolve(
+      new Response(
+        JSON.stringify({
+          'native-account-1': {
+            id: 'native-account-1',
+            balance: 42.25,
+          },
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      )
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector(
+            '.selected-payment-method .payment-method-balance'
+          )
+          ?.textContent?.trim() === '$42.25',
+      'expected selected native account balance to render'
+    );
+
+    assert.lengthOf(
+      requests.filter(
+        (request) =>
+          request.method === 'GET' &&
+          new URL(request.url).pathname ===
+            '/interaction/source/native/balances'
+      ),
+      1
+    );
+  });
+
+  test('waits to fetch native account balances until payment source list is shown', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const nativeSource: PaymentSource = {
+      tenderType: 'NativeAccount',
+      id: 'native-account-1',
+      verificationInfo: {status: 'VERIFIED'},
+      account: {
+        accountHandle: 'wallet-handle-7890',
+        accountName: 'Commerce wallet',
+        accountType: 'Wallet',
+      },
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_ATTACHED',
+      selectedSource: nativeSource,
+      paymentSources: [nativeSource],
+    });
+
+    await flushElement(el);
+
+    assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.lengthOf(requests, 0);
+
+    el.interactionResponse = {
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['NATIVE_ACCOUNT'],
+      paymentSources: [nativeSource],
+    };
+    await flushElement(el);
+
+    await waitFor(
+      () => requests.length === 1,
+      'expected native balance request after list was shown'
+    );
+
+    assert.include(requests[0].url, '/interaction/source/native/balances');
+    assert.equal(requests[0].method, 'GET');
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
     );
   });
 

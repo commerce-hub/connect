@@ -243,8 +243,7 @@ suite('commerce-hub-connect primitives', () => {
     `);
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
-    const subtitle =
-      root.querySelector<HTMLElement>('.widget-subtitle')!;
+    const subtitle = root.querySelector<HTMLElement>('.widget-subtitle')!;
 
     assert.equal(getComputedStyle(subtitle).textAlign, 'center');
   });
@@ -335,6 +334,16 @@ suite('commerce-hub-connect primitives', () => {
             accountNumber: '9876543210',
           },
         },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            accountHandle: 'commerce-native-7890',
+            accountName: 'Commerce wallet',
+            accountType: 'Wallet',
+          },
+        },
       ],
     };
 
@@ -352,7 +361,7 @@ suite('commerce-hub-connect primitives', () => {
 
     assert.deepEqual(
       rows.map((row) => row.dataset.paymentMethodId),
-      ['card-1', 'bank-1']
+      ['card-1', 'bank-1', 'native-account-1']
     );
     assert.equal(
       rows[0].querySelector('.payment-method-title')?.textContent?.trim(),
@@ -396,6 +405,15 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(rows[1].querySelector('[data-payment-method-icon="bank"]'));
     assert.notExists(rows[1].querySelector('.payment-method-radio'));
     assert.equal(rows[1].dataset.action, undefined);
+    assert.equal(
+      rows[2].querySelector('.payment-method-title')?.textContent?.trim(),
+      'Commerce wallet'
+    );
+    assert.equal(
+      rows[2].querySelector('.payment-method-meta')?.textContent?.trim(),
+      'Wallet •••• 7890'
+    );
+    assert.exists(rows[2].querySelector('[data-payment-method-icon="native"]'));
   });
 
   test('maps card brands to credit-card-payment-icons logo assets', () => {
@@ -438,6 +456,13 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(
       decodeSvgDataUri(resolvePaymentMethodIconDataUri(unknownCard)),
       'viewBox="0 0 780 500"'
+    );
+
+    const nativeAccount = {type: 'native', brand: 'Native account'} as const;
+    assert.equal(resolvePaymentMethodIconName(nativeAccount), 'native');
+    assert.include(
+      decodeSvgDataUri(resolvePaymentMethodIconDataUri(nativeAccount)),
+      'viewBox="0 0 24 24"'
     );
   });
 

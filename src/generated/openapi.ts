@@ -484,6 +484,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/interaction/source/native/balances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNativeAccountBalances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/customer": {
         parameters: {
             query?: never;
@@ -714,17 +730,18 @@ export interface components {
         };
         InteractionRequest: {
             email?: string;
-            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
+            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD" | "NATIVE_ACCOUNT")[];
             merchantData?: components["schemas"]["MerchantData"];
             entityData?: components["schemas"]["EntityData"];
             advancedVerification?: boolean;
-            preAuthenticated?: boolean;
+            /** @enum {string} */
+            mode?: "PRE_AUTHENTICATED" | "ANONYMOUS" | "FULL";
         };
         AbstractSource: {
             id?: string;
             name?: string;
             /** @enum {string} */
-            tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD";
+            tenderType?: "CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD" | "NATIVE_ACCOUNT";
             verificationInfo?: components["schemas"]["VerificationInfo"];
         };
         BankAccount: {
@@ -766,11 +783,21 @@ export interface components {
             /** @enum {string} */
             status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "PAYMENT_SOURCE_REQUESTED" | "PAYMENT_SOURCE_ATTACHED" | "COMPLETE";
             email?: string;
-            selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
-            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD")[];
-            paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
+            selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
+            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD" | "NATIVE_ACCOUNT")[];
+            paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"])[];
             phone?: components["schemas"]["PhoneDetails"];
             billerAddress?: components["schemas"]["Address"][];
+        };
+        NativeAccount: {
+            tenderType: "NativeAccount";
+        } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
+            account?: components["schemas"]["NativeAccountDetail"];
+        });
+        NativeAccountDetail: {
+            accountHandle?: string;
+            accountName?: string;
+            accountType?: string;
         };
         VerificationInfo: {
             token?: string;
@@ -799,7 +826,7 @@ export interface components {
         DynamicSessionCard: {
             email?: string;
             id?: string;
-            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
+            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
             /** @enum {string} */
             currency?: "USD";
             /** Format: int64 */
@@ -839,7 +866,7 @@ export interface components {
             currency?: "USD";
             /** Format: int64 */
             timestamp?: number;
-            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"];
+            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
             /** @enum {string} */
             channel?: "ONLINE" | "MACHINE";
             /** @enum {string} */
@@ -865,6 +892,11 @@ export interface components {
             aggregatorSessionId?: string;
             pToken?: string;
         };
+        NativeAccountBalanceInfo: {
+            id?: string;
+            /** Format: double */
+            balance?: number;
+        };
         LoginInfo: {
             /** Format: int64 */
             timestamp?: number;
@@ -885,7 +917,7 @@ export interface components {
             phoneDetails?: components["schemas"]["PhoneDetails"];
             shippingAddress?: components["schemas"]["Address"][];
             billingAddress?: components["schemas"]["Address"][];
-            sources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"])[];
+            sources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"])[];
             machinePayments?: boolean;
             logins?: {
                 [key: string]: components["schemas"]["LoginInfo"];
@@ -1665,6 +1697,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionData"];
+                };
+            };
+        };
+    };
+    getNativeAccountBalances: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["NativeAccountBalanceInfo"];
+                    };
                 };
             };
         };

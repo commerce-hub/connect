@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clover Merchant Demo</title>
+    <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
+    <script src="../node_modules/lit/polyfill-support.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, 'Open Sans', Arial, Helvetica, sans-serif;
+        color: #2f3b3f;
+        background: #f6f7f8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f6f7f8;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .top-bar {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 52px;
+        border-bottom: 1px solid #d9dddf;
+        background: #ffffff;
+        padding: 0 20px 0 0;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        align-self: stretch;
+        width: 60px;
+        border-right: 1px solid #e3e6e8;
+        color: #228800;
+      }
+
+      .clover-logo {
+        display: block;
+        width: 24px;
+        height: 24px;
+        flex: 0 0 auto;
+      }
+
+      .business-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-right: auto;
+        color: #11181b;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 18px;
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .icon-button {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #1f2a2e;
+        cursor: pointer;
+      }
+
+      .icon-button[data-active='true']::after {
+        position: absolute;
+        right: 0;
+        bottom: -10px;
+        left: 0;
+        height: 3px;
+        background: #228800;
+        content: '';
+      }
+
+      .icon-button svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+      }
+
+      .page {
+        display: grid;
+        grid-template-columns: 195px minmax(0, 1fr);
+        min-height: calc(100vh - 52px);
+      }
+
+      .sidebar {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        border-right: 1px solid #e3e6e8;
+        background: #f8f9f8;
+      }
+
+      .new-sale-button {
+        width: calc(100% - 38px);
+        min-height: 36px;
+        margin: 18px 19px 22px;
+        border: 1px solid #cfd5d8;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #228800;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 18px;
+        cursor: pointer;
+      }
+
+      .nav-list {
+        display: grid;
+        align-content: start;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .nav-link {
+        display: grid;
+        grid-template-columns: 22px 1fr;
+        gap: 8px;
+        align-items: center;
+        min-height: 36px;
+        padding: 0 20px;
+        border-left: 4px solid transparent;
+        color: #596165;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 18px;
+        text-decoration: none;
+      }
+
+      .nav-link[aria-current='page'] {
+        border-left-color: transparent;
+        background: transparent;
+        color: #596165;
+      }
+
+      .nav-divider {
+        height: 1px;
+        margin: 22px 19px;
+        background: #d2d6d8;
+      }
+
+      .sidebar-footer {
+        align-self: end;
+        display: grid;
+        gap: 5px;
+        padding: 0 20px 20px;
+        color: #596165;
+        font-size: 12px;
+        line-height: 14px;
+      }
+
+      .sidebar-footer a {
+        color: #006bb6;
+        text-decoration: none;
+      }
+
+      .content-shell {
+        min-width: 0;
+        background: #ffffff;
+        padding: 28px 40px 32px;
+      }
+
+      .dashboard {
+        width: min(984px, 100%);
+        margin: 0 auto;
+        border-left: 1px solid #edf0f1;
+        border-right: 1px solid #edf0f1;
+      }
+
+      .approval-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        margin: 0 0 14px;
+        border: 1px solid #48a23f;
+        border-radius: 3px;
+        background: #f0fbef;
+        color: #2f3b3f;
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 18px;
+      }
+
+      .approval-banner strong {
+        font-weight: 700;
+      }
+
+      .dismiss-button {
+        margin-left: auto;
+      }
+
+      .developer-card {
+        border-top: 1px solid #eef1f2;
+        border-bottom: 1px solid #eef1f2;
+        background: #ffffff;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 14px 10px;
+      }
+
+      .card-title {
+        margin: 0 0 10px;
+        color: #1f2a2e;
+        font-size: 20px;
+        font-weight: 800;
+        line-height: 26px;
+      }
+
+      .meta-label,
+      .field-label {
+        color: #8a969c;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 16px;
+        text-transform: uppercase;
+      }
+
+      .meta-value,
+      .field-value {
+        margin-top: 7px;
+        color: #3d4a50;
+        font-size: 13px;
+        line-height: 18px;
+      }
+
+      .verified-stack {
+        display: grid;
+        justify-items: end;
+        align-content: start;
+        gap: 10px;
+        color: #3d4a50;
+        font-size: 12px;
+        line-height: 16px;
+      }
+
+      .verified-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 24px;
+        padding: 4px 9px;
+        border-radius: 2px;
+        background: #eef8ed;
+        color: #228800;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .info-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+        gap: 26px;
+        min-height: 100px;
+        border-top: 1px solid #eef1f2;
+        padding: 14px;
+      }
+
+      .section-heading {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin: 0 0 12px;
+        color: #11181b;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 18px;
+      }
+
+      .edit-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        min-height: 24px;
+        border: 0;
+        background: transparent;
+        color: #006bb6;
+        cursor: pointer;
+      }
+
+      .bank-edit-button {
+        min-height: 28px;
+        padding: 2px 9px 2px 12px;
+        border: 3px solid #6b3df2;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #11181b;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 18px;
+      }
+
+      .field-muted {
+        color: #a9b0b4;
+      }
+
+      .bank-accounts-page {
+        width: min(794px, 100%);
+        margin: 0 0 0 0;
+        background: #ffffff;
+      }
+
+      .subpage-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 21px;
+        color: #11181b;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 18px;
+      }
+
+      .back-button {
+        border: 0;
+        background: transparent;
+        color: #334147;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .subpage-title {
+        margin: 0 0 27px;
+        color: #000000;
+        font-size: 26px;
+        font-weight: 800;
+        line-height: 32px;
+      }
+
+      .funding-card {
+        overflow: hidden;
+        border: 1px solid #e3e6e8;
+        border-radius: 6px;
+        background: #ffffff;
+      }
+
+      .funding-card-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 24px;
+        align-items: start;
+        padding: 13px 16px 5px;
+        border-bottom: 1px solid #edf0f1;
+      }
+
+      .funding-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 5px;
+      }
+
+      .funding-title {
+        margin: 0;
+        color: #11181b;
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 24px;
+      }
+
+      .reporting-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 3px 10px;
+        background: #fbf1cf;
+        color: #725b18;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 16px;
+      }
+
+      .funding-description {
+        max-width: 590px;
+        margin: 0;
+        color: #596165;
+        font-size: 13px;
+        line-height: 19px;
+      }
+
+      .enable-reporting-button {
+        min-width: 119px;
+        min-height: 36px;
+        margin-top: 13px;
+        border: 0;
+        border-radius: 6px;
+        padding: 0 12px;
+        background: #3d8b2a;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 18px;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+
+      .bank-account-card {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 28px;
+        padding: 19px 28px 12px 16px;
+      }
+
+      .bank-heading {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        color: #11181b;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 22px;
+      }
+
+      .bank-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: #2f6db5;
+        color: #ffffff;
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .bank-verified-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        border-radius: 999px;
+        padding: 3px 9px;
+        background: #eef8ed;
+        color: #228800;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 16px;
+      }
+
+      .bank-field-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 210px));
+        gap: 14px 14px;
+        padding-left: 30px;
+      }
+
+      .bank-field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .bank-field-label {
+        color: #11181b;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 18px;
+      }
+
+      .bank-field-value {
+        color: #596165;
+        font-size: 13px;
+        line-height: 18px;
+      }
+
+      .change-bank-link {
+        align-self: start;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 32px;
+        border: 0;
+        background: transparent;
+        color: #3d8b2a;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 18px;
+        cursor: pointer;
+      }
+
+      .change-bank-link svg {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+      }
+
+      .dialog {
+        --sdk-dialog-widget-width: 25.25rem;
+        width: min(
+          calc(var(--sdk-dialog-widget-width) + 88px),
+          calc(100vw - 32px)
+        );
+        max-width: none;
+        margin: auto;
+        border: 0;
+        padding: 0;
+        background: #ffffff;
+        color: #334147;
+      }
+
+      .dialog::backdrop {
+        background: rgba(0, 0, 0, 0.78);
+      }
+
+      .dialog-panel {
+        position: relative;
+        display: grid;
+        justify-items: center;
+        min-height: 300px;
+        padding: 34px 44px 26px;
+        background: #ffffff;
+      }
+
+      .dialog-close {
+        position: absolute;
+        top: 22px;
+        right: 22px;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: #e2e2e2;
+        color: #60686c;
+        font-size: 28px;
+        line-height: 28px;
+      }
+
+      .dialog-title {
+        width: 100%;
+        margin: 0 0 28px;
+        color: #334147;
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 36px;
+        text-align: center;
+      }
+
+      .bank-table {
+        display: grid;
+        grid-template-columns:
+          minmax(180px, 1fr) minmax(160px, 1fr) minmax(170px, 1fr)
+          minmax(210px, 1fr) 340px;
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .bank-table-header,
+      .bank-table-cell {
+        min-height: 49px;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+      }
+
+      .bank-table-header {
+        background: #f2f3f3;
+        color: #8ba0b8;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 16px;
+        text-transform: uppercase;
+      }
+
+      .bank-table-cell {
+        color: #334147;
+        font-size: 16px;
+        line-height: 22px;
+      }
+
+      .outline-action {
+        justify-content: center;
+      }
+
+      .change-bank-button {
+        min-width: 226px;
+        min-height: 52px;
+        border: 3px solid #6b3df2;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #006bb6;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 22px;
+        cursor: pointer;
+      }
+
+      .sdk-region {
+        display: grid;
+        justify-items: center;
+        width: 100%;
+        margin-top: 26px;
+        padding-top: 20px;
+      }
+
+      .sdk-status {
+        margin: 0;
+        color: #64727a;
+        font-size: 13px;
+        line-height: 18px;
+        text-align: center;
+      }
+
+      .sdk-status[data-tone='error'] {
+        color: #b42318;
+      }
+
+      #clover-merchant-sdk-host {
+        display: grid;
+        justify-items: center;
+        width: min(var(--sdk-dialog-widget-width), 100%);
+      }
+
+      #clover-merchant-sdk-host commerce-hub-connect {
+        width: 100%;
+      }
+
+      @media (max-width: 900px) {
+        .page {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          display: none;
+        }
+
+        .content-shell {
+          padding: 18px 12px 32px;
+        }
+
+        .business-switch {
+          display: none;
+        }
+
+        .info-row {
+          grid-template-columns: 1fr;
+          min-height: auto;
+        }
+
+        .funding-card-header,
+        .bank-account-card {
+          grid-template-columns: 1fr;
+        }
+
+        .bank-field-grid {
+          grid-template-columns: 1fr;
+          padding-left: 0;
+        }
+
+        .dialog-panel {
+          padding: 28px 18px;
+        }
+
+        .bank-table {
+          grid-template-columns: 1fr;
+          width: 100%;
+        }
+
+        .bank-table-header {
+          display: none;
+        }
+
+        .bank-table-cell {
+          min-height: 44px;
+          border-bottom: 1px solid #eef1f2;
+        }
+
+        .bank-table-cell::before {
+          content: attr(data-label);
+          width: 42%;
+          color: #8a969c;
+          font-size: 12px;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+
+        .outline-action {
+          justify-content: flex-start;
+          padding-top: 14px;
+          border-bottom: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top-bar">
+      <div class="brand" aria-label="Clover">
+        <svg
+          class="clover-logo"
+          xmlns="http://www.w3.org/2000/svg"
+          width="28"
+          height="28"
+          viewBox="0 0 40 40"
+          fill="none"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="#280"
+            d="M18.026 10.433c0-4.974-4.037-9.013-9.015-9.013-4.976 0-9.01 4.034-9.01 9.008s4.034 9.018 9.012 9.018h9.013zM20.554 10.433c0-4.974 4.037-9.013 9.015-9.013 4.976 0 9.01 4.034 9.01 9.008s-4.034 9.018-9.012 9.018h-9.013zM20.554 30.987A9.013 9.013 0 0 0 29.57 40a9.01 9.01 0 0 0 9.01-9.01c0-4.974-4.036-9.016-9.013-9.016h-9.013zM18.026 30.987A9.013 9.013 0 0 1 9.01 40 9.01 9.01 0 0 1 0 30.99c0-4.974 4.036-9.016 9.013-9.016h9.013zM9.01 37.46c3.577 0 6.487-2.902 6.487-6.469v-6.486H9.018c-3.578 0-6.49 2.921-6.49 6.486 0 3.567 2.908 6.469 6.482 6.469"
+          />
+        </svg>
+      </div>
+      <div class="business-switch">
+        <span>Business name here</span>
+        <span aria-hidden="true">↔</span>
+      </div>
+
+      <div class="top-actions">
+        <button class="icon-button" type="button" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M13.73 21a2 2 0 0 1-3.46 0"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button class="icon-button" type="button" aria-label="Help">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke-width="2" />
+            <path
+              d="M9.1 9a3 3 0 1 1 5.4 1.8c-.8.7-1.5 1.1-1.5 2.2"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path d="M12 17h.01" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="Settings"
+          data-active="true"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+              stroke-width="2"
+            />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 0 1 7.04 4.3l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.08A1.65 1.65 0 0 0 20.91 10H21a2 2 0 0 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button class="icon-button" type="button" aria-label="Profile">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke-width="2" />
+            <circle cx="12" cy="10" r="3" stroke-width="2" />
+            <path
+              d="M7 19c1-2.2 2.7-3.3 5-3.3s4 1.1 5 3.3"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="page">
+      <aside class="sidebar" aria-label="Clover navigation">
+        <div>
+          <button class="new-sale-button" type="button">New sale</button>
+          <nav>
+            <ul class="nav-list">
+              <li>
+                <a class="nav-link" href="#">
+                  <span aria-hidden="true">⌂</span>
+                  <span>Home</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#">
+                  <span aria-hidden="true">▤</span>
+                  <span>Sales activity</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#">
+                  <span aria-hidden="true">▥</span>
+                  <span>Reports</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#">
+                  <span aria-hidden="true">▦</span>
+                  <span>Finances</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#">
+                  <span aria-hidden="true">⌒</span>
+                  <span>Items</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#">
+                  <span aria-hidden="true">▧</span>
+                  <span>Employees</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#">
+                  <span aria-hidden="true">♙</span>
+                  <span>Customers</span>
+                </a>
+              </li>
+              <li>
+                <a class="nav-link" href="#">
+                  <span aria-hidden="true">⚭</span>
+                  <span>Plugins</span>
+                </a>
+              </li>
+            </ul>
+          </nav>
+          <div class="nav-divider"></div>
+          <a class="nav-link" href="#">
+            <span aria-hidden="true">▱</span>
+            <span>More</span>
+          </a>
+        </div>
+
+        <footer class="sidebar-footer">
+          <span>© 2024 Clover Network, LLC</span>
+          <a href="https://www.clover.com/legal/terms" rel="noreferrer">
+            Terms ↗
+          </a>
+          <a href="https://www.clover.com/legal/privacy" rel="noreferrer">
+            Privacy Policy ↗
+          </a>
+          <a href="https://www.clover.com/accessibility" rel="noreferrer">
+            Accessibility ↗
+          </a>
+          <a href="#" rel="noreferrer">English (United States)</a>
+          <a href="#" rel="noreferrer">Product Suggestions</a>
+        </footer>
+      </aside>
+
+      <main class="content-shell">
+        <section
+          class="bank-accounts-page"
+          id="bank-accounts-page"
+          aria-label="Connected bank accounts"
+        >
+          <span id="merchant-dashboard-email" hidden>
+            gregory.jablonski@fiserv.com
+          </span>
+          <header class="subpage-header">
+            <button
+              class="back-button"
+              type="button"
+              aria-label="Back to settings"
+            >
+              ←
+            </button>
+            <span>Settings</span>
+          </header>
+
+          <h1 class="subpage-title">Bank information</h1>
+
+          <article
+            class="funding-card"
+            id="bank-information-card"
+            aria-label="Funding account"
+          >
+            <header class="funding-card-header">
+              <div>
+                <div class="funding-title-row">
+                  <h2 class="funding-title">Funding account</h2>
+                  <span class="reporting-pill">Reporting disabled</span>
+                </div>
+                <p class="funding-description">
+                  This is your bank account used for deposits from Clover. You
+                  can enable reporting for this account to see financial data
+                  and insights on your Finances dashboard.
+                </p>
+              </div>
+              <button class="enable-reporting-button" type="button">
+                Enable reporting
+              </button>
+            </header>
+
+            <section
+              class="bank-account-card"
+              aria-label="Funding account details"
+            >
+              <div>
+                <div class="bank-heading">
+                  <span class="bank-icon" aria-hidden="true">▣</span>
+                  <span id="bank-list-bank-name">JP Morgan Chase – 3651</span>
+                  <span class="bank-verified-badge">Verified</span>
+                </div>
+
+                <div class="bank-field-grid">
+                  <div class="bank-field">
+                    <span class="bank-field-label">Nickname</span>
+                    <span class="bank-field-value" id="bank-list-account-name">
+                      Operating account
+                    </span>
+                  </div>
+                  <div class="bank-field">
+                    <span class="bank-field-label">Routing number</span>
+                    <span class="bank-field-value" id="bank-list-routing-code">
+                      122100024
+                    </span>
+                  </div>
+                  <div class="bank-field">
+                    <span class="bank-field-label">Account type</span>
+                    <span class="bank-field-value" id="bank-list-account-type">
+                      Checking
+                    </span>
+                  </div>
+                  <div class="bank-field">
+                    <span class="bank-field-label">Account number</span>
+                    <span class="bank-field-value" id="bank-list-bank-account">
+                      ••••3651
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                class="change-bank-link"
+                id="change-bank-account-button"
+                type="button"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 20h9" stroke-width="2" stroke-linecap="round" />
+                  <path
+                    d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>Change bank account</span>
+              </button>
+            </section>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="dialog" id="bank-details-dialog">
+      <div class="dialog-panel">
+        <form method="dialog">
+          <button
+            class="icon-button dialog-close"
+            type="submit"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </form>
+
+        <h1 class="dialog-title">Change bank account</h1>
+
+        <section
+          class="sdk-region"
+          id="clover-merchant-sdk-region"
+          data-active="false"
+          aria-label="Change bank account"
+        >
+          <p class="sdk-status" id="clover-merchant-sdk-status">
+            Change bank account to continue.
+          </p>
+          <div id="clover-merchant-sdk-host"></div>
+        </section>
+      </div>
+    </dialog>
+
+    <script type="module">
+      const commerceHubApiBaseUrl =
+        new URLSearchParams(window.location.search).get('apiBaseUrl') ??
+        'http://localhost:8080';
+      const MERCHANT_EMAIL = 'gregory.jablonski@fiserv.com';
+
+      const dashboardEmail = document.querySelector(
+        '#merchant-dashboard-email'
+      );
+      const bankDetailsDialog = document.querySelector('#bank-details-dialog');
+      const changeBankAccountButton = document.querySelector(
+        '#change-bank-account-button'
+      );
+      const sdkRegion = document.querySelector('#clover-merchant-sdk-region');
+      const sdkStatus = document.querySelector('#clover-merchant-sdk-status');
+      const sdkHost = document.querySelector('#clover-merchant-sdk-host');
+      const bankListAccountName = document.querySelector(
+        '#bank-list-account-name'
+      );
+      const bankListRoutingCode = document.querySelector(
+        '#bank-list-routing-code'
+      );
+      const bankListBankAccount = document.querySelector(
+        '#bank-list-bank-account'
+      );
+      const bankListBankName = document.querySelector('#bank-list-bank-name');
+      const bankListAccountType = document.querySelector(
+        '#bank-list-account-type'
+      );
+
+      let widget;
+      let bankChangeInitialized = false;
+      let bankChangePending = false;
+
+      dashboardEmail.textContent = MERCHANT_EMAIL;
+
+      const createApiUrl = (path) =>
+        new URL(path, commerceHubApiBaseUrl).toString();
+
+      const buildInteractionRequest = () => {
+        const interactionRequest = {
+          email: MERCHANT_EMAIL,
+          allowedTenderTypes: ['BANK_ACCOUNT'],
+          merchantData: {
+            clientId: 'marriot',
+            merchantId: '101475000000009',
+            terminalId: '10000001',
+          },
+          entityData: {firstName: 'Neer'},
+          advancedVerification: true,
+          mode: 'PRE_AUTHENTICATED',
+        };
+
+        return interactionRequest;
+      };
+
+      const readJson = async (response) => {
+        const text = await response.text();
+
+        return text ? JSON.parse(text) : undefined;
+      };
+
+      const apiErrorMessage = (error) => {
+        if (typeof error === 'string') {
+          return error;
+        }
+
+        if (
+          error &&
+          typeof error === 'object' &&
+          'message' in error &&
+          typeof error.message === 'string'
+        ) {
+          return error.message;
+        }
+
+        return 'CommerceHub API request failed.';
+      };
+
+      const createInitialInteractionResponse = async () => {
+        const interactionRequest = buildInteractionRequest();
+        const response = await fetch(
+          createApiUrl('/merchant/interaction/create'),
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(interactionRequest),
+          }
+        );
+        const responseBody = await readJson(response);
+
+        if (response.ok) {
+          return responseBody;
+        }
+
+        throw new Error(apiErrorMessage(responseBody));
+      };
+
+      const setSdkStatus = (message, tone = 'neutral') => {
+        sdkStatus.textContent = message;
+        sdkStatus.dataset.tone = tone;
+      };
+
+      const paymentSourceText = (source, fields) => {
+        if (!source || typeof source !== 'object') {
+          return undefined;
+        }
+
+        for (const field of fields) {
+          const value = source[field];
+
+          if (typeof value === 'string' && value.trim()) {
+            return value.trim();
+          }
+        }
+
+        return undefined;
+      };
+
+      const bankAccountDetails = (source) =>
+        source && typeof source === 'object' && source.bankAccount
+          ? source.bankAccount
+          : {};
+
+      const paymentSourceAccountName = (source) =>
+        paymentSourceText(source, ['name', 'accountName', 'displayName']) ??
+        'Neer bank account';
+
+      const paymentSourceBankName = (source) =>
+        paymentSourceText(bankAccountDetails(source), ['bankName']) ??
+        paymentSourceAccountName(source);
+
+      const paymentSourceLast4 = (source) => {
+        const accountValue =
+          paymentSourceText(bankAccountDetails(source), [
+            'accountNumber',
+            'last4',
+            'accountLast4',
+          ]) ?? paymentSourceText(source, ['last4', 'accountLast4']);
+
+        return accountValue?.replace(/\D/g, '').slice(-4) || '9876';
+      };
+
+      const paymentSourceRoutingCode = (source) =>
+        paymentSourceText(bankAccountDetails(source), [
+          'routingNumber',
+          'routingCode',
+        ]) ?? 'AAAABBCC123';
+
+      const paymentSourceAccountType = (source) =>
+        paymentSourceText(bankAccountDetails(source), ['accountType']) ??
+        'Checking';
+
+      const handleBankChangeSuccess = (event) => {
+        const paymentSource = event.detail;
+        const accountName = paymentSourceAccountName(paymentSource);
+        const bankName = paymentSourceBankName(paymentSource);
+        const last4 = paymentSourceLast4(paymentSource);
+        const routingCode = paymentSourceRoutingCode(paymentSource);
+        const accountType = paymentSourceAccountType(paymentSource);
+
+        bankListAccountName.textContent = accountName;
+        bankListRoutingCode.textContent = routingCode;
+        bankListAccountType.textContent = accountType;
+        bankListBankAccount.textContent = `••••${last4}`;
+        bankListBankName.textContent = `${bankName} – ${last4}`;
+        setSdkStatus('Bank account changed.');
+        bankDetailsDialog.close();
+      };
+
+      const initializeBankChange = async () => {
+        sdkRegion.dataset.active = 'true';
+
+        if (bankChangeInitialized || bankChangePending) {
+          return;
+        }
+
+        bankChangePending = true;
+        changeBankAccountButton.disabled = true;
+        setSdkStatus('Creating bank account interaction...');
+
+        try {
+          const interactionResponse = await createInitialInteractionResponse();
+          await import('./../commerce-hub-connect.js');
+
+          widget = document.createElement('commerce-hub-connect');
+          widget.id = 'clover-merchant-connect-widget';
+          widget.addEventListener('onSuccess', handleBankChangeSuccess);
+          widget.interactionResponse = interactionResponse;
+          widget.baseURL = commerceHubApiBaseUrl;
+          widget.designConfig = {
+            baseFontSize: '15px',
+            baseFontWeight: '400',
+            shellPadding: '0',
+            colors: {
+              primary: '#228800',
+              text: '#334147',
+              copy: '#64727a',
+              border: '#dce2e5',
+              widgetBackground: '#ffffff',
+              paymentMethodBackground: '#ffffff',
+            },
+            copy: {
+              otp: {
+                title: '',
+                verifyButton: 'Verify',
+              },
+              paymentMethods: {
+                title: '',
+                continueButton: 'Use selected account',
+              },
+              noSavedPaymentMethods: {
+                title: 'Change bank account',
+                emptyTitle: '',
+                addBankAccountTitle: 'Add bank account',
+                addBankAccountSubtitle: '',
+              },
+            },
+          };
+          sdkHost.replaceChildren(widget);
+          bankChangeInitialized = true;
+          setSdkStatus('');
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'CommerceHub API request failed.';
+
+          setSdkStatus(message, 'error');
+        } finally {
+          bankChangePending = false;
+          changeBankAccountButton.disabled = false;
+        }
+      };
+
+      const openBankChangeDialog = () => {
+        if (typeof bankDetailsDialog.showModal === 'function') {
+          bankDetailsDialog.showModal();
+          return;
+        }
+
+        bankDetailsDialog.setAttribute('open', '');
+      };
+
+      changeBankAccountButton.addEventListener('click', () => {
+        if (!bankDetailsDialog.open) {
+          openBankChangeDialog();
+        }
+
+        void initializeBankChange();
+      });
+    </script>
+  </body>
+</html>

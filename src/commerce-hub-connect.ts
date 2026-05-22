@@ -68,6 +68,10 @@ export const ON_ERROR_EVENT = 'onError';
 
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
 type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
+type NativePaymentSource = Extract<
+  PaymentSource,
+  {tenderType: 'NativeAccount'}
+>;
 type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
@@ -79,6 +83,9 @@ type BankAccountSourcePayload = Omit<BankPaymentSource, 'tenderType'> & {
 type Address = components['schemas']['Address'];
 type BillingAddressResponse = components['schemas']['StringHolder'];
 type VerificationResponse = components['schemas']['VerificationResponse'];
+type NativeAccountBalanceInfo =
+  components['schemas']['NativeAccountBalanceInfo'];
+type NativeAccountBalanceMap = Record<string, NativeAccountBalanceInfo>;
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
@@ -127,6 +134,12 @@ type BankAccountDraftErrors = Partial<Record<keyof BankAccountDraft, string>>;
 type AllowedTenderOptions = {
   card: boolean;
   bankAccount: boolean;
+  nativeAccount: boolean;
+};
+type PaymentSourceToPaymentMethodOptions = {
+  selected?: boolean;
+  nativeBalances?: NativeAccountBalanceMap;
+  nativeBalanceLoadingSourceIds?: readonly string[];
 };
 type VerificationOverlayAction =
   | 'verify-payment-source'
@@ -141,15 +154,35 @@ type PaymentSdkEvent = {
 type PaymentSdkInitConfiguration = {
   apiKey: string;
   accessToken: string;
-  configId: string;
   containerId: string;
+  locale: string;
+  appearance: PaymentSdkAppearance;
+  configId: string;
   onEvent: (event: PaymentSdkEvent) => void | Promise<void>;
   environment?: string;
-  locale?: string;
   aggregatorSessionId?: string;
   publicKey?: string;
   pToken?: string;
 };
+
+type PaymentSdkAppearance = {
+  branding: PaymentSdkAppearanceBranding;
+};
+
+type PaymentSdkAppearanceBranding = Partial<{
+  backgroundColor: string;
+  primaryColor: string;
+  primaryTextColor: string;
+  secondaryTextColor: string;
+  buttonColor: string;
+  buttonTextColor: string;
+  dangerColor: string;
+  successColor: string;
+  borderColor: string;
+  placeholderColor: string;
+  fontFamily: string;
+  borderRadius: string;
+}>;
 
 const OTP_LENGTH = 6;
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
@@ -324,6 +357,12 @@ export class CommerceHubConnect extends LitElement {
   private billingAddresses: Address[] = [];
 
   @state()
+  private nativeAccountBalances: NativeAccountBalanceMap = {};
+
+  @state()
+  private nativeBalanceLoadingSourceIds: string[] = [];
+
+  @state()
   private paymentSourceView?: 'list' | 'selected';
 
   @state()
@@ -353,6 +392,8 @@ export class CommerceHubConnect extends LitElement {
 
   private interactionRefreshInteractionId?: string;
   private interactionRefreshPromise?: Promise<InteractionResponse>;
+  private nativeBalanceFetchKey?: string;
+  private nativeBalanceQueuedFetchKey?: string;
   private minimumVerificationOverlayToken = 0;
 
   protected override willUpdate(changedProperties: PropertyValues<this>) {
@@ -372,6 +413,10 @@ export class CommerceHubConnect extends LitElement {
         this.paymentSourceEditMode = false;
         this.interactionRefreshInteractionId = undefined;
         this.interactionRefreshPromise = undefined;
+        this.nativeBalanceFetchKey = undefined;
+        this.nativeBalanceQueuedFetchKey = undefined;
+        this.nativeAccountBalances = {};
+        this.nativeBalanceLoadingSourceIds = [];
         this.billingAddresses = [];
         this.resetSavedSourceVerification();
         this.resetRequiredInfo();
@@ -573,7 +618,11 @@ export class CommerceHubConnect extends LitElement {
   private renderPaymentSourceScreen(): TemplateResult {
     const copy = resolvePaymentMethodsCopy(this.designConfig);
     const paymentMethods = paymentMethodsFromInteractionResponse(
-      this.interactionResponse
+      this.interactionResponse,
+      {
+        nativeBalances: this.nativeAccountBalances,
+        nativeBalanceLoadingSourceIds: this.nativeBalanceLoadingSourceIds,
+      }
     );
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
@@ -609,6 +658,8 @@ export class CommerceHubConnect extends LitElement {
     if (this.shouldRenderSelectedPaymentSourceScreen()) {
       return this.renderSelectedPaymentSourceScreen();
     }
+
+    this.queueNativeAccountBalanceRefresh();
 
     return this.renderWidgetShell({
       title: copy.title,
@@ -701,7 +752,11 @@ export class CommerceHubConnect extends LitElement {
       content: html`
         <div class="payment-flow">
           ${renderSelectedPaymentMethod(
-            paymentSourceToPaymentMethod(selectedSource, {selected: true})
+            paymentSourceToPaymentMethod(selectedSource, {
+              selected: true,
+              nativeBalances: this.nativeAccountBalances,
+              nativeBalanceLoadingSourceIds: this.nativeBalanceLoadingSourceIds,
+            })
           )}
         </div>
       `,
@@ -2538,10 +2593,7 @@ export class CommerceHubConnect extends LitElement {
           }
         );
       const createdSource = this.sourceWithVerificationResponse(
-        bankPaymentSourceFromPayload(
-          bankAccountSource,
-          displayAccountNumber
-        ),
+        bankPaymentSourceFromPayload(bankAccountSource, displayAccountNumber),
         verificationResponse
       ) as BankPaymentSource & {id: string};
       const paymentSourceId = sourceIdFromVerificationResponse(
@@ -3370,6 +3422,7 @@ export class CommerceHubConnect extends LitElement {
         configId: payByBank.configId,
         environment: payByBank.environment,
         locale: payByBank.locale,
+        appearance: resolvePaymentSdkAppearance(this.designConfig),
         publicKey,
         pToken,
         aggregatorSessionId,
@@ -3446,6 +3499,121 @@ export class CommerceHubConnect extends LitElement {
       await this.fetchInteraction(interactionId);
     } catch (cause) {
       void cause;
+    }
+  }
+
+  private queueNativeAccountBalanceRefresh() {
+    const interactionId = this.interactionResponse?.interactionId;
+    const nativeSources = nativePaymentSourcesFromInteractionResponse(
+      this.interactionResponse
+    );
+
+    if (!interactionId || nativeSources.length === 0) {
+      const shouldClearBalanceState =
+        this.nativeBalanceFetchKey !== undefined ||
+        this.nativeBalanceQueuedFetchKey !== undefined ||
+        Object.keys(this.nativeAccountBalances).length > 0 ||
+        this.nativeBalanceLoadingSourceIds.length > 0;
+
+      this.nativeBalanceQueuedFetchKey = undefined;
+
+      if (!shouldClearBalanceState) {
+        return;
+      }
+
+      queueMicrotask(() => {
+        const currentNativeSources =
+          nativePaymentSourcesFromInteractionResponse(this.interactionResponse);
+
+        if (currentNativeSources.length === 0) {
+          this.nativeBalanceFetchKey = undefined;
+          this.nativeAccountBalances = {};
+          this.nativeBalanceLoadingSourceIds = [];
+        }
+      });
+      return;
+    }
+
+    const fetchKey = nativeBalanceFetchKey(interactionId, nativeSources);
+
+    if (
+      this.nativeBalanceFetchKey === fetchKey ||
+      this.nativeBalanceQueuedFetchKey === fetchKey
+    ) {
+      return;
+    }
+
+    this.nativeBalanceQueuedFetchKey = fetchKey;
+
+    queueMicrotask(() => {
+      if (this.nativeBalanceQueuedFetchKey !== fetchKey) {
+        return;
+      }
+
+      this.nativeBalanceQueuedFetchKey = undefined;
+
+      const currentInteractionId = this.interactionResponse?.interactionId;
+      const currentNativeSources = nativePaymentSourcesFromInteractionResponse(
+        this.interactionResponse
+      );
+
+      if (
+        !currentInteractionId ||
+        currentNativeSources.length === 0 ||
+        nativeBalanceFetchKey(currentInteractionId, currentNativeSources) !==
+          fetchKey
+      ) {
+        return;
+      }
+
+      void this.refreshNativeAccountBalances();
+    });
+  }
+
+  private async refreshNativeAccountBalances() {
+    const interactionId = this.interactionResponse?.interactionId;
+    const nativeSources = nativePaymentSourcesFromInteractionResponse(
+      this.interactionResponse
+    );
+
+    if (!interactionId || nativeSources.length === 0) {
+      this.nativeBalanceFetchKey = undefined;
+      this.nativeBalanceQueuedFetchKey = undefined;
+      this.nativeAccountBalances = {};
+      this.nativeBalanceLoadingSourceIds = [];
+      return;
+    }
+
+    const fetchKey = nativeBalanceFetchKey(interactionId, nativeSources);
+
+    if (this.nativeBalanceFetchKey === fetchKey) {
+      return;
+    }
+
+    this.nativeBalanceFetchKey = fetchKey;
+    this.nativeAccountBalances = {};
+    this.nativeBalanceLoadingSourceIds = nativeSources.map(paymentSourceId);
+
+    try {
+      const response = await this.createSdkClient(interactionId).GET(
+        '/interaction/source/native/balances'
+      );
+
+      if (this.nativeBalanceFetchKey !== fetchKey) {
+        return;
+      }
+
+      this.nativeAccountBalances = response.data ?? {};
+    } catch (cause) {
+      void cause;
+
+      if (this.nativeBalanceFetchKey === fetchKey) {
+        this.nativeAccountBalances = {};
+      }
+    } finally {
+      if (this.nativeBalanceFetchKey === fetchKey) {
+        this.nativeBalanceLoadingSourceIds = [];
+      }
     }
   }
 
@@ -4575,6 +4743,62 @@ const resolvePayByBankOptions = (
   };
 };
 
+const resolvePaymentSdkAppearance = (
+  designConfig?: DesignConfig
+): PaymentSdkAppearance => {
+  const colors = designConfig?.colors;
+  const branding: PaymentSdkAppearanceBranding = {};
+
+  setPaymentSdkBrandingValue(
+    branding,
+    'backgroundColor',
+    firstPaymentSdkBrandingValue(colors?.widgetBackground, colors?.surface)
+  );
+  setPaymentSdkBrandingValue(branding, 'primaryColor', colors?.primary);
+  setPaymentSdkBrandingValue(branding, 'buttonColor', colors?.primary);
+  setPaymentSdkBrandingValue(branding, 'primaryTextColor', colors?.text);
+  setPaymentSdkBrandingValue(
+    branding,
+    'secondaryTextColor',
+    firstPaymentSdkBrandingValue(colors?.copy, colors?.muted)
+  );
+  setPaymentSdkBrandingValue(branding, 'dangerColor', colors?.danger);
+  setPaymentSdkBrandingValue(branding, 'successColor', colors?.success);
+  setPaymentSdkBrandingValue(
+    branding,
+    'borderColor',
+    firstPaymentSdkBrandingValue(
+      colors?.border,
+      colors?.widgetBorder,
+      colors?.borderBackground
+    )
+  );
+  setPaymentSdkBrandingValue(
+    branding,
+    'placeholderColor',
+    colors?.placeholder
+  );
+
+  return {branding};
+};
+
+const firstPaymentSdkBrandingValue = (
+  ...values: (string | undefined)[]
+): string | undefined =>
+  values.map((value) => value?.trim()).find((value) => Boolean(value));
+
+const setPaymentSdkBrandingValue = (
+  branding: PaymentSdkAppearanceBranding,
+  field: keyof PaymentSdkAppearanceBranding,
+  value?: string
+) => {
+  const trimmedValue = value?.trim();
+
+  if (trimmedValue) {
+    branding[field] = trimmedValue;
+  }
+};
+
 const designConfigColorProperties: {
   field: keyof DesignConfigColors;
   property: string;
@@ -4622,7 +4846,8 @@ const designConfigStyleProperties = [
 ];
 
 const paymentMethodsFromInteractionResponse = (
-  interactionResponse?: InteractionResponse
+  interactionResponse?: InteractionResponse,
+  options: PaymentSourceToPaymentMethodOptions = {}
 ): PaymentMethod[] => {
   const paymentSources = interactionResponse?.paymentSources;
 
@@ -4631,7 +4856,12 @@ const paymentMethodsFromInteractionResponse = (
       selectedPaymentSourceFromInteractionResponse(interactionResponse);
 
     if (selectedSource) {
-      return [paymentSourceToPaymentMethod(selectedSource, {selected: true})];
+      return [
+        paymentSourceToPaymentMethod(selectedSource, {
+          ...options,
+          selected: true,
+        }),
+      ];
     }
 
     return interactionResponse?.status === 'PAYMENT_SOURCE_REQUESTED'
@@ -4639,7 +4869,9 @@ const paymentMethodsFromInteractionResponse = (
       : demoPaymentMethods;
   }
 
-  return paymentSources.map((source) => paymentSourceToPaymentMethod(source));
+  return paymentSources.map((source) =>
+    paymentSourceToPaymentMethod(source, options)
+  );
 };
 
 const allowedTenderOptionsFromInteractionResponse = (
@@ -4648,28 +4880,43 @@ const allowedTenderOptionsFromInteractionResponse = (
   const allowedTenderTypes = interactionResponse?.allowedTenderTypes;
 
   if (!allowedTenderTypes) {
-    return {card: true, bankAccount: true};
+    return {card: true, bankAccount: true, nativeAccount: true};
   }
 
   return {
     card: allowedTenderTypes.includes('CARD'),
     bankAccount: allowedTenderTypes.includes('BANK_ACCOUNT'),
+    nativeAccount: allowedTenderTypes.includes('NATIVE_ACCOUNT'),
   };
 };
 
 const paymentSourceToPaymentMethod = (
   source: PaymentSource,
-  {selected = false}: {selected?: boolean} = {}
+  {
+    selected = false,
+    nativeBalances = {},
+    nativeBalanceLoadingSourceIds = [],
+  }: PaymentSourceToPaymentMethodOptions = {}
 ): PaymentMethod => {
-  const sourceId = source.id?.trim();
-  const sourceName = source.name?.trim();
+  const sourceId = paymentSourceId(source);
+  const nativeBalance = isNativePaymentSource(source)
+    ? nativeAccountBalanceForSource(source, nativeBalances)
+    : undefined;
+  const balance =
+    nativeBalance?.balance === undefined
+      ? undefined
+      : formatNativeAccountBalance(nativeBalance.balance);
 
   return {
-    id: sourceId || sourceName || source.tenderType,
+    id: sourceId,
     label: paymentSourceDisplayName(source, {selected}),
-    type: isBankPaymentSource(source) ? 'bank' : 'card',
+    type: paymentSourcePaymentMethodType(source),
     brand: paymentSourceBrand(source),
     accountLabel: paymentSourceAccountLabel(source),
+    balanceLabel: balance,
+    balanceLoading:
+      isNativePaymentSource(source) &&
+      nativeBalanceLoadingSourceIds.includes(sourceId),
     last4: paymentSourceLast4(source),
     status: verificationStatusToPaymentMethodStatus(
       source.verificationInfo?.status
@@ -4706,6 +4953,14 @@ const paymentSourceDisplayName = (
     );
   }
 
+  if (isNativePaymentSource(source)) {
+    return (
+      source.account?.accountName?.trim() ||
+      source.name?.trim() ||
+      paymentSourceLabel(source)
+    );
+  }
+
   return source.name?.trim() || paymentSourceLabel(source);
 };
 
@@ -4716,6 +4971,10 @@ const paymentSourceLabel = (source: PaymentSource): string => {
 
   if (isBankPaymentSource(source)) {
     return source.bankAccount?.bankName ?? 'Saved bank account';
+  }
+
+  if (isNativePaymentSource(source)) {
+    return 'Native account';
   }
 
   return 'Dynamic session card';
@@ -4730,11 +4989,25 @@ const paymentSourceBrand = (source: PaymentSource): string => {
     return source.bankAccount?.bankName ?? 'Bank account';
   }
 
+  if (isNativePaymentSource(source)) {
+    return source.account?.accountType ?? 'Native account';
+  }
+
   return 'DSC';
 };
 
-const paymentSourceAccountLabel = (source: PaymentSource): string =>
-  `•••• ${paymentSourceLast4(source)}`;
+const paymentSourceAccountLabel = (source: PaymentSource): string => {
+  const last4 = paymentSourceLast4(source);
+  const masked = `•••• ${last4}`;
+
+  if (isNativePaymentSource(source)) {
+    const accountType = source.account?.accountType?.trim();
+
+    return accountType ? `${accountType} ${masked}` : masked;
+  }
+
+  return masked;
+};
 
 const paymentSourceLast4 = (source: PaymentSource): string => {
   if (isCardPaymentSource(source)) {
@@ -4745,8 +5018,72 @@ const paymentSourceLast4 = (source: PaymentSource): string => {
     return lastFour(source.bankAccount?.accountNumber);
   }
 
+  if (isNativePaymentSource(source)) {
+    return lastFour(source.account?.accountHandle);
+  }
+
   return lastFour(source.id);
 };
+
+const paymentSourceId = (source: PaymentSource): string =>
+  source.id?.trim() || source.name?.trim() || source.tenderType;
+
+const paymentSourcePaymentMethodType = (
+  source: PaymentSource
+): PaymentMethod['type'] => {
+  if (isBankPaymentSource(source)) {
+    return 'bank';
+  }
+
+  if (isNativePaymentSource(source)) {
+    return 'native';
+  }
+
+  return 'card';
+};
+
+const nativePaymentSourcesFromInteractionResponse = (
+  interactionResponse?: InteractionResponse
+): NativePaymentSource[] =>
+  (interactionResponse?.paymentSources ?? []).filter(isNativePaymentSource);
+
+const nativeBalanceFetchKey = (
+  interactionId: string,
+  sources: NativePaymentSource[]
+): string =>
+  `${interactionId}:${sources
+    .map((source) => nativeAccountBalanceMatchKeys(source).join(','))
+    .join('|')}`;
+
+const nativeAccountBalanceForSource = (
+  source: NativePaymentSource,
+  balances: NativeAccountBalanceMap
+): NativeAccountBalanceInfo | undefined => {
+  for (const key of nativeAccountBalanceMatchKeys(source)) {
+    const balance = balances[key];
+
+    if (balance) {
+      return balance;
+    }
+  }
+
+  return Object.values(balances).find((balance) =>
+    nativeAccountBalanceMatchKeys(source).includes(balance.id?.trim() ?? '')
+  );
+};
+
+const nativeAccountBalanceMatchKeys = (source: NativePaymentSource): string[] =>
+  [source.id, source.account?.accountHandle]
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
+const formatNativeAccountBalance = (balance: number): string =>
+  nativeAccountBalanceFormatter.format(balance);
+
+const nativeAccountBalanceFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
 
 const resolveSelectedPaymentSourceId = (
   interactionResponse?: InteractionResponse,
@@ -5384,6 +5721,10 @@ const requiredInfoSourceTypeLabel = (source: PaymentSource): string => {
     return 'Card';
   }
 
+  if (isNativePaymentSource(source)) {
+    return 'Native account';
+  }
+
   return 'Dynamic session card';
 };
 
@@ -5400,6 +5741,14 @@ const requiredInfoSourceName = (source: PaymentSource): string => {
     return (
       source.name?.trim() ||
       source.bankAccount?.bankName?.trim() ||
+      paymentSourceLabel(source)
+    );
+  }
+
+  if (isNativePaymentSource(source)) {
+    return (
+      source.account?.accountName?.trim() ||
+      source.name?.trim() ||
       paymentSourceLabel(source)
     );
   }
@@ -5435,7 +5784,7 @@ const requiredInfoSourceExpiry = (
 const paymentSourceIconMethod = (
   source: PaymentSource
 ): Pick<PaymentMethod, 'type' | 'brand'> => ({
-  type: isBankPaymentSource(source) ? 'bank' : 'card',
+  type: paymentSourcePaymentMethodType(source),
   brand: paymentSourceBrand(source),
 });
 
@@ -5511,7 +5860,11 @@ const requiresAdditionalVerificationInfo = (source: PaymentSource): boolean =>
   source.verificationInfo?.status === 'REQUIRE_INFO';
 
 const paymentSourceVerificationSubject = (source?: PaymentSource): string =>
-  source && isBankPaymentSource(source) ? 'Bank account' : 'Payment method';
+  source && isBankPaymentSource(source)
+    ? 'Bank account'
+    : source && isNativePaymentSource(source)
+    ? 'Native account'
+    : 'Payment method';
 
 const isBankPaymentSource = (
   source: PaymentSource
@@ -5523,6 +5876,12 @@ const isCardPaymentSource = (
   source: PaymentSource
 ): source is CardPaymentSource =>
   source.tenderType === 'Card' || (source.tenderType as string) === 'CARD';
+
+const isNativePaymentSource = (
+  source: PaymentSource
+): source is NativePaymentSource =>
+  source.tenderType === 'NativeAccount' ||
+  (source.tenderType as string) === 'NATIVE_ACCOUNT';
 
 let paymentSdkScriptPromise: Promise<void> | undefined;
 let paymentSdkScriptUrl: string | undefined;

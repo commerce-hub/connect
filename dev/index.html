@@ -408,6 +408,18 @@
                     />
                     <span>Dynamic session card</span>
                   </label>
+
+                  <label
+                    class="checkbox-field"
+                    for="interaction-allow-native-account"
+                  >
+                    <input
+                      id="interaction-allow-native-account"
+                      name="allowedTenderTypes"
+                      type="checkbox"
+                    />
+                    <span>Native account</span>
+                  </label>
                 </div>
               </fieldset>
 
@@ -419,9 +431,13 @@
                 <span>Advanced verification</span>
               </label>
 
-              <label class="checkbox-field" for="interaction-pre-authenticated">
-                <input id="interaction-pre-authenticated" type="checkbox" />
-                <span>Pre-authenticated</span>
+              <label class="field" for="interaction-mode">
+                <span class="field-label">Mode</span>
+                <select class="field-input" id="interaction-mode">
+                  <option value="PRE_AUTHENTICATED">Pre-authenticated</option>
+                  <option value="ANONYMOUS">Anonymous</option>
+                  <option value="FULL">Full</option>
+                </select>
               </label>
 
               <div class="request-preview-group">
@@ -854,7 +870,12 @@
       ];
       const baseScenario = {
         email: 'gregory.jablonski@fiserv.com',
-        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'DYNAMIC_SESSION_CARD'],
+        allowedTenderTypes: [
+          'CARD',
+          'BANK_ACCOUNT',
+          'DYNAMIC_SESSION_CARD',
+          'NATIVE_ACCOUNT',
+        ],
       };
       const sourceScenario = (interactionId, source) => ({
         ...baseScenario,
@@ -982,15 +1003,16 @@
         advancedVerification: document.querySelector(
           '#interaction-advanced-verification'
         ),
-        preAuthenticated: document.querySelector(
-          '#interaction-pre-authenticated'
-        ),
+        mode: document.querySelector('#interaction-mode'),
         allowCard: document.querySelector('#interaction-allow-card'),
         allowBankAccount: document.querySelector(
           '#interaction-allow-bank-account'
         ),
         allowDynamicSessionCard: document.querySelector(
           '#interaction-allow-dynamic-session-card'
+        ),
+        allowNativeAccount: document.querySelector(
+          '#interaction-allow-native-account'
         ),
       };
       const designConfigFields = {
@@ -1048,10 +1070,11 @@
         firstName: '',
         lastName: '',
         advancedVerification: true,
-        preAuthenticated: true,
+        mode: 'PRE_AUTHENTICATED',
         allowCard: true,
         allowBankAccount: true,
         allowDynamicSessionCard: false,
+        allowNativeAccount: false,
       };
       const initialDesignConfigFormState = {
         baseFontSize: '16px',
@@ -1127,6 +1150,10 @@
           allowedTenderTypes.push('DYNAMIC_SESSION_CARD');
         }
 
+        if (requestFormState.allowNativeAccount) {
+          allowedTenderTypes.push('NATIVE_ACCOUNT');
+        }
+
         return allowedTenderTypes;
       };
 
@@ -1152,7 +1179,7 @@
             terminalId: requestFormState.terminalId.trim(),
           },
           advancedVerification: requestFormState.advancedVerification,
-          preAuthenticated: requestFormState.preAuthenticated,
+          mode: requestFormState.mode,
         };
 
         if (Object.keys(requestEntityData).length > 0) {
@@ -1275,10 +1302,11 @@
         firstName: requestFields.firstName.value,
         lastName: requestFields.lastName.value,
         advancedVerification: requestFields.advancedVerification.checked,
-        preAuthenticated: requestFields.preAuthenticated.checked,
+        mode: requestFields.mode.value,
         allowCard: requestFields.allowCard.checked,
         allowBankAccount: requestFields.allowBankAccount.checked,
         allowDynamicSessionCard: requestFields.allowDynamicSessionCard.checked,
+        allowNativeAccount: requestFields.allowNativeAccount.checked,
       });
 
       const readDesignConfigFormState = () => ({
@@ -1313,13 +1341,14 @@
         requestFields.lastName.value = requestFormState.lastName;
         requestFields.advancedVerification.checked =
           requestFormState.advancedVerification;
-        requestFields.preAuthenticated.checked =
-          requestFormState.preAuthenticated;
+        requestFields.mode.value = requestFormState.mode;
         requestFields.allowCard.checked = requestFormState.allowCard;
         requestFields.allowBankAccount.checked =
           requestFormState.allowBankAccount;
         requestFields.allowDynamicSessionCard.checked =
           requestFormState.allowDynamicSessionCard;
+        requestFields.allowNativeAccount.checked =
+          requestFormState.allowNativeAccount;
       };
 
       const writeDesignConfigFormState = (designConfigFormState) => {

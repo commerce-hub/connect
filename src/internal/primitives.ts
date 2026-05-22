@@ -138,19 +138,42 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
   `;
 };
 
-const renderPaymentMethodTrailing = (clickable: boolean): TemplateResult => {
-  return html`
-    <span class="payment-method-trailing">
-      ${clickable
-        ? html`
-            <span class="payment-method-chevron" aria-hidden="true">
-              <span class="payment-method-chevron-icon"></span>
-            </span>
-          `
-        : ''}
-    </span>
-  `;
+const renderPaymentMethodBalance = ({
+  balanceLabel,
+  balanceLoading,
+}: PaymentMethod): TemplateResult | '' => {
+  if (balanceLoading) {
+    return html`
+      <span
+        class="payment-method-balance-loading"
+        role="status"
+        aria-label="Loading balance"
+      ></span>
+    `;
+  }
+
+  if (!balanceLabel) {
+    return '';
+  }
+
+  return html`<span class="payment-method-balance">${balanceLabel}</span>`;
 };
+
+const renderPaymentMethodTrailingContent = (
+  method: PaymentMethod,
+  clickable: boolean
+): TemplateResult => html`
+  <span class="payment-method-trailing">
+    ${renderPaymentMethodBalance(method)}
+    ${clickable
+      ? html`
+          <span class="payment-method-chevron" aria-hidden="true">
+            <span class="payment-method-chevron-icon"></span>
+          </span>
+        `
+      : ''}
+  </span>
+`;
 
 const renderPaymentMethodDeleteAction = (
   paymentMethodId: string,
@@ -450,6 +473,8 @@ export const renderPaymentMethodRow = (
     eyebrow,
     brand,
     accountLabel,
+    balanceLabel,
+    balanceLoading,
     last4,
     showVerificationStatus,
     disabled = false,
@@ -472,6 +497,8 @@ export const renderPaymentMethodRow = (
     eyebrow,
     brand,
     accountLabel,
+    balanceLabel,
+    balanceLoading,
     last4,
     showVerificationStatus,
     disabled,
@@ -509,7 +536,10 @@ export const renderPaymentMethodRow = (
         data-payment-method-id=${id}
         ?disabled=${disabled}
       >
-        ${renderPaymentMethodContent(method, renderPaymentMethodTrailing(true))}
+        ${renderPaymentMethodContent(
+          method,
+          renderPaymentMethodTrailingContent(method, true)
+        )}
       </button>
     `;
   }
@@ -521,7 +551,10 @@ export const renderPaymentMethodRow = (
       aria-disabled="true"
       data-payment-method-id=${id}
     >
-      ${renderPaymentMethodContent(method, renderPaymentMethodTrailing(false))}
+      ${renderPaymentMethodContent(
+        method,
+        renderPaymentMethodTrailingContent(method, false)
+      )}
     </div>
   `;
 };
@@ -534,6 +567,8 @@ export const renderSelectedPaymentMethod = ({
   eyebrow,
   brand,
   accountLabel,
+  balanceLabel,
+  balanceLoading,
   last4,
   showVerificationStatus,
 }: PaymentMethod): TemplateResult => {
@@ -545,13 +580,18 @@ export const renderSelectedPaymentMethod = ({
     eyebrow,
     brand,
     accountLabel,
+    balanceLabel,
+    balanceLoading,
     last4,
     showVerificationStatus,
   };
 
   return html`
     <div class="selected-payment-method" aria-label=${label}>
-      ${renderPaymentMethodContent(method, renderPaymentMethodTrailing(false))}
+      ${renderPaymentMethodContent(
+        method,
+        renderPaymentMethodTrailingContent(method, false)
+      )}
     </div>
   `;
 };

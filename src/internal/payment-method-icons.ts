@@ -31,7 +31,13 @@ const cardBrandIcons = {
 const bankIcon =
   '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 9L12 5L20 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10 10V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M14 10V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M18 10V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 18H20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 
-export type PaymentMethodIconName = keyof typeof cardBrandIcons | 'bank';
+const nativeAccountIcon =
+  '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 14H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+export type PaymentMethodIconName =
+  | keyof typeof cardBrandIcons
+  | 'bank'
+  | 'native';
 
 type CardBrandIconName = keyof typeof cardBrandIcons;
 
@@ -74,7 +80,11 @@ export const resolvePaymentMethodIconName = ({
   type,
   brand,
 }: Pick<PaymentMethod, 'type' | 'brand'>): PaymentMethodIconName =>
-  type === 'bank' ? 'bank' : normalizeCardBrand(brand);
+  type === 'bank'
+    ? 'bank'
+    : type === 'native'
+    ? 'native'
+    : normalizeCardBrand(brand);
 
 export const resolvePaymentMethodIconDataUri = (
   method: Pick<PaymentMethod, 'type' | 'brand'>
@@ -83,6 +93,10 @@ export const resolvePaymentMethodIconDataUri = (
 
   if (iconName === 'bank') {
     return svgToDataUri(bankIcon);
+  }
+
+  if (iconName === 'native') {
+    return svgToDataUri(nativeAccountIcon);
   }
 
   return svgToDataUri(cardBrandIcons[iconName]);

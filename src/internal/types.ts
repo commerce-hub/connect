@@ -176,7 +176,9 @@ export interface PaymentMethod {
   id: string;
   label: string;
   accountLabel?: string;
-  type?: 'bank' | 'card';
+  balanceLabel?: string;
+  balanceLoading?: boolean;
+  type?: 'bank' | 'card' | 'native';
   eyebrow?: string;
   brand: string;
   last4: string;
