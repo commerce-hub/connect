@@ -154,15 +154,35 @@ type PaymentSdkEvent = {
 type PaymentSdkInitConfiguration = {
   apiKey: string;
   accessToken: string;
-  configId: string;
   containerId: string;
+  locale: string;
+  appearance: PaymentSdkAppearance;
+  configId: string;
   onEvent: (event: PaymentSdkEvent) => void | Promise<void>;
   environment?: string;
-  locale?: string;
   aggregatorSessionId?: string;
   publicKey?: string;
   pToken?: string;
 };
+
+type PaymentSdkAppearance = {
+  branding: PaymentSdkAppearanceBranding;
+};
+
+type PaymentSdkAppearanceBranding = Partial<{
+  backgroundColor: string;
+  primaryColor: string;
+  primaryTextColor: string;
+  secondaryTextColor: string;
+  buttonColor: string;
+  buttonTextColor: string;
+  dangerColor: string;
+  successColor: string;
+  borderColor: string;
+  placeholderColor: string;
+  fontFamily: string;
+  borderRadius: string;
+}>;
 
 const OTP_LENGTH = 6;
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
@@ -3402,6 +3422,7 @@ export class CommerceHubConnect extends LitElement {
         configId: payByBank.configId,
         environment: payByBank.environment,
         locale: payByBank.locale,
+        appearance: resolvePaymentSdkAppearance(this.designConfig),
         publicKey,
         pToken,
         aggregatorSessionId,
@@ -4720,6 +4741,62 @@ const resolvePayByBankOptions = (
     ...DEFAULT_PAY_BY_BANK_OPTIONS,
     ...definedOverrides,
   };
+};
+
+const resolvePaymentSdkAppearance = (
+  designConfig?: DesignConfig
+): PaymentSdkAppearance => {
+  const colors = designConfig?.colors;
+  const branding: PaymentSdkAppearanceBranding = {};
+
+  setPaymentSdkBrandingValue(
+    branding,
+    'backgroundColor',
+    firstPaymentSdkBrandingValue(colors?.widgetBackground, colors?.surface)
+  );
+  setPaymentSdkBrandingValue(branding, 'primaryColor', colors?.primary);
+  setPaymentSdkBrandingValue(branding, 'buttonColor', colors?.primary);
+  setPaymentSdkBrandingValue(branding, 'primaryTextColor', colors?.text);
+  setPaymentSdkBrandingValue(
+    branding,
+    'secondaryTextColor',
+    firstPaymentSdkBrandingValue(colors?.copy, colors?.muted)
+  );
+  setPaymentSdkBrandingValue(branding, 'dangerColor', colors?.danger);
+  setPaymentSdkBrandingValue(branding, 'successColor', colors?.success);
+  setPaymentSdkBrandingValue(
+    branding,
+    'borderColor',
+    firstPaymentSdkBrandingValue(
+      colors?.border,
+      colors?.widgetBorder,
+      colors?.borderBackground
+    )
+  );
+  setPaymentSdkBrandingValue(
+    branding,
+    'placeholderColor',
+    colors?.placeholder
+  );
+
+  return {branding};
+};
+
+const firstPaymentSdkBrandingValue = (
+  ...values: (string | undefined)[]
+): string | undefined =>
+  values.map((value) => value?.trim()).find((value) => Boolean(value));
+
+const setPaymentSdkBrandingValue = (
+  branding: PaymentSdkAppearanceBranding,
+  field: keyof PaymentSdkAppearanceBranding,
+  value?: string
+) => {
+  const trimmedValue = value?.trim();
+
+  if (trimmedValue) {
+    branding[field] = trimmedValue;
+  }
 };
 
 const designConfigColorProperties: {

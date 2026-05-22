@@ -350,6 +350,22 @@ interface TestPaymentSdkInitConfiguration {
   accessToken: string;
   configId: string;
   containerId: string;
+  appearance?: {
+    branding?: {
+      backgroundColor?: string;
+      primaryColor?: string;
+      primaryTextColor?: string;
+      secondaryTextColor?: string;
+      buttonColor?: string;
+      buttonTextColor?: string;
+      dangerColor?: string;
+      successColor?: string;
+      borderColor?: string;
+      placeholderColor?: string;
+      fontFamily?: string;
+      borderRadius?: string;
+    };
+  };
   environment?: string;
   locale?: string;
   aggregatorSessionId?: string;
@@ -3523,6 +3539,16 @@ suite('commerce-hub-connect flow', () => {
         paymentSources: [],
       },
       {
+        colors: {
+          widgetBackground: '#fafafa',
+          primary: '#123456',
+          text: '#1f2937',
+          copy: '#4b5563',
+          border: '#d1d5db',
+          placeholder: '#9ca3af',
+          danger: '#dc2626',
+          success: '#059669',
+        },
         payByBank: {
           apiKey: 'override-api-key',
           configId: 'override-config-id',
@@ -3560,6 +3586,19 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(initConfig?.environment, 'sandbox');
     assert.equal(initConfig?.locale, 'en-CA');
     assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
+    assert.deepEqual(initConfig?.appearance, {
+      branding: {
+        backgroundColor: '#fafafa',
+        primaryColor: '#123456',
+        primaryTextColor: '#1f2937',
+        secondaryTextColor: '#4b5563',
+        buttonColor: '#123456',
+        dangerColor: '#dc2626',
+        successColor: '#059669',
+        borderColor: '#d1d5db',
+        placeholderColor: '#9ca3af',
+      },
+    });
     assert.exists(providerContainer);
     assert.deepEqual(
       requests.map(
