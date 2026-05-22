@@ -1504,7 +1504,7 @@ export const primitiveStyles = css`
     display: grid;
     place-items: center;
     border-radius: inherit;
-    background: color-mix(in srgb, var(--chc-surface) 84%, transparent);
+    background: var(--chc-surface);
     color: var(--chc-text);
     text-align: center;
   }

@@ -569,12 +569,12 @@
 
       .dialog-title {
         width: 100%;
-        margin: 0 0 28px;
+        margin-top: -1rem;
         color: #334147;
-        font-size: 30px;
-        font-weight: 800;
+        font-size: 20px;
+        font-weight: 700;
         line-height: 36px;
-        text-align: center;
+        text-align: left;
       }
 
       .bank-table {
@@ -630,8 +630,7 @@
         display: grid;
         justify-items: center;
         width: 100%;
-        margin-top: 26px;
-        padding-top: 20px;
+          margin-top: 10px;
       }
 
       .sdk-status {
@@ -1069,8 +1068,7 @@
             merchantId: '101475000000009',
             terminalId: '10000001',
           },
-          entityData: {firstName: 'Neer'},
-          advancedVerification: true,
+          advancedVerification: false,
           mode: 'PRE_AUTHENTICATED',
         };
 
@@ -1147,7 +1145,7 @@
 
       const paymentSourceAccountName = (source) =>
         paymentSourceText(source, ['name', 'accountName', 'displayName']) ??
-        'Neer bank account';
+        'Greg bank account';
 
       const paymentSourceBankName = (source) =>
         paymentSourceText(bankAccountDetails(source), ['bankName']) ??
@@ -1233,7 +1231,7 @@
                 continueButton: 'Use selected account',
               },
               noSavedPaymentMethods: {
-                title: 'Change bank account',
+                title: 'Clover uses AllData, a Fiserv Company, to connect your accounts',
                 emptyTitle: '',
                 addBankAccountTitle: 'Add bank account',
                 addBankAccountSubtitle: '',
