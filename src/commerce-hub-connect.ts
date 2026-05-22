@@ -1289,7 +1289,7 @@ export class CommerceHubConnect extends LitElement {
           })}
           <div class="bank-provider-manual-link">
             ${renderTextLinkButton({
-              label: 'Link Account Manually',
+              label: 'Connect another way',
               action: 'add-ach-manually',
               disabled: this.bankLinkLoading,
             })}
@@ -1308,7 +1308,7 @@ export class CommerceHubConnect extends LitElement {
         'encrypting';
 
     return this.renderWidgetShell({
-      title: 'Add ACH Manually',
+      title: 'Enter bank details',
       headerAction: renderTextLinkButton({
         label: 'Back',
         action: 'back-to-payment-methods',
