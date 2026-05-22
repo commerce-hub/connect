@@ -976,6 +976,23 @@ export const primitiveStyles = css`
     cursor: not-allowed;
   }
 
+  .payment-method-delete-action {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .payment-method-delete-confirmation {
+    max-width: min(8rem, 28vw);
+    color: var(--chc-danger);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: right;
+    white-space: normal;
+  }
+
   .payment-method-delete-icon {
     width: 1.25rem;
     height: 1.25rem;
