@@ -1159,6 +1159,43 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(root.querySelector('.verification-status-icon'));
   });
 
+  test('renders edit-mode inline delete confirmation copy', async () => {
+    const method: PaymentMethod = {
+      id: 'card-1',
+      label: 'Corporate Visa',
+      accountLabel: '•••• 1111',
+      type: 'card',
+      brand: 'Visa',
+      last4: '1111',
+      status: 'verified',
+    };
+
+    const root = await renderHarness(
+      html`
+        <style>
+          ${primitiveStyles.cssText}
+        </style>
+        ${renderPaymentMethodRow(method, {
+          variant: 'edit',
+          confirmingDelete: true,
+        })}
+      `
+    );
+
+    const deleteButton = root.querySelector<HTMLButtonElement>(
+      '[data-action="delete-payment-source"]'
+    )!;
+
+    assert.equal(
+      root
+        .querySelector('.payment-method-delete-confirmation')
+        ?.textContent?.trim(),
+      'press again to confirm'
+    );
+    assert.include(deleteButton.getAttribute('aria-label') ?? '', 'Press again');
+    assert.equal(getComputedStyle(deleteButton).width, '44px');
+  });
+
   test('keeps edit-mode rows focused on delete actions without inline verification badges', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',

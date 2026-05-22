@@ -257,6 +257,7 @@ const DEFAULT_PAY_BY_BANK_OPTIONS = {
   paymentSdkUrl:
     'https://connect-qa.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js',
 } satisfies Required<DesignConfigPayByBank>;
+const DELETE_CONFIRMATION_TIMEOUT_MS = 5000;
 
 const demoPaymentMethods: PaymentMethod[] = [
   {
@@ -369,6 +370,11 @@ export class CommerceHubConnect extends LitElement {
   private paymentSourceEditMode = false;
 
   @state()
+  private deleteConfirmationPaymentSourceId?: string;
+
+  private deleteConfirmationTimeoutId?: number;
+
+  @state()
   private savedSourceVerificationSource?: PaymentSource;
 
   @state()
@@ -409,6 +415,7 @@ export class CommerceHubConnect extends LitElement {
         previousInteractionResponse?.interactionId !==
         this.interactionResponse.interactionId
       ) {
+        this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
         this.paymentSourceEditMode = false;
         this.interactionRefreshInteractionId = undefined;
@@ -444,6 +451,14 @@ export class CommerceHubConnect extends LitElement {
       this.syncDesignConfigStyles();
     }
 
+    if (
+      changedProperties.has('interactionResponse') &&
+      this.deleteConfirmationPaymentSourceId &&
+      !this.findPaymentSourceById(this.deleteConfirmationPaymentSourceId)
+    ) {
+      this.clearDeletePaymentSourceConfirmation();
+    }
+
     if (changedProperties.has('interactionResponse')) {
       void this.refreshPaymentSourcesFromInteraction();
     }
@@ -468,6 +483,7 @@ export class CommerceHubConnect extends LitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    this.clearDeletePaymentSourceConfirmation();
     this.removePayByBankProviderContainer();
     destroyPaymentSdk();
   }
@@ -683,6 +699,8 @@ export class CommerceHubConnect extends LitElement {
                 {
                   variant: isEditingPaymentSources ? 'edit' : 'default',
                   deleteDisabled: isPaymentSourceActionPending,
+                  confirmingDelete:
+                    method.id === this.deleteConfirmationPaymentSourceId,
                   selected: method.id === this.selectedPaymentSourceId,
                 }
               )
@@ -1446,6 +1464,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (action === 'attach-payment-source') {
       if (paymentMethodId) {
+        this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceEditMode = false;
         this.selectedPaymentSourceId = paymentMethodId;
         this.paymentSourceView = 'selected';
@@ -1461,12 +1480,14 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'toggle-payment-source-edit-mode') {
+      this.clearDeletePaymentSourceConfirmation();
       this.paymentSourceEditMode = !this.paymentSourceEditMode;
       return;
     }
 
     if (action === 'verify-payment-source') {
       if (paymentMethodId) {
+        this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceEditMode = false;
         void this.verifySavedPaymentSource(paymentMethodId);
       }
@@ -2053,6 +2074,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async showAddCardScreen() {
+    this.clearDeletePaymentSourceConfirmation();
     this.resetBankFlow();
     this.cardFlowScreen = 'form';
     this.cardSubmitError = undefined;
@@ -2078,6 +2100,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private showManualBankAccountScreen() {
+    this.clearDeletePaymentSourceConfirmation();
     this.resetBankFlow();
     this.bankFlowScreen = 'manual';
     this.bankAccountDraft = createBankAccountDraft();
@@ -2899,13 +2922,12 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    const paymentMethod = paymentSourceToPaymentMethod(source);
-    const shouldDelete = window.confirm(`Delete ${paymentMethod.label}?`);
-
-    if (!shouldDelete) {
+    if (this.deleteConfirmationPaymentSourceId !== paymentSourceId) {
+      this.armDeletePaymentSourceConfirmation(paymentSourceId);
       return;
     }
 
+    this.clearDeletePaymentSourceConfirmation();
     this.pendingAction = 'delete-payment-source';
 
     try {
@@ -2935,6 +2957,25 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
+  private armDeletePaymentSourceConfirmation(paymentSourceId: string) {
+    this.clearDeletePaymentSourceConfirmation();
+    this.deleteConfirmationPaymentSourceId = paymentSourceId;
+    this.deleteConfirmationTimeoutId = window.setTimeout(() => {
+      if (this.deleteConfirmationPaymentSourceId === paymentSourceId) {
+        this.clearDeletePaymentSourceConfirmation();
+      }
+    }, DELETE_CONFIRMATION_TIMEOUT_MS);
+  }
+
+  private clearDeletePaymentSourceConfirmation() {
+    if (this.deleteConfirmationTimeoutId !== undefined) {
+      window.clearTimeout(this.deleteConfirmationTimeoutId);
+      this.deleteConfirmationTimeoutId = undefined;
+    }
+
+    this.deleteConfirmationPaymentSourceId = undefined;
+  }
+
   private findPaymentSourceById(
     paymentSourceId: string
   ): PaymentSource | undefined {
@@ -2954,6 +2995,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private showPaymentSourceList({refresh = false}: {refresh?: boolean} = {}) {
+    this.clearDeletePaymentSourceConfirmation();
     this.paymentSourceEditMode = false;
     this.paymentSourceView = 'list';
 

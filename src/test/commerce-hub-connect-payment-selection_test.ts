@@ -44,6 +44,38 @@ const createDeferred = <T>() => {
   return {promise, resolve, reject};
 };
 
+const captureDeleteConfirmationTimer = () => {
+  const originalSetTimeout = window.setTimeout;
+  const originalClearTimeout = window.clearTimeout;
+  let capturedDelay: number | undefined;
+  let capturedHandler: (() => void) | undefined;
+
+  window.setTimeout = ((handler: TimerHandler, timeout?: number) => {
+    capturedDelay = Number(timeout);
+    capturedHandler = () => {
+      if (typeof handler === 'function') {
+        handler();
+      }
+    };
+
+    return 1;
+  }) as typeof window.setTimeout;
+  window.clearTimeout = (() => undefined) as typeof window.clearTimeout;
+
+  return {
+    get delay() {
+      return capturedDelay;
+    },
+    release() {
+      capturedHandler?.();
+    },
+    restore() {
+      window.setTimeout = originalSetTimeout;
+      window.clearTimeout = originalClearTimeout;
+    },
+  };
+};
+
 const flushElement = async (el: CommerceHubConnect) => {
   await el.updateComplete;
   await nextFrame();
@@ -635,13 +667,107 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('confirmed source deletion calls the delete endpoint and removes the source', async () => {
+  test('source deletion requires a second click and removes the source', async () => {
     const requests: CapturedRequest[] = [];
-    const confirmMessages: string[] = [];
 
-    window.confirm = (message?: string) => {
-      confirmMessages.push(message ?? '');
-      return true;
+    window.confirm = () => {
+      throw new Error('window.confirm should not be called');
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response('', {status: 200});
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+      ],
+    });
+
+    await clickAction(el, 'toggle-payment-source-edit-mode');
+
+    const deleteButton = () =>
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
+      )!;
+
+    deleteButton().click();
+    await flushElement(el);
+
+    assert.lengthOf(requests, 0);
+    assert.equal(
+      el.shadowRoot!
+        .querySelector('.payment-method-delete-confirmation')
+        ?.textContent?.trim(),
+      'press again to confirm'
+    );
+
+    deleteButton().click();
+    await flushElement(el);
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['DELETE /interaction/source/card-1']
+    );
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(requests[0].credentials, 'include');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['bank-1']
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.widget-header-action button')
+        ?.textContent?.trim(),
+      'Done'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
+      1
+    );
+  });
+
+  test('delete confirmation moves between payment source rows', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.confirm = () => {
+      throw new Error('window.confirm should not be called');
     };
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
@@ -691,42 +817,52 @@ suite('commerce-hub-connect payment selection', () => {
     )?.click();
     await flushElement(el);
 
-    assert.deepEqual(confirmMessages, ['Delete Corporate card?']);
-    assert.deepEqual(
-      requests.map(
-        (request) => `${request.method} ${new URL(request.url).pathname}`
-      ),
-      ['DELETE /interaction/source/card-1']
+    const cardRow = el.shadowRoot!.querySelector<HTMLElement>(
+      '.payment-method-row[data-payment-method-id="card-1"]'
     );
+    const bankRow = el.shadowRoot!.querySelector<HTMLElement>(
+      '.payment-method-row[data-payment-method-id="bank-1"]'
+    );
+
     assert.equal(
-      requests[0].headers.get('x-interaction-id'),
-      'interaction-payment'
-    );
-    assert.equal(requests[0].credentials, 'include');
-    assert.deepEqual(
-      el.interactionResponse?.paymentSources?.map((source) => source.id),
-      ['bank-1']
-    );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('.widget-header-action button')
+      cardRow
+        ?.querySelector('.payment-method-delete-confirmation')
         ?.textContent?.trim(),
-      'Done'
+      'press again to confirm'
     );
-    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
-    assert.lengthOf(
-      el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
-      1
+    assert.notExists(
+      bankRow?.querySelector('.payment-method-delete-confirmation')
     );
+
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="delete-payment-source"][data-payment-method-id="bank-1"]'
+    )?.click();
+    await flushElement(el);
+
+    assert.notExists(
+      el.shadowRoot!
+        .querySelector<HTMLElement>(
+          '.payment-method-row[data-payment-method-id="card-1"]'
+        )
+        ?.querySelector('.payment-method-delete-confirmation')
+    );
+    assert.equal(
+      el.shadowRoot!
+        .querySelector<HTMLElement>(
+          '.payment-method-row[data-payment-method-id="bank-1"]'
+        )
+        ?.querySelector('.payment-method-delete-confirmation')
+        ?.textContent?.trim(),
+      'press again to confirm'
+    );
+    assert.lengthOf(requests, 0);
   });
 
-  test('canceling source deletion does not call the delete endpoint', async () => {
+  test('delete confirmation clears after the timeout', async () => {
     const requests: CapturedRequest[] = [];
-    const confirmMessages: string[] = [];
 
-    window.confirm = (message?: string) => {
-      confirmMessages.push(message ?? '');
-      return false;
+    window.confirm = () => {
+      throw new Error('window.confirm should not be called');
     };
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
@@ -761,22 +897,36 @@ suite('commerce-hub-connect payment selection', () => {
 
     await clickAction(el, 'toggle-payment-source-edit-mode');
 
-    el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
-    )?.click();
-    await flushElement(el);
+    const confirmationTimer = captureDeleteConfirmationTimer();
 
-    assert.deepEqual(confirmMessages, ['Delete Corporate card?']);
-    assert.lengthOf(requests, 0);
-    assert.deepEqual(
-      el.interactionResponse?.paymentSources?.map((source) => source.id),
-      ['card-1']
-    );
-    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
-    assert.lengthOf(
-      el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
-      1
-    );
+    try {
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
+      )?.click();
+      await flushElement(el);
+
+      assert.equal(confirmationTimer.delay, 5000);
+      assert.equal(
+        el.shadowRoot!
+          .querySelector('.payment-method-delete-confirmation')
+          ?.textContent?.trim(),
+        'press again to confirm'
+      );
+
+      confirmationTimer.release();
+      await flushElement(el);
+
+      assert.notExists(
+        el.shadowRoot!.querySelector('.payment-method-delete-confirmation')
+      );
+      assert.lengthOf(requests, 0);
+      assert.deepEqual(
+        el.interactionResponse?.paymentSources?.map((source) => source.id),
+        ['card-1']
+      );
+    } finally {
+      confirmationTimer.restore();
+    }
   });
 
   test('loads saved payment sources and billing addresses from the interaction', async () => {

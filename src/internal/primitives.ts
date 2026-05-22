@@ -178,18 +178,30 @@ const renderPaymentMethodTrailingContent = (
 const renderPaymentMethodDeleteAction = (
   paymentMethodId: string,
   deleteLabel: string,
-  disabled = false
+  disabled = false,
+  confirmingDelete = false
 ): TemplateResult => html`
-  <button
-    class="payment-method-delete-button"
-    type="button"
-    aria-label=${deleteLabel}
-    data-action="delete-payment-source"
-    data-payment-method-id=${paymentMethodId}
-    ?disabled=${disabled}
-  >
-    <span class="payment-method-delete-icon" aria-hidden="true"></span>
-  </button>
+  <span class="payment-method-delete-action">
+    ${confirmingDelete
+      ? html`
+          <span class="payment-method-delete-confirmation" role="status"
+            >press again to confirm</span
+          >
+        `
+      : ''}
+    <button
+      class="payment-method-delete-button"
+      type="button"
+      aria-label=${confirmingDelete
+        ? `${deleteLabel}. Press again to confirm`
+        : deleteLabel}
+      data-action="delete-payment-source"
+      data-payment-method-id=${paymentMethodId}
+      ?disabled=${disabled}
+    >
+      <span class="payment-method-delete-icon" aria-hidden="true"></span>
+    </button>
+  </span>
 `;
 
 const renderPaymentMethodContent = (
@@ -482,10 +494,12 @@ export const renderPaymentMethodRow = (
   {
     variant = 'default',
     deleteDisabled = false,
+    confirmingDelete = false,
     selected = false,
   }: {
     variant?: 'default' | 'edit';
     deleteDisabled?: boolean;
+    confirmingDelete?: boolean;
     selected?: boolean;
   } = {}
 ): TemplateResult => {
@@ -511,10 +525,16 @@ export const renderPaymentMethodRow = (
       <div
         class="payment-method-row payment-method-row-edit"
         aria-label=${label}
+        data-payment-method-id=${id}
       >
         ${renderPaymentMethodContent(
           editMethod,
-          renderPaymentMethodDeleteAction(id, `Delete ${label}`, deleteDisabled)
+          renderPaymentMethodDeleteAction(
+            id,
+            `Delete ${label}`,
+            deleteDisabled,
+            confirmingDelete
+          )
         )}
       </div>
     `;
