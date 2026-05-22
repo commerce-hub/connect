@@ -1301,6 +1301,11 @@ export class CommerceHubConnect extends LitElement {
 
   private renderManualBankAccountScreen(): TemplateResult {
     const isSaving = this.pendingAction === 'save-ach-manual';
+    const isEncrypting =
+      this.bankAccountEncryption.routingNumber.status === 'encrypting' ||
+      this.bankAccountEncryption.accountNumber.status === 'encrypting' ||
+      this.bankAccountEncryption.accountNumberReEntered.status ===
+        'encrypting';
 
     return this.renderWidgetShell({
       title: 'Add ACH Manually',
@@ -1386,7 +1391,13 @@ export class CommerceHubConnect extends LitElement {
                 label: isSaving ? 'Saving bank account' : 'Save bank account',
                 action: 'save-ach-manual',
                 loading: isSaving,
-                disabled: false,
+                disabled:
+                  isSaving ||
+                  isEncrypting ||
+                  !isBankAccountDraftReady(
+                    this.bankAccountDraft,
+                    this.bankAccountEncryption
+                  ),
               })}
             </div>
           </div>
@@ -2120,21 +2131,28 @@ export class CommerceHubConnect extends LitElement {
         this.bankAccountEncryption[field]
       )
     ) {
-      this.bankAccountDraft = {
+      const nextDraft = {
         ...this.bankAccountDraft,
         [field]: value,
       };
+
+      this.bankAccountDraft = nextDraft;
+      this.bankAccountDraftErrors = validateBankAccountDraft(
+        normalizeBankAccountDraftForValidation(
+          nextDraft,
+          this.bankAccountEncryption
+        )
+      );
       this.bankAccountSubmitError = undefined;
       return;
     }
 
     const formattedValue = formatBankAccountDraftFieldValue(field, value);
-
-    this.bankAccountDraft = {
+    const nextDraft = {
       ...this.bankAccountDraft,
       [field]: formattedValue,
     };
-    this.bankAccountSubmitError = undefined;
+    let nextEncryption = this.bankAccountEncryption;
 
     if (isSensitiveBankAccountField(field)) {
       if (
@@ -2146,7 +2164,7 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      this.bankAccountEncryption = {
+      nextEncryption = {
         ...this.bankAccountEncryption,
         [field]: resolveDirtyCardEncryptionState(
           this.bankAccountEncryption[field],
@@ -2154,6 +2172,13 @@ export class CommerceHubConnect extends LitElement {
         ),
       };
     }
+
+    this.bankAccountDraft = nextDraft;
+    this.bankAccountEncryption = nextEncryption;
+    this.bankAccountDraftErrors = validateBankAccountDraft(
+      normalizeBankAccountDraftForValidation(nextDraft, nextEncryption)
+    );
+    this.bankAccountSubmitError = undefined;
   }
 
   private updateCardDraftField(field: keyof CardDraft, value: string) {
@@ -2295,14 +2320,18 @@ export class CommerceHubConnect extends LitElement {
     const normalizedValue = normalizeBankAccountNumber(value);
 
     if (!normalizedValue) {
-      this.bankAccountDraftErrors = omitBankAccountDraftError(
-        this.bankAccountDraftErrors,
-        field
-      );
-      this.bankAccountEncryption = {
+      const nextEncryption = {
         ...this.bankAccountEncryption,
         [field]: createCardEncryptionFieldState(),
       };
+
+      this.bankAccountEncryption = nextEncryption;
+      this.bankAccountDraftErrors = validateBankAccountDraft(
+        normalizeBankAccountDraftForValidation(
+          this.bankAccountDraft,
+          nextEncryption
+        )
+      );
       return;
     }
 
@@ -2339,15 +2368,11 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      this.bankAccountDraftErrors = omitBankAccountDraftError(
-        this.bankAccountDraftErrors,
-        field
-      );
-      this.bankAccountDraft = {
+      const nextDraft = {
         ...this.bankAccountDraft,
         [field]: maskSensitiveDisplayValue(normalizedValue),
       };
-      this.bankAccountEncryption = {
+      const nextEncryption = {
         ...this.bankAccountEncryption,
         [field]: {
           status: 'encrypted',
@@ -2355,6 +2380,12 @@ export class CommerceHubConnect extends LitElement {
           encryptedValue,
         },
       };
+
+      this.bankAccountDraft = nextDraft;
+      this.bankAccountEncryption = nextEncryption;
+      this.bankAccountDraftErrors = validateBankAccountDraft(
+        normalizeBankAccountDraftForValidation(nextDraft, nextEncryption)
+      );
     } catch (cause) {
       void cause;
 
@@ -2365,16 +2396,23 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      this.bankAccountDraftErrors = {
-        ...omitBankAccountDraftError(this.bankAccountDraftErrors, field),
-        [field]: buildBankAccountEncryptionErrorMessage(field),
-      };
-      this.bankAccountEncryption = {
+      const nextEncryption = {
         ...this.bankAccountEncryption,
         [field]: {
           status: 'failed',
           normalizedValue,
         },
+      };
+
+      this.bankAccountEncryption = nextEncryption;
+      this.bankAccountDraftErrors = {
+        ...validateBankAccountDraft(
+          normalizeBankAccountDraftForValidation(
+            this.bankAccountDraft,
+            nextEncryption
+          )
+        ),
+        [field]: buildBankAccountEncryptionErrorMessage(field),
       };
     }
   }
@@ -2564,14 +2602,47 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    const normalizedDraft = normalizeBankAccountDraftForValidation(
+      this.bankAccountDraft,
+      this.bankAccountEncryption
+    );
+    const errors = validateBankAccountDraft(normalizedDraft);
+
+    if (Object.keys(errors).length > 0) {
+      this.bankAccountDraft = normalizeBankAccountDraftForDisplay(
+        this.bankAccountDraft,
+        this.bankAccountEncryption
+      );
+      this.bankAccountDraftErrors = errors;
+      this.bankAccountSubmitError = undefined;
+      return;
+    }
+
     this.pendingAction = 'save-ach-manual';
+    this.bankAccountDraft = normalizeBankAccountDraftForDisplay(
+      this.bankAccountDraft,
+      this.bankAccountEncryption
+    );
     this.bankAccountDraftErrors = {};
     this.bankAccountSubmitError = undefined;
 
     try {
       await this.encryptChangedBankAccountFields();
 
-      const normalizedDraft = normalizeBankAccountDraft(this.bankAccountDraft);
+      const encryptedNormalizedDraft = normalizeBankAccountDraftForValidation(
+        this.bankAccountDraft,
+        this.bankAccountEncryption
+      );
+      const postEncryptionErrors = validateBankAccountDraft(
+        encryptedNormalizedDraft
+      );
+
+      if (Object.keys(postEncryptionErrors).length > 0) {
+        this.bankAccountDraftErrors = postEncryptionErrors;
+        this.bankAccountSubmitError = undefined;
+        return;
+      }
+
       const encryptedRoutingNumber = resolveBankAccountPayloadFieldValue(
         'routingNumber',
         this.bankAccountDraft,
@@ -2591,7 +2662,7 @@ export class CommerceHubConnect extends LitElement {
       const displayAccountNumber = bankAccountFieldLastFour(
         'accountNumber',
         this.bankAccountEncryption,
-        normalizedDraft
+        encryptedNormalizedDraft
       );
       const bankAccountSource: BankAccountSourcePayload = {
         id: '',
@@ -4259,15 +4330,128 @@ const formatBankAccountDraftFieldValue = (
   return value;
 };
 
-const normalizeBankAccountDraft = (
-  draft: BankAccountDraft
+const normalizeBankAccountDraftForValidation = (
+  draft: BankAccountDraft,
+  encryption: BankAccountEncryptionState
 ): BankAccountDraft => ({
-  routingNumber: normalizeBankAccountNumber(draft.routingNumber),
-  accountNumber: normalizeBankAccountNumber(draft.accountNumber),
-  accountNumberReEntered: normalizeBankAccountNumber(
-    draft.accountNumberReEntered
+  routingNumber: normalizeBankAccountDraftFieldForValidation(
+    'routingNumber',
+    draft,
+    encryption
+  ),
+  accountNumber: normalizeBankAccountDraftFieldForValidation(
+    'accountNumber',
+    draft,
+    encryption
+  ),
+  accountNumberReEntered: normalizeBankAccountDraftFieldForValidation(
+    'accountNumberReEntered',
+    draft,
+    encryption
   ),
 });
+
+const normalizeBankAccountDraftFieldForValidation = (
+  field: SensitiveBankAccountField,
+  draft: BankAccountDraft,
+  encryption: BankAccountEncryptionState
+): string => {
+  const value = draft[field];
+  const encryptedField = encryption[field];
+
+  if (isEncryptedBankAccountDisplayValue(value, encryptedField)) {
+    return encryptedField.normalizedValue;
+  }
+
+  return normalizeBankAccountNumber(value);
+};
+
+const normalizeBankAccountDraftForDisplay = (
+  draft: BankAccountDraft,
+  encryption: BankAccountEncryptionState
+): BankAccountDraft => ({
+  routingNumber: normalizeBankAccountDraftFieldForDisplay(
+    'routingNumber',
+    draft,
+    encryption
+  ),
+  accountNumber: normalizeBankAccountDraftFieldForDisplay(
+    'accountNumber',
+    draft,
+    encryption
+  ),
+  accountNumberReEntered: normalizeBankAccountDraftFieldForDisplay(
+    'accountNumberReEntered',
+    draft,
+    encryption
+  ),
+});
+
+const normalizeBankAccountDraftFieldForDisplay = (
+  field: SensitiveBankAccountField,
+  draft: BankAccountDraft,
+  encryption: BankAccountEncryptionState
+): string => {
+  const value = draft[field];
+
+  return isEncryptedBankAccountDisplayValue(value, encryption[field])
+    ? value
+    : normalizeBankAccountNumber(value);
+};
+
+const validateBankAccountDraft = (
+  draft: BankAccountDraft
+): BankAccountDraftErrors => {
+  const errors: BankAccountDraftErrors = {};
+  const routingNumber = normalizeBankAccountNumber(draft.routingNumber);
+  const accountNumber = normalizeBankAccountNumber(draft.accountNumber);
+  const accountNumberReEntered = normalizeBankAccountNumber(
+    draft.accountNumberReEntered
+  );
+
+  if (!routingNumber) {
+    errors.routingNumber = 'Enter a routing number.';
+  } else if (routingNumber.length !== 9) {
+    errors.routingNumber = 'Enter a 9-digit routing number.';
+  }
+
+  if (!accountNumber) {
+    errors.accountNumber = 'Enter an account number.';
+  }
+
+  if (!accountNumberReEntered) {
+    errors.accountNumberReEntered = 'Confirm the account number.';
+  } else if (accountNumber && accountNumberReEntered !== accountNumber) {
+    errors.accountNumberReEntered = 'Account numbers must match.';
+  }
+
+  return errors;
+};
+
+const isBankAccountDraftReady = (
+  draft: BankAccountDraft,
+  encryption: BankAccountEncryptionState
+): boolean => {
+  const normalizedDraft = normalizeBankAccountDraftForValidation(
+    draft,
+    encryption
+  );
+
+  return (
+    Object.keys(validateBankAccountDraft(normalizedDraft)).length === 0 &&
+    (['routingNumber', 'accountNumber', 'accountNumberReEntered'] as const)
+      .every((field) => {
+        const encryptedField = encryption[field];
+        const normalizedValue = normalizedDraft[field];
+
+        return (
+          encryptedField.status === 'encrypted' &&
+          encryptedField.normalizedValue === normalizedValue &&
+          Boolean(encryptedField.encryptedValue)
+        );
+      })
+  );
+};
 
 const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
   const errors: CardDraftErrors = {};
