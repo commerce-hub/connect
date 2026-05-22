@@ -667,7 +667,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('source deletion requires a second click and removes the source', async () => {
+  test('source deletion requires inline confirmation and removes the source', async () => {
     const requests: CapturedRequest[] = [];
 
     window.confirm = () => {
@@ -726,11 +726,17 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.lengthOf(requests, 0);
     assert.equal(
-      el.shadowRoot!
-        .querySelector('.payment-method-delete-confirmation')
+      el
+        .shadowRoot!.querySelector('.payment-method-delete-confirmation')
         ?.textContent?.trim(),
-      'press again to confirm'
+      'Remove this payment method?'
     );
+    assert.exists(
+      el.shadowRoot!.querySelector(
+        '[data-action="cancel-delete-payment-source"][data-payment-method-id="card-1"]'
+      )
+    );
+    assert.equal(deleteButton().textContent?.trim(), 'Delete');
 
     deleteButton().click();
     await flushElement(el);
@@ -760,6 +766,77 @@ suite('commerce-hub-connect payment selection', () => {
     assert.lengthOf(
       el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
       1
+    );
+  });
+
+  test('canceling source deletion clears confirmation without a request', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.confirm = () => {
+      throw new Error('window.confirm should not be called');
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response('', {status: 200});
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+      ],
+    });
+
+    await clickAction(el, 'toggle-payment-source-edit-mode');
+
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="delete-payment-source"][data-payment-method-id="card-1"]'
+    )?.click();
+    await flushElement(el);
+
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-delete-confirmation')
+        ?.textContent?.trim(),
+      'Remove this payment method?'
+    );
+
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="cancel-delete-payment-source"][data-payment-method-id="card-1"]'
+    )?.click();
+    await flushElement(el);
+
+    assert.notExists(
+      el.shadowRoot!.querySelector('.payment-method-delete-confirmation')
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector(
+        '[data-action="cancel-delete-payment-source"]'
+      )
+    );
+    assert.lengthOf(requests, 0);
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-1']
     );
   });
 
@@ -828,7 +905,7 @@ suite('commerce-hub-connect payment selection', () => {
       cardRow
         ?.querySelector('.payment-method-delete-confirmation')
         ?.textContent?.trim(),
-      'press again to confirm'
+      'Remove this payment method?'
     );
     assert.notExists(
       bankRow?.querySelector('.payment-method-delete-confirmation')
@@ -840,20 +917,20 @@ suite('commerce-hub-connect payment selection', () => {
     await flushElement(el);
 
     assert.notExists(
-      el.shadowRoot!
-        .querySelector<HTMLElement>(
+      el
+        .shadowRoot!.querySelector<HTMLElement>(
           '.payment-method-row[data-payment-method-id="card-1"]'
         )
         ?.querySelector('.payment-method-delete-confirmation')
     );
     assert.equal(
-      el.shadowRoot!
-        .querySelector<HTMLElement>(
+      el
+        .shadowRoot!.querySelector<HTMLElement>(
           '.payment-method-row[data-payment-method-id="bank-1"]'
         )
         ?.querySelector('.payment-method-delete-confirmation')
         ?.textContent?.trim(),
-      'press again to confirm'
+      'Remove this payment method?'
     );
     assert.lengthOf(requests, 0);
   });
@@ -907,10 +984,10 @@ suite('commerce-hub-connect payment selection', () => {
 
       assert.equal(confirmationTimer.delay, 5000);
       assert.equal(
-        el.shadowRoot!
-          .querySelector('.payment-method-delete-confirmation')
+        el
+          .shadowRoot!.querySelector('.payment-method-delete-confirmation')
           ?.textContent?.trim(),
-        'press again to confirm'
+        'Remove this payment method?'
       );
 
       confirmationTimer.release();

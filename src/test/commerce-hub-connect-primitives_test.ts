@@ -1175,7 +1175,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(root.querySelector('.verification-status-icon'));
   });
 
-  test('renders edit-mode inline delete confirmation copy', async () => {
+  test('renders edit-mode inline delete confirmation controls', async () => {
     const method: PaymentMethod = {
       id: 'card-1',
       label: 'Corporate Visa',
@@ -1198,6 +1198,9 @@ suite('commerce-hub-connect primitives', () => {
       `
     );
 
+    const cancelButton = root.querySelector<HTMLButtonElement>(
+      '[data-action="cancel-delete-payment-source"]'
+    )!;
     const deleteButton = root.querySelector<HTMLButtonElement>(
       '[data-action="delete-payment-source"]'
     )!;
@@ -1206,10 +1209,20 @@ suite('commerce-hub-connect primitives', () => {
       root
         .querySelector('.payment-method-delete-confirmation')
         ?.textContent?.trim(),
-      'press again to confirm'
+      'Remove this payment method?'
     );
-    assert.include(deleteButton.getAttribute('aria-label') ?? '', 'Press again');
-    assert.equal(getComputedStyle(deleteButton).width, '44px');
+    assert.equal(cancelButton.textContent?.trim(), 'Cancel');
+    assert.equal(deleteButton.textContent?.trim(), 'Delete');
+    assert.equal(
+      cancelButton.dataset.paymentMethodId,
+      deleteButton.dataset.paymentMethodId
+    );
+    assert.equal(
+      deleteButton.getAttribute('aria-label'),
+      'Delete Corporate Visa'
+    );
+    assert.equal(getComputedStyle(cancelButton).minHeight, '40px');
+    assert.equal(getComputedStyle(deleteButton).minHeight, '40px');
   });
 
   test('keeps edit-mode rows focused on delete actions without inline verification badges', async () => {

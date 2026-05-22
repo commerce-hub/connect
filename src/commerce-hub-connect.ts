@@ -1512,6 +1512,11 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'cancel-delete-payment-source') {
+      this.clearDeletePaymentSourceConfirmation();
+      return;
+    }
+
     if (action === 'done-payment-source-verification') {
       this.resetSavedSourceVerification();
       this.showPaymentSourceList({refresh: true});

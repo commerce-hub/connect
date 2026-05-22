@@ -177,32 +177,61 @@ const renderPaymentMethodTrailingContent = (
 
 const renderPaymentMethodDeleteAction = (
   paymentMethodId: string,
-  deleteLabel: string,
+  paymentMethodLabel: string,
   disabled = false,
   confirmingDelete = false
-): TemplateResult => html`
-  <span class="payment-method-delete-action">
-    ${confirmingDelete
-      ? html`
+): TemplateResult => {
+  const deleteLabel = `Delete ${paymentMethodLabel}`;
+
+  if (confirmingDelete) {
+    return html`
+      <span class="payment-method-delete-action">
+        <span class="payment-method-delete-confirmation-group">
           <span class="payment-method-delete-confirmation" role="status"
-            >press again to confirm</span
+            >Remove this payment method?</span
           >
-        `
-      : ''}
-    <button
-      class="payment-method-delete-button"
-      type="button"
-      aria-label=${confirmingDelete
-        ? `${deleteLabel}. Press again to confirm`
-        : deleteLabel}
-      data-action="delete-payment-source"
-      data-payment-method-id=${paymentMethodId}
-      ?disabled=${disabled}
-    >
-      <span class="payment-method-delete-icon" aria-hidden="true"></span>
-    </button>
-  </span>
-`;
+          <span class="payment-method-delete-confirmation-controls">
+            <button
+              class="payment-method-delete-confirm-button"
+              type="button"
+              aria-label=${`Cancel deleting ${paymentMethodLabel}`}
+              data-action="cancel-delete-payment-source"
+              data-payment-method-id=${paymentMethodId}
+              ?disabled=${disabled}
+            >
+              Cancel
+            </button>
+            <button
+              class="payment-method-delete-confirm-button payment-method-delete-confirm-button-danger"
+              type="button"
+              aria-label=${deleteLabel}
+              data-action="delete-payment-source"
+              data-payment-method-id=${paymentMethodId}
+              ?disabled=${disabled}
+            >
+              Delete
+            </button>
+          </span>
+        </span>
+      </span>
+    `;
+  }
+
+  return html`
+    <span class="payment-method-delete-action">
+      <button
+        class="payment-method-delete-button"
+        type="button"
+        aria-label=${deleteLabel}
+        data-action="delete-payment-source"
+        data-payment-method-id=${paymentMethodId}
+        ?disabled=${disabled}
+      >
+        <span class="payment-method-delete-icon" aria-hidden="true"></span>
+      </button>
+    </span>
+  `;
+};
 
 const renderPaymentMethodContent = (
   method: PaymentMethod,
@@ -523,7 +552,11 @@ export const renderPaymentMethodRow = (
 
     return html`
       <div
-        class="payment-method-row payment-method-row-edit"
+        class=${joinClassNames(
+          'payment-method-row',
+          'payment-method-row-edit',
+          confirmingDelete && 'payment-method-row-delete-confirming'
+        )}
         aria-label=${label}
         data-payment-method-id=${id}
       >
@@ -531,7 +564,7 @@ export const renderPaymentMethodRow = (
           editMethod,
           renderPaymentMethodDeleteAction(
             id,
-            `Delete ${label}`,
+            label,
             deleteDisabled,
             confirmingDelete
           )
