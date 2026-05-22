@@ -717,6 +717,9 @@ suite('commerce-hub-connect primitives', () => {
 
   test('renders widget loading overlays with status semantics without removing content', async () => {
     const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
       ${renderWidgetShell({
         title: 'Add card',
         busy: true,
@@ -740,6 +743,9 @@ suite('commerce-hub-connect primitives', () => {
     `);
 
     const shell = root.querySelector<HTMLElement>('.widget-shell')!;
+    const overlay = root.querySelector<HTMLElement>(
+      '.widget-loading-overlay'
+    )!;
 
     assert.equal(shell.getAttribute('aria-busy'), 'true');
     assert.exists(root.querySelector('.retained-control'));
@@ -752,6 +758,11 @@ suite('commerce-hub-connect primitives', () => {
       'status'
     );
     assert.exists(root.querySelector('.widget-loading-animation'));
+    assert.equal(
+      getComputedStyle(overlay).backgroundColor,
+      'rgb(255, 255, 255)'
+    );
+    assert.equal(getComputedStyle(overlay).opacity, '1');
     assert.notExists(
       root.querySelector('.widget-loading-overlay .loading-spinner')
     );
@@ -779,6 +790,11 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(container);
     assert.equal(getComputedStyle(container).minHeight, '500px');
     assert.equal(overlay.getAttribute('role'), 'status');
+    assert.equal(
+      getComputedStyle(overlay).backgroundColor,
+      'rgb(255, 255, 255)'
+    );
+    assert.equal(getComputedStyle(overlay).opacity, '1');
     assert.equal(
       overlay.textContent?.replace(/\s+/g, ' ').trim(),
       'Connecting to your bank'
