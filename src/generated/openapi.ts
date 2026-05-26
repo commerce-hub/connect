@@ -670,7 +670,7 @@ export interface components {
             postalCode?: string;
             country?: string;
         };
-        MPPSetupInfo: unknown;
+        MPPSetupInfo: Record<string, never>;
         MerchantData: {
             clientId?: string;
             merchantId?: string;
@@ -683,7 +683,7 @@ export interface components {
             mpp?: components["schemas"]["MPPSetupInfo"];
             disabled?: boolean;
         };
-        X402SetupInfo: unknown;
+        X402SetupInfo: Record<string, never>;
         OTPValidateRequest: {
             email?: string;
             otp?: string;
