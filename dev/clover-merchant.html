@@ -630,7 +630,7 @@
         display: grid;
         justify-items: center;
         width: 100%;
-          margin-top: 10px;
+        margin-top: 10px;
       }
 
       .sdk-status {
@@ -1068,7 +1068,8 @@
             merchantId: '101475000000009',
             terminalId: '10000001',
           },
-          advancedVerification: false,
+          entityData: {firstName: 'Neer'},
+          advancedVerification: true,
           mode: 'PRE_AUTHENTICATED',
         };
 
@@ -1231,7 +1232,8 @@
                 continueButton: 'Use selected account',
               },
               noSavedPaymentMethods: {
-                title: 'Clover uses AllData, a Fiserv Company, to connect your accounts',
+                title:
+                  'Clover uses AllData, a Fiserv Company, to connect your accounts',
                 emptyTitle: '',
                 addBankAccountTitle: 'Add bank account',
                 addBankAccountSubtitle: '',
