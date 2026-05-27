@@ -321,6 +321,22 @@ const fillNewCardForm = async (el: CommerceHubConnect) => {
   await setFieldValue(el, 'billing-zip', '10001');
 };
 
+const savedBillingAddressResponse = () => ({
+  interactionId: 'interaction-payment',
+  status: 'PAYMENT_SOURCE_REQUESTED',
+  billerAddress: [
+    {
+      id: 'billing-1',
+      recipientNameOrAddress: 'Ada Lovelace',
+      street: '1 Main St',
+      city: 'New York',
+      stateOrProvince: 'NY',
+      postalCode: '10001',
+      country: 'US',
+    },
+  ],
+});
+
 const recordOutputEvents = (el: Element) => {
   const successEvents: CustomEvent<PaymentSource>[] = [];
   const errorEvents: CustomEvent<unknown>[] = [];
@@ -1546,6 +1562,152 @@ suite('commerce-hub-connect flow', () => {
         ?.textContent?.trim(),
       'Save card'
     );
+  });
+
+  test('shows a collapsed billing address summary when a saved address is selected', async () => {
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (request.url.endsWith('/interaction')) {
+        return new Response(JSON.stringify(savedBillingAddressResponse()), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+        },
+      ],
+    });
+
+    await clickAction(el, 'add-card');
+    await waitFor(
+      () =>
+        el.shadowRoot!
+          .querySelector('.billing-address-summary')
+          ?.textContent?.includes('1 Main St, New York, NY 10001') ?? false
+    );
+
+    assert.notExists(el.shadowRoot!.querySelector('#billing-address'));
+    assert.notExists(el.shadowRoot!.querySelector('#billing-country'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.billing-address-summary-label')
+        ?.textContent?.trim(),
+      'Billing address'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="change-billing-address"]')
+        ?.textContent?.trim(),
+      'Change'
+    );
+  });
+
+  test('billing address Change reveals saved address selector', async () => {
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (request.url.endsWith('/interaction')) {
+        return new Response(JSON.stringify(savedBillingAddressResponse()), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+        },
+      ],
+    });
+
+    await clickAction(el, 'add-card');
+    await waitFor(() =>
+      Boolean(el.shadowRoot!.querySelector('.billing-address-summary'))
+    );
+    await clickAction(el, 'change-billing-address');
+
+    assert.exists(el.shadowRoot!.querySelector('#billing-address'));
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLOptionElement>(
+          '#billing-address option'
+        ),
+      ].map((option) => option.textContent?.trim()),
+      ['1 Main St, New York, NY 10001', 'Add new billing address']
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('.billing-address-summary')
+    );
+  });
+
+  test('selecting Add new billing address reveals billing address fields', async () => {
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (request.url.endsWith('/interaction')) {
+        return new Response(JSON.stringify(savedBillingAddressResponse()), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+        },
+      ],
+    });
+
+    await clickAction(el, 'add-card');
+    await waitFor(() =>
+      Boolean(el.shadowRoot!.querySelector('.billing-address-summary'))
+    );
+    await clickAction(el, 'change-billing-address');
+    await setSelectValue(el, 'billing-address', '__new__');
+
+    assert.exists(el.shadowRoot!.querySelector('#billing-address'));
+    assert.exists(el.shadowRoot!.querySelector('#billing-country'));
+    assert.exists(el.shadowRoot!.querySelector('#billing-address-line-1'));
+    assert.exists(el.shadowRoot!.querySelector('#billing-city'));
+    assert.exists(el.shadowRoot!.querySelector('#billing-state'));
+    assert.exists(el.shadowRoot!.querySelector('#billing-zip'));
   });
 
   test('card save shows an overlay, preserves typed values, and disables form controls while pending', async () => {
@@ -2891,9 +3053,16 @@ suite('commerce-hub-connect flow', () => {
       interactionRequestCount + 1
     );
     await waitFor(() =>
-      Boolean(el.shadowRoot!.querySelector('#billing-address'))
+      Boolean(el.shadowRoot!.querySelector('.billing-address-summary'))
     );
 
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.billing-address-summary-value')
+        ?.textContent?.trim(),
+      '1 Main St, New York, NY 10001'
+    );
+    await clickAction(el, 'change-billing-address');
     assert.deepEqual(
       [
         ...el.shadowRoot!.querySelectorAll<HTMLOptionElement>(
@@ -2908,7 +3077,13 @@ suite('commerce-hub-connect flow', () => {
     await setFieldValue(el, 'card-number', '4111 1111 1111 1111');
     await setFieldValue(el, 'expiration-date', '04/30');
     await setFieldValue(el, 'card-cvv', '123');
+    await setSelectValue(el, 'billing-address', '__new__');
+    assert.exists(el.shadowRoot!.querySelector('#billing-country'));
     await setSelectValue(el, 'billing-address', 'billing-1');
+    assert.exists(
+      el.shadowRoot!.querySelector('.billing-address-summary')
+    );
+    assert.notExists(el.shadowRoot!.querySelector('#billing-address'));
     await blurField(el, 'card-number');
     await waitForRequest(requests, '/interaction/source/mask/card');
     await blurField(el, 'card-cvv');

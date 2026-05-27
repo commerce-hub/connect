@@ -503,6 +503,28 @@ export const primitiveStyles = css`
     grid-column: 1 / -1;
   }
 
+  .billing-address-summary {
+    gap: 0.375rem;
+    padding: 0.625rem 0.75rem;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: 0.5rem;
+    background: var(--chc-soft-surface);
+  }
+
+  .billing-address-summary-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .billing-address-summary-value {
+    margin: 0;
+    color: var(--chc-copy);
+    font-size: 0.875em;
+    line-height: 1.4;
+  }
+
   .field-label {
     color: var(--chc-text);
     font-weight: 500;
