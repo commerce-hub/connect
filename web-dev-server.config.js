@@ -6,6 +6,11 @@
 
 import {legacyPlugin} from '@web/dev-server-legacy';
 
+import {
+  createCommerceHubDevAuthHeaders,
+  isCommerceHubDevCreateInteractionRequest,
+} from './dev/commerce-hub-dev-auth.js';
+
 const mode = process.env.MODE || 'dev';
 if (!['dev', 'prod'].includes(mode)) {
   throw new Error(`MODE must be "dev" or "prod", was "${mode}"`);
@@ -53,6 +58,7 @@ const commerceHubProxyMiddleware = async (context, next) => {
   const targetUrl = new URL(pathParts.join('/'), `${targetBaseUrl}/`);
   targetUrl.search = context.querystring;
 
+  const proxyPath = `/${pathParts.join('/')}`;
   const headers = new Headers();
   for (const [header, value] of Object.entries(context.headers)) {
     if (!blockedProxyRequestHeaders.has(header) && value !== undefined) {
@@ -61,10 +67,37 @@ const commerceHubProxyMiddleware = async (context, next) => {
   }
 
   const hasBody = !['GET', 'HEAD'].includes(context.method);
+  const shouldSignDevCreateInteraction =
+    isCommerceHubDevCreateInteractionRequest({
+      preset,
+      method: context.method,
+      path: proxyPath,
+    });
+  let body = hasBody ? context.req : undefined;
+
+  if (shouldSignDevCreateInteraction) {
+    const bodyBuffer = await readRequestBody(context.req);
+
+    try {
+      applyHeaders(
+        headers,
+        createCommerceHubDevAuthHeaders({
+          body: bodyBuffer.toString('utf8'),
+        })
+      );
+    } catch (error) {
+      context.status = 500;
+      context.body = error instanceof Error ? error.message : String(error);
+      return;
+    }
+
+    body = bodyBuffer;
+  }
+
   const response = await fetch(targetUrl, {
     method: context.method,
     headers,
-    body: hasBody ? context.req : undefined,
+    body,
     ...(hasBody ? {duplex: 'half'} : {}),
   });
 
@@ -75,6 +108,22 @@ const commerceHubProxyMiddleware = async (context, next) => {
     }
   });
   context.body = Buffer.from(await response.arrayBuffer());
+};
+
+const applyHeaders = (target, headers) => {
+  Object.entries(headers).forEach(([header, value]) => {
+    target.set(header, value);
+  });
+};
+
+const readRequestBody = async (request) => {
+  const chunks = [];
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks);
 };
 
 export default {

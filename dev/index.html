@@ -445,7 +445,10 @@
                 <p class="helper-text">
                   The JSON preview updates from the form controls and is sent to
                   <code>/merchant/interaction/create</code>. Named environments
-                  are routed through the local dev-server proxy.
+                  are routed through the local dev-server proxy. DEV create
+                  requests are signed by the proxy with temporary local defaults
+                  or <code>COMMERCE_HUB_DEV_API_KEY</code> and
+                  <code>COMMERCE_HUB_DEV_API_SECRET</code> overrides.
                 </p>
                 <pre
                   id="interaction-request-preview"
