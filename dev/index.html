@@ -444,7 +444,8 @@
                 <span class="field-label">Request body</span>
                 <p class="helper-text">
                   The JSON preview updates from the form controls and is sent to
-                  <code>/merchant/interaction/create</code>.
+                  <code>/merchant/interaction/create</code>. Named environments
+                  are routed through the local dev-server proxy.
                 </p>
                 <pre
                   id="interaction-request-preview"
@@ -1051,11 +1052,7 @@
       let latestInteractionResponse;
       let latestWidgetPropertiesMessage;
 
-      const COMMERCE_HUB_BASE_URLS = {
-        DEV: 'https://connect-dev.fiservapis.com/chc',
-        QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
-        PROD: 'https://qa.openfx-nonprod.aws.fisv.cloud',
-      };
+      const COMMERCE_HUB_PROXY_PREFIX = '/__commercehub';
       const CUSTOM_BASE_URL_MODE = 'CUSTOM';
       const initialApiBaseUrl =
         new URLSearchParams(window.location.search).get('apiBaseUrl') ??
@@ -1113,14 +1110,13 @@
           return requestFields.customBaseURL.value.trim();
         }
 
-        return mode;
+        return createCommerceHubProxyBaseURL(mode);
       };
 
-      const resolveCreateInteractionBaseURL = () => {
-        const baseURL = resolveWidgetBaseURL();
+      const resolveCreateInteractionBaseURL = () => resolveWidgetBaseURL();
 
-        return COMMERCE_HUB_BASE_URLS[baseURL] ?? baseURL;
-      };
+      const createCommerceHubProxyBaseURL = (preset) =>
+        `${window.location.origin}${COMMERCE_HUB_PROXY_PREFIX}/${preset}`;
 
       const syncBaseURLControls = () => {
         const isCustom =

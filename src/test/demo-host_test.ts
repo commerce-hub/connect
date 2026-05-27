@@ -781,7 +781,7 @@ suite('demo host page', () => {
     );
   });
 
-  test('preserves the DEV preset path prefix for merchant interaction create requests', async () => {
+  test('routes DEV preset merchant interaction create requests through the local proxy', async () => {
     const iframe = document.createElement('iframe');
     const iframeLoaded = new Promise<void>((resolve) => {
       iframe.addEventListener('load', () => resolve(), {once: true});
@@ -836,7 +836,21 @@ suite('demo host page', () => {
 
     assert.equal(
       createRequest.url,
-      'https://connect-dev.fiservapis.com/chc/merchant/interaction/create'
+      `${pageWindow.location.origin}/__commercehub/DEV/merchant/interaction/create`
+    );
+
+    await waitFor(
+      () => Boolean(pageDocument.querySelector('commerce-hub-connect')),
+      'expected form submit to initialize the widget'
+    );
+
+    const connectWidget = pageDocument.querySelector<
+      HTMLElement & {baseURL?: string}
+    >('commerce-hub-connect');
+
+    assert.equal(
+      connectWidget?.baseURL,
+      `${pageWindow.location.origin}/__commercehub/DEV`
     );
 
     iframe.remove();
