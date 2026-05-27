@@ -1,144 +1,156 @@
 # CommerceHub Connect Web SDK
 
-This package provides the CommerceHub Connect widget as a Lit-based web
-component. The current implementation establishes the internal primitive
-foundation from the Figma source of truth and includes the first SDK-owned flow
-slice for OTP verification and saved payment-method selection.
+CommerceHub Connect Web SDK provides the `<commerce-hub-connect>` custom
+element for embedding CommerceHub payment-source flows in merchant checkout and
+account experiences. The SDK is Lit-based, framework-agnostic, and exports
+TypeScript types generated from the CommerceHub OpenAPI schema.
 
-## Current scope
+## Install
 
-- Public web component: `<commerce-hub-connect>`
-- Typed CommerceHub API client generated from `swagger.json`
-- Internal primitives for widget shell, buttons, fields, OTP inputs, alerts,
-  status pills, payment method rows, source actions, detail rows, and form grids
-- SDK-owned OTP validation and saved payment-source confirmation actions
-- Optional `designConfig` input for merchant-safe colors, typography, and copy
-- Optional `baseURL` input for SDK-managed CommerceHub API requests
-
-## Development
-
-Install dependencies:
+The package is currently private while the public NPM release is prepared. The
+planned package name is the current package name:
 
 ```bash
-npm i
+npm install commerce-hub-connect-sdk
 ```
 
-Build the component:
-
-```bash
-npm run build
-```
-
-Regenerate the typed API client after `swagger.json` changes:
-
-```bash
-npm run generate:client
-```
-
-Run tests:
-
-```bash
-npm test
-```
-
-Start the local demo:
-
-```bash
-npm run serve
-```
-
-Then open `/dev/index.html`.
-
-## API client
-
-The SDK exports a typed `fetch` client for the CommerceHub OpenAPI surface.
-Generated schema types live in `src/generated/openapi.ts`; do not edit that
-file by hand.
+Import the module once in the page or bundle where you use the element:
 
 ```ts
-import {createCommerceHubClient} from './commerce-hub-connect.js';
-
-const client = createCommerceHubClient({
-  baseUrl: 'https://api.example.com',
-  headers: {Authorization: `Bearer ${token}`},
-});
-
-const {data, error} = await client.GET('/interaction');
+import 'commerce-hub-connect-sdk';
 ```
 
-When `<commerce-hub-connect>` performs SDK-managed interaction calls, it uses
-`http://localhost:8080` by default and sends `interactionResponse.interactionId`
-as the `x-interaction-id` header. OTP validation and OTP resend require that
-`interactionId`; if it is missing, the widget keeps the current screen stable
-and does not call the API.
+Then render the custom element:
 
-Set the optional `.baseURL` property to route SDK-managed widget requests to a
-CommerceHub environment preset or a custom origin. The `DEV`, `QA`, and `PROD`
-presets currently resolve to
-`https://qa.openfx-nonprod.aws.fisv.cloud`.
-
-```ts
-html`<commerce-hub-connect
-  .interactionResponse=${interactionResponse}
-  .baseURL=${'QA'}
-></commerce-hub-connect>`;
+```html
+<commerce-hub-connect></commerce-hub-connect>
 ```
 
-Custom origins can be passed directly:
+## End-to-end integration
+
+The host application owns CommerceHub authentication and the initial interaction
+request. The SDK owns the browser widget once the host passes an
+`InteractionResponse` to the element.
+
+1. Your backend creates or retrieves a CommerceHub interaction for the shopper.
+2. Your frontend receives the resulting `InteractionResponse`.
+3. Your frontend mounts `<commerce-hub-connect>` and assigns
+   `.interactionResponse`.
+4. The SDK renders the current interaction step and performs SDK-managed calls
+   with `interactionResponse.interactionId` as the `x-interaction-id` header.
+5. The shopper completes the required flow, such as OTP, saved source
+   selection, card entry, ACH entry, Pay by Bank, or additional verification.
+6. The SDK emits `onSuccess` with the selected `PaymentSource` in
+   `event.detail` after a verified source is attached or selected.
 
 ```ts
-html`<commerce-hub-connect
-  .interactionResponse=${interactionResponse}
-  .baseURL=${'https://api.example.com'}
-></commerce-hub-connect>`;
-```
-
-The exported `createCommerceHubClient` helper accepts `baseUrl` and `baseURL`;
-if both are provided, `baseUrl` takes precedence.
-
-Saved payment-method confirmation is local: after the shopper selects a saved
-method and presses Continue, the widget does not call
-`/interaction/payment-source/{paymentSourceId}/attach`. Instead, it emits
-`onSuccess` with the selected `PaymentSource` as `event.detail`. Initial
-`interactionResponse` hydration does not emit `onSuccess`.
-
-Pass an `InteractionResponse` into the component with a property binding when
-the host app owns the API call:
-
-```ts
+import 'commerce-hub-connect-sdk';
 import type {
-  DesignConfig,
   InteractionResponse,
-} from './commerce-hub-connect.js';
+  OnSuccessEvent,
+} from 'commerce-hub-connect-sdk';
 
-const interactionResponse: InteractionResponse = await loadInteraction();
-const designConfig: DesignConfig = {
+const interactionResponse: InteractionResponse = await fetch(
+  '/api/commercehub/interaction'
+).then((response) => response.json());
+
+const widget = document.querySelector('commerce-hub-connect');
+
+if (widget) {
+  widget.interactionResponse = interactionResponse;
+  widget.baseURL = 'QA';
+  widget.addEventListener('onSuccess', (event: Event) => {
+    const {detail: paymentSource} = event as OnSuccessEvent;
+
+    console.log('Selected payment source', paymentSource);
+  });
+}
+```
+
+## SDK-managed requests
+
+When the widget performs CommerceHub calls, it uses `http://localhost:8080` by
+default. Set `.baseURL` to one of the CommerceHub presets or to a custom origin.
+The current `DEV`, `QA`, and `PROD` presets resolve to the QA non-production
+CommerceHub origin until final environment values are published.
+
+```ts
+widget.baseURL = 'QA';
+widget.baseURL = 'https://api.example.com';
+```
+
+SDK-managed calls include OTP validation and resend, payment-source attach and
+delete, card and ACH source creation, sensitive value masking, source
+verification, required-info upload, Pay by Bank session handling, and native
+account balance lookup.
+
+If `interactionResponse.interactionId` is missing, the widget keeps the current
+screen stable and does not call the CommerceHub API.
+
+## Design configuration
+
+Pass `.designConfig` to adjust merchant-safe colors, typography, spacing, copy,
+and Pay by Bank provider settings. All fields are optional and omitted values
+fall back to SDK defaults.
+
+```ts
+widget.designConfig = {
   colors: {
     primary: '#084acc',
     text: '#101828',
     border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+    paymentMethodBackground: '#f8fafc',
   },
   baseFontSize: '16px',
-  baseFontWeight: '300',
+  baseFontWeight: '400',
+  shellPadding: '1.75rem 1.5rem 1.5rem',
   copy: {
     otp: {
       title: 'Confirm your email',
       verifyButton: 'Verify',
     },
     paymentMethods: {
-      title: 'Choose payment',
+      title: 'Choose payment method',
       continueButton: 'Use selected method',
     },
   },
 };
-
-html`<commerce-hub-connect
-  .interactionResponse=${interactionResponse}
-  .baseURL=${'QA'}
-  .designConfig=${designConfig}
-></commerce-hub-connect>`;
 ```
 
-`designConfig` and all nested fields are optional. Any omitted color,
-`baseFontSize`, `baseFontWeight`, title, subtitle, or button label falls back
-to the SDK default.
+## Typed API client
+
+The SDK also exports a typed `openapi-fetch` client for CommerceHub API calls
+owned by the host application.
+
+```ts
+import {createCommerceHubClient} from 'commerce-hub-connect-sdk';
+
+const client = createCommerceHubClient({
+  baseURL: 'QA',
+  getHeaders: async () => ({
+    Authorization: `Bearer ${await loadCommerceHubToken()}`,
+  }),
+});
+
+const {data, error} = await client.GET('/interaction');
+```
+
+Generated OpenAPI types live in `src/generated/openapi.ts`; regenerate them
+with `npm run generate:client` after `swagger.json` changes.
+
+## Development
+
+```bash
+npm i
+npm run build
+npm test
+```
+
+Run the local demo:
+
+```bash
+npm run serve
+```
+
+Then open `/dev/index.html`.

@@ -12,13 +12,15 @@ module.exports = class Docs {
 
   render(data) {
     const manifest = data.api['11tydata'].customElements;
-    const elements = manifest.modules.reduce(
-      (els, module) =>
-        els.concat(
-          module.declarations?.filter((dec) => dec.customElement) ?? []
-        ),
-      []
-    ).filter((element) => element.tagName === 'commerce-hub-connect');
+    const elements = manifest.modules
+      .reduce(
+        (els, module) =>
+          els.concat(
+            module.declarations?.filter((dec) => dec.customElement) ?? []
+          ),
+        []
+      )
+      .filter((element) => element.tagName === 'commerce-hub-connect');
     return `
      <h1>API</h1>
      ${elements
@@ -54,7 +56,11 @@ module.exports = class Docs {
              ),
            }))
        )}
-       ${renderTable('Events', ['name', 'description'], element.events)}    
+       ${renderTable(
+         'Events',
+         ['name', 'description'],
+         normalizeEvents(element.events)
+       )}    
        ${renderTable(
          'Slots',
          [['name', '(default)'], 'description'],
@@ -75,6 +81,34 @@ module.exports = class Docs {
        .join('')}
    `;
   }
+};
+
+const normalizeEvents = (events) => {
+  const normalized =
+    events?.map((event) => {
+      if (event.name !== 'ON_SUCCESS_EVENT') {
+        return event;
+      }
+
+      return {
+        ...event,
+        name: 'onSuccess',
+        description:
+          event.description ||
+          'Emitted with the selected PaymentSource after a verified payment source is attached or selected.',
+      };
+    }) ?? [];
+  const byName = new Map();
+
+  for (const event of normalized) {
+    const existing = byName.get(event.name);
+
+    if (!existing || (!existing.description && event.description)) {
+      byName.set(event.name, event);
+    }
+  }
+
+  return [...byName.values()];
 };
 
 /**

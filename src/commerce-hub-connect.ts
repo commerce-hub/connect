@@ -50,20 +50,50 @@ export {
 } from './internal/api-client.js';
 export type {components, operations, paths} from './generated/openapi.js';
 
+/**
+ * CommerceHub interaction payload used to render the current widget state.
+ *
+ * Host applications usually retrieve this value from a merchant-owned backend
+ * endpoint, then assign it to `<commerce-hub-connect>.interactionResponse`.
+ */
 export type InteractionResponse = components['schemas']['InteractionResponse'];
+
+/**
+ * Error payload reserved for future public SDK error events.
+ */
 export interface InteractionError {
   code?: string;
   message: string;
   cause?: unknown;
 }
 
+/**
+ * CommerceHub payment source selected or created by the shopper.
+ */
 export type PaymentSource = NonNullable<
   InteractionResponse['paymentSources']
 >[number];
+
+/**
+ * Event emitted after the widget successfully attaches or selects a verified
+ * payment source.
+ */
 export type OnSuccessEvent = CustomEvent<PaymentSource>;
+
+/**
+ * Event type reserved for future public SDK error handling.
+ */
 export type OnErrorEvent = CustomEvent<InteractionError>;
 
+/**
+ * Name of the success event emitted by `<commerce-hub-connect>`.
+ */
 export const ON_SUCCESS_EVENT = 'onSuccess';
+
+/**
+ * Reserved error event name. The current widget renders recoverable flow errors
+ * inline rather than emitting this event.
+ */
 export const ON_ERROR_EVENT = 'onError';
 
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
@@ -281,16 +311,34 @@ const demoPaymentMethods: PaymentMethod[] = [
 /**
  * CommerceHub Connect Web SDK widget shell.
  *
- * Renders the SDK-owned interaction flow slice for OTP verification and saved
- * payment-source selection.
+ * Renders SDK-managed shopper flows for CommerceHub interactions, including
+ * OTP, saved payment-source selection, source creation, source verification,
+ * Pay by Bank handoff, and required-info collection.
+ *
+ * @fires onSuccess - Emitted with a `PaymentSource` detail after a verified
+ * payment source is attached or selected.
  */
 @customElement('commerce-hub-connect')
 export class CommerceHubConnect extends LitElement {
   static override styles = primitiveStyles;
 
+  /**
+   * CommerceHub interaction payload that controls the visible widget state.
+   *
+   * Assign this as a DOM property, not as an HTML attribute. SDK-managed API
+   * calls use `interactionResponse.interactionId` as the `x-interaction-id`
+   * header.
+   */
   @property({attribute: false})
   interactionResponse?: InteractionResponse;
 
+  /**
+   * Optional merchant-safe colors, typography, spacing, copy, and Pay by Bank
+   * provider settings.
+   *
+   * Assign this as a DOM property. Omitted nested values fall back to SDK
+   * defaults.
+   */
   @property({attribute: false})
   designConfig?: DesignConfig;
 
@@ -1335,8 +1383,7 @@ export class CommerceHubConnect extends LitElement {
     const isEncrypting =
       this.bankAccountEncryption.routingNumber.status === 'encrypting' ||
       this.bankAccountEncryption.accountNumber.status === 'encrypting' ||
-      this.bankAccountEncryption.accountNumberReEntered.status ===
-        'encrypting';
+      this.bankAccountEncryption.accountNumberReEntered.status === 'encrypting';
 
     return this.renderWidgetShell({
       title: 'Enter bank details',
@@ -4042,14 +4089,24 @@ export class CommerceHubConnect extends LitElement {
 }
 
 export interface DesignConfig {
+  /** Merchant-safe color overrides for the widget. */
   colors?: DesignConfigColors;
+  /** Base font size applied to the host element, such as `16px`. */
   baseFontSize?: string;
+  /** Base font weight used by SDK text that inherits the design token. */
   baseFontWeight?: string;
+  /** Padding applied inside the widget shell, such as `1.75rem 1.5rem`. */
   shellPadding?: string;
+  /** Screen-level copy overrides. */
   copy?: DesignConfigCopy;
+  /** Pay by Bank provider configuration overrides. */
   payByBank?: DesignConfigPayByBank;
 }
 
+/**
+ * Pay by Bank provider configuration used when a shopper starts the bank
+ * handoff flow.
+ */
 export interface DesignConfigPayByBank {
   apiKey?: string;
   configId?: string;
@@ -4058,6 +4115,9 @@ export interface DesignConfigPayByBank {
   locale?: string;
 }
 
+/**
+ * Color tokens that can be overridden by merchant hosts.
+ */
 export interface DesignConfigColors {
   primary?: string;
   text?: string;
@@ -4087,8 +4147,11 @@ export interface DesignConfigColors {
 }
 
 export interface DesignConfigCopy {
+  /** Copy for OTP verification and resend screens. */
   otp?: DesignConfigOtpCopy;
+  /** Copy for saved payment-source screens. */
   paymentMethods?: DesignConfigPaymentMethodsCopy;
+  /** Copy for the no-saved-payment-methods screen. */
   noSavedPaymentMethods?: DesignConfigNoSavedPaymentMethodsCopy;
 }
 
@@ -4491,17 +4554,18 @@ const isBankAccountDraftReady = (
 
   return (
     Object.keys(validateBankAccountDraft(normalizedDraft)).length === 0 &&
-    (['routingNumber', 'accountNumber', 'accountNumberReEntered'] as const)
-      .every((field) => {
-        const encryptedField = encryption[field];
-        const normalizedValue = normalizedDraft[field];
+    (
+      ['routingNumber', 'accountNumber', 'accountNumberReEntered'] as const
+    ).every((field) => {
+      const encryptedField = encryption[field];
+      const normalizedValue = normalizedDraft[field];
 
-        return (
-          encryptedField.status === 'encrypted' &&
-          encryptedField.normalizedValue === normalizedValue &&
-          Boolean(encryptedField.encryptedValue)
-        );
-      })
+      return (
+        encryptedField.status === 'encrypted' &&
+        encryptedField.normalizedValue === normalizedValue &&
+        Boolean(encryptedField.encryptedValue)
+      );
+    })
   );
 };
 
@@ -5051,11 +5115,7 @@ const resolvePaymentSdkAppearance = (
       colors?.borderBackground
     )
   );
-  setPaymentSdkBrandingValue(
-    branding,
-    'placeholderColor',
-    colors?.placeholder
-  );
+  setPaymentSdkBrandingValue(branding, 'placeholderColor', colors?.placeholder);
 
   return {branding};
 };
