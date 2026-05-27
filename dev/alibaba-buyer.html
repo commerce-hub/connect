@@ -2087,8 +2087,14 @@
       let widget;
       let linkedPaymentSource;
 
-      const createApiUrl = (path) =>
-        new URL(path, commerceHubApiBaseUrl).toString();
+      const createApiUrl = (path) => {
+        const normalizedBaseURL = commerceHubApiBaseUrl.endsWith('/')
+          ? commerceHubApiBaseUrl
+          : `${commerceHubApiBaseUrl}/`;
+        const normalizedPath = path.replace(/^\/+/, '');
+
+        return new URL(normalizedPath, normalizedBaseURL).toString();
+      };
 
       const showPage = (pageId) => {
         pages.forEach((page) => {

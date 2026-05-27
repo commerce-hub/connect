@@ -17,7 +17,7 @@ suite('commerce-hub-connect api client', () => {
   test('resolves DEV, QA, and PROD presets to the configured CommerceHub origin', () => {
     assert.equal(
       resolveCommerceHubBaseURL('DEV'),
-      'https://qa.openfx-nonprod.aws.fisv.cloud'
+      'https://connect-dev.fiservapis.com/chc'
     );
     assert.equal(resolveCommerceHubBaseURL('QA'), COMMERCE_HUB_BASE_URLS.QA);
     assert.equal(

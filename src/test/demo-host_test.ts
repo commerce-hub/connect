@@ -781,6 +781,67 @@ suite('demo host page', () => {
     );
   });
 
+  test('preserves the DEV preset path prefix for merchant interaction create requests', async () => {
+    const iframe = document.createElement('iframe');
+    const iframeLoaded = new Promise<void>((resolve) => {
+      iframe.addEventListener('load', () => resolve(), {once: true});
+    });
+    iframe.src = '/dev/index.html';
+    document.body.append(iframe);
+    await iframeLoaded;
+
+    const pageWindow = iframe.contentWindow;
+    const pageDocument = iframe.contentDocument;
+    assert.isOk(pageWindow, 'expected demo iframe window');
+    assert.isOk(pageDocument, 'expected demo iframe document');
+
+    const createRequest = {
+      url: undefined as string | undefined,
+    };
+    pageWindow.fetch = (async (input) => {
+      createRequest.url = input instanceof Request ? input.url : String(input);
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'dev-create-interaction',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          paymentSources: [],
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    }) as typeof fetch;
+
+    const baseURLMode = pageDocument.querySelector<HTMLSelectElement>(
+      '#commerce-hub-api-base-url-mode'
+    );
+    const createForm = pageDocument.querySelector<HTMLFormElement>(
+      '#interaction-create-form'
+    );
+
+    assert.isOk(baseURLMode, 'expected base URL mode control');
+    assert.isOk(createForm, 'expected create interaction form');
+
+    baseURLMode.value = 'DEV';
+    baseURLMode.dispatchEvent(new Event('change', {bubbles: true}));
+    createForm.requestSubmit();
+
+    await waitFor(
+      () => Boolean(createRequest.url),
+      'expected form submit to call merchant interaction create'
+    );
+
+    assert.equal(
+      createRequest.url,
+      'https://connect-dev.fiservapis.com/chc/merchant/interaction/create'
+    );
+
+    iframe.remove();
+  });
+
   test('uses service-aligned default values for the structured create interaction request', async () => {
     const response = await fetch('/dev/index.html');
     const html = await response.text();

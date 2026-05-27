@@ -1052,7 +1052,7 @@
       let latestWidgetPropertiesMessage;
 
       const COMMERCE_HUB_BASE_URLS = {
-        DEV: 'https://qa.openfx-nonprod.aws.fisv.cloud',
+        DEV: 'https://connect-dev.fiservapis.com/chc',
         QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
         PROD: 'https://qa.openfx-nonprod.aws.fisv.cloud',
       };
@@ -1096,8 +1096,15 @@
       const initialWidgetPropertiesMessage =
         'Submit the create request or choose a scenario to see the widget properties.';
 
-      const createApiUrl = (path) =>
-        new URL(path, resolveCreateInteractionBaseURL()).toString();
+      const createApiUrl = (path) => {
+        const baseURL = resolveCreateInteractionBaseURL();
+        const normalizedBaseURL = baseURL.endsWith('/')
+          ? baseURL
+          : `${baseURL}/`;
+        const normalizedPath = path.replace(/^\/+/, '');
+
+        return new URL(normalizedPath, normalizedBaseURL).toString();
+      };
 
       const resolveWidgetBaseURL = () => {
         const mode = requestFields.baseURLMode.value;

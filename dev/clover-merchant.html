@@ -1056,8 +1056,14 @@
 
       dashboardEmail.textContent = MERCHANT_EMAIL;
 
-      const createApiUrl = (path) =>
-        new URL(path, commerceHubApiBaseUrl).toString();
+      const createApiUrl = (path) => {
+        const normalizedBaseURL = commerceHubApiBaseUrl.endsWith('/')
+          ? commerceHubApiBaseUrl
+          : `${commerceHubApiBaseUrl}/`;
+        const normalizedPath = path.replace(/^\/+/, '');
+
+        return new URL(normalizedPath, normalizedBaseURL).toString();
+      };
 
       const buildInteractionRequest = () => {
         const interactionRequest = {

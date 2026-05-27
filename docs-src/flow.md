@@ -112,8 +112,9 @@ widget.baseURL = 'https://api.example.com';
 {% endraw %}
 ```
 
-The current `DEV`, `QA`, and `PROD` presets resolve to the QA non-production
-CommerceHub origin until final environment values are published.
+The `DEV` preset resolves to `https://connect-dev.fiservapis.com/chc`. The
+current `QA` and `PROD` presets resolve to the QA non-production CommerceHub
+origin until final environment values are published.
 
 Keep CommerceHub credentials, merchant tokens, and customer-sensitive backend
 data out of browser code. The browser should receive only the interaction data
