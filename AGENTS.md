@@ -34,6 +34,8 @@ Do not commit secrets, merchant tokens, or real customer data. Keep API fixtures
 
 ## Codex Learnings
 
+- 2026-05-27: Red check: `npm run build failed` before implementation on missing oauth type.
+
 - 2026-05-27: Npm run test:proxy-auth passed.
 
 - 2026-05-27: `BROWSERS=chromium npm run test:dev -- --files test/demo-host_test`.js -> 10 passed.
