@@ -37,7 +37,9 @@ request. The SDK owns the browser widget once the host passes an
 3. Your frontend mounts `<commerce-hub-connect>` and assigns
    `.interactionResponse`.
 4. The SDK renders the current interaction step and performs SDK-managed calls
-   with `interactionResponse.interactionId` as the `x-interaction-id` header.
+   with `interactionResponse.interactionId` as the `x-interaction-id` header,
+   and with `Authorization: Bearer <token>` when
+   `interactionResponse.oauth.access_token` is present.
 5. The shopper completes the required flow, such as OTP, saved source
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
 6. The SDK emits `onSuccess` with the selected `PaymentSource` in
@@ -99,6 +101,11 @@ SDK-managed calls include OTP validation and resend, payment-source attach and
 delete, card and ACH source creation, sensitive value masking, source
 verification, required-info upload, Pay by Bank session handling, and native
 account balance lookup.
+
+The widget always sends `x-interaction-id` with
+`interactionResponse.interactionId`. When
+`interactionResponse.oauth.access_token` is present, it also sends
+`Authorization: Bearer <token>`.
 
 If `interactionResponse.interactionId` is missing, the widget keeps the current
 screen stable and does not call the CommerceHub API.

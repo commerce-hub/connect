@@ -41,11 +41,13 @@ import 'commerce-hub-connect-sdk';
 
 const widget = document.createElement('commerce-hub-connect');
 widget.baseURL = 'QA';
-widget.interactionResponse = await fetch('/api/commercehub/interaction', {
+const interactionResponse = await fetch('/api/commercehub/interaction', {
   method: 'POST',
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({orderId, amount}),
 }).then((response) => response.json());
+
+widget.interactionResponse = interactionResponse;
 
 document.querySelector('#payment-host')?.replaceChildren(widget);
 {% endraw %}
@@ -58,8 +60,10 @@ document.querySelector('#payment-host')?.replaceChildren(widget);
 ## 3. Let the SDK advance the shopper flow
 
 The widget renders the correct screen for the current interaction state. It
-uses `interactionResponse.interactionId` as the `x-interaction-id` header for
-SDK-managed CommerceHub calls.
+always sends `interactionResponse.interactionId` as the `x-interaction-id`
+header for SDK-managed CommerceHub calls. When
+`interactionResponse.oauth.access_token` is present, it also sends
+`Authorization: Bearer <token>`.
 
 SDK-managed calls include:
 
