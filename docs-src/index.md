@@ -34,24 +34,26 @@ import 'commerce-hub-connect-sdk';
 
 const widget = document.querySelector('commerce-hub-connect');
 
-widget.interactionResponse = await fetch('/api/commercehub/interaction').then(
-  (response) => response.json()
-);
-widget.baseURL = 'QA';
-widget.addEventListener('onSuccess', async (event) => {
-  const selectedPaymentSource = event.detail;
-  const completedPaymentSource = await fetch(
-    '/api/commercehub/interaction/complete',
-    {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({value: widget.interactionResponse.interactionId}),
-    }
-  ).then((response) => response.json());
+if (widget) {
+  widget.interactionResponse = await fetch('/api/commercehub/interaction').then(
+    (response) => response.json()
+  );
+  widget.baseURL = 'QA';
+  widget.addEventListener('onSuccess', async (event) => {
+    const selectedPaymentSource = event.detail;
+    const completedPaymentSource = await fetch(
+      '/api/commercehub/interaction/complete',
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({value: widget.interactionResponse.interactionId}),
+      }
+    ).then((response) => response.json());
 
-  console.log('Selected source', selectedPaymentSource);
-  console.log('Completed source', completedPaymentSource);
-});
+    console.log('Selected source', selectedPaymentSource);
+    console.log('Completed source', completedPaymentSource);
+  });
+}
 {% endraw %}
 ```
 
@@ -61,9 +63,11 @@ widget.addEventListener('onSuccess', async (event) => {
 
 ## Request routing
 
-SDK-managed CommerceHub calls use `interactionResponse.interactionId` as the
-`x-interaction-id` header. If the interaction id is missing, the widget does not
-call the API and keeps the current screen stable.
+SDK-managed CommerceHub calls always send
+`interactionResponse.interactionId` as the `x-interaction-id` header. When
+`interactionResponse.oauth.access_token` is present, they also send
+`Authorization: Bearer <token>`. If the interaction id is missing, the widget
+does not call the API and keeps the current screen stable.
 
 The widget uses `http://localhost:8080` by default. Set `.baseURL` to a preset
 or custom origin before the shopper starts the flow:
