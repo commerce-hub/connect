@@ -899,6 +899,7 @@ export const renderWidgetShell = ({
   ariaLabel = 'Commerce Hub Connect',
   closeAction = 'close',
   showClose = true,
+  showDivider = false,
   showFooter = true,
   busy = false,
   overlay,
@@ -931,7 +932,9 @@ export const renderWidgetShell = ({
         : ''}
     </div>
     ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
-    <div class="widget-divider" aria-hidden="true"></div>
+    ${showDivider
+      ? html`<div class="widget-divider" aria-hidden="true"></div>`
+      : ''}
     <div class="widget-content">${content}</div>
     ${overlay ? html`<div class="widget-loading-overlay">${overlay}</div>` : ''}
     ${showFooter ? renderPoweredByFooter() : ''}

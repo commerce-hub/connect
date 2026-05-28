@@ -669,7 +669,7 @@ suite('commerce-hub-connect flow', () => {
       'We sent a one-time code to gregory.jablonski@fiserv.com.'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
-    assert.exists(el.shadowRoot!.querySelector('.widget-divider'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.equal(
       el.shadowRoot!.querySelector('.otp-support-copy')?.textContent?.trim(),
       "Didn't receive the code?"
@@ -896,7 +896,7 @@ suite('commerce-hub-connect flow', () => {
       'Pay with'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
-    assert.exists(el.shadowRoot!.querySelector('.widget-divider'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.notExists(rows[0].querySelector('.payment-method-radio'));
     assert.notExists(rows[1].querySelector('.payment-method-radio'));
     assert.notExists(rows[2].querySelector('.payment-method-radio'));
@@ -972,7 +972,7 @@ suite('commerce-hub-connect flow', () => {
       getComputedStyle(
         rows[0].querySelector<HTMLElement>('.payment-method-title')!
       ).fontWeight,
-      '600'
+      '400'
     );
     assert.notExists(el.shadowRoot!.querySelector('.source-action'));
     assert.deepEqual(
@@ -1298,7 +1298,7 @@ suite('commerce-hub-connect flow', () => {
       'Add payment method'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
-    assert.exists(el.shadowRoot!.querySelector('.widget-divider'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.notExists(el.shadowRoot!.querySelector('.empty-state'));
     assert.notExists(el.shadowRoot!.querySelector('.source-action'));
     assert.deepEqual(
@@ -1469,7 +1469,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
-    assert.exists(el.shadowRoot!.querySelector('.widget-divider'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.deepEqual(
       [
         ...el.shadowRoot!.querySelectorAll<HTMLLabelElement>('.field-label'),
@@ -1493,7 +1493,7 @@ suite('commerce-hub-connect flow', () => {
       getComputedStyle(
         el.shadowRoot!.querySelector<HTMLElement>('.field-label')!
       ).fontWeight,
-      '500'
+      '400'
     );
     assert.exists(el.shadowRoot!.querySelector('#billing-address'));
     assert.deepEqual(
@@ -1807,10 +1807,12 @@ suite('commerce-hub-connect flow', () => {
 
   test('Connect your bank shows Connect another way under the provider and opens manual bank account entry', async () => {
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
+    let initCount = 0;
 
     paymentSdkWindow.PaymentSDK = {
       init: (configuration) => {
         initConfig = configuration;
+        initCount += 1;
       },
       destroy: () => undefined,
     };
@@ -1883,6 +1885,19 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(
       el.shadowRoot!.querySelector('#commerce-hub-pbb-provider')
     );
+
+    el.shadowRoot!
+      .querySelector<HTMLButtonElement>('.widget-header-action button')
+      ?.click();
+    await waitFor(() => initCount === 2, 'PaymentSDK.init was not called again');
+    await flushElement(el);
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Connect your bank'
+    );
+    assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
+    assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
   });
 
   test('manual ACH save enables only after valid encrypted values, masks the screen values, and shows verification outcome', async () => {
@@ -2367,11 +2382,18 @@ suite('commerce-hub-connect flow', () => {
       });
     };
 
-    const el = await renderConnect({
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-      paymentSources: [],
-    });
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      {
+        colors: {
+          primary: '#0f766e',
+        },
+      }
+    );
 
     await clickAction(el, 'add-card');
     await fillNewCardForm(el);
@@ -2415,6 +2437,67 @@ suite('commerce-hub-connect flow', () => {
         ?.textContent?.trim(),
       'Need More Information'
     );
+    const requiredInfoCard = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-card'
+    )!;
+    const requiredInfoLabel = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-card-label'
+    )!;
+    const requiredInfoField = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-card-field'
+    )!;
+    const requiredInfoIconChip = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-card-icon-chip'
+    )!;
+    const requiredInfoIconImage = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-card-icon-image'
+    )!;
+    const requiredInfoDocuments = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-documents'
+    )!;
+    const requiredInfoSectionTitle = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-section-title'
+    )!;
+
+    const requiredInfoCardStyles = getComputedStyle(requiredInfoCard);
+
+    assert.equal(
+      requiredInfoSectionTitle.textContent?.trim(),
+      'Information needed to complete verification'
+    );
+    assert.equal(getComputedStyle(requiredInfoDocuments).marginTop, '8px');
+    assert.include(
+      ['rgb(241, 247, 246)', 'color(srgb 0.943529 0.967765 0.965882)'],
+      requiredInfoCardStyles.backgroundColor
+    );
+    assert.equal(requiredInfoCardStyles.borderTopStyle, 'solid');
+    assert.equal(
+      requiredInfoCardStyles.borderTopColor,
+      'rgb(217, 225, 236)'
+    );
+    assert.equal(
+      requiredInfoCardStyles.borderLeftColor,
+      requiredInfoCardStyles.borderTopColor
+    );
+    assert.equal(
+      requiredInfoCardStyles.borderLeftWidth,
+      requiredInfoCardStyles.borderTopWidth
+    );
+    assert.equal(
+      getComputedStyle(requiredInfoLabel).color,
+      'rgb(75, 85, 101)'
+    );
+    assert.equal(
+      getComputedStyle(requiredInfoField).color,
+      'rgb(17, 24, 39)'
+    );
+    assert.equal(
+      getComputedStyle(requiredInfoIconChip).borderTopStyle,
+      'none'
+    );
+    assert.equal(getComputedStyle(requiredInfoIconChip).boxShadow, 'none');
+    assert.equal(getComputedStyle(requiredInfoIconImage).maxWidth, '64px');
+    assert.equal(getComputedStyle(requiredInfoIconImage).maxHeight, '48px');
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
       'REQUIRE_INFO'

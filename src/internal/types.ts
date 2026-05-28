@@ -28,6 +28,7 @@ export type FlowActionName =
   | 'edit-card-details'
   | 'use-different-method'
   | 'retry-bank-provider'
+  | 'back-to-bank-provider'
   | 'back-to-payment-methods'
   | 'continue-bank-outcome'
   | 'done-bank-outcome'
