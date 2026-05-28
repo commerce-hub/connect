@@ -20,9 +20,7 @@
         width: min(1440px, 100%);
         margin: 0 auto;
         display: grid;
-        grid-template-columns:
-          minmax(360px, 1.1fr) minmax(320px, 0.9fr)
-          minmax(300px, 0.9fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 24px;
         align-items: start;
       }
@@ -248,7 +246,7 @@
 
       @media (max-width: 1180px) {
         .demo-layout {
-          grid-template-columns: minmax(360px, 1fr) minmax(320px, 1fr);
+          grid-template-columns: repeat(2, 1fr);
         }
 
         .demo-output-panel {
@@ -1089,7 +1087,7 @@ Select or attach a payment source to complete the active interaction.
         borderColor: '#cbd5e1',
         widgetBackground: '#ffffff',
         paymentMethodBackground: '#f8fafc',
-        otpTitle: 'Confirm your email',
+        otpTitle: 'Verify OTP',
         otpVerifyButton: 'Verify',
         paymentMethodsTitle: 'Choose payment method',
         paymentMethodsContinueButton: 'Use selected method',

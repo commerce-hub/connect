@@ -44,6 +44,10 @@ Do not commit secrets, merchant tokens, or real customer data. Keep API fixtures
 
 - 2026-05-27: The SDK can expose or avoid malformed request inputs, but it does not perform that DynamoDB write.
 
+- 2026-05-28: Verification run: `BROWSERS=chromium npm run test:dev -- --files test/commerce-hub-connect-flow_test`.js passed with 61 passed, 0 failed.
+
+- 2026-05-28: Removed the title-bottom divider from SDK pages by making renderWidgetShell render .widget-divider only when showDivider is explicitly true.
+
 - 2026-05-22: `BROWSERS=chromium npm run test:dev -- --files test/commerce-hub-connect-flow_test`.js → 61 passed.
 
 - 2026-05-22: Passed: `BROWSERS=chromium npm run test:dev -- --files test/commerce-hub-connect-flow_test`.js → 58 passed.

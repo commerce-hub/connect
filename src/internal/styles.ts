@@ -101,7 +101,7 @@ export const primitiveStyles = css`
     background: color-mix(in srgb, var(--chc-soft-surface) 88%, white);
     color: var(--chc-muted);
     font-size: 1.25em;
-    font-weight: 600;
+    font-weight: inherit;
     cursor: pointer;
   }
 
@@ -109,7 +109,7 @@ export const primitiveStyles = css`
     margin: 0;
     color: var(--chc-text);
     font-size: 1.125rem;
-    font-weight: 600;
+    font-weight: inherit;
     letter-spacing: 0;
   }
 
@@ -126,7 +126,7 @@ export const primitiveStyles = css`
 
   .widget-header-action .text-link-button {
     color: var(--chc-primary);
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .widget-subtitle {
@@ -183,7 +183,7 @@ export const primitiveStyles = css`
     background: var(--chc-soft-surface);
     color: var(--chc-text);
     font-size: 0.875em;
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .card-form-back-header .text-link-button:disabled,
@@ -220,13 +220,14 @@ export const primitiveStyles = css`
     gap: 0.75rem;
     min-height: 9.75rem;
     border-radius: min(1rem, calc(var(--chc-radius-card) * 1.5));
+    border: 0.0625rem solid var(--chc-border);
     padding: 1rem;
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--chc-primary) 86%, #052e16),
-      color-mix(in srgb, var(--chc-primary) 72%, #052e16)
+    background: color-mix(
+      in srgb,
+      var(--chc-primary) 6%,
+      var(--chc-surface)
     );
-    color: #ffffff;
+    color: var(--chc-text);
     overflow: hidden;
   }
 
@@ -247,18 +248,17 @@ export const primitiveStyles = css`
   }
 
   .required-info-card-label {
-    color: color-mix(in srgb, #ffffff 72%, transparent);
-    font-size: 0.6875em;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    color: var(--chc-copy);
+    font-size: 0.8125em;
+    font-weight: inherit;
+    letter-spacing: 0;
   }
 
   .required-info-card-field {
     min-width: 0;
     overflow: hidden;
-    color: #ffffff;
-    font-weight: 700;
+    color: var(--chc-text);
+    font-weight: inherit;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -283,14 +283,20 @@ export const primitiveStyles = css`
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    border: 0;
     border-radius: 0.5rem;
-    background: color-mix(in srgb, #ffffff 94%, transparent);
-    box-shadow: 0 0.5rem 1rem rgba(15, 23, 42, 0.16);
+    background: color-mix(
+      in srgb,
+      var(--chc-primary) 6%,
+      var(--chc-surface)
+    );
+    color: var(--chc-primary);
+    box-shadow: none;
   }
 
   .required-info-card-icon-image {
-    max-width: 3rem;
-    max-height: 1.625rem;
+    max-width: 4rem;
+    max-height: 3rem;
     display: block;
   }
 
@@ -305,19 +311,20 @@ export const primitiveStyles = css`
   }
 
   .required-info-card-status .verification-status-badge {
-    border-color: color-mix(in srgb, #ffffff 52%, transparent);
-    background: color-mix(in srgb, #ffffff 92%, transparent);
+    border-color: var(--chc-warning-border);
+    background: var(--chc-warning-bg);
   }
 
   .required-info-documents {
     display: grid;
     gap: 0.5rem;
+    margin-top: 0.5rem;
   }
 
   .required-info-section-title {
     margin: 0;
     color: var(--chc-text);
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .required-info-document {
@@ -352,7 +359,7 @@ export const primitiveStyles = css`
 
   .required-info-ssn-separator {
     color: var(--chc-copy);
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .required-info-selected-file {
@@ -360,7 +367,7 @@ export const primitiveStyles = css`
     overflow: hidden;
     color: var(--chc-copy);
     font-size: 0.875em;
-    font-weight: 500;
+    font-weight: inherit;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -396,7 +403,7 @@ export const primitiveStyles = css`
     padding: 0;
     background: transparent;
     color: var(--chc-primary);
-    font-weight: 600;
+    font-weight: inherit;
     cursor: pointer;
   }
 
@@ -414,7 +421,7 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-primary);
     border-radius: var(--chc-radius-control);
     padding: 0 1rem;
-    font-weight: 600;
+    font-weight: inherit;
     transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
       background-color var(--chc-motion-fast) var(--chc-ease-standard),
       transform var(--chc-motion-fast) var(--chc-ease-emphasized);
@@ -522,12 +529,11 @@ export const primitiveStyles = css`
     margin: 0;
     color: var(--chc-copy);
     font-size: 0.875em;
-    line-height: 1.4;
   }
 
   .field-label {
     color: var(--chc-text);
-    font-weight: 500;
+    font-weight: inherit;
     font-size: 0.875em;
   }
 
@@ -544,7 +550,7 @@ export const primitiveStyles = css`
     overflow: hidden;
     color: var(--chc-text);
     font-size: 0.875em;
-    font-weight: 500;
+    font-weight: inherit;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -555,7 +561,7 @@ export const primitiveStyles = css`
     border-radius: 999rem;
     padding: 0.125rem 0.4375rem;
     font-size: 0.6875em;
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .required-info-requirement-badge-required {
@@ -607,7 +613,7 @@ export const primitiveStyles = css`
 
   .field-label-card-form {
     color: var(--chc-copy);
-    font-weight: 500;
+    font-weight: inherit;
   }
 
   .field-control-card-form {
@@ -679,7 +685,7 @@ export const primitiveStyles = css`
   .field-error {
     margin: 0;
     color: var(--chc-danger);
-    font-weight: 500;
+    font-weight: inherit;
     font-size: 0.875em;
   }
 
@@ -736,7 +742,7 @@ export const primitiveStyles = css`
     font-kerning: inherit;
     font-language-override: inherit;
     font-feature-settings: inherit;
-    font-weight: 400;
+    font-weight: inherit;
     text-align: center;
     padding: 0;
   }
@@ -758,7 +764,7 @@ export const primitiveStyles = css`
     border: 0.0625rem solid;
     border-radius: var(--chc-radius-control);
     padding: 0.625rem 0.75rem;
-    font-weight: 500;
+    font-weight: inherit;
     text-align: left;
   }
 
@@ -793,7 +799,7 @@ export const primitiveStyles = css`
     border: 0.0625rem solid;
     border-radius: 999rem;
     padding: 0.0625rem 0.5625rem;
-    font-weight: 500;
+    font-weight: inherit;
     font-size: 0.8125em;
   }
 
@@ -922,7 +928,7 @@ export const primitiveStyles = css`
     justify-content: flex-end;
     color: var(--chc-text);
     font-size: 0.875em;
-    font-weight: 600;
+    font-weight: inherit;
     text-align: right;
     white-space: nowrap;
   }
@@ -1029,7 +1035,7 @@ export const primitiveStyles = css`
     max-width: min(9rem, 28vw);
     color: var(--chc-danger);
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: inherit;
     text-align: right;
     white-space: normal;
   }
@@ -1053,7 +1059,7 @@ export const primitiveStyles = css`
     font-family: inherit;
     font-style: inherit;
     font-size: 0.8125rem;
-    font-weight: 700;
+    font-weight: inherit;
     cursor: pointer;
     transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
       background-color var(--chc-motion-fast) var(--chc-ease-standard),
@@ -1160,7 +1166,7 @@ export const primitiveStyles = css`
     display: block;
     overflow: hidden;
     color: var(--chc-text);
-    font-weight: 600;
+    font-weight: inherit;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1203,7 +1209,7 @@ export const primitiveStyles = css`
     border-radius: 999rem;
     padding: 0.1875rem 0.5rem;
     font-size: 0.75em;
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .verification-status-label {
@@ -1263,7 +1269,7 @@ export const primitiveStyles = css`
     background: transparent;
     color: var(--chc-primary);
     font-size: 1.5rem;
-    font-weight: 400;
+    font-weight: inherit;
   }
 
   .source-action-copy {
@@ -1274,7 +1280,7 @@ export const primitiveStyles = css`
   .source-action-title {
     overflow: hidden;
     color: var(--chc-text);
-    font-weight: 600;
+    font-weight: inherit;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1342,7 +1348,7 @@ export const primitiveStyles = css`
 
   .source-action-link-title {
     color: currentColor;
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .source-action-link-subtitle {
@@ -1408,7 +1414,7 @@ export const primitiveStyles = css`
     margin: 0;
     color: var(--chc-text);
     font-size: 1em;
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .empty-state-message {
@@ -1429,12 +1435,12 @@ export const primitiveStyles = css`
 
   .detail-label {
     color: var(--chc-muted);
-    font-weight: 500;
+    font-weight: inherit;
   }
 
   .detail-value {
     color: var(--chc-text);
-    font-weight: 500;
+    font-weight: inherit;
   }
 
   .upload-row {
@@ -1487,7 +1493,7 @@ export const primitiveStyles = css`
     padding: 0 0.75rem;
     background: var(--chc-soft-surface);
     color: var(--chc-primary);
-    font-weight: 600;
+    font-weight: inherit;
     white-space: nowrap;
   }
 
@@ -1528,7 +1534,7 @@ export const primitiveStyles = css`
     overflow: hidden;
     color: var(--chc-text);
     font-size: 1.125em;
-    font-weight: 600;
+    font-weight: inherit;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1576,7 +1582,7 @@ export const primitiveStyles = css`
     margin: 0;
     color: var(--chc-text);
     font-size: 1em;
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .provider-frame-status {
@@ -1620,7 +1626,7 @@ export const primitiveStyles = css`
 
   .provider-loading-label {
     color: var(--chc-copy);
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .widget-loading-status {
@@ -1662,7 +1668,7 @@ export const primitiveStyles = css`
 
   .widget-loading-title {
     color: var(--chc-text);
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .widget-loading-helper {
@@ -1686,7 +1692,7 @@ export const primitiveStyles = css`
     border: 0.125rem solid;
     border-radius: 999rem;
     font-size: 1.75em;
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .outcome-success .outcome-icon {
@@ -1723,7 +1729,7 @@ export const primitiveStyles = css`
     margin: 0;
     color: var(--chc-text);
     font-size: 1.1875em;
-    font-weight: 600;
+    font-weight: inherit;
   }
 
   .outcome-message {
@@ -1764,7 +1770,7 @@ export const primitiveStyles = css`
 
   .verification-detail-label {
     color: var(--chc-muted);
-    font-weight: 500;
+    font-weight: inherit;
   }
 
   .verification-detail-value {
@@ -1772,7 +1778,7 @@ export const primitiveStyles = css`
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
-    font-weight: 500;
+    font-weight: inherit;
   }
 
   .text-link-button {
@@ -1781,7 +1787,7 @@ export const primitiveStyles = css`
     padding: 0;
     background: transparent;
     color: var(--chc-primary);
-    font-weight: 600;
+    font-weight: inherit;
     cursor: pointer;
   }
 
@@ -1897,7 +1903,7 @@ export const primitiveStyles = css`
   }
 
   .powered-by-brand {
-    font-weight: 700;
+    font-weight: inherit;
   }
 
   @media (max-width: 26.25rem) {

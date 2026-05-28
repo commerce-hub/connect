@@ -962,7 +962,9 @@ export class CommerceHubConnect extends LitElement {
             : ''}
 
           <div class="required-info-documents">
-            <p class="required-info-section-title">Required information</p>
+            <p class="required-info-section-title">
+              Information needed to complete verification
+            </p>
             <div class="primitive-stack">
               ${docs.map((doc, index) => {
                 const key = requiredInfoDocKey(doc, index);
@@ -1410,7 +1412,7 @@ export class CommerceHubConnect extends LitElement {
       title: 'Enter bank details',
       headerAction: renderTextLinkButton({
         label: 'Back',
-        action: 'back-to-payment-methods',
+        action: 'back-to-bank-provider',
         disabled: isSaving,
       }),
       showClose: false,
@@ -1651,6 +1653,7 @@ export class CommerceHubConnect extends LitElement {
       action === 'add-bank-account' ||
       action === 'use-bank-account-instead' ||
       action === 'retry-bank-provider' ||
+      action === 'back-to-bank-provider' ||
       action === 'use-different-bank-account'
     ) {
       this.paymentSourceEditMode = false;

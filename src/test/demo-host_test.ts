@@ -1035,7 +1035,7 @@ suite('demo host page', () => {
     assert.include(html, "borderColor: '#cbd5e1'");
     assert.include(html, "widgetBackground: '#ffffff'");
     assert.include(html, "paymentMethodBackground: '#f8fafc'");
-    assert.include(html, "otpTitle: 'Confirm your email'");
+    assert.include(html, "otpTitle: 'Verify OTP'");
     assert.include(html, "otpVerifyButton: 'Verify'");
     assert.include(html, "paymentMethodsTitle: 'Choose payment method'");
     assert.include(html, "paymentMethodsContinueButton: 'Use selected method'");

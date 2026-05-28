@@ -27,7 +27,7 @@ const designConfig: DesignConfig = {
   shellPadding: '1.75rem 1.5rem 1.5rem',
   copy: {
     otp: {
-      title: 'Confirm your email',
+      title: 'Verify OTP',
       verifyButton: 'Verify',
     },
     paymentMethods: {

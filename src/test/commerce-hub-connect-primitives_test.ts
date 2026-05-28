@@ -70,8 +70,14 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
 
-  test('does not use font shorthands in shared styles so base font-weight inheritance remains intact', () => {
+  test('does not hard-code shared font weights so base font-weight inheritance remains intact', () => {
+    const hardCodedFontWeights =
+      primitiveStyles.cssText.match(
+        /(^|[^-])font-weight\s*:\s*(?:[0-9]+|bold|normal|bolder|lighter)/g
+      ) ?? [];
+
     assert.notInclude(primitiveStyles.cssText, 'font: inherit');
+    assert.deepEqual(hardCodedFontWeights, []);
   });
 
   test('uses rem units in shared styles instead of px sizing tokens', () => {
@@ -171,8 +177,8 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(getComputedStyle(shell).borderRadius, '0px');
     assert.equal(getComputedStyle(content).maxWidth, 'none');
     assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 18, 0.01);
-    assert.equal(getComputedStyle(title).fontWeight, '600');
-    assert.equal(getComputedStyle(paymentTitle).fontWeight, '600');
+    assert.equal(getComputedStyle(title).fontWeight, '400');
+    assert.equal(getComputedStyle(paymentTitle).fontWeight, '400');
     assert.equal(
       getComputedStyle(
         el.shadowRoot!.querySelector<HTMLElement>(
@@ -272,6 +278,9 @@ suite('commerce-hub-connect primitives', () => {
     const button = el.shadowRoot!.querySelector<HTMLElement>(
       '.source-action-link'
     )!;
+    const buttonTitle = el.shadowRoot!.querySelector<HTMLElement>(
+      '.source-action-link-title'
+    )!;
     const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
     const poweredByFooter =
       el.shadowRoot!.querySelector<HTMLElement>('.powered-by-footer')!;
@@ -285,9 +294,10 @@ suite('commerce-hub-connect primitives', () => {
       '350'
     );
     assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 18, 0.01);
-    assert.equal(getComputedStyle(title).fontWeight, '600');
+    assert.equal(getComputedStyle(title).fontWeight, '350');
     assert.equal(getComputedStyle(button).fontSize, '20px');
-    assert.equal(getComputedStyle(paymentTitle).fontWeight, '600');
+    assert.equal(getComputedStyle(buttonTitle).fontWeight, '350');
+    assert.equal(getComputedStyle(paymentTitle).fontWeight, '350');
     assert.equal(getComputedStyle(paymentTitle).fontSize, '20px');
     assert.equal(getComputedStyle(poweredByFooter).fontSize, '15px');
     assert.equal(getComputedStyle(button).minHeight, '40px');
