@@ -17,7 +17,7 @@ suite('commerce-hub-connect api client', () => {
   test('resolves DEV, QA, and PROD presets to the configured CommerceHub origin', () => {
     assert.equal(
       resolveCommerceHubBaseURL('DEV'),
-      'https://qa.openfx-nonprod.aws.fisv.cloud'
+      'https://connect-dev.fiservapis.com/chc'
     );
     assert.equal(resolveCommerceHubBaseURL('QA'), COMMERCE_HUB_BASE_URLS.QA);
     assert.equal(
@@ -96,5 +96,46 @@ suite('commerce-hub-connect api client', () => {
       receivedRequest?.url,
       'https://base-url.example.test/interaction'
     );
+  });
+
+  test('posts merchant interaction completion with a typed StringHolder body', async () => {
+    let receivedRequest: Request | undefined;
+    let receivedBody: unknown;
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      receivedRequest = input instanceof Request ? input : new Request(input);
+      receivedBody = await receivedRequest.json();
+
+      return new Response(
+        JSON.stringify({
+          tenderType: 'Card',
+          id: 'completed-source-1',
+          name: 'Completed card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '4111111111111111'},
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    };
+
+    const client = createCommerceHubClient({
+      baseUrl: 'https://api.example.test',
+    });
+
+    const response = await client.POST('/merchant/interaction/complete', {
+      body: {value: 'interaction-1'},
+    });
+
+    assert.equal(
+      receivedRequest?.url,
+      'https://api.example.test/merchant/interaction/complete'
+    );
+    assert.equal(receivedRequest?.method, 'POST');
+    assert.deepEqual(receivedBody, {value: 'interaction-1'});
+    assert.equal(response.data?.id, 'completed-source-1');
+    assert.equal(response.data?.tenderType, 'Card');
   });
 });

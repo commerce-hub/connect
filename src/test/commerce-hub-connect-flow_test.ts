@@ -3284,7 +3284,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('verify code posts OTP, email, channel, x-interaction-id, and uses sources from the validate response', async () => {
+  test('verify code posts OTP, email, channel, interaction headers, and preserves gateway OAuth when omitted by the response', async () => {
     const requests: CapturedRequest[] = [];
     const apiResponse: InteractionResponse = {
       interactionId: 'interaction-otp',
@@ -3323,6 +3323,9 @@ suite('commerce-hub-connect flow', () => {
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
       email: 'gregory.jablonski@fiserv.com',
+      oauth: {
+        access_token: 'gateway-access-token-1',
+      },
     });
 
     await setOtpValue(el, '123456');
@@ -3340,6 +3343,10 @@ suite('commerce-hub-connect flow', () => {
       requests[0].headers.get('x-interaction-id'),
       'interaction-otp'
     );
+    assert.equal(
+      requests[0].headers.get('Authorization'),
+      'Bearer gateway-access-token-1'
+    );
     assert.deepEqual(JSON.parse(requests[0].bodyText), {
       otp: '123456',
       email: 'gregory.jablonski@fiserv.com',
@@ -3354,6 +3361,10 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.id,
       'validated-card'
+    );
+    assert.equal(
+      el.interactionResponse?.oauth?.access_token,
+      'gateway-access-token-1'
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
@@ -3416,7 +3427,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('resend code posts to email OTP endpoint with x-interaction-id', async () => {
+  test('resend code posts to email OTP endpoint with interaction headers and accepts refreshed gateway OAuth', async () => {
     const requests: CapturedRequest[] = [];
 
     window.fetch = async (input: RequestInfo | URL) => {
@@ -3434,6 +3445,9 @@ suite('commerce-hub-connect flow', () => {
           interactionId: 'interaction-otp',
           status: 'OTP_VALIDATION_PENDING',
           email: 'gregory.jablonski@fiserv.com',
+          oauth: {
+            access_token: 'gateway-access-token-2',
+          },
         }),
         {
           status: 200,
@@ -3446,6 +3460,9 @@ suite('commerce-hub-connect flow', () => {
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
       email: 'gregory.jablonski@fiserv.com',
+      oauth: {
+        access_token: 'gateway-access-token-1',
+      },
     });
 
     await clickAction(el, 'resend-otp');
@@ -3460,7 +3477,15 @@ suite('commerce-hub-connect flow', () => {
       requests[0].headers.get('x-interaction-id'),
       'interaction-otp'
     );
+    assert.equal(
+      requests[0].headers.get('Authorization'),
+      'Bearer gateway-access-token-1'
+    );
     assert.equal(requests[0].bodyText, '');
+    assert.equal(
+      el.interactionResponse?.oauth?.access_token,
+      'gateway-access-token-2'
+    );
   });
 
   test('custom baseURL routes direct SDK-managed CommerceHub JSON requests to the custom origin', async () => {
@@ -3501,6 +3526,9 @@ suite('commerce-hub-connect flow', () => {
         interactionId: 'interaction-payment',
         status: 'PAYMENT_SOURCE_REQUESTED',
         paymentSources: [],
+        oauth: {
+          access_token: 'gateway-access-token-3',
+        },
       },
       undefined,
       'https://custom-commercehub.example.test'
@@ -3516,6 +3544,10 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
       'interaction-payment'
+    );
+    assert.equal(
+      requests[0].headers.get('Authorization'),
+      'Bearer gateway-access-token-3'
     );
   });
 

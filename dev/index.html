@@ -444,7 +444,11 @@
                 <span class="field-label">Request body</span>
                 <p class="helper-text">
                   The JSON preview updates from the form controls and is sent to
-                  <code>/merchant/interaction/create</code>.
+                  <code>/merchant/interaction/create</code>. Named environments
+                  are routed through the local dev-server proxy. DEV create
+                  requests are signed by the proxy with temporary local defaults
+                  or <code>COMMERCE_HUB_DEV_API_KEY</code> and
+                  <code>COMMERCE_HUB_DEV_API_SECRET</code> overrides.
                 </p>
                 <pre
                   id="interaction-request-preview"
@@ -725,7 +729,9 @@
 
         <article class="payload-card">
           <h2>Events</h2>
-          <pre>This SDK slice does not emit onSuccess or onError.</pre>
+          <pre id="completion-output">
+Select or attach a payment source to complete the active interaction.
+          </pre>
         </article>
       </section>
     </main>
@@ -977,6 +983,7 @@
       };
       const widgetHost = document.querySelector('#connect-widget-host');
       const input = document.querySelector('#interaction-input');
+      const completionOutput = document.querySelector('#completion-output');
       const createForm = document.querySelector('#interaction-create-form');
       const requestForm = createForm;
       const requestPreview = document.querySelector(
@@ -1051,11 +1058,7 @@
       let latestInteractionResponse;
       let latestWidgetPropertiesMessage;
 
-      const COMMERCE_HUB_BASE_URLS = {
-        DEV: 'https://qa.openfx-nonprod.aws.fisv.cloud',
-        QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
-        PROD: 'https://qa.openfx-nonprod.aws.fisv.cloud',
-      };
+      const COMMERCE_HUB_PROXY_PREFIX = '/__commercehub';
       const CUSTOM_BASE_URL_MODE = 'CUSTOM';
       const initialApiBaseUrl =
         new URLSearchParams(window.location.search).get('apiBaseUrl') ??
@@ -1096,8 +1099,15 @@
       const initialWidgetPropertiesMessage =
         'Submit the create request or choose a scenario to see the widget properties.';
 
-      const createApiUrl = (path) =>
-        new URL(path, resolveCreateInteractionBaseURL()).toString();
+      const createApiUrl = (path) => {
+        const baseURL = resolveCreateInteractionBaseURL();
+        const normalizedBaseURL = baseURL.endsWith('/')
+          ? baseURL
+          : `${baseURL}/`;
+        const normalizedPath = path.replace(/^\/+/, '');
+
+        return new URL(normalizedPath, normalizedBaseURL).toString();
+      };
 
       const resolveWidgetBaseURL = () => {
         const mode = requestFields.baseURLMode.value;
@@ -1106,14 +1116,13 @@
           return requestFields.customBaseURL.value.trim();
         }
 
-        return mode;
+        return createCommerceHubProxyBaseURL(mode);
       };
 
-      const resolveCreateInteractionBaseURL = () => {
-        const baseURL = resolveWidgetBaseURL();
+      const resolveCreateInteractionBaseURL = () => resolveWidgetBaseURL();
 
-        return COMMERCE_HUB_BASE_URLS[baseURL] ?? baseURL;
-      };
+      const createCommerceHubProxyBaseURL = (preset) =>
+        `${window.location.origin}${COMMERCE_HUB_PROXY_PREFIX}/${preset}`;
 
       const syncBaseURLControls = () => {
         const isCustom =
@@ -1432,6 +1441,59 @@
         throw new Error(apiErrorMessage(responseBody));
       };
 
+      const completeMerchantInteraction = async (interactionId) => {
+        const response = await fetch(
+          createApiUrl('/merchant/interaction/complete'),
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({value: interactionId}),
+          }
+        );
+        const responseBody = await readJson(response);
+
+        if (response.ok) {
+          return responseBody;
+        }
+
+        throw new Error(apiErrorMessage(responseBody));
+      };
+
+      const handleWidgetSuccess = async (event) => {
+        const selectedPaymentSource = event.detail;
+        const interactionId = latestInteractionResponse?.interactionId;
+
+        console.log('onSuccess', selectedPaymentSource);
+
+        if (!interactionId) {
+          const message =
+            'Cannot complete merchant interaction without an interaction id.';
+          completionOutput.textContent = message;
+          throw new Error(message);
+        }
+
+        completionOutput.textContent = 'Completing merchant interaction...';
+
+        try {
+          const completedPaymentSource = await completeMerchantInteraction(
+            interactionId
+          );
+          completionOutput.textContent = format({
+            selectedPaymentSource,
+            completedPaymentSource,
+          });
+          console.log('Completed payment source', completedPaymentSource);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'CommerceHub interaction completion failed.';
+
+          completionOutput.textContent = message;
+          throw error;
+        }
+      };
+
       const initializeWidget = async (interactionResponse) => {
         await import('../commerce-hub-connect.js');
 
@@ -1443,10 +1505,12 @@
         widget.interactionResponse = interactionResponse;
         widget.designConfig = designConfig;
         widget.addEventListener('onSuccess', (event) => {
-          console.log('onSuccess', event.detail);
+          void handleWidgetSuccess(event);
         });
         widgetHost.replaceChildren(widget);
         latestInteractionResponse = interactionResponse;
+        completionOutput.textContent =
+          'Select or attach a payment source to complete the active interaction.';
         latestWidgetPropertiesMessage = undefined;
         syncWidgetPropertiesPreview(designConfig);
       };
@@ -1454,6 +1518,8 @@
       const setInteractionResponse = (interactionResponse) => {
         const designConfig = buildDesignConfig(readDesignConfigFormState());
         latestInteractionResponse = interactionResponse;
+        completionOutput.textContent =
+          'Select or attach a payment source to complete the active interaction.';
         latestWidgetPropertiesMessage = undefined;
         syncWidgetPropertiesPreview(designConfig);
 
@@ -1561,6 +1627,8 @@
 
       const initializeDemo = () => {
         latestInteractionResponse = undefined;
+        completionOutput.textContent =
+          'Select or attach a payment source to complete the active interaction.';
         latestWidgetPropertiesMessage = initialWidgetPropertiesMessage;
         writeRequestFormState(initialRequestFormState);
         writeDesignConfigFormState(initialDesignConfigFormState);

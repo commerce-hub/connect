@@ -629,6 +629,9 @@ suite('demo host page', () => {
     const createInteractionIndex = html.indexOf(
       "'/merchant/interaction/create'"
     );
+    const completeInteractionIndex = html.indexOf(
+      "'/merchant/interaction/complete'"
+    );
     const payloadPanelIndex = html.indexOf('class="payload-panel"');
     const widgetPanelIndex = html.indexOf('class="demo-widget-panel"');
     const outputPanelIndex = html.indexOf('class="demo-output-panel"');
@@ -643,6 +646,11 @@ suite('demo host page', () => {
       createInteractionIndex,
       0,
       'expected demo host to call /merchant/interaction/create'
+    );
+    assert.isAtLeast(
+      completeInteractionIndex,
+      0,
+      'expected demo host to call /merchant/interaction/complete'
     );
     assert.include(html, '<form id="interaction-create-form">');
     assert.include(html, 'id="interaction-email"');
@@ -764,6 +772,8 @@ suite('demo host page', () => {
     assert.include(html, 'widget.designConfig = designConfig');
     assert.include(html, 'widget.baseURL = resolveWidgetBaseURL()');
     assert.include(html, "createApiUrl('/merchant/interaction/create')");
+    assert.include(html, "createApiUrl('/merchant/interaction/complete')");
+    assert.include(html, 'completeMerchantInteraction(');
     assert.include(html, 'resolveCreateInteractionBaseURL()');
     assert.include(html, "baseURLMode: 'CUSTOM'");
     assert.include(html, 'customBaseURL: initialApiBaseUrl');
@@ -779,6 +789,220 @@ suite('demo host page', () => {
       'void initializeDemo();',
       'expected demo host not to call create on page load'
     );
+  });
+
+  test('routes DEV preset merchant interaction create requests through the local proxy', async () => {
+    const iframe = document.createElement('iframe');
+    const iframeLoaded = new Promise<void>((resolve) => {
+      iframe.addEventListener('load', () => resolve(), {once: true});
+    });
+    iframe.src = '/dev/index.html';
+    document.body.append(iframe);
+    await iframeLoaded;
+
+    const pageWindow = iframe.contentWindow;
+    const pageDocument = iframe.contentDocument;
+    assert.isOk(pageWindow, 'expected demo iframe window');
+    assert.isOk(pageDocument, 'expected demo iframe document');
+
+    const createRequest = {
+      url: undefined as string | undefined,
+    };
+    pageWindow.fetch = (async (input) => {
+      createRequest.url = input instanceof Request ? input.url : String(input);
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'dev-create-interaction',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          paymentSources: [],
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    }) as typeof fetch;
+
+    const baseURLMode = pageDocument.querySelector<HTMLSelectElement>(
+      '#commerce-hub-api-base-url-mode'
+    );
+    const createForm = pageDocument.querySelector<HTMLFormElement>(
+      '#interaction-create-form'
+    );
+
+    assert.isOk(baseURLMode, 'expected base URL mode control');
+    assert.isOk(createForm, 'expected create interaction form');
+
+    baseURLMode.value = 'DEV';
+    baseURLMode.dispatchEvent(new Event('change', {bubbles: true}));
+    createForm.requestSubmit();
+
+    await waitFor(
+      () => Boolean(createRequest.url),
+      'expected form submit to call merchant interaction create'
+    );
+
+    assert.equal(
+      createRequest.url,
+      `${pageWindow.location.origin}/__commercehub/DEV/merchant/interaction/create`
+    );
+
+    await waitFor(
+      () => Boolean(pageDocument.querySelector('commerce-hub-connect')),
+      'expected form submit to initialize the widget'
+    );
+
+    const connectWidget = pageDocument.querySelector<
+      HTMLElement & {baseURL?: string}
+    >('commerce-hub-connect');
+
+    assert.equal(
+      connectWidget?.baseURL,
+      `${pageWindow.location.origin}/__commercehub/DEV`
+    );
+
+    iframe.remove();
+  });
+
+  test('completes the active merchant interaction after SDK success without replacing widget interaction state', async () => {
+    const iframe = document.createElement('iframe');
+    const iframeLoaded = new Promise<void>((resolve) => {
+      iframe.addEventListener('load', () => resolve(), {once: true});
+    });
+    iframe.src = '/dev/index.html?apiBaseUrl=http://commercehub.test';
+    document.body.append(iframe);
+    await iframeLoaded;
+
+    const pageWindow = iframe.contentWindow;
+    const pageDocument = iframe.contentDocument;
+    assert.isOk(pageWindow, 'expected demo iframe window');
+    assert.isOk(pageDocument, 'expected demo iframe document');
+
+    const requests: Array<{
+      url: string;
+      body: Record<string, unknown> | undefined;
+    }> = [];
+
+    pageWindow.fetch = (async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const bodyText =
+        input instanceof Request ? await input.clone().text() : init?.body;
+      const body =
+        typeof bodyText === 'string' && bodyText
+          ? JSON.parse(bodyText)
+          : undefined;
+
+      requests.push({url, body});
+
+      if (url.endsWith('/merchant/interaction/complete')) {
+        return new Response(
+          JSON.stringify({
+            tenderType: 'Card',
+            id: 'completed-source-1',
+            name: 'Completed source',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {network: 'Visa', cardNumber: '4111111111111111'},
+          }),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'demo-interaction-1',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          paymentSources: [],
+          oauth: {access_token: 'gateway-token'},
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    }) as typeof fetch;
+
+    const createForm = pageDocument.querySelector<HTMLFormElement>(
+      '#interaction-create-form'
+    );
+    assert.isOk(createForm, 'expected create interaction form');
+    createForm.requestSubmit();
+
+    await waitFor(
+      () => Boolean(pageDocument.querySelector('commerce-hub-connect')),
+      'expected form submit to initialize the widget'
+    );
+
+    const connectWidget = pageDocument.querySelector<
+      HTMLElement & {
+        interactionResponse?: {
+          interactionId?: string;
+          oauth?: {access_token?: string};
+        };
+      }
+    >('commerce-hub-connect');
+    assert.equal(
+      connectWidget?.interactionResponse?.interactionId,
+      'demo-interaction-1'
+    );
+    assert.equal(
+      connectWidget?.interactionResponse?.oauth?.access_token,
+      'gateway-token'
+    );
+
+    connectWidget?.dispatchEvent(
+      new CustomEvent('onSuccess', {
+        detail: {
+          tenderType: 'Card',
+          id: 'selected-source-1',
+          name: 'Selected source',
+          verificationInfo: {status: 'VERIFIED'},
+        },
+      })
+    );
+
+    await waitFor(
+      () =>
+        requests.some((request) =>
+          request.url.endsWith('/merchant/interaction/complete')
+        ),
+      'expected SDK success to call merchant interaction complete'
+    );
+
+    const completeRequest = requests.find((request) =>
+      request.url.endsWith('/merchant/interaction/complete')
+    );
+    assert.deepEqual(completeRequest?.body, {value: 'demo-interaction-1'});
+    await waitFor(
+      () =>
+        (
+          pageDocument.querySelector('#completion-output')?.textContent ?? ''
+        ).includes('"id": "completed-source-1"'),
+      'expected completion output to show the completed payment source'
+    );
+    assert.equal(
+      connectWidget?.interactionResponse?.interactionId,
+      'demo-interaction-1'
+    );
+    assert.equal(
+      connectWidget?.interactionResponse?.oauth?.access_token,
+      'gateway-token'
+    );
+    assert.include(
+      pageDocument.querySelector('#interaction-input')?.textContent ?? '',
+      '"interactionId": "demo-interaction-1"'
+    );
+    assert.include(
+      pageDocument.querySelector('#completion-output')?.textContent ?? '',
+      '"id": "completed-source-1"'
+    );
+
+    iframe.remove();
   });
 
   test('uses service-aligned default values for the structured create interaction request', async () => {

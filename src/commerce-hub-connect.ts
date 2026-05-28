@@ -56,7 +56,28 @@ export type {components, operations, paths} from './generated/openapi.js';
  * Host applications usually retrieve this value from a merchant-owned backend
  * endpoint, then assign it to `<commerce-hub-connect>.interactionResponse`.
  */
-export type InteractionResponse = components['schemas']['InteractionResponse'];
+type GeneratedInteractionResponse =
+  components['schemas']['InteractionResponse'];
+
+/**
+ * Gateway-injected OAuth details returned with an interaction response.
+ *
+ * This field is intentionally modeled outside the generated OpenAPI types
+ * because the gateway adds it after the upstream CommerceHub response is
+ * produced.
+ */
+export interface InteractionOAuth {
+  token_type?: string;
+  issued_at?: string;
+  client_id?: string;
+  access_token?: string;
+  expires_in?: string;
+  status?: string;
+}
+
+export type InteractionResponse = GeneratedInteractionResponse & {
+  oauth?: InteractionOAuth;
+};
 
 /**
  * Error payload reserved for future public SDK error events.
@@ -3936,13 +3957,11 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string,
     init: RequestInit
   ): Promise<T> {
-    const headers = new Headers(init.headers);
+    const headers = this.createInteractionHeaders(interactionId, init.headers);
 
     if (!headers.has('Accept')) {
       headers.set('Accept', 'application/json');
     }
-
-    headers.set('x-interaction-id', interactionId);
 
     const request = new Request(
       `${resolveCommerceHubBaseURL(this.baseURL)}${path}`,
@@ -4029,14 +4048,56 @@ export class CommerceHubConnect extends LitElement {
   private createSdkClient(interactionId: string) {
     return createCommerceHubClient({
       baseURL: this.baseURL,
-      getHeaders: () => ({'x-interaction-id': interactionId}),
+      getHeaders: () => this.createInteractionHeaders(interactionId),
     });
+  }
+
+  private createInteractionHeaders(
+    interactionId: string,
+    init?: HeadersInit
+  ): Headers {
+    const headers = new Headers(init);
+    const accessToken = this.interactionResponse?.oauth?.access_token?.trim();
+
+    headers.set('x-interaction-id', interactionId);
+
+    if (accessToken && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${accessToken}`);
+    }
+
+    return headers;
   }
 
   private setInteractionResponseFromSdk(
     interactionResponse: InteractionResponse
   ) {
-    this.interactionResponse = interactionResponse;
+    this.interactionResponse =
+      this.interactionResponseWithPreservedGatewayOAuth(interactionResponse);
+  }
+
+  private interactionResponseWithPreservedGatewayOAuth(
+    interactionResponse: InteractionResponse
+  ): InteractionResponse {
+    if (interactionResponse.oauth) {
+      return interactionResponse;
+    }
+
+    const currentInteractionResponse = this.interactionResponse;
+
+    if (
+      !currentInteractionResponse?.oauth ||
+      (currentInteractionResponse.interactionId &&
+        interactionResponse.interactionId &&
+        currentInteractionResponse.interactionId !==
+          interactionResponse.interactionId)
+    ) {
+      return interactionResponse;
+    }
+
+    return {
+      ...interactionResponse,
+      oauth: currentInteractionResponse.oauth,
+    };
   }
 
   private syncDesignConfigStyles() {

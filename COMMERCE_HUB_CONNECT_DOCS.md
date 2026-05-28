@@ -180,8 +180,9 @@ class CheckoutPayment extends LitElement {
 
 When the widget performs CommerceHub calls, it uses `http://localhost:8080` by
 default. Set `.baseURL` to one of the CommerceHub presets or to a custom origin.
-The current `DEV`, `QA`, and `PROD` presets resolve to the QA non-production
-CommerceHub origin until final environment values are published.
+The `DEV` preset resolves to `https://connect-dev.fiservapis.com/chc`. The
+current `QA` and `PROD` presets resolve to the QA non-production CommerceHub
+origin until final environment values are published.
 
 ```ts
 widget.baseURL = 'QA';

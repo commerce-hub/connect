@@ -16,7 +16,7 @@ export type CommerceHubBaseURLInput = CommerceHubBaseURLPreset | string;
 /** CommerceHub preset origins used by `resolveCommerceHubBaseURL`. */
 export const COMMERCE_HUB_BASE_URLS: Record<CommerceHubBaseURLPreset, string> =
   {
-    DEV: 'https://qa.openfx-nonprod.aws.fisv.cloud',
+    DEV: 'https://connect-dev.fiservapis.com/chc',
     QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
     PROD: 'https://qa.openfx-nonprod.aws.fisv.cloud',
   };
