@@ -6,7 +6,7 @@ import {
   DEFAULT_COMMERCE_HUB_DEV_USER_EMAIL,
   createCommerceHubDevAuthHeaders,
   createCommerceHubDevAuthorization,
-  isCommerceHubDevCreateInteractionRequest,
+  isCommerceHubDevSignedMerchantInteractionRequest,
 } from './commerce-hub-dev-auth.js';
 
 test('creates the CommerceHub DEV HMAC authorization value', () => {
@@ -67,9 +67,9 @@ test('falls back to temporary hardcoded CommerceHub DEV HMAC credentials', () =>
   assert.equal(headers['x-user-email'], DEFAULT_COMMERCE_HUB_DEV_USER_EMAIL);
 });
 
-test('gates CommerceHub DEV HMAC auth to create-interaction POST requests', () => {
+test('gates CommerceHub DEV HMAC auth to signed merchant interaction POST requests', () => {
   assert.equal(
-    isCommerceHubDevCreateInteractionRequest({
+    isCommerceHubDevSignedMerchantInteractionRequest({
       preset: 'DEV',
       method: 'POST',
       path: '/merchant/interaction/create',
@@ -77,7 +77,15 @@ test('gates CommerceHub DEV HMAC auth to create-interaction POST requests', () =
     true
   );
   assert.equal(
-    isCommerceHubDevCreateInteractionRequest({
+    isCommerceHubDevSignedMerchantInteractionRequest({
+      preset: 'DEV',
+      method: 'POST',
+      path: '/merchant/interaction/complete',
+    }),
+    true
+  );
+  assert.equal(
+    isCommerceHubDevSignedMerchantInteractionRequest({
       preset: 'QA',
       method: 'POST',
       path: '/merchant/interaction/create',
@@ -85,7 +93,7 @@ test('gates CommerceHub DEV HMAC auth to create-interaction POST requests', () =
     false
   );
   assert.equal(
-    isCommerceHubDevCreateInteractionRequest({
+    isCommerceHubDevSignedMerchantInteractionRequest({
       preset: 'DEV',
       method: 'GET',
       path: '/merchant/interaction/create',
@@ -93,7 +101,7 @@ test('gates CommerceHub DEV HMAC auth to create-interaction POST requests', () =
     false
   );
   assert.equal(
-    isCommerceHubDevCreateInteractionRequest({
+    isCommerceHubDevSignedMerchantInteractionRequest({
       preset: 'DEV',
       method: 'POST',
       path: '/interaction',

@@ -22,13 +22,24 @@ widget.interactionResponse = await fetch('/api/commercehub/interaction', {
   body: JSON.stringify({orderId: 'order-123'}),
 }).then((response) => response.json());
 
-widget.addEventListener('onSuccess', (event) => {
+widget.addEventListener('onSuccess', async (event) => {
   const paymentSource = event.detail;
+  const completedPaymentSource = await fetch(
+    '/api/commercehub/interaction/complete',
+    {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({value: widget.interactionResponse.interactionId}),
+    }
+  ).then((response) => response.json());
 
   fetch('/api/orders/order-123/payment-source', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({paymentSourceId: paymentSource.id}),
+    body: JSON.stringify({
+      selectedPaymentSourceId: paymentSource.id,
+      completedPaymentSourceId: completedPaymentSource.id,
+    }),
   });
 });
 

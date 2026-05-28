@@ -24,7 +24,9 @@ the host backend.
 
 The host application creates or retrieves an interaction, passes the resulting
 `InteractionResponse` into the widget, and listens for `onSuccess` when the
-shopper finishes with a selected payment source.
+shopper finishes with a selected payment source. The host then completes the
+merchant interaction with `POST /merchant/interaction/complete`; the widget does
+not call that endpoint internally.
 
 ```ts
 {% raw %}
@@ -36,8 +38,19 @@ widget.interactionResponse = await fetch('/api/commercehub/interaction').then(
   (response) => response.json()
 );
 widget.baseURL = 'QA';
-widget.addEventListener('onSuccess', (event) => {
-  console.log('Selected source', event.detail);
+widget.addEventListener('onSuccess', async (event) => {
+  const selectedPaymentSource = event.detail;
+  const completedPaymentSource = await fetch(
+    '/api/commercehub/interaction/complete',
+    {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({value: widget.interactionResponse.interactionId}),
+    }
+  ).then((response) => response.json());
+
+  console.log('Selected source', selectedPaymentSource);
+  console.log('Completed source', completedPaymentSource);
 });
 {% endraw %}
 ```

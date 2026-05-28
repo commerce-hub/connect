@@ -77,24 +77,41 @@ CommerceHub API and keeps the current screen stable.
 ## 4. Handle completion
 
 Listen for `onSuccess` on the element. The event detail is the selected
-`PaymentSource`.
+`PaymentSource`. Keep `onSuccess` as the widget boundary, then have the host
+complete the merchant interaction. Send `{value:
+interactionResponse.interactionId}` to `POST /merchant/interaction/complete`
+through your backend or typed CommerceHub client, and treat the response as the
+authoritative completed `PaymentSource`.
 
 ```ts
 {% raw %}
 widget.addEventListener('onSuccess', async (event) => {
   const paymentSource = event.detail;
 
+  const completedPaymentSource = await fetch(
+    '/api/commercehub/interaction/complete',
+    {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({value: interactionResponse.interactionId}),
+    }
+  ).then((response) => response.json());
+
   await fetch('/api/orders/confirm-payment-source', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       orderId,
-      paymentSourceId: paymentSource.id,
+      selectedPaymentSourceId: paymentSource.id,
+      completedPaymentSourceId: completedPaymentSource.id,
     }),
   });
 });
 {% endraw %}
 ```
+
+Do not assign the completion response back to `widget.interactionResponse`; the
+completion response is a `PaymentSource`, not an `InteractionResponse`.
 
 The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error

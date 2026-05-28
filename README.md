@@ -42,6 +42,10 @@ request. The SDK owns the browser widget once the host passes an
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
 6. The SDK emits `onSuccess` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
+7. Your host completes the merchant interaction with
+   `POST /merchant/interaction/complete`, sending
+   `{value: interactionResponse.interactionId}` and treating the returned
+   `PaymentSource` as the completed source.
 
 ```ts
 import 'commerce-hub-connect-sdk';
@@ -59,10 +63,21 @@ const widget = document.querySelector('commerce-hub-connect');
 if (widget) {
   widget.interactionResponse = interactionResponse;
   widget.baseURL = 'QA';
-  widget.addEventListener('onSuccess', (event: Event) => {
+  widget.addEventListener('onSuccess', async (event: Event) => {
     const {detail: paymentSource} = event as OnSuccessEvent;
 
     console.log('Selected payment source', paymentSource);
+
+    const completedPaymentSource = await fetch(
+      '/api/commercehub/interaction/complete',
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({value: interactionResponse.interactionId}),
+      }
+    ).then((response) => response.json());
+
+    console.log('Completed payment source', completedPaymentSource);
   });
 }
 ```

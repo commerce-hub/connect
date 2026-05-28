@@ -8,7 +8,7 @@ import {legacyPlugin} from '@web/dev-server-legacy';
 
 import {
   createCommerceHubDevAuthHeaders,
-  isCommerceHubDevCreateInteractionRequest,
+  isCommerceHubDevSignedMerchantInteractionRequest,
 } from './dev/commerce-hub-dev-auth.js';
 
 const mode = process.env.MODE || 'dev';
@@ -67,15 +67,15 @@ const commerceHubProxyMiddleware = async (context, next) => {
   }
 
   const hasBody = !['GET', 'HEAD'].includes(context.method);
-  const shouldSignDevCreateInteraction =
-    isCommerceHubDevCreateInteractionRequest({
+  const shouldSignDevMerchantInteraction =
+    isCommerceHubDevSignedMerchantInteractionRequest({
       preset,
       method: context.method,
       path: proxyPath,
     });
   let body = hasBody ? context.req : undefined;
 
-  if (shouldSignDevCreateInteraction) {
+  if (shouldSignDevMerchantInteraction) {
     const bodyBuffer = await readRequestBody(context.req);
 
     try {

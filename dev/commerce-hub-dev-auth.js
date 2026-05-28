@@ -14,14 +14,19 @@ export const COMMERCE_HUB_DEV_AUTH_DEFAULTS = {
   userEmail: DEFAULT_COMMERCE_HUB_DEV_USER_EMAIL,
 };
 
-export const isCommerceHubDevCreateInteractionRequest = ({
+const SIGNED_MERCHANT_INTERACTION_POST_PATHS = new Set([
+  '/merchant/interaction/create',
+  '/merchant/interaction/complete',
+]);
+
+export const isCommerceHubDevSignedMerchantInteractionRequest = ({
   preset,
   method,
   path,
 }) =>
   preset === 'DEV' &&
   method.toUpperCase() === 'POST' &&
-  normalizePath(path) === '/merchant/interaction/create';
+  SIGNED_MERCHANT_INTERACTION_POST_PATHS.has(normalizePath(path));
 
 export const createCommerceHubDevAuthorization = ({
   apiKey,

@@ -28,9 +28,23 @@ class CheckoutPayment extends LitElement {
     ></commerce-hub-connect>`;
   }
 
-  private handleSuccess(event: OnSuccessEvent) {
+  private async handleSuccess(event: OnSuccessEvent) {
+    const completedPaymentSource = await fetch(
+      '/api/commercehub/interaction/complete',
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({value: this.interactionResponse?.interactionId}),
+      }
+    ).then((response) => response.json());
+
     this.dispatchEvent(
-      new CustomEvent('payment-source-selected', {detail: event.detail})
+      new CustomEvent('payment-source-selected', {
+        detail: {
+          selectedPaymentSource: event.detail,
+          completedPaymentSource,
+        },
+      })
     );
   }
 }
