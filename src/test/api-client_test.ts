@@ -7,6 +7,8 @@ import {
   resolveCommerceHubBaseURL,
 } from '../internal/api-client.js';
 
+const PROD_COMMERCE_HUB_BASE_URL = 'https://connect.fiservapis.com/chc';
+
 suite('commerce-hub-connect api client', () => {
   const originalFetch = window.fetch;
 
@@ -22,16 +24,17 @@ suite('commerce-hub-connect api client', () => {
     assert.equal(resolveCommerceHubBaseURL('QA'), COMMERCE_HUB_BASE_URLS.QA);
     assert.equal(
       resolveCommerceHubBaseURL('PROD'),
-      COMMERCE_HUB_BASE_URLS.PROD
+      PROD_COMMERCE_HUB_BASE_URL
     );
   });
 
-  test('passes through custom base URLs and falls back to localhost by default', () => {
+  test('passes through custom base URLs and falls back to PROD by default', () => {
     assert.equal(
       resolveCommerceHubBaseURL('https://api.example.test'),
       'https://api.example.test'
     );
-    assert.equal(resolveCommerceHubBaseURL(), DEFAULT_COMMERCE_HUB_BASE_URL);
+    assert.equal(resolveCommerceHubBaseURL(), PROD_COMMERCE_HUB_BASE_URL);
+    assert.equal(DEFAULT_COMMERCE_HUB_BASE_URL, PROD_COMMERCE_HUB_BASE_URL);
   });
 
   test('uses configured base URL and merges static and dynamic headers', async () => {
@@ -70,6 +73,28 @@ suite('commerce-hub-connect api client', () => {
     assert.equal(
       receivedRequest?.headers.get('X-Runtime-Header'),
       'runtime-value'
+    );
+  });
+
+  test('uses the PROD origin when no base URL option is provided', async () => {
+    let receivedRequest: Request | undefined;
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      receivedRequest = input instanceof Request ? input : new Request(input);
+
+      return new Response(JSON.stringify({interactionId: 'interaction-1'}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const client = createCommerceHubClient({});
+
+    await client.GET('/interaction');
+
+    assert.equal(
+      receivedRequest?.url,
+      `${PROD_COMMERCE_HUB_BASE_URL}/interaction`
     );
   });
 

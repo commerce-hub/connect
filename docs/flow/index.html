@@ -72,12 +72,12 @@ completion response is a <code>PaymentSource</code>, not an <code>InteractionRes
 source verification state. It does not currently emit a separate public error
 event for those states.</p>
 <h2>5. Configure production behavior</h2>
-<p>Set <code>.baseURL</code> to the CommerceHub environment or gateway origin that should
-receive SDK-managed browser calls.</p>
-<pre class="language-ts"><code class="language-ts"><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'https://api.example.com'</span><span class="token punctuation">;</span><br></code></pre>
-<p>The <code>DEV</code> preset resolves to <code>https://connect-dev.fiservapis.com/chc</code>. The
-current <code>QA</code> and <code>PROD</code> presets resolve to the QA non-production CommerceHub
-origin until final environment values are published.</p>
+<p>SDK-managed browser calls use the <code>PROD</code> preset by default. Set <code>.baseURL</code> only
+when the host needs a different CommerceHub environment or gateway origin.</p>
+<pre class="language-ts"><code class="language-ts"><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'PROD'</span><span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'https://api.example.com'</span><span class="token punctuation">;</span><br></code></pre>
+<p>The <code>PROD</code> preset resolves to <code>https://connect.fiservapis.com/chc</code>, the <code>DEV</code>
+preset resolves to <code>https://connect-dev.fiservapis.com/chc</code>, and the <code>QA</code>
+preset resolves to the QA non-production CommerceHub origin.</p>
 <p>Keep CommerceHub credentials, merchant tokens, and customer-sensitive backend
 data out of browser code. The browser should receive only the interaction data
 needed by the widget.</p>

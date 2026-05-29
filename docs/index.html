@@ -56,9 +56,10 @@ not call that endpoint internally.</p>
 <code>interactionResponse.oauth.access_token</code> is present, they also send
 <code>Authorization: Bearer &lt;token&gt;</code>. If the interaction id is missing, the widget
 does not call the API and keeps the current screen stable.</p>
-<p>The widget uses <code>http://localhost:8080</code> by default. Set <code>.baseURL</code> to a preset
-or custom origin before the shopper starts the flow:</p>
-<pre class="language-ts"><code class="language-ts"><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'https://api.example.com'</span><span class="token punctuation">;</span><br></code></pre>
+<p>The widget uses the <code>PROD</code> preset by default. Set <code>.baseURL</code> to a different
+preset or custom origin before the shopper starts the flow only when you need to
+override production routing:</p>
+<pre class="language-ts"><code class="language-ts"><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'PROD'</span><span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'https://api.example.com'</span><span class="token punctuation">;</span><br></code></pre>
 <h2>Next steps</h2>
 <ul>
 <li>Start with <a href="./install/">Install</a> to add the package to an app.</li>

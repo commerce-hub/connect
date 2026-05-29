@@ -3,7 +3,6 @@ import {fixture, assert, html as testingHtml} from '@open-wc/testing';
 import '../commerce-hub-connect.js';
 import {
   COMMERCE_HUB_BASE_URLS,
-  DEFAULT_COMMERCE_HUB_BASE_URL,
   type InteractionResponse,
   type PaymentSource,
   type CommerceHubBaseURLInput,
@@ -46,6 +45,7 @@ const testPayByBankConfig = {
   apiKey: 'test-pay-by-bank-api-key',
   configId: 'test-pay-by-bank-config-id',
 };
+const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
 
 const withTestPayByBankConfig = (designConfig?: unknown) => {
   const config =
@@ -71,7 +71,7 @@ const withTestPayByBankConfig = (designConfig?: unknown) => {
 const renderConnect = async (
   interactionResponse: InteractionResponse,
   designConfig?: unknown,
-  baseURL?: CommerceHubBaseURLInput
+  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL
 ) => {
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
@@ -3427,7 +3427,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(requests, 1);
     assert.equal(
       requests[0].url,
-      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/otp/validate`
+      `${TEST_COMMERCE_HUB_BASE_URL}/interaction/otp/validate`
     );
     assert.equal(requests[0].method, 'POST');
     assert.equal(
@@ -3561,7 +3561,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(requests, 1);
     assert.equal(
       requests[0].url,
-      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/otp/send/email`
+      `${TEST_COMMERCE_HUB_BASE_URL}/interaction/otp/send/email`
     );
     assert.equal(requests[0].method, 'POST');
     assert.equal(
@@ -4121,7 +4121,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       requests[0].url,
-      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/source/pbb/session`
+      `${TEST_COMMERCE_HUB_BASE_URL}/interaction/source/pbb/session`
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),

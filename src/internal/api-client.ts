@@ -4,8 +4,9 @@ import type {paths} from '../generated/openapi.js';
 
 export type CommerceHubClient = Client<paths>;
 
-/** Default local origin used for SDK-managed CommerceHub requests. */
-export const DEFAULT_COMMERCE_HUB_BASE_URL = 'http://localhost:8080';
+/** Default production origin used for SDK-managed CommerceHub requests. */
+export const DEFAULT_COMMERCE_HUB_BASE_URL =
+  'https://connect.fiservapis.com/chc';
 
 /** Named CommerceHub environment presets accepted by the SDK. */
 export type CommerceHubBaseURLPreset = 'DEV' | 'QA' | 'PROD';
@@ -18,7 +19,7 @@ export const COMMERCE_HUB_BASE_URLS: Record<CommerceHubBaseURLPreset, string> =
   {
     DEV: 'https://connect-dev.fiservapis.com/chc',
     QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
-    PROD: 'https://qa.openfx-nonprod.aws.fisv.cloud',
+    PROD: 'https://connect.fiservapis.com/chc',
   };
 
 export interface CommerceHubClientOptions {

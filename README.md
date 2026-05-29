@@ -86,13 +86,15 @@ if (widget) {
 
 ## SDK-managed requests
 
-When the widget performs CommerceHub calls, it uses `http://localhost:8080` by
-default. Set `.baseURL` to one of the CommerceHub presets or to a custom origin.
-The `DEV` preset resolves to `https://connect-dev.fiservapis.com/chc`. The
-current `QA` and `PROD` presets resolve to the QA non-production CommerceHub
-origin until final environment values are published.
+When the widget performs CommerceHub calls, it uses the `PROD` preset by
+default. Set `.baseURL` only when the host needs a different CommerceHub preset
+or a custom origin. The `PROD` preset resolves to
+`https://connect.fiservapis.com/chc`, the `DEV` preset resolves to
+`https://connect-dev.fiservapis.com/chc`, and the `QA` preset resolves to the
+QA non-production CommerceHub origin.
 
 ```ts
+widget.baseURL = 'PROD';
 widget.baseURL = 'QA';
 widget.baseURL = 'https://api.example.com';
 ```
