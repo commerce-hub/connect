@@ -140,3 +140,13 @@ origin until final environment values are published.
 Keep CommerceHub credentials, merchant tokens, and customer-sensitive backend
 data out of browser code. The browser should receive only the interaction data
 needed by the widget.
+
+## 6. Regenerate OpenAPI types carefully
+
+Generated OpenAPI types live in `src/generated/openapi.ts`; regenerate them
+with `npm run generate:client` after `swagger.json` changes.
+
+The public `InteractionResponse` type intentionally augments the generated
+OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.
+Do not hand-edit `src/generated/openapi.ts` to add that field; preserve the
+local augmentation in `src/commerce-hub-connect.ts` after client regeneration.

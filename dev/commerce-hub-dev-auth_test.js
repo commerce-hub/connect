@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  COMMERCE_HUB_DEV_AUTH_DEFAULTS,
   DEFAULT_COMMERCE_HUB_DEV_USER_EMAIL,
   createCommerceHubDevAuthHeaders,
   createCommerceHubDevAuthorization,
@@ -44,27 +43,26 @@ test('creates CommerceHub DEV HMAC request headers from env vars', () => {
   );
 });
 
-test('falls back to temporary hardcoded CommerceHub DEV HMAC credentials', () => {
-  const body = '{"email":"user@example.com","mode":"PRE_AUTHENTICATED"}';
-  const headers = createCommerceHubDevAuthHeaders({
-    body,
-    env: {},
-    now: () => 1779892447158,
-    createClientRequestId: () => 6716010,
-  });
-
-  assert.equal(headers['Api-Key'], COMMERCE_HUB_DEV_AUTH_DEFAULTS.apiKey);
-  assert.equal(
-    headers.Authorization,
-    createCommerceHubDevAuthorization({
-      apiKey: COMMERCE_HUB_DEV_AUTH_DEFAULTS.apiKey,
-      apiSecret: COMMERCE_HUB_DEV_AUTH_DEFAULTS.apiSecret,
-      clientRequestId: '6716010',
-      timestamp: '1779892447158',
-      body,
-    })
+test('requires CommerceHub DEV HMAC credentials from env vars', () => {
+  assert.throws(
+    () =>
+      createCommerceHubDevAuthHeaders({
+        body: '{"email":"user@example.com","mode":"PRE_AUTHENTICATED"}',
+        env: {},
+      }),
+    /COMMERCE_HUB_DEV_API_KEY is required/
   );
-  assert.equal(headers['x-user-email'], DEFAULT_COMMERCE_HUB_DEV_USER_EMAIL);
+
+  assert.throws(
+    () =>
+      createCommerceHubDevAuthHeaders({
+        body: '{"email":"user@example.com","mode":"PRE_AUTHENTICATED"}',
+        env: {
+          COMMERCE_HUB_DEV_API_KEY: 'test-key',
+        },
+      }),
+    /COMMERCE_HUB_DEV_API_SECRET is required/
+  );
 });
 
 test('gates CommerceHub DEV HMAC auth to signed merchant interaction POST requests', () => {

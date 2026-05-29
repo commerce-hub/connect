@@ -229,8 +229,9 @@ event for those states.
 ## Design Configuration
 
 Pass `.designConfig` to adjust merchant-safe colors, typography, spacing, copy,
-and Pay by Bank provider settings. All fields are optional and omitted values
-fall back to SDK defaults.
+and Pay by Bank provider settings. Most fields are optional and omitted values
+fall back to SDK defaults. If the Pay by Bank handoff is enabled, provide
+`payByBank.apiKey` and `payByBank.configId` from your CommerceHub integration.
 
 ```ts
 import 'commerce-hub-connect-sdk';
@@ -248,6 +249,10 @@ const designConfig: DesignConfig = {
   baseFontSize: '16px',
   baseFontWeight: '400',
   shellPadding: '1.75rem 1.5rem 1.5rem',
+  payByBank: {
+    apiKey: '<pay-by-bank-api-key>',
+    configId: '<pay-by-bank-config-id>',
+  },
   copy: {
     otp: {
       title: 'Confirm your email',
@@ -377,6 +382,11 @@ Regenerate the typed API client after `swagger.json` changes:
 ```bash
 npm run generate:client
 ```
+
+The public `InteractionResponse` type intentionally augments the generated
+OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.
+Do not hand-edit `src/generated/openapi.ts` to add that field; preserve the
+local augmentation in `src/commerce-hub-connect.ts` after client regeneration.
 
 Run tests:
 

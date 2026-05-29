@@ -25,6 +25,10 @@ const designConfig: DesignConfig = {
   baseFontSize: '16px',
   baseFontWeight: '400',
   shellPadding: '1.75rem 1.5rem 1.5rem',
+  payByBank: {
+    apiKey: '<pay-by-bank-api-key>',
+    configId: '<pay-by-bank-config-id>',
+  },
   copy: {
     otp: {
       title: 'Verify OTP',
@@ -50,5 +54,6 @@ if (widget) {
 {% endraw %}
 ```
 
-Every `designConfig` field is optional. Omitted values fall back to SDK
-defaults.
+Most `designConfig` fields are optional. Omitted values fall back to SDK
+defaults. If the Pay by Bank handoff is enabled, provide `payByBank.apiKey` and
+`payByBank.configId` from your CommerceHub integration.
