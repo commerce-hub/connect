@@ -1,0 +1,71 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><commerce-hub-connect> | Examples | Plain JavaScript</title>
+    <link rel="stylesheet" href="../../docs.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600|Roboto+Mono">
+    <link href="../../prism-okaidia.css" rel="stylesheet" />
+    <script type="module" src="../../commerce-hub-connect.bundled.js"></script>
+  </head>
+  <body>
+    
+<header>
+  <h1>&lt;commerce-hub-connect></h1>
+  <h2>CommerceHub Connect Web SDK widget primitives.</h2>
+</header>
+    
+<nav>
+  <a href="../../">Home</a>
+  <a href="../../install/">Install</a>
+  <a href="../../flow/">End-to-End Flow</a>
+  <a href="../">Examples</a>
+  <a href="../../api/">API</a>
+</nav>
+    <div id="main-wrapper">
+      <main>
+        
+    <h1>Example: Plain JavaScript</h1>
+    <section class="examples">
+      <nav class="collection">
+        <ul>
+          
+                  <li class=>
+                    <a href="../">Render the widget and assign an InteractionResponse</a>
+                  </li>
+                
+                  <li class=>
+                    <a href="../lit/">Bind SDK properties from a Lit host component</a>
+                  </li>
+                
+                  <li class=selected>
+                    <a href="">Create and mount the widget imperatively</a>
+                  </li>
+                
+                  <li class=>
+                    <a href="../design-config/">Customize merchant-safe colors, spacing, and copy</a>
+                  </li>
+                
+        </ul>
+      </nav>
+      <div>
+        <h3>Imperative mount</h3>
+<pre class="language-ts"><code class="language-ts"><br><span class="token keyword">import</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><br><span class="token keyword">const</span> host <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">querySelector</span><span class="token punctuation">(</span><span class="token string">'#commerce-hub-widget-host'</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><span class="token keyword">const</span> widget <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">createElement</span><span class="token punctuation">(</span><span class="token string">'commerce-hub-connect'</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br>widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>interactionResponse <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><span class="token string">'/api/commercehub/interaction'</span><span class="token punctuation">,</span> <span class="token punctuation">{</span><br>  method<span class="token operator">:</span> <span class="token string">'POST'</span><span class="token punctuation">,</span><br>  headers<span class="token operator">:</span> <span class="token punctuation">{</span><span class="token string-property property">'Content-Type'</span><span class="token operator">:</span> <span class="token string">'application/json'</span><span class="token punctuation">}</span><span class="token punctuation">,</span><br>  body<span class="token operator">:</span> <span class="token constant">JSON</span><span class="token punctuation">.</span><span class="token function">stringify</span><span class="token punctuation">(</span><span class="token punctuation">{</span>orderId<span class="token operator">:</span> <span class="token string">'order-123'</span><span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span><br><span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span> response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br>widget<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'onSuccess'</span><span class="token punctuation">,</span> <span class="token keyword">async</span> <span class="token punctuation">(</span>event<span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span><br>  <span class="token keyword">const</span> paymentSource <span class="token operator">=</span> event<span class="token punctuation">.</span>detail<span class="token punctuation">;</span><br>  <span class="token keyword">const</span> completedPaymentSource <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><br>    <span class="token string">'/api/commercehub/interaction/complete'</span><span class="token punctuation">,</span><br>    <span class="token punctuation">{</span><br>      method<span class="token operator">:</span> <span class="token string">'POST'</span><span class="token punctuation">,</span><br>      headers<span class="token operator">:</span> <span class="token punctuation">{</span><span class="token string-property property">'Content-Type'</span><span class="token operator">:</span> <span class="token string">'application/json'</span><span class="token punctuation">}</span><span class="token punctuation">,</span><br>      body<span class="token operator">:</span> <span class="token constant">JSON</span><span class="token punctuation">.</span><span class="token function">stringify</span><span class="token punctuation">(</span><span class="token punctuation">{</span>value<span class="token operator">:</span> widget<span class="token punctuation">.</span>interactionResponse<span class="token punctuation">.</span>interactionId<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span><br>    <span class="token punctuation">}</span><br>  <span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span> response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br>  <span class="token function">fetch</span><span class="token punctuation">(</span><span class="token string">'/api/orders/order-123/payment-source'</span><span class="token punctuation">,</span> <span class="token punctuation">{</span><br>    method<span class="token operator">:</span> <span class="token string">'POST'</span><span class="token punctuation">,</span><br>    headers<span class="token operator">:</span> <span class="token punctuation">{</span><span class="token string-property property">'Content-Type'</span><span class="token operator">:</span> <span class="token string">'application/json'</span><span class="token punctuation">}</span><span class="token punctuation">,</span><br>    body<span class="token operator">:</span> <span class="token constant">JSON</span><span class="token punctuation">.</span><span class="token function">stringify</span><span class="token punctuation">(</span><span class="token punctuation">{</span><br>      selectedPaymentSourceId<span class="token operator">:</span> paymentSource<span class="token punctuation">.</span>id<span class="token punctuation">,</span><br>      completedPaymentSourceId<span class="token operator">:</span> completedPaymentSource<span class="token punctuation">.</span>id<span class="token punctuation">,</span><br>    <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span><br>  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br>host<span class="token operator">?.</span><span class="token function">replaceChildren</span><span class="token punctuation">(</span>widget<span class="token punctuation">)</span><span class="token punctuation">;</span><br></code></pre>
+<pre class="language-html"><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>div</span> <span class="token attr-name">id</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>commerce-hub-widget-host<span class="token punctuation">"</span></span><span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>div</span><span class="token punctuation">></span></span></code></pre>
+
+      </div>
+    </section>
+  
+      </main>
+    </div>
+    
+<footer>
+  <p>
+    CommerceHub Connect Web SDK
+  </p>
+</footer>
+  </body>
+</html>

@@ -1,0 +1,73 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><commerce-hub-connect> | Examples | Basic</title>
+    <link rel="stylesheet" href="../docs.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600|Roboto+Mono">
+    <link href="../prism-okaidia.css" rel="stylesheet" />
+    <script type="module" src="../commerce-hub-connect.bundled.js"></script>
+  </head>
+  <body>
+    
+<header>
+  <h1>&lt;commerce-hub-connect></h1>
+  <h2>CommerceHub Connect Web SDK widget primitives.</h2>
+</header>
+    
+<nav>
+  <a href="../">Home</a>
+  <a href="../install/">Install</a>
+  <a href="../flow/">End-to-End Flow</a>
+  <a href="">Examples</a>
+  <a href="../api/">API</a>
+</nav>
+    <div id="main-wrapper">
+      <main>
+        
+    <h1>Example: Basic</h1>
+    <section class="examples">
+      <nav class="collection">
+        <ul>
+          
+                  <li class=selected>
+                    <a href="">Render the widget and assign an InteractionResponse</a>
+                  </li>
+                
+                  <li class=>
+                    <a href="lit/">Bind SDK properties from a Lit host component</a>
+                  </li>
+                
+                  <li class=>
+                    <a href="plain-javascript/">Create and mount the widget imperatively</a>
+                  </li>
+                
+                  <li class=>
+                    <a href="design-config/">Customize merchant-safe colors, spacing, and copy</a>
+                  </li>
+                
+        </ul>
+      </nav>
+      <div>
+        <p><commerce-hub-connect></commerce-hub-connect></p>
+<h3>HTML</h3>
+<pre class="language-html"><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>commerce-hub-connect</span><span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>commerce-hub-connect</span><span class="token punctuation">></span></span></code></pre>
+<h3>JavaScript</h3>
+<pre class="language-ts"><code class="language-ts"><br><span class="token keyword">import</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><br><span class="token keyword">const</span> widget <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">querySelector</span><span class="token punctuation">(</span><span class="token string">'commerce-hub-connect'</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br><span class="token keyword">if</span> <span class="token punctuation">(</span>widget<span class="token punctuation">)</span> <span class="token punctuation">{</span><br>  widget<span class="token punctuation">.</span>interactionResponse <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><span class="token string">'/api/commercehub/interaction'</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><br>    <span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span> response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><br>  <span class="token punctuation">)</span><span class="token punctuation">;</span><br>  widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br><span class="token punctuation">}</span><br></code></pre>
+
+      </div>
+    </section>
+  
+      </main>
+    </div>
+    
+<footer>
+  <p>
+    CommerceHub Connect Web SDK
+  </p>
+</footer>
+  </body>
+</html>
