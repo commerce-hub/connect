@@ -50,8 +50,8 @@ if (widget) {
       }
     ).then((response) => response.json());
 
-    console.log('Selected source', selectedPaymentSource);
-    console.log('Completed source', completedPaymentSource);
+    // Store or reference selectedPaymentSource in host-owned state as needed.
+    // Continue the host checkout flow with completedPaymentSource.
   });
 }
 {% endraw %}

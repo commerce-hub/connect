@@ -7,13 +7,19 @@ const DEV_PAGE_URL =
 const WIDGET_API_BASE_URL = 'http://localhost:8080';
 const COMMERCE_HUB_API_BASE_URL =
   process.env.COMMERCE_HUB_API_BASE_URL ?? WIDGET_API_BASE_URL;
-const BANK_SEARCH = 'non mfa';
-const BANK_USERNAME = 'nonmfa1234';
-const BANK_PASSWORD = 'nonmfa1234';
+const BANK_SEARCH = process.env.E2E_BANK_SEARCH ?? 'non mfa';
+const BANK_USERNAME = process.env.E2E_BANK_USERNAME;
+const BANK_PASSWORD = process.env.E2E_BANK_PASSWORD;
 const TEST_TIMEOUT_MS = Number(process.env.E2E_TIMEOUT_MS ?? 180000);
 const HEADLESS = process.env.E2E_HEADLESS === 'true';
 const SLOW_MO = Number(process.env.E2E_SLOW_MO_MS ?? 0);
 const FINAL_OUTCOMES = ['Bank account verified', 'Verification pending review'];
+
+if (!BANK_USERNAME || !BANK_PASSWORD) {
+  throw new Error(
+    'E2E_BANK_USERNAME and E2E_BANK_PASSWORD are required to run the bank account flow.'
+  );
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

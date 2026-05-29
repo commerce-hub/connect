@@ -71,7 +71,7 @@ suite('demo host page', () => {
     );
     assert.include(html, 'class="method-logo rewards-logo"');
     assert.include(html, 'id="alibaba-buyer-email"');
-    assert.include(html, 'gregory.jablonski@fiserv.com');
+    assert.include(html, 'shopper@example.com');
     assert.include(html, 'id="alibaba-rewards-sdk-host"');
     assert.include(html, 'margin: 0 auto');
     assert.include(html, 'id="payment-method-alibaba-rewards"');
@@ -171,20 +171,16 @@ suite('demo host page', () => {
 
     const createRequestBody = createRequest.body;
     assert.isDefined(createRequestBody);
-    assert.propertyVal(
-      createRequestBody,
-      'email',
-      'gregory.jablonski@fiserv.com'
-    );
+    assert.propertyVal(createRequestBody, 'email', 'shopper@example.com');
     assert.deepEqual(createRequestBody?.allowedTenderTypes, [
       'CARD',
       'BANK_ACCOUNT',
       'NATIVE_ACCOUNT',
     ]);
     assert.deepEqual(createRequestBody?.merchantData, {
-      clientId: 'marriot',
-      merchantId: '101475000000009',
-      terminalId: '99',
+      clientId: 'example-client',
+      merchantId: '000000000000000',
+      terminalId: '00000000',
     });
     assert.propertyVal(createRequestBody, 'mode', 'FULL');
     assert.equal(
@@ -255,8 +251,8 @@ suite('demo host page', () => {
     assert.include(html, '<title>Clover Pay Demo</title>');
     assert.include(html, 'The Coral Gallery');
     assert.include(html, 'class="clover-logo"');
-    assert.include(html, 'Gregory Jablonski');
-    assert.include(html, 'gregory.jablonski@fiserv.com');
+    assert.include(html, 'Example Shopper');
+    assert.include(html, 'shopper@example.com');
     assert.include(html, 'id="checkout-recipient-email"');
     assert.include(html, '$0.01');
     assert.include(html, 'Select payment method');
@@ -292,8 +288,8 @@ suite('demo host page', () => {
     assert.include(html, "document.createElement('commerce-hub-connect')");
     assert.include(html, 'widget.interactionResponse = interactionResponse');
     assert.notInclude(html, 'id="interaction-email"');
-    assert.notInclude(html, 'Anoop Agarwal');
-    assert.notInclude(html, 'anoop.agarwal@Fiserv.com');
+    assert.notInclude(html, 'Legacy Recipient');
+    assert.notInclude(html, 'legacy.recipient@example.com');
   });
 
   test('starts Clover Pay from the selected radio option and uses the recipient email in the create request body', async () => {
@@ -393,19 +389,15 @@ suite('demo host page', () => {
 
     const createRequestBody = createRequest.body;
     assert.isDefined(createRequestBody);
-    assert.propertyVal(
-      createRequestBody,
-      'email',
-      'gregory.jablonski@fiserv.com'
-    );
+    assert.propertyVal(createRequestBody, 'email', 'shopper@example.com');
     assert.deepEqual(createRequestBody?.allowedTenderTypes, [
       'CARD',
       'BANK_ACCOUNT',
     ]);
     assert.deepEqual(createRequestBody?.merchantData, {
-      clientId: 'marriot',
-      merchantId: '101475000000009',
-      terminalId: '10000001',
+      clientId: 'example-client',
+      merchantId: '000000000000000',
+      terminalId: '00000000',
     });
     assert.propertyVal(createRequestBody, 'mode', 'FULL');
     assert.equal(
@@ -430,7 +422,7 @@ suite('demo host page', () => {
     assert.include(html, 'class="clover-logo"');
     assert.include(html, 'Business name here');
     assert.include(html, 'id="merchant-dashboard-email"');
-    assert.include(html, 'gregory.jablonski@fiserv.com');
+    assert.include(html, 'merchant@example.com');
     assert.include(html, 'id="bank-accounts-page"');
     assert.include(html, 'Bank information');
     assert.include(html, 'Funding account');
@@ -453,12 +445,9 @@ suite('demo host page', () => {
     assert.include(html, 'justify-items: center');
     assert.include(html, 'width: min(var(--sdk-dialog-widget-width), 100%)');
     assert.include(html, "'/merchant/interaction/create'");
-    assert.include(
-      html,
-      "const MERCHANT_EMAIL = 'gregory.jablonski@fiserv.com'"
-    );
+    assert.include(html, "const MERCHANT_EMAIL = 'merchant@example.com'");
     assert.include(html, 'email: MERCHANT_EMAIL');
-    assert.include(html, "entityData: {firstName: 'Neer'}");
+    assert.include(html, "entityData: {firstName: 'Example'}");
     assert.include(html, 'advancedVerification: true');
     assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, "await import('./../commerce-hub-connect.js')");
@@ -466,7 +455,7 @@ suite('demo host page', () => {
     assert.include(html, "widget.addEventListener('onSuccess'");
     assert.include(html, 'widget.interactionResponse = interactionResponse');
     assert.notInclude(html, 'Developer Info');
-    assert.notInclude(html, 'Chris Doe (Individual Developer)');
+    assert.notInclude(html, 'Legacy Individual Developer');
     assert.notInclude(html, 'id="open-bank-details-button"');
     assert.notInclude(html, 'id="developer-info-page"');
   });
@@ -560,18 +549,14 @@ suite('demo host page', () => {
 
     const createRequestBody = createRequest.body;
     assert.isDefined(createRequestBody);
-    assert.propertyVal(
-      createRequestBody,
-      'email',
-      'gregory.jablonski@fiserv.com'
-    );
+    assert.propertyVal(createRequestBody, 'email', 'merchant@example.com');
     assert.deepEqual(createRequestBody?.allowedTenderTypes, ['BANK_ACCOUNT']);
     assert.deepEqual(createRequestBody?.merchantData, {
-      clientId: 'marriot',
-      merchantId: '101475000000009',
-      terminalId: '10000001',
+      clientId: 'example-client',
+      merchantId: '000000000000000',
+      terminalId: '00000000',
     });
-    assert.deepEqual(createRequestBody?.entityData, {firstName: 'Neer'});
+    assert.deepEqual(createRequestBody?.entityData, {firstName: 'Example'});
     assert.propertyVal(createRequestBody, 'advancedVerification', true);
     assert.propertyVal(createRequestBody, 'mode', 'PRE_AUTHENTICATED');
 
@@ -583,7 +568,7 @@ suite('demo host page', () => {
         detail: {
           tenderType: 'BankAccount',
           id: 'bank-sdk-1',
-          name: 'Neer SDK Settlement Account',
+          name: 'Example SDK Settlement Account',
           bankAccount: {
             bankName: 'Wells Fargo',
             routingNumber: '091000019',
@@ -600,7 +585,7 @@ suite('demo host page', () => {
     );
     assert.include(
       pageDocument.querySelector('#bank-list-account-name')?.textContent ?? '',
-      'Neer SDK Settlement Account'
+      'Example SDK Settlement Account'
     );
     assert.include(
       pageDocument.querySelector('#bank-list-routing-code')?.textContent ?? '',
@@ -1009,10 +994,10 @@ suite('demo host page', () => {
     const response = await fetch('/dev/index.html');
     const html = await response.text();
 
-    assert.include(html, "email: 'gregory.jablonski@fiserv.com'");
-    assert.include(html, "clientId: 'marriot'");
-    assert.include(html, "merchantId: '101475000000009'");
-    assert.include(html, "terminalId: '10000001'");
+    assert.include(html, "email: 'shopper@example.com'");
+    assert.include(html, "clientId: 'example-client'");
+    assert.include(html, "merchantId: '000000000000000'");
+    assert.include(html, "terminalId: '00000000'");
     assert.include(html, 'advancedVerification: true');
     assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, 'allowCard: true');

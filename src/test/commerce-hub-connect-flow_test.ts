@@ -683,7 +683,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
 
     assert.equal(
@@ -692,7 +692,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.include(
       el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
-      'We sent a one-time code to gregory.jablonski@fiserv.com.'
+      'We sent a one-time code to shopper@example.com.'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
@@ -744,7 +744,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-otp',
         status: 'OTP_VALIDATION_PENDING',
-        email: 'gregory.jablonski@fiserv.com',
+        email: 'shopper@example.com',
       },
       {
         copy: {
@@ -789,14 +789,14 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
 
     await setOtpValue(el, '987654');
     el.interactionResponse = {
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_FAILED',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     };
     await flushElement(el);
 
@@ -828,7 +828,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
     const inputs = [
       ...el.shadowRoot!.querySelectorAll<HTMLInputElement>('.otp-input'),
@@ -3413,7 +3413,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
       oauth: {
         access_token: 'gateway-access-token-1',
       },
@@ -3440,7 +3440,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(JSON.parse(requests[0].bodyText), {
       otp: '123456',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
       channel: 'EMAIL',
     });
     assert.deepEqual(
@@ -3501,7 +3501,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-otp',
         status: 'OTP_VALIDATION_PENDING',
-        email: 'gregory.jablonski@fiserv.com',
+        email: 'shopper@example.com',
       },
       undefined,
       'QA'
@@ -3535,7 +3535,7 @@ suite('commerce-hub-connect flow', () => {
         JSON.stringify({
           interactionId: 'interaction-otp',
           status: 'OTP_VALIDATION_PENDING',
-          email: 'gregory.jablonski@fiserv.com',
+          email: 'shopper@example.com',
           oauth: {
             access_token: 'gateway-access-token-2',
           },
@@ -3550,7 +3550,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
       oauth: {
         access_token: 'gateway-access-token-1',
       },
@@ -3764,7 +3764,7 @@ suite('commerce-hub-connect flow', () => {
 
     const el = await renderConnect({
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
@@ -3790,7 +3790,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
@@ -3821,7 +3821,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
 
     await setOtpValue(el, '123456');

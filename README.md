@@ -68,7 +68,7 @@ if (widget) {
   widget.addEventListener('onSuccess', async (event: Event) => {
     const {detail: paymentSource} = event as OnSuccessEvent;
 
-    console.log('Selected payment source', paymentSource);
+    // Store or reference paymentSource in host-owned state as needed.
 
     const completedPaymentSource = await fetch(
       '/api/commercehub/interaction/complete',
@@ -79,7 +79,7 @@ if (widget) {
       }
     ).then((response) => response.json());
 
-    console.log('Completed payment source', completedPaymentSource);
+    // Continue the host checkout flow with completedPaymentSource.
   });
 }
 ```

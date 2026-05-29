@@ -894,7 +894,7 @@
           aria-label="Connected bank accounts"
         >
           <span id="merchant-dashboard-email" hidden>
-            gregory.jablonski@fiserv.com
+            merchant@example.com
           </span>
           <header class="subpage-header">
             <button
@@ -1024,7 +1024,7 @@
       const commerceHubApiBaseUrl =
         new URLSearchParams(window.location.search).get('apiBaseUrl') ??
         'http://localhost:8080';
-      const MERCHANT_EMAIL = 'gregory.jablonski@fiserv.com';
+      const MERCHANT_EMAIL = 'merchant@example.com';
 
       const dashboardEmail = document.querySelector(
         '#merchant-dashboard-email'
@@ -1070,11 +1070,11 @@
           email: MERCHANT_EMAIL,
           allowedTenderTypes: ['BANK_ACCOUNT'],
           merchantData: {
-            clientId: 'marriot',
-            merchantId: '101475000000009',
-            terminalId: '10000001',
+            clientId: 'example-client',
+            merchantId: '000000000000000',
+            terminalId: '00000000',
           },
-          entityData: {firstName: 'Neer'},
+          entityData: {firstName: 'Example'},
           advancedVerification: true,
           mode: 'PRE_AUTHENTICATED',
         };
@@ -1152,7 +1152,7 @@
 
       const paymentSourceAccountName = (source) =>
         paymentSourceText(source, ['name', 'accountName', 'displayName']) ??
-        'Greg bank account';
+        'Example bank account';
 
       const paymentSourceBankName = (source) =>
         paymentSourceText(bankAccountDetails(source), ['bankName']) ??
