@@ -51,11 +51,17 @@ request. The SDK owns the browser widget once the host passes an
 3. Your frontend mounts `<commerce-hub-connect>` and assigns
    `.interactionResponse`.
 4. The SDK renders the current interaction step and performs SDK-managed calls
-   with `interactionResponse.interactionId` as the `x-interaction-id` header.
+   with `interactionResponse.interactionId` as the `x-interaction-id` header,
+   and with `Authorization: Bearer <token>` when
+   `interactionResponse.oauth.access_token` is present.
 5. The shopper completes the required flow, such as OTP, saved source
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
 6. The SDK emits `onSuccess` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
+7. Your host completes the merchant interaction with
+   `POST /merchant/interaction/complete`, sending
+   `{value: interactionResponse.interactionId}` and treating the returned
+   `PaymentSource` as the completed source.
 
 ## Backend Integration Contract
 
@@ -130,13 +136,24 @@ widget.interactionResponse = await fetch('/api/commercehub/interaction', {
   body: JSON.stringify({orderId: 'order-123'}),
 }).then((response) => response.json());
 
-widget.addEventListener('onSuccess', (event) => {
+widget.addEventListener('onSuccess', async (event) => {
   const paymentSource = event.detail;
+  const completedPaymentSource = await fetch(
+    '/api/commercehub/interaction/complete',
+    {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({value: widget.interactionResponse.interactionId}),
+    }
+  ).then((response) => response.json());
 
   fetch('/api/orders/order-123/payment-source', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({paymentSourceId: paymentSource.id}),
+    body: JSON.stringify({
+      selectedPaymentSourceId: paymentSource.id,
+      completedPaymentSourceId: completedPaymentSource.id,
+    }),
   });
 });
 
@@ -168,9 +185,23 @@ class CheckoutPayment extends LitElement {
     ></commerce-hub-connect>`;
   }
 
-  private handleSuccess(event: OnSuccessEvent) {
+  private async handleSuccess(event: OnSuccessEvent) {
+    const completedPaymentSource = await fetch(
+      '/api/commercehub/interaction/complete',
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({value: this.interactionResponse?.interactionId}),
+      }
+    ).then((response) => response.json());
+
     this.dispatchEvent(
-      new CustomEvent('payment-source-selected', {detail: event.detail})
+      new CustomEvent('payment-source-selected', {
+        detail: {
+          selectedPaymentSource: event.detail,
+          completedPaymentSource,
+        },
+      })
     );
   }
 }
@@ -178,13 +209,15 @@ class CheckoutPayment extends LitElement {
 
 ## SDK-Managed Requests
 
-When the widget performs CommerceHub calls, it uses `http://localhost:8080` by
-default. Set `.baseURL` to one of the CommerceHub presets or to a custom origin.
-The `DEV` preset resolves to `https://connect-dev.fiservapis.com/chc`. The
-current `QA` and `PROD` presets resolve to the QA non-production CommerceHub
-origin until final environment values are published.
+When the widget performs CommerceHub calls, it uses the `PROD` preset by
+default. Set `.baseURL` only when the host needs a different CommerceHub preset
+or a custom origin. The `PROD` preset resolves to
+`https://connect.fiservapis.com/chc`, the `DEV` preset resolves to
+`https://connect-dev.fiservapis.com/chc`, and the `QA` preset resolves to the
+QA non-production CommerceHub origin.
 
 ```ts
+widget.baseURL = 'PROD';
 widget.baseURL = 'QA';
 widget.baseURL = 'https://api.example.com';
 ```
@@ -199,28 +232,50 @@ SDK-managed calls include:
 - Pay by Bank session launch and finalization.
 - Native account balance lookup.
 
+The widget always sends `x-interaction-id` with
+`interactionResponse.interactionId`. When
+`interactionResponse.oauth.access_token` is present, it also sends
+`Authorization: Bearer <token>`.
+
 If `interactionResponse.interactionId` is missing, the widget does not call the
 CommerceHub API and keeps the current screen stable.
 
 ## Handling Completion
 
 Listen for `onSuccess` on the element. The event detail is the selected
-`PaymentSource`.
+`PaymentSource`. Keep `onSuccess` as the widget boundary, then have the host
+complete the merchant interaction. Send `{value:
+interactionResponse.interactionId}` to `POST /merchant/interaction/complete`
+through your backend or typed CommerceHub client, and treat the response as the
+authoritative completed `PaymentSource`.
 
 ```ts
 widget.addEventListener('onSuccess', async (event) => {
   const paymentSource = event.detail;
+
+  const completedPaymentSource = await fetch(
+    '/api/commercehub/interaction/complete',
+    {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({value: interactionResponse.interactionId}),
+    }
+  ).then((response) => response.json());
 
   await fetch('/api/orders/confirm-payment-source', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       orderId,
-      paymentSourceId: paymentSource.id,
+      selectedPaymentSourceId: paymentSource.id,
+      completedPaymentSourceId: completedPaymentSource.id,
     }),
   });
 });
 ```
+
+Do not assign the completion response back to `widget.interactionResponse`; the
+completion response is a `PaymentSource`, not an `InteractionResponse`.
 
 The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
@@ -359,9 +414,9 @@ const {data, error} = await client.GET('/interaction');
 - Keep CommerceHub credentials, merchant tokens, and customer-sensitive backend
   data out of browser code.
 - The browser should receive only the interaction data needed by the widget.
-- The SDK uses localhost defaults for local development.
-- Document environment-specific URL or header assumptions in the consuming
-  application.
+- The SDK uses the `PROD` preset by default for SDK-managed browser calls.
+- Set `.baseURL` only when the host needs a different CommerceHub environment
+  or gateway origin.
 
 ## Development Commands
 
