@@ -123,20 +123,31 @@ event for those states.
 
 ## 5. Configure production behavior
 
-Set `.baseURL` to the CommerceHub environment or gateway origin that should
-receive SDK-managed browser calls.
+SDK-managed browser calls use the `PROD` preset by default. Set `.baseURL` only
+when the host needs a different CommerceHub environment or gateway origin.
 
 ```ts
 {% raw %}
+widget.baseURL = 'PROD';
 widget.baseURL = 'QA';
 widget.baseURL = 'https://api.example.com';
 {% endraw %}
 ```
 
-The `DEV` preset resolves to `https://connect-dev.fiservapis.com/chc`. The
-current `QA` and `PROD` presets resolve to the QA non-production CommerceHub
-origin until final environment values are published.
+The `PROD` preset resolves to `https://connect.fiservapis.com/chc`, the `DEV`
+preset resolves to `https://connect-dev.fiservapis.com/chc`, and the `QA`
+preset resolves to the QA non-production CommerceHub origin.
 
 Keep CommerceHub credentials, merchant tokens, and customer-sensitive backend
 data out of browser code. The browser should receive only the interaction data
 needed by the widget.
+
+## 6. Regenerate OpenAPI types carefully
+
+Generated OpenAPI types live in `src/generated/openapi.ts`; regenerate them
+with `npm run generate:client` after `swagger.json` changes.
+
+The public `InteractionResponse` type intentionally augments the generated
+OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.
+Do not hand-edit `src/generated/openapi.ts` to add that field; preserve the
+local augmentation in `src/commerce-hub-connect.ts` after client regeneration.

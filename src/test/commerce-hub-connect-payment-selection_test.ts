@@ -3,6 +3,7 @@ import {fixture, assert, html as testingHtml} from '@open-wc/testing';
 import '../commerce-hub-connect.js';
 import type {
   CommerceHubConnect,
+  CommerceHubBaseURLInput,
   InteractionResponse,
   PaymentSource,
 } from '../commerce-hub-connect.js';
@@ -82,10 +83,16 @@ const flushElement = async (el: CommerceHubConnect) => {
   await el.updateComplete;
 };
 
-const renderConnect = async (interactionResponse: InteractionResponse) => {
+const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
+
+const renderConnect = async (
+  interactionResponse: InteractionResponse,
+  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL
+) => {
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
       .interactionResponse=${interactionResponse}
+      .baseURL=${baseURL}
     ></commerce-hub-connect>`
   )) as CommerceHubConnect;
 

@@ -3,7 +3,6 @@ import {fixture, assert, html as testingHtml} from '@open-wc/testing';
 import '../commerce-hub-connect.js';
 import {
   COMMERCE_HUB_BASE_URLS,
-  DEFAULT_COMMERCE_HUB_BASE_URL,
   type InteractionResponse,
   type PaymentSource,
   type CommerceHubBaseURLInput,
@@ -42,15 +41,42 @@ const flushElement = async (el: CommerceHubConnect) => {
   await el.updateComplete;
 };
 
+const testPayByBankConfig = {
+  apiKey: 'test-pay-by-bank-api-key',
+  configId: 'test-pay-by-bank-config-id',
+};
+const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
+
+const withTestPayByBankConfig = (designConfig?: unknown) => {
+  const config =
+    designConfig &&
+    typeof designConfig === 'object' &&
+    !Array.isArray(designConfig)
+      ? (designConfig as Record<string, unknown>)
+      : {};
+  const payByBank =
+    config.payByBank && typeof config.payByBank === 'object'
+      ? (config.payByBank as Record<string, unknown>)
+      : {};
+
+  return {
+    ...config,
+    payByBank: {
+      ...testPayByBankConfig,
+      ...payByBank,
+    },
+  };
+};
+
 const renderConnect = async (
   interactionResponse: InteractionResponse,
   designConfig?: unknown,
-  baseURL?: CommerceHubBaseURLInput
+  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL
 ) => {
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
       .interactionResponse=${interactionResponse}
-      .designConfig=${designConfig}
+      .designConfig=${withTestPayByBankConfig(designConfig)}
       .baseURL=${baseURL}
     ></commerce-hub-connect>`
   )) as CommerceHubConnect;
@@ -657,7 +683,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
 
     assert.equal(
@@ -666,7 +692,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.include(
       el.shadowRoot!.querySelector('.widget-subtitle')?.textContent?.trim(),
-      'We sent a one-time code to gregory.jablonski@fiserv.com.'
+      'We sent a one-time code to shopper@example.com.'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
@@ -718,7 +744,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-otp',
         status: 'OTP_VALIDATION_PENDING',
-        email: 'gregory.jablonski@fiserv.com',
+        email: 'shopper@example.com',
       },
       {
         copy: {
@@ -763,14 +789,14 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
 
     await setOtpValue(el, '987654');
     el.interactionResponse = {
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_FAILED',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     };
     await flushElement(el);
 
@@ -802,7 +828,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
     const inputs = [
       ...el.shadowRoot!.querySelectorAll<HTMLInputElement>('.otp-input'),
@@ -1596,8 +1622,8 @@ suite('commerce-hub-connect flow', () => {
     await clickAction(el, 'add-card');
     await waitFor(
       () =>
-        el.shadowRoot!
-          .querySelector('.billing-address-summary')
+        el
+          .shadowRoot!.querySelector('.billing-address-summary')
           ?.textContent?.includes('1 Main St, New York, NY 10001') ?? false
     );
 
@@ -1661,9 +1687,7 @@ suite('commerce-hub-connect flow', () => {
       ].map((option) => option.textContent?.trim()),
       ['1 Main St, New York, NY 10001', 'Add new billing address']
     );
-    assert.notExists(
-      el.shadowRoot!.querySelector('.billing-address-summary')
-    );
+    assert.notExists(el.shadowRoot!.querySelector('.billing-address-summary'));
   });
 
   test('selecting Add new billing address reveals billing address fields', async () => {
@@ -1886,10 +1910,13 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('#commerce-hub-pbb-provider')
     );
 
-    el.shadowRoot!
-      .querySelector<HTMLButtonElement>('.widget-header-action button')
-      ?.click();
-    await waitFor(() => initCount === 2, 'PaymentSDK.init was not called again');
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '.widget-header-action button'
+    )?.click();
+    await waitFor(
+      () => initCount === 2,
+      'PaymentSDK.init was not called again'
+    );
     await flushElement(el);
 
     assert.equal(
@@ -2049,15 +2076,13 @@ suite('commerce-hub-connect flow', () => {
     );
 
     const requestsAfterMask = requests.length;
-    el
-      .shadowRoot!.querySelector<HTMLInputElement>('#ach-account-number')!
-      .dispatchEvent(new FocusEvent('focus', {bubbles: true}));
+    el.shadowRoot!.querySelector<HTMLInputElement>(
+      '#ach-account-number'
+    )!.dispatchEvent(new FocusEvent('focus', {bubbles: true}));
     await blurField(el, 'ach-account-number');
-    el
-      .shadowRoot!.querySelector<HTMLInputElement>(
-        '#ach-account-number-confirm'
-      )!
-      .dispatchEvent(new FocusEvent('focus', {bubbles: true}));
+    el.shadowRoot!.querySelector<HTMLInputElement>(
+      '#ach-account-number-confirm'
+    )!.dispatchEvent(new FocusEvent('focus', {bubbles: true}));
     await blurField(el, 'ach-account-number-confirm');
 
     assert.lengthOf(requests, requestsAfterMask);
@@ -2203,10 +2228,7 @@ suite('commerce-hub-connect flow', () => {
     await setFieldValue(el, 'ach-account-number', '123456789');
     await setFieldValue(el, 'ach-account-number-confirm', '987654321');
 
-    assert.include(
-      el.shadowRoot!.textContent,
-      'Account numbers must match.'
-    );
+    assert.include(el.shadowRoot!.textContent, 'Account numbers must match.');
     assert.isTrue(
       el.shadowRoot!.querySelector<HTMLButtonElement>(
         '[data-action="save-ach-manual"]'
@@ -2471,10 +2493,7 @@ suite('commerce-hub-connect flow', () => {
       requiredInfoCardStyles.backgroundColor
     );
     assert.equal(requiredInfoCardStyles.borderTopStyle, 'solid');
-    assert.equal(
-      requiredInfoCardStyles.borderTopColor,
-      'rgb(217, 225, 236)'
-    );
+    assert.equal(requiredInfoCardStyles.borderTopColor, 'rgb(217, 225, 236)');
     assert.equal(
       requiredInfoCardStyles.borderLeftColor,
       requiredInfoCardStyles.borderTopColor
@@ -2483,18 +2502,9 @@ suite('commerce-hub-connect flow', () => {
       requiredInfoCardStyles.borderLeftWidth,
       requiredInfoCardStyles.borderTopWidth
     );
-    assert.equal(
-      getComputedStyle(requiredInfoLabel).color,
-      'rgb(75, 85, 101)'
-    );
-    assert.equal(
-      getComputedStyle(requiredInfoField).color,
-      'rgb(17, 24, 39)'
-    );
-    assert.equal(
-      getComputedStyle(requiredInfoIconChip).borderTopStyle,
-      'none'
-    );
+    assert.equal(getComputedStyle(requiredInfoLabel).color, 'rgb(75, 85, 101)');
+    assert.equal(getComputedStyle(requiredInfoField).color, 'rgb(17, 24, 39)');
+    assert.equal(getComputedStyle(requiredInfoIconChip).borderTopStyle, 'none');
     assert.equal(getComputedStyle(requiredInfoIconChip).boxShadow, 'none');
     assert.equal(getComputedStyle(requiredInfoIconImage).maxWidth, '64px');
     assert.equal(getComputedStyle(requiredInfoIconImage).maxHeight, '48px');
@@ -3163,9 +3173,7 @@ suite('commerce-hub-connect flow', () => {
     await setSelectValue(el, 'billing-address', '__new__');
     assert.exists(el.shadowRoot!.querySelector('#billing-country'));
     await setSelectValue(el, 'billing-address', 'billing-1');
-    assert.exists(
-      el.shadowRoot!.querySelector('.billing-address-summary')
-    );
+    assert.exists(el.shadowRoot!.querySelector('.billing-address-summary'));
     assert.notExists(el.shadowRoot!.querySelector('#billing-address'));
     await blurField(el, 'card-number');
     await waitForRequest(requests, '/interaction/source/mask/card');
@@ -3405,7 +3413,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
       oauth: {
         access_token: 'gateway-access-token-1',
       },
@@ -3419,7 +3427,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(requests, 1);
     assert.equal(
       requests[0].url,
-      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/otp/validate`
+      `${TEST_COMMERCE_HUB_BASE_URL}/interaction/otp/validate`
     );
     assert.equal(requests[0].method, 'POST');
     assert.equal(
@@ -3432,7 +3440,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(JSON.parse(requests[0].bodyText), {
       otp: '123456',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
       channel: 'EMAIL',
     });
     assert.deepEqual(
@@ -3493,7 +3501,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-otp',
         status: 'OTP_VALIDATION_PENDING',
-        email: 'gregory.jablonski@fiserv.com',
+        email: 'shopper@example.com',
       },
       undefined,
       'QA'
@@ -3527,7 +3535,7 @@ suite('commerce-hub-connect flow', () => {
         JSON.stringify({
           interactionId: 'interaction-otp',
           status: 'OTP_VALIDATION_PENDING',
-          email: 'gregory.jablonski@fiserv.com',
+          email: 'shopper@example.com',
           oauth: {
             access_token: 'gateway-access-token-2',
           },
@@ -3542,7 +3550,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
       oauth: {
         access_token: 'gateway-access-token-1',
       },
@@ -3553,7 +3561,7 @@ suite('commerce-hub-connect flow', () => {
     assert.lengthOf(requests, 1);
     assert.equal(
       requests[0].url,
-      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/otp/send/email`
+      `${TEST_COMMERCE_HUB_BASE_URL}/interaction/otp/send/email`
     );
     assert.equal(requests[0].method, 'POST');
     assert.equal(
@@ -3756,7 +3764,7 @@ suite('commerce-hub-connect flow', () => {
 
     const el = await renderConnect({
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
@@ -3782,7 +3790,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
@@ -3813,7 +3821,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-otp',
       status: 'OTP_VALIDATION_PENDING',
-      email: 'gregory.jablonski@fiserv.com',
+      email: 'shopper@example.com',
     });
 
     await setOtpValue(el, '123456');
@@ -4113,7 +4121,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       requests[0].url,
-      `${DEFAULT_COMMERCE_HUB_BASE_URL}/interaction/source/pbb/session`
+      `${TEST_COMMERCE_HUB_BASE_URL}/interaction/source/pbb/session`
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),

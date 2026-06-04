@@ -301,13 +301,13 @@ const BILLING_STATE_SELECT_OPTIONS = [
   ...BILLING_STATE_OPTIONS,
 ];
 const DEFAULT_PAY_BY_BANK_OPTIONS = {
-  apiKey: 'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A',
-  configId: 'cce84049-0940-4926-9a54-9eaca0c09830',
   environment: 'qa',
   locale: 'en-US',
   paymentSdkUrl:
     'https://connect-qa.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js',
-} satisfies Required<DesignConfigPayByBank>;
+} satisfies Required<
+  Pick<DesignConfigPayByBank, 'environment' | 'locale' | 'paymentSdkUrl'>
+>;
 const DELETE_CONFIRMATION_TIMEOUT_MS = 5000;
 
 const demoPaymentMethods: PaymentMethod[] = [
@@ -3633,6 +3633,11 @@ export class CommerceHubConnect extends LitElement {
     const {aggregatorSessionId, accessToken, pToken, publicKey} =
       resolvePayByBankSession(session);
     const payByBank = resolvePayByBankOptions(this.designConfig?.payByBank);
+    const apiKey = readRequiredPayByBankOption(payByBank.apiKey, 'apiKey');
+    const configId = readRequiredPayByBankOption(
+      payByBank.configId,
+      'configId'
+    );
 
     await loadPaymentSdkScript(payByBank.paymentSdkUrl);
 
@@ -3650,9 +3655,9 @@ export class CommerceHubConnect extends LitElement {
       destroyPaymentSdk();
 
       paymentSdk.init({
-        apiKey: payByBank.apiKey,
+        apiKey,
         accessToken,
-        configId: payByBank.configId,
+        configId,
         environment: payByBank.environment,
         locale: payByBank.locale,
         appearance: resolvePaymentSdkAppearance(this.designConfig),
@@ -5138,7 +5143,10 @@ const resolveNoSavedPaymentMethodsCopy = (
 
 const resolvePayByBankOptions = (
   options?: DesignConfigPayByBank
-): Required<DesignConfigPayByBank> => {
+): DesignConfigPayByBank &
+  Required<
+    Pick<DesignConfigPayByBank, 'environment' | 'locale' | 'paymentSdkUrl'>
+  > => {
   const definedOverrides = Object.fromEntries(
     Object.entries(options ?? {}).filter(([, value]) => value !== undefined)
   ) as DesignConfigPayByBank;
@@ -5147,6 +5155,19 @@ const resolvePayByBankOptions = (
     ...DEFAULT_PAY_BY_BANK_OPTIONS,
     ...definedOverrides,
   };
+};
+
+const readRequiredPayByBankOption = (
+  value: string | undefined,
+  key: 'apiKey' | 'configId'
+): string => {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    throw new Error(`designConfig.payByBank.${key} is required.`);
+  }
+
+  return trimmedValue;
 };
 
 const resolvePaymentSdkAppearance = (

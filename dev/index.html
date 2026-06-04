@@ -444,9 +444,9 @@
                   The JSON preview updates from the form controls and is sent to
                   <code>/merchant/interaction/create</code>. Named environments
                   are routed through the local dev-server proxy. DEV create
-                  requests are signed by the proxy with temporary local defaults
-                  or <code>COMMERCE_HUB_DEV_API_KEY</code> and
-                  <code>COMMERCE_HUB_DEV_API_SECRET</code> overrides.
+                  requests are signed by the proxy and require
+                  <code>COMMERCE_HUB_DEV_API_KEY</code> and
+                  <code>COMMERCE_HUB_DEV_API_SECRET</code>.
                 </p>
                 <pre
                   id="interaction-request-preview"
@@ -873,7 +873,7 @@ Select or attach a payment source to complete the active interaction.
         cardSources.declined,
       ];
       const baseScenario = {
-        email: 'gregory.jablonski@fiserv.com',
+        email: 'shopper@example.com',
         allowedTenderTypes: [
           'CARD',
           'BANK_ACCOUNT',
@@ -1064,10 +1064,10 @@ Select or attach a payment source to complete the active interaction.
       const initialRequestFormState = {
         baseURLMode: 'CUSTOM',
         customBaseURL: initialApiBaseUrl,
-        email: 'gregory.jablonski@fiserv.com',
-        clientId: 'marriot',
-        merchantId: '101475000000009',
-        terminalId: '10000001',
+        email: 'shopper@example.com',
+        clientId: 'example-client',
+        merchantId: '000000000000000',
+        terminalId: '00000000',
         firstName: '',
         lastName: '',
         advancedVerification: true,
@@ -1461,8 +1461,6 @@ Select or attach a payment source to complete the active interaction.
         const selectedPaymentSource = event.detail;
         const interactionId = latestInteractionResponse?.interactionId;
 
-        console.log('onSuccess', selectedPaymentSource);
-
         if (!interactionId) {
           const message =
             'Cannot complete merchant interaction without an interaction id.';
@@ -1480,7 +1478,6 @@ Select or attach a payment source to complete the active interaction.
             selectedPaymentSource,
             completedPaymentSource,
           });
-          console.log('Completed payment source', completedPaymentSource);
         } catch (error) {
           const message =
             error instanceof Error

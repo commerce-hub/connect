@@ -5,9 +5,8 @@ environments such as `DEV` route API traffic through the local web dev server at
 `/__commercehub/<environment>` to avoid browser CORS failures from localhost.
 
 The `DEV` example host create-interaction request is signed by the local proxy
-with CommerceHub HMAC headers. The proxy currently includes temporary DEV
-fallback credentials. You can override them from your shell before starting the
-dev server:
+with CommerceHub HMAC headers. Provide local credentials from your shell before
+starting the dev server:
 
 ```bash
 COMMERCE_HUB_DEV_API_KEY="your-api-key" \
@@ -16,5 +15,6 @@ COMMERCE_HUB_DEV_USER_EMAIL="user@example.com" \
 npm run serve
 ```
 
-All three variables are optional while the temporary fallback credentials are in
-place. `COMMERCE_HUB_DEV_USER_EMAIL` defaults to `user@example.com`.
+`COMMERCE_HUB_DEV_API_KEY` and `COMMERCE_HUB_DEV_API_SECRET` are required for
+signed DEV create and complete requests. `COMMERCE_HUB_DEV_USER_EMAIL` is
+optional and defaults to `user@example.com`.

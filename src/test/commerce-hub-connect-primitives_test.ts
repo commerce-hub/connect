@@ -585,7 +585,7 @@ suite('commerce-hub-connect primitives', () => {
       ${renderTextField({
         id: 'email',
         label: 'Email address',
-        value: 'gregory.jablonski@fiserv.com',
+        value: 'shopper@example.com',
         type: 'email',
       })}
       ${renderSelectField({
@@ -627,7 +627,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(root.querySelector('label')?.getAttribute('for'), 'email');
     assert.equal(
       root.querySelector<HTMLInputElement>('input#email')?.value,
-      'gregory.jablonski@fiserv.com'
+      'shopper@example.com'
     );
     assert.equal(
       root.querySelector<HTMLSelectElement>('select#billing-address')?.value,
@@ -753,9 +753,7 @@ suite('commerce-hub-connect primitives', () => {
     `);
 
     const shell = root.querySelector<HTMLElement>('.widget-shell')!;
-    const overlay = root.querySelector<HTMLElement>(
-      '.widget-loading-overlay'
-    )!;
+    const overlay = root.querySelector<HTMLElement>('.widget-loading-overlay')!;
 
     assert.equal(shell.getAttribute('aria-busy'), 'true');
     assert.exists(root.querySelector('.retained-control'));
@@ -855,7 +853,7 @@ suite('commerce-hub-connect primitives', () => {
         .interactionResponse=${{
           interactionId: 'interaction-otp',
           status: 'OTP_VALIDATION_PENDING',
-          email: 'gregory.jablonski@fiserv.com',
+          email: 'shopper@example.com',
         }}
       ></commerce-hub-connect>`
     )) as CommerceHubConnect;

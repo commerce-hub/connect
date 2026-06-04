@@ -68,7 +68,7 @@ if (widget) {
   widget.addEventListener('onSuccess', async (event: Event) => {
     const {detail: paymentSource} = event as OnSuccessEvent;
 
-    console.log('Selected payment source', paymentSource);
+    // Store or reference paymentSource in host-owned state as needed.
 
     const completedPaymentSource = await fetch(
       '/api/commercehub/interaction/complete',
@@ -79,20 +79,22 @@ if (widget) {
       }
     ).then((response) => response.json());
 
-    console.log('Completed payment source', completedPaymentSource);
+    // Continue the host checkout flow with completedPaymentSource.
   });
 }
 ```
 
 ## SDK-managed requests
 
-When the widget performs CommerceHub calls, it uses `http://localhost:8080` by
-default. Set `.baseURL` to one of the CommerceHub presets or to a custom origin.
-The `DEV` preset resolves to `https://connect-dev.fiservapis.com/chc`. The
-current `QA` and `PROD` presets resolve to the QA non-production CommerceHub
-origin until final environment values are published.
+When the widget performs CommerceHub calls, it uses the `PROD` preset by
+default. Set `.baseURL` only when the host needs a different CommerceHub preset
+or a custom origin. The `PROD` preset resolves to
+`https://connect.fiservapis.com/chc`, the `DEV` preset resolves to
+`https://connect-dev.fiservapis.com/chc`, and the `QA` preset resolves to the
+QA non-production CommerceHub origin.
 
 ```ts
+widget.baseURL = 'PROD';
 widget.baseURL = 'QA';
 widget.baseURL = 'https://api.example.com';
 ```
@@ -113,8 +115,9 @@ screen stable and does not call the CommerceHub API.
 ## Design configuration
 
 Pass `.designConfig` to adjust merchant-safe colors, typography, spacing, copy,
-and Pay by Bank provider settings. All fields are optional and omitted values
-fall back to SDK defaults.
+and Pay by Bank provider settings. Most fields are optional and omitted values
+fall back to SDK defaults. If the Pay by Bank handoff is enabled, provide
+`payByBank.apiKey` and `payByBank.configId` from your CommerceHub integration.
 
 ```ts
 widget.designConfig = {
@@ -128,6 +131,10 @@ widget.designConfig = {
   baseFontSize: '16px',
   baseFontWeight: '400',
   shellPadding: '1.75rem 1.5rem 1.5rem',
+  payByBank: {
+    apiKey: '<pay-by-bank-api-key>',
+    configId: '<pay-by-bank-config-id>',
+  },
   copy: {
     otp: {
       title: 'Confirm your email',
@@ -161,6 +168,11 @@ const {data, error} = await client.GET('/interaction');
 
 Generated OpenAPI types live in `src/generated/openapi.ts`; regenerate them
 with `npm run generate:client` after `swagger.json` changes.
+
+The public `InteractionResponse` type intentionally augments the generated
+OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.
+Do not hand-edit `src/generated/openapi.ts` to add that field; preserve the
+local augmentation in `src/commerce-hub-connect.ts` after client regeneration.
 
 ## Development
 

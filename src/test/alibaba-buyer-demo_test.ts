@@ -102,7 +102,7 @@ suite('Alibaba buyer account demo', () => {
     assert.include(html, 'id="link-bank-account-button"');
     assert.include(html, 'id="bank-link-dialog"');
     assert.include(html, 'id="alibaba-buyer-sdk-host"');
-    assert.include(html, "entityData: {firstName: 'Neer'}");
+    assert.include(html, "entityData: {firstName: 'Example'}");
     assert.include(html, 'advancedVerification: true');
     assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, "await import('../commerce-hub-connect.js')");
@@ -151,7 +151,7 @@ suite('Alibaba buyer account demo', () => {
     assert.equal(currentVisiblePageId(), 'profile-page');
     assert.include(
       pageDocument?.querySelector('#profile-name')?.textContent ?? '',
-      'Greg J'
+      'Example S'
     );
 
     iframe.remove();
@@ -322,7 +322,7 @@ suite('Alibaba buyer account demo', () => {
     const createRequestBody = createRequest.body;
     assert.isDefined(createRequestBody);
     assert.deepEqual(createRequestBody?.allowedTenderTypes, ['BANK_ACCOUNT']);
-    assert.deepEqual(createRequestBody?.entityData, {firstName: 'Neer'});
+    assert.deepEqual(createRequestBody?.entityData, {firstName: 'Example'});
     assert.propertyVal(createRequestBody, 'advancedVerification', true);
     assert.propertyVal(createRequestBody, 'mode', 'PRE_AUTHENTICATED');
 
@@ -332,7 +332,7 @@ suite('Alibaba buyer account demo', () => {
         detail: {
           tenderType: 'BankAccount',
           id: 'bank-alibaba-1',
-          name: 'Neer Topups & Rewards Account',
+          name: 'Example Topups & Rewards Account',
           verificationInfo: {status: 'VERIFIED'},
           bankAccount: {
             bankName: 'Wells Fargo',
@@ -360,7 +360,7 @@ suite('Alibaba buyer account demo', () => {
     assert.notInclude(
       pageDocument!.querySelector('#linked-bank-account-row')?.textContent ??
         '',
-      'Neer Topups & Rewards Account'
+      'Example Topups & Rewards Account'
     );
     assert.include(
       pageDocument!.querySelector('#linked-bank-account-row')?.textContent ??
@@ -423,7 +423,7 @@ suite('Alibaba buyer account demo', () => {
         detail: {
           tenderType: 'BankAccount',
           id: 'bank-alibaba-2',
-          name: 'Neer Updated Rewards Account',
+          name: 'Example Updated Rewards Account',
           verificationInfo: {status: 'UNDER_REVIEW'},
           bankAccount: {
             bankName: 'Chase',

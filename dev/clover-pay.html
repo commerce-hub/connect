@@ -487,16 +487,14 @@
             <div class="party-list">
               <div class="party">
                 <span class="label">To</span>
-                <p>Gregory Jablonski</p>
-                <p id="checkout-recipient-email">
-                  gregory.jablonski@fiserv.com
-                </p>
+                <p>Example Shopper</p>
+                <p id="checkout-recipient-email">shopper@example.com</p>
               </div>
 
               <div class="party">
                 <span class="label">From</span>
                 <p>The Coral Gallery</p>
-                <p>nvladik@gmail.com</p>
+                <p>merchant@example.com</p>
               </div>
             </div>
           </section>
@@ -709,9 +707,9 @@
           email: recipientEmail.textContent.trim(),
           allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
           merchantData: {
-            clientId: 'marriot',
-            merchantId: '101475000000009',
-            terminalId: '10000001',
+            clientId: 'example-client',
+            merchantId: '000000000000000',
+            terminalId: '00000000',
           },
           advancedVerification: false,
           mode: 'FULL',

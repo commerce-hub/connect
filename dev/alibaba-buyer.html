@@ -1635,7 +1635,7 @@
           <div class="auth-card">
             <h1>Verify your email</h1>
             <p class="auth-note">
-              We've sent an email to <strong>g****i@fiserv.com</strong>
+              We've sent an email to <strong>s****r@example.com</strong>
             </p>
             <div class="otp-row" aria-label="One-time passcode">
               <input class="otp-input" inputmode="numeric" maxlength="1" />
@@ -1736,11 +1736,11 @@
             <div class="form-grid">
               <div class="field">
                 <label for="first-name">First name *</label>
-                <input class="form-input" id="first-name" value="Greg" />
+                <input class="form-input" id="first-name" value="Example" />
               </div>
               <div class="field">
                 <label for="last-name">Last name *</label>
-                <input class="form-input" id="last-name" value="J" />
+                <input class="form-input" id="last-name" value="Shopper" />
               </div>
               <div class="field-full">
                 <label for="password">Create a password</label>
@@ -1869,10 +1869,10 @@
         <div class="profile-board">
           <section class="profile-identity">
             <div class="profile-user">
-              <span class="avatar" aria-hidden="true">g</span>
+              <span class="avatar" aria-hidden="true">s</span>
               <div>
-                <h1 id="profile-name">Greg J</h1>
-                <p>Email&nbsp;&nbsp; g****i@fiserv.com</p>
+                <h1 id="profile-name">Example S</h1>
+                <p>Email&nbsp;&nbsp; s****r@example.com</p>
                 <p>Member ID&nbsp;&nbsp; us29270898119jlwl</p>
               </div>
             </div>
@@ -1969,7 +1969,7 @@
                 <li>
                   <span>Change email</span>
                   <span
-                    >g****i@fiserv.com
+                    >s****r@example.com
                     <strong class="status">Not verified</strong> &gt;</span
                   >
                 </li>
@@ -2019,7 +2019,7 @@
       const commerceHubApiBaseUrl =
         new URLSearchParams(window.location.search).get('apiBaseUrl') ??
         'http://localhost:8080';
-      const BUYER_EMAIL = 'gregory.jablonski@fiserv.com';
+      const BUYER_EMAIL = 'shopper@example.com';
       const pages = Array.from(document.querySelectorAll('.buyer-page'));
       const body = document.querySelector('#alibaba-buyer-demo');
       const otpInputs = Array.from(document.querySelectorAll('.otp-input'));
@@ -2136,11 +2136,11 @@
         email: BUYER_EMAIL,
         allowedTenderTypes: ['BANK_ACCOUNT'],
         merchantData: {
-          clientId: 'marriot',
-          merchantId: '101475000000009',
-          terminalId: '10000001',
+          clientId: 'example-client',
+          merchantId: '000000000000000',
+          terminalId: '00000000',
         },
-        entityData: {firstName: 'Neer'},
+        entityData: {firstName: 'Example'},
         advancedVerification: true,
         mode: 'PRE_AUTHENTICATED',
       });
@@ -2191,7 +2191,7 @@
 
       const paymentSourceAccountName = (source) =>
         paymentSourceText(source, ['name', 'accountName', 'displayName']) ??
-        'Neer Topups & Rewards Account';
+        'Example Topups & Rewards Account';
 
       const paymentSourceBankName = (source) =>
         paymentSourceText(bankAccountDetails(source), ['bankName']) ??

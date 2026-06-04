@@ -50,8 +50,8 @@ if (widget) {
       }
     ).then((response) => response.json());
 
-    console.log('Selected source', selectedPaymentSource);
-    console.log('Completed source', completedPaymentSource);
+    // Store or reference selectedPaymentSource in host-owned state as needed.
+    // Continue the host checkout flow with completedPaymentSource.
   });
 }
 {% endraw %}
@@ -69,11 +69,13 @@ SDK-managed CommerceHub calls always send
 `Authorization: Bearer <token>`. If the interaction id is missing, the widget
 does not call the API and keeps the current screen stable.
 
-The widget uses `http://localhost:8080` by default. Set `.baseURL` to a preset
-or custom origin before the shopper starts the flow:
+The widget uses the `PROD` preset by default. Set `.baseURL` to a different
+preset or custom origin before the shopper starts the flow only when you need to
+override production routing:
 
 ```ts
 {% raw %}
+widget.baseURL = 'PROD';
 widget.baseURL = 'QA';
 widget.baseURL = 'https://api.example.com';
 {% endraw %}
