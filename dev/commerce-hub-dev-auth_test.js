@@ -77,10 +77,18 @@ test('gates CommerceHub DEV HMAC auth to signed merchant interaction POST reques
   assert.equal(
     isCommerceHubDevSignedMerchantInteractionRequest({
       preset: 'DEV',
+      method: 'GET',
+      path: '/merchant/interaction/interaction-1/complete',
+    }),
+    true
+  );
+  assert.equal(
+    isCommerceHubDevSignedMerchantInteractionRequest({
+      preset: 'DEV',
       method: 'POST',
       path: '/merchant/interaction/complete',
     }),
-    true
+    false
   );
   assert.equal(
     isCommerceHubDevSignedMerchantInteractionRequest({

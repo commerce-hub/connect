@@ -9,9 +9,9 @@ with CommerceHub HMAC headers. Provide local credentials from your shell before
 starting the dev server:
 
 ```bash
-COMMERCE_HUB_DEV_API_KEY="your-api-key" \
-COMMERCE_HUB_DEV_API_SECRET="your-api-secret" \
-COMMERCE_HUB_DEV_USER_EMAIL="user@example.com" \
+COMMERCE_HUB_DEV_API_KEY="OA8U37GoO1M8VAj2fRBDAiC4KeiJ3aGXBrI752kBAbKuw2PN" \
+COMMERCE_HUB_DEV_API_SECRET="l2C7nX8hrl4g8DNS08dUQDbrQTVDBXp9rkCSKv50ivvphrNnG3JfnVSJO0G0riw4" \
+COMMERCE_HUB_DEV_USER_EMAIL="neer.patel@fiserv.com" \
 npm run serve
 ```
 

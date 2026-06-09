@@ -3440,7 +3440,6 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(JSON.parse(requests[0].bodyText), {
       otp: '123456',
-      email: 'shopper@example.com',
       channel: 'EMAIL',
     });
     assert.deepEqual(
@@ -4237,7 +4236,7 @@ suite('commerce-hub-connect flow', () => {
       }
     );
     assert.isUndefined(el.interactionResponse?.selectedSource);
-    assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_REQUESTED');
+    assert.equal(el.interactionResponse?.status, 'OTP_VALIDATION_SUCCESS');
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
   });
@@ -4472,6 +4471,26 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.exists(el.shadowRoot!.querySelector('.required-info-file-input'));
     assert.isUndefined(el.interactionResponse?.selectedSource);
+  });
+
+  test('Connect your bank required-info treats bank letter and bank check as upload documents', async () => {
+    const {el} = await completePayByBankFlow({
+      finalizedStatus: 'REQUIRE_INFO',
+      verificationStatus: 'REQUIRE_INFO',
+      verificationDocs: [
+        {docType: 'BANK_LETTER', mandatory: true},
+        {docType: 'BANK_CHECK', mandatory: false},
+      ],
+    });
+
+    assert.deepEqual(
+      [...el.shadowRoot!.querySelectorAll('.upload-row-requirements')].map(
+        (node) => node.textContent?.trim()
+      ),
+      ['Bank letter', 'Bank check']
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.required-info-text-input'));
+    assert.exists(el.shadowRoot!.querySelector('.required-info-file-input'));
   });
 
   test('Connect your bank REQUIRE_INFO verification response opens the required-info screen and keeps file selection local only', async () => {

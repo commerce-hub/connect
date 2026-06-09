@@ -45,9 +45,8 @@ request. The SDK owns the browser widget once the host passes an
 6. The SDK emits `onSuccess` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
 7. Your host completes the merchant interaction with
-   `POST /merchant/interaction/complete`, sending
-   `{value: interactionResponse.interactionId}` and treating the returned
-   `PaymentSource` as the completed source.
+   `GET /merchant/interaction/{interactionId}/complete` and treats the
+   merchant response as the completed source.
 
 ```ts
 import 'commerce-hub-connect-sdk';
@@ -71,12 +70,10 @@ if (widget) {
     // Store or reference paymentSource in host-owned state as needed.
 
     const completedPaymentSource = await fetch(
-      '/api/commercehub/interaction/complete',
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({value: interactionResponse.interactionId}),
-      }
+      `/api/commercehub/interaction/${encodeURIComponent(
+        interactionResponse.interactionId ?? ''
+      )}/complete`,
+      {method: 'GET'}
     ).then((response) => response.json());
 
     // Continue the host checkout flow with completedPaymentSource.
@@ -148,26 +145,40 @@ widget.designConfig = {
 };
 ```
 
-## Typed API client
+## Typed API clients
 
-The SDK also exports a typed `openapi-fetch` client for CommerceHub API calls
-owned by the host application.
+The SDK exports typed `openapi-fetch` clients for both service contracts. Use
+`createCommerceHubClient` for widget/runtime interaction-service paths and
+`createCommerceHubMerchantClient` for host-owned merchant-service paths.
 
 ```ts
-import {createCommerceHubClient} from 'commerce-hub-connect-sdk';
+import {
+  createCommerceHubClient,
+  createCommerceHubMerchantClient,
+} from 'commerce-hub-connect-sdk';
 
-const client = createCommerceHubClient({
+const runtimeClient = createCommerceHubClient({
   baseURL: 'QA',
   getHeaders: async () => ({
     Authorization: `Bearer ${await loadCommerceHubToken()}`,
   }),
 });
 
-const {data, error} = await client.GET('/interaction');
+const merchantClient = createCommerceHubMerchantClient({baseURL: 'QA'});
+
+const {data, error} = await runtimeClient.GET('/interaction');
+const completed = await merchantClient.GET(
+  '/merchant/interaction/{interactionId}/complete',
+  {params: {path: {interactionId: data?.interactionId ?? ''}}}
+);
 ```
 
-Generated OpenAPI types live in `src/generated/openapi.ts`; regenerate them
-with `npm run generate:client` after `swagger.json` changes.
+Generated OpenAPI types live in `src/generated/openapi.ts` for runtime paths and
+`src/generated/merchant-openapi.ts` for merchant paths. Regenerate both with
+`npm run generate:client` after `swagger.json` or `merchant-swagger.json`
+changes. Runtime types are exported as `components`, `operations`, and `paths`;
+merchant types are exported as `MerchantComponents`, `MerchantOperations`, and
+`MerchantPaths`.
 
 The public `InteractionResponse` type intentionally augments the generated
 OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.

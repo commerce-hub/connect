@@ -1,8 +1,10 @@
 import createClient, {type Client, type Middleware} from 'openapi-fetch';
 
 import type {paths} from '../generated/openapi.js';
+import type {paths as merchantPaths} from '../generated/merchant-openapi.js';
 
 export type CommerceHubClient = Client<paths>;
+export type CommerceHubMerchantClient = Client<merchantPaths>;
 
 /** Default production origin used for SDK-managed CommerceHub requests. */
 export const DEFAULT_COMMERCE_HUB_BASE_URL =
@@ -50,16 +52,24 @@ export const resolveCommerceHubBaseURL = (
   );
 };
 
-/**
- * Creates a typed CommerceHub API client for host-owned API calls.
- */
 export const createCommerceHubClient = (
   options: CommerceHubClientOptions
-): CommerceHubClient => {
-  const client = createClient<paths>({
+): CommerceHubClient => createCommerceHubClientForPaths<paths>(options);
+
+/**
+ * Creates a typed CommerceHub Merchant API client for host-owned API calls.
+ */
+export const createCommerceHubMerchantClient = (
+  options: CommerceHubClientOptions
+): CommerceHubMerchantClient =>
+  createCommerceHubClientForPaths<merchantPaths>(options);
+
+const createCommerceHubClientForPaths = <ApiPaths extends {}>(
+  options: CommerceHubClientOptions
+): Client<ApiPaths> => {
+  const client = createClient<ApiPaths>({
     baseUrl: resolveCommerceHubBaseURL(options.baseUrl ?? options.baseURL),
   });
-
   const headersMiddleware: Middleware = {
     async onRequest({request}) {
       const headers = new Headers(request.headers);

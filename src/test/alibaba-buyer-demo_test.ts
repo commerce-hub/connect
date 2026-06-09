@@ -102,7 +102,8 @@ suite('Alibaba buyer account demo', () => {
     assert.include(html, 'id="link-bank-account-button"');
     assert.include(html, 'id="bank-link-dialog"');
     assert.include(html, 'id="alibaba-buyer-sdk-host"');
-    assert.include(html, "entityData: {firstName: 'Example'}");
+    assert.include(html, 'partyId: BUYER_EMAIL');
+    assert.include(html, "features: ['ADD_ACCOUNT', 'SELECT']");
     assert.include(html, 'advancedVerification: true');
     assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, "await import('../commerce-hub-connect.js')");
@@ -321,8 +322,10 @@ suite('Alibaba buyer account demo', () => {
 
     const createRequestBody = createRequest.body;
     assert.isDefined(createRequestBody);
+    assert.propertyVal(createRequestBody, 'partyId', 'shopper@example.com');
     assert.deepEqual(createRequestBody?.allowedTenderTypes, ['BANK_ACCOUNT']);
-    assert.deepEqual(createRequestBody?.entityData, {firstName: 'Example'});
+    assert.notProperty(createRequestBody ?? {}, 'entityData');
+    assert.deepEqual(createRequestBody?.features, ['ADD_ACCOUNT', 'SELECT']);
     assert.propertyVal(createRequestBody, 'advancedVerification', true);
     assert.propertyVal(createRequestBody, 'mode', 'PRE_AUTHENTICATED');
 

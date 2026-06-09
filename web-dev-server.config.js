@@ -76,7 +76,9 @@ const commerceHubProxyMiddleware = async (context, next) => {
   let body = hasBody ? context.req : undefined;
 
   if (shouldSignDevMerchantInteraction) {
-    const bodyBuffer = await readRequestBody(context.req);
+    const bodyBuffer = hasBody
+      ? await readRequestBody(context.req)
+      : Buffer.alloc(0);
 
     try {
       applyHeaders(
@@ -91,7 +93,9 @@ const commerceHubProxyMiddleware = async (context, next) => {
       return;
     }
 
-    body = bodyBuffer;
+    if (hasBody) {
+      body = bodyBuffer;
+    }
   }
 
   const response = await fetch(targetUrl, {

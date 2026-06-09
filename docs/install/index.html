@@ -1,0 +1,62 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><commerce-hub-connect> | Install</title>
+    <link rel="stylesheet" href="../docs.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600|Roboto+Mono">
+    <link href="../prism-okaidia.css" rel="stylesheet" />
+    <script type="module" src="../commerce-hub-connect.bundled.js"></script>
+  </head>
+  <body>
+    
+<header>
+  <h1>&lt;commerce-hub-connect></h1>
+  <h2>CommerceHub Connect Web SDK widget primitives.</h2>
+</header>
+    
+<nav>
+  <a href="../">Home</a>
+  <a href="">Install</a>
+  <a href="../flow/">End-to-End Flow</a>
+  <a href="../examples/">Examples</a>
+  <a href="../api/">API</a>
+</nav>
+    <div id="main-wrapper">
+      <main>
+        <h1>Install</h1>
+<p>The SDK is being prepared for the public NPM registry. The current package name
+is <code>commerce-hub-connect-sdk</code>.</p>
+<pre class="language-bash"><code class="language-bash"><span class="token function">npm</span> <span class="token function">install</span> commerce-hub-connect-sdk</code></pre>
+<p>The package registers the <code>&lt;commerce-hub-connect&gt;</code> custom element when imported.</p>
+<pre class="language-ts"><code class="language-ts"><span class="token keyword">import</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span></code></pre>
+<h2>Basic HTML</h2>
+<pre class="language-html"><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>commerce-hub-connect</span><span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>commerce-hub-connect</span><span class="token punctuation">></span></span></code></pre>
+<h2>TypeScript</h2>
+<p>Use property assignment for complex values such as <code>interactionResponse</code> and
+<code>designConfig</code>.</p>
+<pre class="language-ts"><code class="language-ts"><br><span class="token keyword">import</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><span class="token keyword">import</span> <span class="token keyword">type</span> <span class="token punctuation">{</span>InteractionResponse<span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><br><span class="token keyword">const</span> interactionResponse<span class="token operator">:</span> InteractionResponse <span class="token operator">=</span><br>  <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><span class="token string">'/api/commercehub/interaction'</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span><br>    response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><br>  <span class="token punctuation">)</span><span class="token punctuation">;</span><br><br><span class="token keyword">const</span> widget <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">querySelector</span><span class="token punctuation">(</span><span class="token string">'commerce-hub-connect'</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br><span class="token keyword">if</span> <span class="token punctuation">(</span>widget<span class="token punctuation">)</span> <span class="token punctuation">{</span><br>  widget<span class="token punctuation">.</span>interactionResponse <span class="token operator">=</span> interactionResponse<span class="token punctuation">;</span><br>  widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br><span class="token punctuation">}</span><br></code></pre>
+<h2>Frameworks</h2>
+<p>The SDK is framework-agnostic. In React, Vue, Svelte, Angular, or Lit, import
+the package once and pass complex values as DOM properties rather than HTML
+attributes.</p>
+<pre class="language-ts"><code class="language-ts"><br>widget<span class="token punctuation">.</span>interactionResponse <span class="token operator">=</span> interactionResponse<span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>designConfig <span class="token operator">=</span> designConfig<span class="token punctuation">;</span><br></code></pre>
+<p>Only <code>base-url</code> is available as a string attribute:</p>
+<pre class="language-html"><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>commerce-hub-connect</span> <span class="token attr-name">base-url</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>QA<span class="token punctuation">"</span></span><span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>commerce-hub-connect</span><span class="token punctuation">></span></span></code></pre>
+<h2>Local development</h2>
+<pre class="language-bash"><code class="language-bash"><span class="token function">npm</span> i<br><span class="token function">npm</span> run build<br><span class="token function">npm</span> run serve</code></pre>
+<p>Open <code>/dev/index.html</code> for the local demo.</p>
+
+      </main>
+    </div>
+    
+<footer>
+  <p>
+    CommerceHub Connect Web SDK
+  </p>
+</footer>
+  </body>
+</html>
