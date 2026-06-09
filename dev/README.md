@@ -4,6 +4,12 @@ When `/dev/index.html` is served through `npm run serve`, named CommerceHub
 environments such as `DEV` route API traffic through the local web dev server at
 `/__commercehub/<environment>` to avoid browser CORS failures from localhost.
 
+Use the `Local merchant proxy` environment when the merchant interaction service
+is running locally at `http://localhost:8082`. In this mode, the demo host sends
+create and complete requests through `/__commercehub/LOCAL_MERCHANT` while the
+widget runtime still uses the runtime custom base URL, which defaults to
+`http://localhost:8081`.
+
 The `DEV` example host create-interaction request is signed by the local proxy
 with CommerceHub HMAC headers. Provide local credentials from your shell before
 starting the dev server:

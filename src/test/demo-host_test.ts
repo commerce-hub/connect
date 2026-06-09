@@ -641,7 +641,11 @@ suite('demo host page', () => {
       'expected demo host to call /merchant/interaction/{interactionId}/complete'
     );
     assert.include(html, '<form id="interaction-create-form">');
-    assert.include(html, 'id="interaction-email"');
+    assert.include(html, 'for="interaction-party-id"');
+    assert.include(html, 'id="interaction-party-id"');
+    assert.include(html, 'type="text"');
+    assert.include(html, 'required');
+    assert.notInclude(html, 'id="interaction-email"');
     assert.include(html, 'id="interaction-merchant-id"');
     assert.include(html, 'id="interaction-terminal-id"');
     assert.include(html, 'id="interaction-client-id"');
@@ -847,7 +851,7 @@ suite('demo host page', () => {
     );
     assert.notProperty(createRequest.body ?? {}, 'email');
     assert.deepInclude(createRequest.body ?? {}, {
-      partyId: 'shopper@example.com',
+      partyId: '1',
       advancedVerification: true,
       mode: 'PRE_AUTHENTICATED',
     });
@@ -870,6 +874,88 @@ suite('demo host page', () => {
       connectWidget?.baseURL,
       `${pageWindow.location.origin}/__commercehub/DEV`
     );
+
+    iframe.remove();
+  });
+
+  test('routes local merchant create requests through the proxy without changing the runtime base URL', async () => {
+    const iframe = document.createElement('iframe');
+    const iframeLoaded = new Promise<void>((resolve) => {
+      iframe.addEventListener('load', () => resolve(), {once: true});
+    });
+    iframe.src =
+      '/dev/index.html?runtimeApiBaseUrl=http://runtime.test&merchantApiBaseUrl=http://merchant.test';
+    document.body.append(iframe);
+    await iframeLoaded;
+
+    const pageWindow = iframe.contentWindow;
+    const pageDocument = iframe.contentDocument;
+    assert.isOk(pageWindow, 'expected demo iframe window');
+    assert.isOk(pageDocument, 'expected demo iframe document');
+
+    const createRequest: {
+      url?: string;
+      body?: Record<string, unknown>;
+    } = {};
+    pageWindow.fetch = (async (input, init) => {
+      createRequest.url = input instanceof Request ? input.url : String(input);
+      const bodyText =
+        input instanceof Request ? await input.clone().text() : init?.body;
+      createRequest.body =
+        typeof bodyText === 'string' && bodyText
+          ? JSON.parse(bodyText)
+          : undefined;
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'local-create-interaction',
+          status: 'OTP_VALIDATION_SUCCESS',
+          allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+          paymentSources: [],
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    }) as typeof fetch;
+
+    const baseURLMode = pageDocument.querySelector<HTMLSelectElement>(
+      '#commerce-hub-api-base-url-mode'
+    );
+    const createForm = pageDocument.querySelector<HTMLFormElement>(
+      '#interaction-create-form'
+    );
+
+    assert.isOk(baseURLMode, 'expected base URL mode control');
+    assert.isOk(createForm, 'expected create interaction form');
+
+    baseURLMode.value = 'LOCAL_MERCHANT';
+    baseURLMode.dispatchEvent(new Event('change', {bubbles: true}));
+    createForm.requestSubmit();
+
+    await waitFor(
+      () => Boolean(createRequest.url),
+      'expected form submit to call merchant interaction create'
+    );
+
+    assert.equal(
+      createRequest.url,
+      `${pageWindow.location.origin}/__commercehub/LOCAL_MERCHANT/merchant/interaction/create`
+    );
+    assert.notProperty(createRequest.body ?? {}, 'email');
+    assert.propertyVal(createRequest.body ?? {}, 'partyId', '1');
+
+    await waitFor(
+      () => Boolean(pageDocument.querySelector('commerce-hub-connect')),
+      'expected form submit to initialize the widget'
+    );
+
+    const connectWidget = pageDocument.querySelector<
+      HTMLElement & {baseURL?: string}
+    >('commerce-hub-connect');
+
+    assert.equal(connectWidget?.baseURL, 'http://runtime.test');
 
     iframe.remove();
   });
@@ -1024,7 +1110,8 @@ suite('demo host page', () => {
     const response = await fetch('/dev/index.html');
     const html = await response.text();
 
-    assert.include(html, "email: 'shopper@example.com'");
+    assert.include(html, "partyId: '1'");
+    assert.notInclude(html, "email: 'shopper@example.com'");
     assert.include(html, "clientId: 'example-client'");
     assert.include(html, "merchantId: '000000000000000'");
     assert.include(html, "terminalId: '00000000'");

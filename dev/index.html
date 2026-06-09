@@ -288,6 +288,9 @@
                     id="commerce-hub-api-base-url-mode"
                   >
                     <option value="CUSTOM">Custom URL</option>
+                    <option value="LOCAL_MERCHANT">
+                      Local merchant proxy
+                    </option>
                     <option value="DEV">DEV</option>
                     <option value="QA">QA</option>
                     <option value="PROD">PROD</option>
@@ -317,13 +320,12 @@
                   />
                 </label>
 
-                <label class="field" for="interaction-email">
-                  <span class="field-label">Email</span>
+                <label class="field" for="interaction-party-id">
+                  <span class="field-label">Party ID</span>
                   <input
                     class="field-input"
-                    id="interaction-email"
-                    type="email"
-                    autocomplete="email"
+                    id="interaction-party-id"
+                    type="text"
                     required
                   />
                 </label>
@@ -886,7 +888,7 @@ Select or attach a payment source to complete the active interaction.
         cardSources.declined,
       ];
       const baseScenario = {
-        email: 'shopper@example.com',
+        partyId: '1',
         allowedTenderTypes: [
           'CARD',
           'BANK_ACCOUNT',
@@ -1015,7 +1017,7 @@ Select or attach a payment source to complete the active interaction.
         customMerchantBaseURL: document.querySelector(
           '#commerce-hub-merchant-api-custom-base-url'
         ),
-        email: document.querySelector('#interaction-email'),
+        partyId: document.querySelector('#interaction-party-id'),
         clientId: document.querySelector('#interaction-client-id'),
         merchantId: document.querySelector('#interaction-merchant-id'),
         terminalId: document.querySelector('#interaction-terminal-id'),
@@ -1074,6 +1076,7 @@ Select or attach a payment source to complete the active interaction.
 
       const COMMERCE_HUB_PROXY_PREFIX = '/__commercehub';
       const CUSTOM_BASE_URL_MODE = 'CUSTOM';
+      const LOCAL_MERCHANT_BASE_URL_MODE = 'LOCAL_MERCHANT';
       const initialSearchParams = new URLSearchParams(window.location.search);
       const fallbackApiBaseUrl = initialSearchParams.get('apiBaseUrl');
       const initialRuntimeApiBaseUrl =
@@ -1088,7 +1091,7 @@ Select or attach a payment source to complete the active interaction.
         baseURLMode: 'CUSTOM',
         customRuntimeBaseURL: initialRuntimeApiBaseUrl,
         customMerchantBaseURL: initialMerchantApiBaseUrl,
-        email: 'shopper@example.com',
+        partyId: '1',
         clientId: 'example-client',
         merchantId: '000000000000000',
         terminalId: '00000000',
@@ -1134,7 +1137,10 @@ Select or attach a payment source to complete the active interaction.
       const resolveWidgetBaseURL = () => {
         const mode = requestFields.baseURLMode.value;
 
-        if (mode === CUSTOM_BASE_URL_MODE) {
+        if (
+          mode === CUSTOM_BASE_URL_MODE ||
+          mode === LOCAL_MERCHANT_BASE_URL_MODE
+        ) {
           return requestFields.customRuntimeBaseURL.value.trim();
         }
 
@@ -1157,9 +1163,13 @@ Select or attach a payment source to complete the active interaction.
       const syncBaseURLControls = () => {
         const isCustom =
           requestFields.baseURLMode.value === CUSTOM_BASE_URL_MODE;
+        const isLocalMerchant =
+          requestFields.baseURLMode.value === LOCAL_MERCHANT_BASE_URL_MODE;
 
-        requestFields.customRuntimeBaseURL.disabled = !isCustom;
-        requestFields.customRuntimeBaseURL.required = isCustom;
+        requestFields.customRuntimeBaseURL.disabled =
+          !isCustom && !isLocalMerchant;
+        requestFields.customRuntimeBaseURL.required =
+          isCustom || isLocalMerchant;
         requestFields.customMerchantBaseURL.disabled = !isCustom;
         requestFields.customMerchantBaseURL.required = isCustom;
       };
@@ -1200,7 +1210,7 @@ Select or attach a payment source to complete the active interaction.
 
       const buildInteractionRequest = (requestFormState) => {
         const interactionRequest = {
-          partyId: requestFormState.email.trim(),
+          partyId: requestFormState.partyId.trim(),
           allowedTenderTypes: resolveAllowedTenderTypes(requestFormState),
           merchantData: {
             clientId: requestFormState.clientId.trim(),
@@ -1322,7 +1332,7 @@ Select or attach a payment source to complete the active interaction.
         baseURLMode: requestFields.baseURLMode.value,
         customRuntimeBaseURL: requestFields.customRuntimeBaseURL.value,
         customMerchantBaseURL: requestFields.customMerchantBaseURL.value,
-        email: requestFields.email.value,
+        partyId: requestFields.partyId.value,
         clientId: requestFields.clientId.value,
         merchantId: requestFields.merchantId.value,
         terminalId: requestFields.terminalId.value,
@@ -1363,7 +1373,7 @@ Select or attach a payment source to complete the active interaction.
         requestFields.customMerchantBaseURL.value =
           requestFormState.customMerchantBaseURL;
         syncBaseURLControls();
-        requestFields.email.value = requestFormState.email;
+        requestFields.partyId.value = requestFormState.partyId;
         requestFields.clientId.value = requestFormState.clientId;
         requestFields.merchantId.value = requestFormState.merchantId;
         requestFields.terminalId.value = requestFormState.terminalId;

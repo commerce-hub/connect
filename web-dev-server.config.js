@@ -18,6 +18,7 @@ if (!['dev', 'prod'].includes(mode)) {
 
 const COMMERCE_HUB_PROXY_PREFIX = '/__commercehub';
 const COMMERCE_HUB_PROXY_TARGETS = {
+  LOCAL_MERCHANT: 'http://localhost:8082',
   DEV: 'https://connect-dev.fiservapis.com/chc',
   QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
   PROD: 'https://qa.openfx-nonprod.aws.fisv.cloud',
