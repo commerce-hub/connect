@@ -27,7 +27,7 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "clean": "rimraf commerce-hub-connect.{d.ts,d.ts.map,js,js.map} dist generated internal test src/**/*.js src/**/*.js.map src/**/*.d.ts src/**/*.d.ts.map",
-    "generate:client": "openapi-typescript swagger.json -o src/generated/openapi.ts",
+    "generate:client": "openapi-typescript swagger.json -o src/generated/openapi.ts && openapi-typescript merchant-swagger.json -o src/generated/merchant-openapi.ts",
     "build:cdn": "npm run build && mkdir -p dist && rollup -c --file dist/commerce-hub-connect.min.js",
     "pack:dist": "npm run build && mkdir -p dist && npm pack --pack-destination dist",
     "lint": "npm run lint:lit-analyzer && npm run lint:eslint",

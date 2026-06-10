@@ -4,8 +4,13 @@ import {
   COMMERCE_HUB_BASE_URLS,
   DEFAULT_COMMERCE_HUB_BASE_URL,
   createCommerceHubClient,
+  createCommerceHubMerchantClient,
   resolveCommerceHubBaseURL,
 } from '../internal/api-client.js';
+import type {
+  MerchantComponents,
+  MerchantPaths,
+} from '../commerce-hub-connect.js';
 
 const PROD_COMMERCE_HUB_BASE_URL = 'https://connect.fiservapis.com/chc';
 
@@ -123,13 +128,31 @@ suite('commerce-hub-connect api client', () => {
     );
   });
 
-  test('posts merchant interaction completion with a typed StringHolder body', async () => {
+  test('creates a merchant client from the generated merchant contract', () => {
+    const assertMerchantPath = <
+      Path extends '/merchant/interaction/{interactionId}/complete',
+    >(
+      _path: Path
+    ) => undefined;
+    const assertMerchantResponse = (
+      _response: MerchantComponents['schemas']['TokenPaymentResponse']
+    ) => undefined;
+    const assertMerchantPaths = (
+      _paths: keyof MerchantPaths & '/merchant/interaction/create'
+    ) => undefined;
+
+    assertMerchantPath('/merchant/interaction/{interactionId}/complete');
+    assertMerchantResponse({success: true});
+    assertMerchantPaths('/merchant/interaction/create');
+  });
+
+  test('gets merchant interaction completion by path parameter without a request body', async () => {
     let receivedRequest: Request | undefined;
-    let receivedBody: unknown;
+    let receivedBody = '';
 
     window.fetch = async (input: RequestInfo | URL) => {
       receivedRequest = input instanceof Request ? input : new Request(input);
-      receivedBody = await receivedRequest.json();
+      receivedBody = await receivedRequest.clone().text();
 
       return new Response(
         JSON.stringify({
@@ -146,21 +169,82 @@ suite('commerce-hub-connect api client', () => {
       );
     };
 
-    const client = createCommerceHubClient({
+    const client = createCommerceHubMerchantClient({
       baseUrl: 'https://api.example.test',
     });
 
-    const response = await client.POST('/merchant/interaction/complete', {
-      body: {value: 'interaction-1'},
+    const response = await client.GET(
+      '/merchant/interaction/{interactionId}/complete',
+      {
+        params: {path: {interactionId: 'interaction-1'}},
+      }
+    );
+
+    assert.equal(
+      receivedRequest?.url,
+      'https://api.example.test/merchant/interaction/interaction-1/complete'
+    );
+    assert.equal(receivedRequest?.method, 'GET');
+    assert.equal(receivedBody, '');
+    assert.equal(response.data?.id, 'completed-source-1');
+    assert.equal(response.data?.tenderType, 'Card');
+  });
+
+  test('posts merchant interaction create using the generated merchant InteractionRequest', async () => {
+    let receivedRequest: Request | undefined;
+    let receivedBody: unknown;
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      receivedRequest = input instanceof Request ? input : new Request(input);
+      receivedBody = await receivedRequest.json();
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-1',
+          status: 'OTP_VALIDATION_PENDING',
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    };
+
+    const client = createCommerceHubMerchantClient({
+      baseUrl: 'https://api.example.test',
+    });
+
+    await client.POST('/merchant/interaction/create', {
+      body: {
+        partyId: 'shopper@example.com',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+        merchantData: {
+          clientId: 'example-client',
+          merchantId: '000000000000000',
+          terminalId: '00000000',
+        },
+        advancedVerification: true,
+        mode: 'PRE_AUTHENTICATED',
+        features: ['ADD_ACCOUNT', 'SELECT'],
+      },
     });
 
     assert.equal(
       receivedRequest?.url,
-      'https://api.example.test/merchant/interaction/complete'
+      'https://api.example.test/merchant/interaction/create'
     );
     assert.equal(receivedRequest?.method, 'POST');
-    assert.deepEqual(receivedBody, {value: 'interaction-1'});
-    assert.equal(response.data?.id, 'completed-source-1');
-    assert.equal(response.data?.tenderType, 'Card');
+    assert.deepEqual(receivedBody, {
+      partyId: 'shopper@example.com',
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+      merchantData: {
+        clientId: 'example-client',
+        merchantId: '000000000000000',
+        terminalId: '00000000',
+      },
+      advancedVerification: true,
+      mode: 'PRE_AUTHENTICATED',
+      features: ['ADD_ACCOUNT', 'SELECT'],
+    });
   });
 });

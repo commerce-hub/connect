@@ -2133,16 +2133,16 @@
       };
 
       const buildBankLinkInteractionRequest = () => ({
-        email: BUYER_EMAIL,
+        partyId: BUYER_EMAIL,
         allowedTenderTypes: ['BANK_ACCOUNT'],
         merchantData: {
           clientId: 'example-client',
           merchantId: '000000000000000',
           terminalId: '00000000',
         },
-        entityData: {firstName: 'Example'},
         advancedVerification: true,
         mode: 'PRE_AUTHENTICATED',
+        features: ['ADD_ACCOUNT', 'SELECT'],
       });
 
       const createBankLinkInteractionResponse = async () => {

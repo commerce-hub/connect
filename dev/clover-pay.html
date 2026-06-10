@@ -704,7 +704,7 @@
 
       const buildInteractionRequest = () => {
         const interactionRequest = {
-          email: recipientEmail.textContent.trim(),
+          partyId: recipientEmail.textContent.trim(),
           allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
           merchantData: {
             clientId: 'example-client',
@@ -713,6 +713,7 @@
           },
           advancedVerification: false,
           mode: 'FULL',
+          features: ['ADD_ACCOUNT', 'SELECT'],
         };
 
         return interactionRequest;

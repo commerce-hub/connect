@@ -82,10 +82,10 @@ CommerceHub API and keeps the current screen stable.
 
 Listen for `onSuccess` on the element. The event detail is the selected
 `PaymentSource`. Keep `onSuccess` as the widget boundary, then have the host
-complete the merchant interaction. Send `{value:
-interactionResponse.interactionId}` to `POST /merchant/interaction/complete`
-through your backend or typed CommerceHub client, and treat the response as the
-authoritative completed `PaymentSource`.
+complete the merchant interaction with
+`GET /merchant/interaction/{interactionId}/complete` through your backend or
+typed CommerceHub merchant client, and treat the response as the authoritative
+completed `PaymentSource`.
 
 ```ts
 {% raw %}
@@ -93,12 +93,10 @@ widget.addEventListener('onSuccess', async (event) => {
   const paymentSource = event.detail;
 
   const completedPaymentSource = await fetch(
-    '/api/commercehub/interaction/complete',
-    {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({value: interactionResponse.interactionId}),
-    }
+    `/api/commercehub/interaction/${encodeURIComponent(
+      interactionResponse.interactionId
+    )}/complete`,
+    {method: 'GET'}
   ).then((response) => response.json());
 
   await fetch('/api/orders/confirm-payment-source', {
@@ -144,8 +142,10 @@ needed by the widget.
 
 ## 6. Regenerate OpenAPI types carefully
 
-Generated OpenAPI types live in `src/generated/openapi.ts`; regenerate them
-with `npm run generate:client` after `swagger.json` changes.
+Generated OpenAPI types live in `src/generated/openapi.ts` for runtime paths and
+`src/generated/merchant-openapi.ts` for merchant paths. Regenerate both with
+`npm run generate:client` after `swagger.json` or `merchant-swagger.json`
+changes.
 
 The public `InteractionResponse` type intentionally augments the generated
 OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.

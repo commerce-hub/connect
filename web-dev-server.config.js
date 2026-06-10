@@ -18,6 +18,7 @@ if (!['dev', 'prod'].includes(mode)) {
 
 const COMMERCE_HUB_PROXY_PREFIX = '/__commercehub';
 const COMMERCE_HUB_PROXY_TARGETS = {
+  LOCAL_MERCHANT: 'http://localhost:8082',
   DEV: 'https://connect-dev.fiservapis.com/chc',
   QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
   PROD: 'https://qa.openfx-nonprod.aws.fisv.cloud',
@@ -76,7 +77,9 @@ const commerceHubProxyMiddleware = async (context, next) => {
   let body = hasBody ? context.req : undefined;
 
   if (shouldSignDevMerchantInteraction) {
-    const bodyBuffer = await readRequestBody(context.req);
+    const bodyBuffer = hasBody
+      ? await readRequestBody(context.req)
+      : Buffer.alloc(0);
 
     try {
       applyHeaders(
@@ -91,7 +94,9 @@ const commerceHubProxyMiddleware = async (context, next) => {
       return;
     }
 
-    body = bodyBuffer;
+    if (hasBody) {
+      body = bodyBuffer;
+    }
   }
 
   const response = await fetch(targetUrl, {

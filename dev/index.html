@@ -288,6 +288,9 @@
                     id="commerce-hub-api-base-url-mode"
                   >
                     <option value="CUSTOM">Custom URL</option>
+                    <option value="LOCAL_MERCHANT">
+                      Local merchant proxy
+                    </option>
                     <option value="DEV">DEV</option>
                     <option value="QA">QA</option>
                     <option value="PROD">PROD</option>
@@ -295,7 +298,7 @@
                 </label>
 
                 <label class="field" for="commerce-hub-api-custom-base-url">
-                  <span class="field-label">Custom base URL</span>
+                  <span class="field-label">Runtime custom base URL</span>
                   <input
                     class="field-input"
                     id="commerce-hub-api-custom-base-url"
@@ -304,13 +307,25 @@
                   />
                 </label>
 
-                <label class="field" for="interaction-email">
-                  <span class="field-label">Email</span>
+                <label
+                  class="field"
+                  for="commerce-hub-merchant-api-custom-base-url"
+                >
+                  <span class="field-label">Merchant custom base URL</span>
                   <input
                     class="field-input"
-                    id="interaction-email"
-                    type="email"
-                    autocomplete="email"
+                    id="commerce-hub-merchant-api-custom-base-url"
+                    type="url"
+                    required
+                  />
+                </label>
+
+                <label class="field" for="interaction-party-id">
+                  <span class="field-label">Party ID</span>
+                  <input
+                    class="field-input"
+                    id="interaction-party-id"
+                    type="text"
                     required
                   />
                 </label>
@@ -873,7 +888,7 @@ Select or attach a payment source to complete the active interaction.
         cardSources.declined,
       ];
       const baseScenario = {
-        email: 'shopper@example.com',
+        partyId: '1',
         allowedTenderTypes: [
           'CARD',
           'BANK_ACCOUNT',
@@ -996,10 +1011,13 @@ Select or attach a payment source to complete the active interaction.
       const scenarioControls = document.querySelector('#scenario-controls');
       const requestFields = {
         baseURLMode: document.querySelector('#commerce-hub-api-base-url-mode'),
-        customBaseURL: document.querySelector(
+        customRuntimeBaseURL: document.querySelector(
           '#commerce-hub-api-custom-base-url'
         ),
-        email: document.querySelector('#interaction-email'),
+        customMerchantBaseURL: document.querySelector(
+          '#commerce-hub-merchant-api-custom-base-url'
+        ),
+        partyId: document.querySelector('#interaction-party-id'),
         clientId: document.querySelector('#interaction-client-id'),
         merchantId: document.querySelector('#interaction-merchant-id'),
         terminalId: document.querySelector('#interaction-terminal-id'),
@@ -1058,13 +1076,22 @@ Select or attach a payment source to complete the active interaction.
 
       const COMMERCE_HUB_PROXY_PREFIX = '/__commercehub';
       const CUSTOM_BASE_URL_MODE = 'CUSTOM';
-      const initialApiBaseUrl =
-        new URLSearchParams(window.location.search).get('apiBaseUrl') ??
-        'http://localhost:8080';
+      const LOCAL_MERCHANT_BASE_URL_MODE = 'LOCAL_MERCHANT';
+      const initialSearchParams = new URLSearchParams(window.location.search);
+      const fallbackApiBaseUrl = initialSearchParams.get('apiBaseUrl');
+      const initialRuntimeApiBaseUrl =
+        initialSearchParams.get('runtimeApiBaseUrl') ??
+        fallbackApiBaseUrl ??
+        'http://localhost:8081';
+      const initialMerchantApiBaseUrl =
+        initialSearchParams.get('merchantApiBaseUrl') ??
+        fallbackApiBaseUrl ??
+        'http://localhost:8082';
       const initialRequestFormState = {
         baseURLMode: 'CUSTOM',
-        customBaseURL: initialApiBaseUrl,
-        email: 'shopper@example.com',
+        customRuntimeBaseURL: initialRuntimeApiBaseUrl,
+        customMerchantBaseURL: initialMerchantApiBaseUrl,
+        partyId: '1',
         clientId: 'example-client',
         merchantId: '000000000000000',
         terminalId: '00000000',
@@ -1098,7 +1125,7 @@ Select or attach a payment source to complete the active interaction.
         'Submit the create request or choose a scenario to see the widget properties.';
 
       const createApiUrl = (path) => {
-        const baseURL = resolveCreateInteractionBaseURL();
+        const baseURL = resolveMerchantBaseURL();
         const normalizedBaseURL = baseURL.endsWith('/')
           ? baseURL
           : `${baseURL}/`;
@@ -1110,14 +1137,25 @@ Select or attach a payment source to complete the active interaction.
       const resolveWidgetBaseURL = () => {
         const mode = requestFields.baseURLMode.value;
 
-        if (mode === CUSTOM_BASE_URL_MODE) {
-          return requestFields.customBaseURL.value.trim();
+        if (
+          mode === CUSTOM_BASE_URL_MODE ||
+          mode === LOCAL_MERCHANT_BASE_URL_MODE
+        ) {
+          return requestFields.customRuntimeBaseURL.value.trim();
         }
 
         return createCommerceHubProxyBaseURL(mode);
       };
 
-      const resolveCreateInteractionBaseURL = () => resolveWidgetBaseURL();
+      const resolveMerchantBaseURL = () => {
+        const mode = requestFields.baseURLMode.value;
+
+        if (mode === CUSTOM_BASE_URL_MODE) {
+          return requestFields.customMerchantBaseURL.value.trim();
+        }
+
+        return createCommerceHubProxyBaseURL(mode);
+      };
 
       const createCommerceHubProxyBaseURL = (preset) =>
         `${window.location.origin}${COMMERCE_HUB_PROXY_PREFIX}/${preset}`;
@@ -1125,9 +1163,15 @@ Select or attach a payment source to complete the active interaction.
       const syncBaseURLControls = () => {
         const isCustom =
           requestFields.baseURLMode.value === CUSTOM_BASE_URL_MODE;
+        const isLocalMerchant =
+          requestFields.baseURLMode.value === LOCAL_MERCHANT_BASE_URL_MODE;
 
-        requestFields.customBaseURL.disabled = !isCustom;
-        requestFields.customBaseURL.required = isCustom;
+        requestFields.customRuntimeBaseURL.disabled =
+          !isCustom && !isLocalMerchant;
+        requestFields.customRuntimeBaseURL.required =
+          isCustom || isLocalMerchant;
+        requestFields.customMerchantBaseURL.disabled = !isCustom;
+        requestFields.customMerchantBaseURL.required = isCustom;
       };
 
       const applyWidgetBaseURL = () => {
@@ -1165,20 +1209,8 @@ Select or attach a payment source to complete the active interaction.
       };
 
       const buildInteractionRequest = (requestFormState) => {
-        const requestEntityData = {};
-        const firstName = requestFormState.firstName.trim();
-        const lastName = requestFormState.lastName.trim();
-
-        if (firstName) {
-          requestEntityData.firstName = firstName;
-        }
-
-        if (lastName) {
-          requestEntityData.lastName = lastName;
-        }
-
         const interactionRequest = {
-          email: requestFormState.email.trim(),
+          partyId: requestFormState.partyId.trim(),
           allowedTenderTypes: resolveAllowedTenderTypes(requestFormState),
           merchantData: {
             clientId: requestFormState.clientId.trim(),
@@ -1187,11 +1219,8 @@ Select or attach a payment source to complete the active interaction.
           },
           advancedVerification: requestFormState.advancedVerification,
           mode: requestFormState.mode,
+          features: ['ADD_ACCOUNT', 'SELECT'],
         };
-
-        if (Object.keys(requestEntityData).length > 0) {
-          interactionRequest.entityData = requestEntityData;
-        }
 
         return interactionRequest;
       };
@@ -1301,8 +1330,9 @@ Select or attach a payment source to complete the active interaction.
 
       const readRequestFormState = () => ({
         baseURLMode: requestFields.baseURLMode.value,
-        customBaseURL: requestFields.customBaseURL.value,
-        email: requestFields.email.value,
+        customRuntimeBaseURL: requestFields.customRuntimeBaseURL.value,
+        customMerchantBaseURL: requestFields.customMerchantBaseURL.value,
+        partyId: requestFields.partyId.value,
         clientId: requestFields.clientId.value,
         merchantId: requestFields.merchantId.value,
         terminalId: requestFields.terminalId.value,
@@ -1338,9 +1368,12 @@ Select or attach a payment source to complete the active interaction.
 
       const writeRequestFormState = (requestFormState) => {
         requestFields.baseURLMode.value = requestFormState.baseURLMode;
-        requestFields.customBaseURL.value = requestFormState.customBaseURL;
+        requestFields.customRuntimeBaseURL.value =
+          requestFormState.customRuntimeBaseURL;
+        requestFields.customMerchantBaseURL.value =
+          requestFormState.customMerchantBaseURL;
         syncBaseURLControls();
-        requestFields.email.value = requestFormState.email;
+        requestFields.partyId.value = requestFormState.partyId;
         requestFields.clientId.value = requestFormState.clientId;
         requestFields.merchantId.value = requestFormState.merchantId;
         requestFields.terminalId.value = requestFormState.terminalId;
@@ -1396,7 +1429,11 @@ Select or attach a payment source to complete the active interaction.
       };
 
       const syncWidgetPropertiesPreview = (designConfig) => {
-        const payload = {baseURL: resolveWidgetBaseURL(), designConfig};
+        const payload = {
+          baseURL: resolveWidgetBaseURL(),
+          merchantBaseURL: resolveMerchantBaseURL(),
+          designConfig,
+        };
 
         if (latestInteractionResponse) {
           payload.interactionResponse = latestInteractionResponse;
@@ -1441,11 +1478,13 @@ Select or attach a payment source to complete the active interaction.
 
       const completeMerchantInteraction = async (interactionId) => {
         const response = await fetch(
-          createApiUrl('/merchant/interaction/complete'),
+          createApiUrl(
+            `/merchant/interaction/${encodeURIComponent(
+              interactionId
+            )}/complete`
+          ),
           {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({value: interactionId}),
+            method: 'GET',
           }
         );
         const responseBody = await readJson(response);

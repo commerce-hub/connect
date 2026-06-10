@@ -30,12 +30,10 @@ class CheckoutPayment extends LitElement {
 
   private async handleSuccess(event: OnSuccessEvent) {
     const completedPaymentSource = await fetch(
-      '/api/commercehub/interaction/complete',
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({value: this.interactionResponse?.interactionId}),
-      }
+      `/api/commercehub/interaction/${encodeURIComponent(
+        this.interactionResponse?.interactionId ?? ''
+      )}/complete`,
+      {method: 'GET'}
     ).then((response) => response.json());
 
     this.dispatchEvent(

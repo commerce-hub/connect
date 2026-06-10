@@ -41,14 +41,21 @@ import type {
 export {
   COMMERCE_HUB_BASE_URLS,
   createCommerceHubClient,
+  createCommerceHubMerchantClient,
   DEFAULT_COMMERCE_HUB_BASE_URL,
   resolveCommerceHubBaseURL,
   type CommerceHubBaseURLInput,
   type CommerceHubBaseURLPreset,
   type CommerceHubClient,
+  type CommerceHubMerchantClient,
   type CommerceHubClientOptions,
 } from './internal/api-client.js';
 export type {components, operations, paths} from './generated/openapi.js';
+export type {
+  components as MerchantComponents,
+  operations as MerchantOperations,
+  paths as MerchantPaths,
+} from './generated/merchant-openapi.js';
 
 /**
  * CommerceHub interaction payload used to render the current widget state.
@@ -58,6 +65,10 @@ export type {components, operations, paths} from './generated/openapi.js';
  */
 type GeneratedInteractionResponse =
   components['schemas']['InteractionResponse'];
+type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
+type InteractionStatus =
+  | GeneratedInteractionResponse['status']
+  | LegacyInteractionStatus;
 
 /**
  * Gateway-injected OAuth details returned with an interaction response.
@@ -75,7 +86,8 @@ export interface InteractionOAuth {
   status?: string;
 }
 
-export type InteractionResponse = GeneratedInteractionResponse & {
+export type InteractionResponse = Omit<GeneratedInteractionResponse, 'status'> & {
+  status?: InteractionStatus;
   oauth?: InteractionOAuth;
 };
 
@@ -239,6 +251,8 @@ const OTP_LENGTH = 6;
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NEW_BILLING_ADDRESS_VALUE = '__new__';
+const PAYMENT_SELECTION_READY_STATUS = 'OTP_VALIDATION_SUCCESS' as const;
+const LEGACY_PAYMENT_SELECTION_READY_STATUS = 'PAYMENT_SOURCE_REQUESTED';
 const BILLING_COUNTRY_OPTIONS = [
   {value: '', label: 'Select country or region'},
   {value: 'US', label: 'United States'},
@@ -2921,7 +2935,6 @@ export class CommerceHubConnect extends LitElement {
         {
           body: {
             otp: this.otpValue,
-            email: this.interactionResponse?.email,
             channel: 'EMAIL',
           },
         }
@@ -3068,7 +3081,7 @@ export class CommerceHubConnect extends LitElement {
         {
           ...(this.interactionResponse ?? {interactionId}),
           selectedSource: this.interactionResponse?.selectedSource,
-          status: 'PAYMENT_SOURCE_REQUESTED',
+          status: PAYMENT_SELECTION_READY_STATUS,
         },
         verifiedSource
       );
@@ -3218,7 +3231,7 @@ export class CommerceHubConnect extends LitElement {
       Boolean(sourceId) && shouldPreselectAddedPaymentSource(source);
     const baseInteractionResponse = {
       ...(this.interactionResponse ?? {interactionId}),
-      status: 'PAYMENT_SOURCE_REQUESTED' as const,
+      status: PAYMENT_SELECTION_READY_STATUS,
     };
 
     if (shouldPreselectSource) {
@@ -3410,7 +3423,7 @@ export class CommerceHubConnect extends LitElement {
         {
           ...(this.interactionResponse ?? {interactionId}),
           selectedSource: this.interactionResponse?.selectedSource,
-          status: 'PAYMENT_SOURCE_REQUESTED',
+          status: PAYMENT_SELECTION_READY_STATUS,
         },
         verifiedSource
       );
@@ -3868,7 +3881,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return (
-      (interactionResponse.status === 'PAYMENT_SOURCE_REQUESTED' ||
+      (isPaymentSelectionReadyStatus(interactionResponse.status) ||
         interactionResponse.status === 'PAYMENT_SOURCE_ATTACHED') &&
       interactionResponse.paymentSources === undefined
     );
@@ -5287,7 +5300,7 @@ const paymentMethodsFromInteractionResponse = (
       ];
     }
 
-    return interactionResponse?.status === 'PAYMENT_SOURCE_REQUESTED'
+    return isPaymentSelectionReadyStatus(interactionResponse?.status)
       ? []
       : demoPaymentMethods;
   }
@@ -5378,7 +5391,7 @@ const paymentSourceDisplayName = (
 
   if (isNativePaymentSource(source)) {
     return (
-      source.account?.accountName?.trim() ||
+      source.account?.nickName?.trim() ||
       source.name?.trim() ||
       paymentSourceLabel(source)
     );
@@ -5413,7 +5426,7 @@ const paymentSourceBrand = (source: PaymentSource): string => {
   }
 
   if (isNativePaymentSource(source)) {
-    return source.account?.accountType ?? 'Native account';
+    return source.account?.product ?? 'Native account';
   }
 
   return 'DSC';
@@ -5424,7 +5437,7 @@ const paymentSourceAccountLabel = (source: PaymentSource): string => {
   const masked = `•••• ${last4}`;
 
   if (isNativePaymentSource(source)) {
-    const accountType = source.account?.accountType?.trim();
+    const accountType = source.account?.product?.trim();
 
     return accountType ? `${accountType} ${masked}` : masked;
   }
@@ -5442,7 +5455,11 @@ const paymentSourceLast4 = (source: PaymentSource): string => {
   }
 
   if (isNativePaymentSource(source)) {
-    return lastFour(source.account?.accountHandle);
+    return lastFour(
+      source.account?.maskedValue ??
+        source.account?.handle?.posnAcctNbr ??
+        source.account?.tenderId
+    );
   }
 
   return lastFour(source.id);
@@ -5490,13 +5507,16 @@ const nativeAccountBalanceForSource = (
     }
   }
 
-  return Object.values(balances).find((balance) =>
-    nativeAccountBalanceMatchKeys(source).includes(balance.id?.trim() ?? '')
-  );
+  return undefined;
 };
 
 const nativeAccountBalanceMatchKeys = (source: NativePaymentSource): string[] =>
-  [source.id, source.account?.accountHandle]
+  [
+    source.id,
+    source.account?.tenderId,
+    source.account?.handle?.posnAcctNbr,
+    source.account?.token,
+  ]
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
 
@@ -5562,6 +5582,12 @@ const selectedPaymentSourceFromInteractionResponse = (
   return interactionResponse?.selectedSource;
 };
 
+const isPaymentSelectionReadyStatus = (
+  status?: InteractionStatus
+): boolean =>
+  status === PAYMENT_SELECTION_READY_STATUS ||
+  status === LEGACY_PAYMENT_SELECTION_READY_STATUS;
+
 const interactionResponseWithSelection = (
   current: InteractionResponse,
   response: InteractionResponse,
@@ -5604,7 +5630,7 @@ const interactionResponseWithoutPaymentSource = (
     ...current,
     status:
       current.status === 'PAYMENT_SOURCE_ATTACHED' && !selectedSource
-        ? 'PAYMENT_SOURCE_REQUESTED'
+        ? PAYMENT_SELECTION_READY_STATUS
         : current.status,
     selectedSource,
     paymentSources,
@@ -6120,6 +6146,14 @@ const requiredInfoDocLabel = (doc: RequiredInfoDoc): string => {
     return 'Bank statement';
   }
 
+  if (doc.docType === 'BANK_LETTER') {
+    return 'Bank letter';
+  }
+
+  if (doc.docType === 'BANK_CHECK') {
+    return 'Bank check';
+  }
+
   if (doc.docType === 'DRIVER_LICENSE_PHOTO') {
     return 'Driver license photo';
   }
@@ -6170,7 +6204,7 @@ const requiredInfoSourceName = (source: PaymentSource): string => {
 
   if (isNativePaymentSource(source)) {
     return (
-      source.account?.accountName?.trim() ||
+      source.account?.nickName?.trim() ||
       source.name?.trim() ||
       paymentSourceLabel(source)
     );

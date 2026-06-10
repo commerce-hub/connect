@@ -59,9 +59,8 @@ request. The SDK owns the browser widget once the host passes an
 6. The SDK emits `onSuccess` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
 7. Your host completes the merchant interaction with
-   `POST /merchant/interaction/complete`, sending
-   `{value: interactionResponse.interactionId}` and treating the returned
-   `PaymentSource` as the completed source.
+   `GET /merchant/interaction/{interactionId}/complete` and treats the
+   merchant response as the completed source.
 
 ## Backend Integration Contract
 
@@ -139,12 +138,10 @@ widget.interactionResponse = await fetch('/api/commercehub/interaction', {
 widget.addEventListener('onSuccess', async (event) => {
   const paymentSource = event.detail;
   const completedPaymentSource = await fetch(
-    '/api/commercehub/interaction/complete',
-    {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({value: widget.interactionResponse.interactionId}),
-    }
+    `/api/commercehub/interaction/${encodeURIComponent(
+      widget.interactionResponse.interactionId
+    )}/complete`,
+    {method: 'GET'}
   ).then((response) => response.json());
 
   fetch('/api/orders/order-123/payment-source', {
@@ -187,12 +184,10 @@ class CheckoutPayment extends LitElement {
 
   private async handleSuccess(event: OnSuccessEvent) {
     const completedPaymentSource = await fetch(
-      '/api/commercehub/interaction/complete',
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({value: this.interactionResponse?.interactionId}),
-      }
+      `/api/commercehub/interaction/${encodeURIComponent(
+        this.interactionResponse?.interactionId ?? ''
+      )}/complete`,
+      {method: 'GET'}
     ).then((response) => response.json());
 
     this.dispatchEvent(
@@ -244,22 +239,20 @@ CommerceHub API and keeps the current screen stable.
 
 Listen for `onSuccess` on the element. The event detail is the selected
 `PaymentSource`. Keep `onSuccess` as the widget boundary, then have the host
-complete the merchant interaction. Send `{value:
-interactionResponse.interactionId}` to `POST /merchant/interaction/complete`
-through your backend or typed CommerceHub client, and treat the response as the
-authoritative completed `PaymentSource`.
+complete the merchant interaction with
+`GET /merchant/interaction/{interactionId}/complete` through your backend or
+typed CommerceHub merchant client, and treat the response as the authoritative
+completed `PaymentSource`.
 
 ```ts
 widget.addEventListener('onSuccess', async (event) => {
   const paymentSource = event.detail;
 
   const completedPaymentSource = await fetch(
-    '/api/commercehub/interaction/complete',
-    {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({value: interactionResponse.interactionId}),
-    }
+    `/api/commercehub/interaction/${encodeURIComponent(
+      interactionResponse.interactionId
+    )}/complete`,
+    {method: 'GET'}
   ).then((response) => response.json());
 
   await fetch('/api/orders/confirm-payment-source', {
@@ -373,34 +366,48 @@ The SDK exports:
 - `ON_SUCCESS_EVENT`
 - `ON_ERROR_EVENT`
 - `createCommerceHubClient`
+- `createCommerceHubMerchantClient`
 - `resolveCommerceHubBaseURL`
 - `COMMERCE_HUB_BASE_URLS`
 - `DEFAULT_COMMERCE_HUB_BASE_URL`
 - `CommerceHubBaseURLInput`
 - `CommerceHubBaseURLPreset`
 - `CommerceHubClient`
+- `CommerceHubMerchantClient`
 - `CommerceHubClientOptions`
 - OpenAPI-derived `components`, `operations`, and `paths` types
+- OpenAPI-derived `MerchantComponents`, `MerchantOperations`, and
+  `MerchantPaths` types
 
-## Typed API Client
+## Typed API Clients
 
-The SDK also exports a typed `openapi-fetch` client for CommerceHub API calls
-owned by the host application.
+The SDK exports typed `openapi-fetch` clients for both service contracts. Use
+`createCommerceHubClient` for widget/runtime interaction-service paths and
+`createCommerceHubMerchantClient` for host-owned merchant-service paths.
 
 ```ts
-import {createCommerceHubClient} from 'commerce-hub-connect-sdk';
+import {
+  createCommerceHubClient,
+  createCommerceHubMerchantClient,
+} from 'commerce-hub-connect-sdk';
 
-const client = createCommerceHubClient({
+const runtimeClient = createCommerceHubClient({
   baseURL: 'QA',
   getHeaders: async () => ({
     Authorization: `Bearer ${await loadCommerceHubToken()}`,
   }),
 });
 
-const {data, error} = await client.GET('/interaction');
+const merchantClient = createCommerceHubMerchantClient({baseURL: 'QA'});
+
+const {data, error} = await runtimeClient.GET('/interaction');
+const completed = await merchantClient.GET(
+  '/merchant/interaction/{interactionId}/complete',
+  {params: {path: {interactionId: data?.interactionId ?? ''}}}
+);
 ```
 
-`createCommerceHubClient` accepts:
+Both client factories accept:
 
 | Option       | Description                                                      |
 | ------------ | ---------------------------------------------------------------- |
@@ -463,5 +470,6 @@ Rebuild generated docs and bundled documentation assets:
 npm run docs
 ```
 
-Generated OpenAPI types live in `src/generated/openapi.ts`; do not edit that
-file by hand.
+Generated OpenAPI types live in `src/generated/openapi.ts` for runtime paths and
+`src/generated/merchant-openapi.ts` for merchant paths; do not edit generated
+files by hand.

@@ -1067,16 +1067,16 @@
 
       const buildInteractionRequest = () => {
         const interactionRequest = {
-          email: MERCHANT_EMAIL,
+          partyId: MERCHANT_EMAIL,
           allowedTenderTypes: ['BANK_ACCOUNT'],
           merchantData: {
             clientId: 'example-client',
             merchantId: '000000000000000',
             terminalId: '00000000',
           },
-          entityData: {firstName: 'Example'},
           advancedVerification: true,
           mode: 'PRE_AUTHENTICATED',
+          features: ['ADD_ACCOUNT', 'SELECT'],
         };
 
         return interactionRequest;

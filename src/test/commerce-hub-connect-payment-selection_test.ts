@@ -134,7 +134,7 @@ suite('commerce-hub-connect payment selection', () => {
   test('saved payment methods render without confirm button or radio controls', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
+      status: 'OTP_VALIDATION_SUCCESS',
       paymentSources: [
         {
           tenderType: 'Card',
@@ -222,9 +222,11 @@ suite('commerce-hub-connect payment selection', () => {
           name: 'Digital wallet',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            accountHandle: 'wallet-handle-7890',
-            accountName: 'Commerce wallet',
-            accountType: 'Wallet',
+            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+            nickName: 'Commerce wallet',
+            product: 'Wallet',
+            maskedValue: '7890',
+            tenderId: 'native-tender-1',
           },
         },
       ],
@@ -281,7 +283,7 @@ suite('commerce-hub-connect payment selection', () => {
 
     const el = await renderConnect({
       interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
+      status: 'OTP_VALIDATION_SUCCESS',
       allowedTenderTypes: ['NATIVE_ACCOUNT'],
       paymentSources: [
         {
@@ -299,9 +301,11 @@ suite('commerce-hub-connect payment selection', () => {
           id: 'native-account-1',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            accountHandle: 'wallet-handle-7890',
-            accountName: 'Commerce wallet',
-            accountType: 'Wallet',
+            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+            nickName: 'Commerce wallet',
+            product: 'Wallet',
+            maskedValue: '7890',
+            tenderId: 'native-tender-1',
           },
         },
         {
@@ -309,9 +313,11 @@ suite('commerce-hub-connect payment selection', () => {
           id: 'native-account-2',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            accountHandle: 'wallet-handle-4321',
-            accountName: 'Rewards wallet',
-            accountType: 'Rewards',
+            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-4321'},
+            nickName: 'Rewards wallet',
+            product: 'Rewards',
+            maskedValue: '4321',
+            tenderId: 'native-tender-2',
           },
         },
       ],
@@ -353,11 +359,9 @@ suite('commerce-hub-connect payment selection', () => {
       new Response(
         JSON.stringify({
           'native-account-1': {
-            id: 'native-account-1',
             balance: 125.5,
           },
-          'wallet-handle-4321': {
-            id: 'wallet-handle-4321',
+          'native-tender-2': {
             balance: 9,
           },
         }),
@@ -408,9 +412,11 @@ suite('commerce-hub-connect payment selection', () => {
       id: 'native-account-1',
       verificationInfo: {status: 'VERIFIED'},
       account: {
-        accountHandle: 'wallet-handle-7890',
-        accountName: 'Commerce wallet',
-        accountType: 'Wallet',
+        handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+        nickName: 'Commerce wallet',
+        product: 'Wallet',
+        maskedValue: '7890',
+        tenderId: 'native-tender-1',
       },
     };
 
@@ -454,7 +460,7 @@ suite('commerce-hub-connect payment selection', () => {
 
     const el = await renderConnect({
       interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
+      status: 'OTP_VALIDATION_SUCCESS',
       allowedTenderTypes: ['NATIVE_ACCOUNT'],
       paymentSources: [nativeSource],
     });
@@ -485,8 +491,7 @@ suite('commerce-hub-connect payment selection', () => {
     balanceResponse.resolve(
       new Response(
         JSON.stringify({
-          'native-account-1': {
-            id: 'native-account-1',
+          'native-tender-1': {
             balance: 42.25,
           },
         }),
@@ -544,9 +549,11 @@ suite('commerce-hub-connect payment selection', () => {
       id: 'native-account-1',
       verificationInfo: {status: 'VERIFIED'},
       account: {
-        accountHandle: 'wallet-handle-7890',
-        accountName: 'Commerce wallet',
-        accountType: 'Wallet',
+        handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+        nickName: 'Commerce wallet',
+        product: 'Wallet',
+        maskedValue: '7890',
+        tenderId: 'native-tender-1',
       },
     };
 

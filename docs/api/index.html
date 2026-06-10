@@ -1,0 +1,111 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><commerce-hub-connect> ⌲ API</title>
+    <link rel="stylesheet" href="../docs.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600|Roboto+Mono">
+    <link href="../prism-okaidia.css" rel="stylesheet" />
+    <script type="module" src="../commerce-hub-connect.bundled.js"></script>
+  </head>
+  <body>
+    
+<header>
+  <h1>&lt;commerce-hub-connect></h1>
+  <h2>CommerceHub Connect Web SDK widget primitives.</h2>
+</header>
+    
+<nav>
+  <a href="../">Home</a>
+  <a href="../install/">Install</a>
+  <a href="../flow/">End-to-End Flow</a>
+  <a href="../examples/">Examples</a>
+  <a href="">API</a>
+</nav>
+    <div id="main-wrapper">
+      <main>
+        
+     <h1>API</h1>
+     
+       <h2>&lt;commerce-hub-connect></h2>
+       <div>
+         CommerceHub Connect Web SDK widget shell.
+
+Renders SDK-managed shopper flows for CommerceHub interactions, including
+OTP, saved payment-source selection, source creation, source verification,
+Pay by Bank handoff, and required-info collection.
+       </div>
+       
+   <h3>Attributes</h3>
+   <table>
+     <tr>
+       <th>Name</th><th>Description</th><th>Type</th><th>Default</th>
+     </tr>
+     
+       <tr>
+         <td>base-url</td><td>CommerceHub API base URL preset or custom origin for SDK-managed requests.</td><td>CommerceHubBaseURLInput | undefined</td><td></td>
+       </tr>
+     
+   </table>
+ 
+       
+   <h3>Properties</h3>
+   <table>
+     <tr>
+       <th>Name</th><th>Attribute</th><th>Description</th><th>Type</th><th>Default</th>
+     </tr>
+     
+       <tr>
+         <td>interactionResponse</td><td></td><td>CommerceHub interaction payload that controls the visible widget state.
+
+Assign this as a DOM property, not as an HTML attribute. SDK-managed API
+calls use `interactionResponse.interactionId` as the `x-interaction-id`
+header.</td><td>InteractionResponse | undefined</td><td></td>
+       </tr>
+     
+       <tr>
+         <td>designConfig</td><td></td><td>Optional merchant-safe colors, typography, spacing, copy, and Pay by Bank
+provider settings.
+
+Assign this as a DOM property. Omitted nested values fall back to SDK
+defaults.</td><td>DesignConfig | undefined</td><td></td>
+       </tr>
+     
+       <tr>
+         <td>baseURL</td><td>base-url</td><td>CommerceHub API base URL preset or custom origin for SDK-managed requests.</td><td>CommerceHubBaseURLInput | undefined</td><td></td>
+       </tr>
+     
+   </table>
+   
+       
+       
+   <h3>Events</h3>
+   <table>
+     <tr>
+       <th>Name</th><th>Description</th>
+     </tr>
+     
+       <tr>
+         <td>onSuccess</td><td>Emitted with the selected PaymentSource after a verified payment source is attached or selected.</td>
+       </tr>
+     
+   </table>
+     
+         
+       
+       
+       
+   
+      </main>
+    </div>
+    
+<footer>
+  <p>
+    CommerceHub Connect Web SDK
+  </p>
+</footer>
+  </body>
+</html>

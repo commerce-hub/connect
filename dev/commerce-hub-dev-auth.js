@@ -8,19 +8,25 @@ export const COMMERCE_HUB_DEV_AUTH_ENV = {
 
 export const DEFAULT_COMMERCE_HUB_DEV_USER_EMAIL = 'user@example.com';
 
-const SIGNED_MERCHANT_INTERACTION_POST_PATHS = new Set([
-  '/merchant/interaction/create',
-  '/merchant/interaction/complete',
-]);
-
 export const isCommerceHubDevSignedMerchantInteractionRequest = ({
   preset,
   method,
   path,
-}) =>
-  preset === 'DEV' &&
-  method.toUpperCase() === 'POST' &&
-  SIGNED_MERCHANT_INTERACTION_POST_PATHS.has(normalizePath(path));
+}) => {
+  if (preset !== 'DEV') {
+    return false;
+  }
+
+  const normalizedMethod = method.toUpperCase();
+  const normalizedPath = normalizePath(path);
+
+  return (
+    (normalizedMethod === 'POST' &&
+      normalizedPath === '/merchant/interaction/create') ||
+    (normalizedMethod === 'GET' &&
+      /^\/merchant\/interaction\/[^/]+\/complete$/.test(normalizedPath))
+  );
+};
 
 export const createCommerceHubDevAuthorization = ({
   apiKey,
