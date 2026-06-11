@@ -1,0 +1,29 @@
+node_modules/
+.angular/
+.idea/
+.vscode/
+.DS_Store
+.env
+.env.*
+.npmrc
+.codex/
+.superpowers/
+.worktrees/
+worktrees/
+/tmp/
+/exports/
+/qa-artifacts/
+*.docx
+/dist/
+/lib/
+/test/
+custom-elements.json
+# top level source
+/commerce-hub-connect.js
+/commerce-hub-connect.js.map
+/commerce-hub-connect.d.ts
+/commerce-hub-connect.d.ts.map
+/generated/
+/internal/
+# only generated for size check
+/commerce-hub-connect.bundled.js
