@@ -362,25 +362,23 @@
               </div>
 
               <fieldset class="control-group">
-                <legend class="field-label">Entity data</legend>
+                <legend class="field-label">Merchant data</legend>
                 <div class="field-grid">
-                  <label class="field" for="interaction-first-name">
-                    <span class="field-label">First name</span>
+                  <label class="field" for="interaction-dba-name">
+                    <span class="field-label">DBA name</span>
                     <input
                       class="field-input"
-                      id="interaction-first-name"
+                      id="interaction-dba-name"
                       type="text"
-                      autocomplete="given-name"
                     />
                   </label>
 
-                  <label class="field" for="interaction-last-name">
-                    <span class="field-label">Last name</span>
+                  <label class="field" for="interaction-country-code">
+                    <span class="field-label">Country code</span>
                     <input
                       class="field-input"
-                      id="interaction-last-name"
+                      id="interaction-country-code"
                       type="text"
-                      autocomplete="family-name"
                     />
                   </label>
                 </div>
@@ -452,6 +450,47 @@
                   <option value="FULL">Full</option>
                 </select>
               </label>
+
+              <fieldset class="control-group">
+                <legend class="field-label">Features</legend>
+                <div class="checkbox-grid">
+                  <label
+                    class="checkbox-field"
+                    for="interaction-feature-add-account"
+                  >
+                    <input
+                      id="interaction-feature-add-account"
+                      name="features"
+                      type="checkbox"
+                    />
+                    <span>Add account</span>
+                  </label>
+
+                  <label
+                    class="checkbox-field"
+                    for="interaction-feature-select"
+                  >
+                    <input
+                      id="interaction-feature-select"
+                      name="features"
+                      type="checkbox"
+                    />
+                    <span>Select</span>
+                  </label>
+
+                  <label
+                    class="checkbox-field"
+                    for="interaction-feature-transfer"
+                  >
+                    <input
+                      id="interaction-feature-transfer"
+                      name="features"
+                      type="checkbox"
+                    />
+                    <span>Transfer</span>
+                  </label>
+                </div>
+              </fieldset>
 
               <div class="request-preview-group">
                 <span class="field-label">Request body</span>
@@ -1021,8 +1060,8 @@ Select or attach a payment source to complete the active interaction.
         clientId: document.querySelector('#interaction-client-id'),
         merchantId: document.querySelector('#interaction-merchant-id'),
         terminalId: document.querySelector('#interaction-terminal-id'),
-        firstName: document.querySelector('#interaction-first-name'),
-        lastName: document.querySelector('#interaction-last-name'),
+        dbaName: document.querySelector('#interaction-dba-name'),
+        countryCode: document.querySelector('#interaction-country-code'),
         advancedVerification: document.querySelector(
           '#interaction-advanced-verification'
         ),
@@ -1036,6 +1075,13 @@ Select or attach a payment source to complete the active interaction.
         ),
         allowNativeAccount: document.querySelector(
           '#interaction-allow-native-account'
+        ),
+        featureAddAccount: document.querySelector(
+          '#interaction-feature-add-account'
+        ),
+        featureSelect: document.querySelector('#interaction-feature-select'),
+        featureTransfer: document.querySelector(
+          '#interaction-feature-transfer'
         ),
       };
       const designConfigFields = {
@@ -1092,17 +1138,20 @@ Select or attach a payment source to complete the active interaction.
         customRuntimeBaseURL: initialRuntimeApiBaseUrl,
         customMerchantBaseURL: initialMerchantApiBaseUrl,
         partyId: '1',
-        clientId: 'example-client',
-        merchantId: '000000000000000',
-        terminalId: '00000000',
-        firstName: '',
-        lastName: '',
+        clientId: 'marriot',
+        merchantId: '101475000000009',
+        terminalId: '10000001',
+        dbaName: '',
+        countryCode: '',
         advancedVerification: true,
         mode: 'PRE_AUTHENTICATED',
         allowCard: true,
         allowBankAccount: true,
         allowDynamicSessionCard: false,
         allowNativeAccount: false,
+        featureAddAccount: true,
+        featureSelect: true,
+        featureTransfer: false,
       };
       const initialDesignConfigFormState = {
         baseFontSize: '16px',
@@ -1208,18 +1257,48 @@ Select or attach a payment source to complete the active interaction.
         return allowedTenderTypes;
       };
 
+      const resolveFeatures = (requestFormState) => {
+        const features = [];
+
+        if (requestFormState.featureAddAccount) {
+          features.push('ADD_ACCOUNT');
+        }
+
+        if (requestFormState.featureSelect) {
+          features.push('SELECT');
+        }
+
+        if (requestFormState.featureTransfer) {
+          features.push('TRANSFER');
+        }
+
+        return features;
+      };
+
       const buildInteractionRequest = (requestFormState) => {
+        const merchantData = {
+          clientId: requestFormState.clientId.trim(),
+          merchantId: requestFormState.merchantId.trim(),
+          terminalId: requestFormState.terminalId.trim(),
+        };
+        const dbaName = requestFormState.dbaName.trim();
+        const countryCode = requestFormState.countryCode.trim();
+
+        if (dbaName) {
+          merchantData.dbaName = dbaName;
+        }
+
+        if (countryCode) {
+          merchantData.countryCode = countryCode;
+        }
+
         const interactionRequest = {
           partyId: requestFormState.partyId.trim(),
           allowedTenderTypes: resolveAllowedTenderTypes(requestFormState),
-          merchantData: {
-            clientId: requestFormState.clientId.trim(),
-            merchantId: requestFormState.merchantId.trim(),
-            terminalId: requestFormState.terminalId.trim(),
-          },
+          merchantData,
           advancedVerification: requestFormState.advancedVerification,
           mode: requestFormState.mode,
-          features: ['ADD_ACCOUNT', 'SELECT'],
+          features: resolveFeatures(requestFormState),
         };
 
         return interactionRequest;
@@ -1336,14 +1415,17 @@ Select or attach a payment source to complete the active interaction.
         clientId: requestFields.clientId.value,
         merchantId: requestFields.merchantId.value,
         terminalId: requestFields.terminalId.value,
-        firstName: requestFields.firstName.value,
-        lastName: requestFields.lastName.value,
+        dbaName: requestFields.dbaName.value,
+        countryCode: requestFields.countryCode.value,
         advancedVerification: requestFields.advancedVerification.checked,
         mode: requestFields.mode.value,
         allowCard: requestFields.allowCard.checked,
         allowBankAccount: requestFields.allowBankAccount.checked,
         allowDynamicSessionCard: requestFields.allowDynamicSessionCard.checked,
         allowNativeAccount: requestFields.allowNativeAccount.checked,
+        featureAddAccount: requestFields.featureAddAccount.checked,
+        featureSelect: requestFields.featureSelect.checked,
+        featureTransfer: requestFields.featureTransfer.checked,
       });
 
       const readDesignConfigFormState = () => ({
@@ -1377,8 +1459,8 @@ Select or attach a payment source to complete the active interaction.
         requestFields.clientId.value = requestFormState.clientId;
         requestFields.merchantId.value = requestFormState.merchantId;
         requestFields.terminalId.value = requestFormState.terminalId;
-        requestFields.firstName.value = requestFormState.firstName;
-        requestFields.lastName.value = requestFormState.lastName;
+        requestFields.dbaName.value = requestFormState.dbaName;
+        requestFields.countryCode.value = requestFormState.countryCode;
         requestFields.advancedVerification.checked =
           requestFormState.advancedVerification;
         requestFields.mode.value = requestFormState.mode;
@@ -1389,6 +1471,11 @@ Select or attach a payment source to complete the active interaction.
           requestFormState.allowDynamicSessionCard;
         requestFields.allowNativeAccount.checked =
           requestFormState.allowNativeAccount;
+        requestFields.featureAddAccount.checked =
+          requestFormState.featureAddAccount;
+        requestFields.featureSelect.checked = requestFormState.featureSelect;
+        requestFields.featureTransfer.checked =
+          requestFormState.featureTransfer;
       };
 
       const writeDesignConfigFormState = (designConfigFormState) => {

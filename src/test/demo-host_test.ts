@@ -182,7 +182,10 @@ suite('demo host page', () => {
       clientId: 'example-client',
       merchantId: '000000000000000',
       terminalId: '00000000',
+      dbaName: 'Alibaba Rewards',
+      countryCode: 'US',
     });
+    assert.deepEqual(createRequestBody?.features, ['ADD_ACCOUNT', 'SELECT']);
     assert.propertyVal(createRequestBody, 'mode', 'FULL');
     assert.equal(
       pageDocument
@@ -400,7 +403,10 @@ suite('demo host page', () => {
       clientId: 'example-client',
       merchantId: '000000000000000',
       terminalId: '00000000',
+      dbaName: 'Clover Pay',
+      countryCode: 'US',
     });
+    assert.deepEqual(createRequestBody?.features, ['ADD_ACCOUNT', 'SELECT']);
     assert.propertyVal(createRequestBody, 'mode', 'FULL');
     assert.equal(
       pageDocument
@@ -557,6 +563,8 @@ suite('demo host page', () => {
       clientId: 'example-client',
       merchantId: '000000000000000',
       terminalId: '00000000',
+      dbaName: 'Clover Merchant',
+      countryCode: 'US',
     });
     assert.notProperty(createRequestBody ?? {}, 'entityData');
     assert.deepEqual(createRequestBody?.features, ['ADD_ACCOUNT', 'SELECT']);
@@ -651,12 +659,18 @@ suite('demo host page', () => {
     assert.include(html, 'id="interaction-client-id"');
     assert.include(html, 'id="commerce-hub-api-base-url-mode"');
     assert.include(html, 'id="commerce-hub-api-custom-base-url"');
-    assert.include(html, 'id="interaction-first-name"');
-    assert.include(html, 'id="interaction-last-name"');
+    assert.notInclude(html, 'id="interaction-first-name"');
+    assert.notInclude(html, 'id="interaction-last-name"');
+    assert.include(html, 'id="interaction-dba-name"');
+    assert.include(html, 'id="interaction-country-code"');
     assert.include(html, 'id="interaction-advanced-verification"');
     assert.include(html, 'id="interaction-mode"');
     assert.include(html, 'id="interaction-allow-native-account"');
     assert.include(html, 'name="allowedTenderTypes"');
+    assert.include(html, 'id="interaction-feature-add-account"');
+    assert.include(html, 'id="interaction-feature-select"');
+    assert.include(html, 'id="interaction-feature-transfer"');
+    assert.include(html, 'name="features"');
     assert.include(html, '<pre id="interaction-request-preview"');
     assert.isAtLeast(
       payloadPanelIndex,
@@ -829,13 +843,37 @@ suite('demo host page', () => {
     const baseURLMode = pageDocument.querySelector<HTMLSelectElement>(
       '#commerce-hub-api-base-url-mode'
     );
+    const dbaName = pageDocument.querySelector<HTMLInputElement>(
+      '#interaction-dba-name'
+    );
+    const countryCode = pageDocument.querySelector<HTMLInputElement>(
+      '#interaction-country-code'
+    );
+    const selectFeature = pageDocument.querySelector<HTMLInputElement>(
+      '#interaction-feature-select'
+    );
+    const transferFeature = pageDocument.querySelector<HTMLInputElement>(
+      '#interaction-feature-transfer'
+    );
     const createForm = pageDocument.querySelector<HTMLFormElement>(
       '#interaction-create-form'
     );
 
     assert.isOk(baseURLMode, 'expected base URL mode control');
+    assert.isOk(dbaName, 'expected DBA name control');
+    assert.isOk(countryCode, 'expected country code control');
+    assert.isOk(selectFeature, 'expected SELECT feature control');
+    assert.isOk(transferFeature, 'expected TRANSFER feature control');
     assert.isOk(createForm, 'expected create interaction form');
 
+    dbaName.value = ' Marriott Bonvoy ';
+    dbaName.dispatchEvent(new Event('input', {bubbles: true}));
+    countryCode.value = ' US ';
+    countryCode.dispatchEvent(new Event('input', {bubbles: true}));
+    selectFeature.checked = false;
+    selectFeature.dispatchEvent(new Event('change', {bubbles: true}));
+    transferFeature.checked = true;
+    transferFeature.dispatchEvent(new Event('change', {bubbles: true}));
     baseURLMode.value = 'DEV';
     baseURLMode.dispatchEvent(new Event('change', {bubbles: true}));
     createForm.requestSubmit();
@@ -856,10 +894,13 @@ suite('demo host page', () => {
       mode: 'PRE_AUTHENTICATED',
     });
     assert.deepEqual(createRequest.body?.merchantData, {
-      clientId: 'example-client',
-      merchantId: '000000000000000',
-      terminalId: '00000000',
+      clientId: 'marriot',
+      merchantId: '101475000000009',
+      terminalId: '10000001',
+      dbaName: 'Marriott Bonvoy',
+      countryCode: 'US',
     });
+    assert.deepEqual(createRequest.body?.features, ['ADD_ACCOUNT', 'TRANSFER']);
 
     await waitFor(
       () => Boolean(pageDocument.querySelector('commerce-hub-connect')),
@@ -945,6 +986,14 @@ suite('demo host page', () => {
     );
     assert.notProperty(createRequest.body ?? {}, 'email');
     assert.propertyVal(createRequest.body ?? {}, 'partyId', '1');
+    assert.deepEqual(createRequest.body?.merchantData, {
+      clientId: 'marriot',
+      merchantId: '101475000000009',
+      terminalId: '10000001',
+    });
+    assert.notProperty(createRequest.body?.merchantData ?? {}, 'dbaName');
+    assert.notProperty(createRequest.body?.merchantData ?? {}, 'countryCode');
+    assert.deepEqual(createRequest.body?.features, ['ADD_ACCOUNT', 'SELECT']);
 
     await waitFor(
       () => Boolean(pageDocument.querySelector('commerce-hub-connect')),
@@ -1112,15 +1161,20 @@ suite('demo host page', () => {
 
     assert.include(html, "partyId: '1'");
     assert.notInclude(html, "email: 'shopper@example.com'");
-    assert.include(html, "clientId: 'example-client'");
-    assert.include(html, "merchantId: '000000000000000'");
-    assert.include(html, "terminalId: '00000000'");
+    assert.include(html, "clientId: 'marriot'");
+    assert.include(html, "merchantId: '101475000000009'");
+    assert.include(html, "terminalId: '10000001'");
+    assert.include(html, "dbaName: ''");
+    assert.include(html, "countryCode: ''");
     assert.include(html, 'advancedVerification: true');
     assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, 'allowCard: true');
     assert.include(html, 'allowBankAccount: true');
     assert.include(html, 'allowDynamicSessionCard: false');
     assert.include(html, 'allowNativeAccount: false');
+    assert.include(html, 'featureAddAccount: true');
+    assert.include(html, 'featureSelect: true');
+    assert.include(html, 'featureTransfer: false');
     assert.include(html, 'mode: requestFormState.mode');
   });
 
