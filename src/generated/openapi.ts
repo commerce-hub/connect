@@ -52,6 +52,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["updatePhone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/phone/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verifyPhoneOTP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["updateName"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/dsc/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createDynamicSessionCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/activity/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["findAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/open/otp/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validateOTP"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/open/authenticate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["authenticate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/open/authenticate/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["authenticateEmailOnly"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/interaction/verify/uploadField": {
         parameters: {
             query?: never;
@@ -205,7 +333,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["validateOTP"];
+        post: operations["validateOTP_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -260,6 +388,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCustomerProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/machine-payments/{enable}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["machinePayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/interaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["createInteraction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/dsc/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getActiveDynamicSessionCards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/interaction": {
         parameters: {
             query?: never;
@@ -303,6 +495,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/dsc/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["cancelDynamicSessionCard"];
         options?: never;
         head?: never;
         patch?: never;
@@ -382,14 +590,32 @@ export interface components {
             postalCode?: string;
             country?: string;
         };
-        DocFieldValue: {
-            value?: string;
-            /** @enum {string} */
-            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "BANK_LETTER" | "BANK_CHECK" | "SOCIAL_SECURITY_NUMBER";
-            docValue?: string;
+        PhoneDetails: {
+            countryCode?: string;
+            phoneNumber?: string;
+            /** Format: int64 */
+            verifiedTimestamp?: number;
         };
         StringHolder: {
             value?: string;
+        };
+        Name: {
+            firstName?: string;
+            lastName?: string;
+        };
+        Asset: {
+            /** @enum {string} */
+            type?: "CURRENCY";
+            id?: string;
+        };
+        DSCCreateRequest: {
+            /** Format: double */
+            amount?: number;
+            asset?: components["schemas"]["Asset"];
+            paymentSourceId?: string;
+            /** Format: int32 */
+            expiryMinutes?: number;
+            realm?: string;
         };
         AbstractSource: {
             id?: string;
@@ -432,16 +658,35 @@ export interface components {
         DSCDisplayCard: {
             tenderType: "DSCDisplayCard";
         } & Omit<components["schemas"]["AbstractSource"], "tenderType">;
-        InteractionResponse: {
-            interactionId?: string;
-            /** @enum {string} */
-            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "OTP_VALIDATION_SUCCESS" | "PAYMENT_SOURCE_ATTACHED" | "COMPLETE";
+        DynamicSessionCard: {
+            clientId?: string;
             email?: string;
-            selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
-            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD" | "NATIVE_ACCOUNT")[];
-            paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"])[];
-            phone?: components["schemas"]["PhoneDetails"];
-            billerAddress?: components["schemas"]["Address"][];
+            id?: string;
+            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
+            asset?: components["schemas"]["Asset"];
+            /** Format: int64 */
+            createTimestamp?: number;
+            /** Format: int64 */
+            expiryTimestamp?: number;
+            /** Format: double */
+            totalAmount?: number;
+            /** Format: double */
+            saleAmount?: number;
+            /** Format: double */
+            remainingAmount?: number;
+            /** Format: double */
+            finalRefundedAmount?: number;
+            /** @enum {string} */
+            status?: "ACTIVE" | "INACTIVE";
+            realm?: string;
+            merchantData?: components["schemas"]["MerchantData"];
+        };
+        MerchantData: {
+            clientId?: string;
+            merchantId?: string;
+            terminalId?: string;
+            dbaName?: string;
+            countryCode?: string;
         };
         NativeAccount: {
             tenderType: "NativeAccount";
@@ -461,12 +706,6 @@ export interface components {
             posnScope?: string;
             posnAcctNbr?: string;
         };
-        PhoneDetails: {
-            countryCode?: string;
-            phoneNumber?: string;
-            /** Format: int64 */
-            verifiedTimestamp?: number;
-        };
         VerificationInfo: {
             token?: string;
             /** @enum {string} */
@@ -475,10 +714,66 @@ export interface components {
             lastTimestamp?: number;
             docs?: components["schemas"]["DocInfo"][];
         };
-        Asset: {
+        PaymentsSearchRequest: {
+            /** Format: int32 */
+            fromDate?: number;
+            /** Format: int32 */
+            toDate?: number;
+            clientId?: string;
+        };
+        Payment: {
+            clientId?: string;
+            email?: string;
+            merchantTransactionId?: string;
+            agentId?: string;
+            merchantOrderId?: string;
+            merchantInvoiceNumber?: string;
             /** @enum {string} */
-            type?: "CURRENCY";
-            id?: string;
+            type?: "CREDIT" | "DEBIT";
+            /** Format: double */
+            amount?: number;
+            asset?: components["schemas"]["Asset"];
+            /** Format: int64 */
+            timestamp?: number;
+            source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
+            /** @enum {string} */
+            channel?: "ONLINE" | "MACHINE";
+            /** @enum {string} */
+            status?: "PENDING" | "APPROVED" | "DECLINED";
+            referenceMerchantTransactionId?: string;
+            realm?: string;
+            merchantData?: components["schemas"]["MerchantData"];
+            apiTraceId?: string;
+            message?: string;
+        };
+        OTPValidateRequest: {
+            email?: string;
+            otp?: string;
+            /** @enum {string} */
+            channel?: "EMAIL" | "PHONE";
+        };
+        OTPResponse: {
+            email?: string;
+            phone?: components["schemas"]["PhoneDetails"];
+            /** @enum {string} */
+            channel?: "EMAIL" | "PHONE";
+        };
+        DocFieldValue: {
+            value?: string;
+            /** @enum {string} */
+            docType?: "DRIVER_LICENSE_NUMBER" | "DRIVER_LICENSE_PHOTO" | "BANK_STATEMENT" | "BANK_LETTER" | "BANK_CHECK" | "SOCIAL_SECURITY_NUMBER";
+            docValue?: string;
+        };
+        InteractionResponse: {
+            interactionId?: string;
+            /** @enum {string} */
+            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "OTP_VALIDATION_SUCCESS" | "PAYMENT_SOURCE_ATTACHED" | "COMPLETE";
+            email?: string;
+            selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
+            allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD" | "NATIVE_ACCOUNT")[];
+            paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"])[];
+            phone?: components["schemas"]["PhoneDetails"];
+            billerAddress?: components["schemas"]["Address"][];
         };
         TransferRequest: {
             fromSourceId?: string;
@@ -503,10 +798,12 @@ export interface components {
             toDate?: string;
             creditDebit?: boolean[];
         };
-        OTPValidateRequest: {
-            otp?: string;
-            /** @enum {string} */
-            channel?: "EMAIL" | "PHONE";
+        WalletProfile: {
+            email?: string;
+            phone?: components["schemas"]["PhoneDetails"];
+            firstName?: string;
+            lastName?: string;
+            machinePayments?: boolean;
         };
         SessionData: {
             publicKey?: string;
@@ -636,6 +933,192 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["StringHolder"];
+                };
+            };
+        };
+    };
+    updatePhone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneDetails"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    verifyPhoneOTP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Name"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createDynamicSessionCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DSCCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DynamicSessionCard"];
+                };
+            };
+        };
+    };
+    findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentsSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Payment"][];
+                };
+            };
+        };
+    };
+    validateOTP: {
+        parameters: {
+            query?: never;
+            header: {
+                "User-Agent": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OTPValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    authenticate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OTPResponse"];
+                };
+            };
+        };
+    };
+    authenticateEmailOnly: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OTPResponse"];
                 };
             };
         };
@@ -854,7 +1337,7 @@ export interface operations {
             };
         };
     };
-    validateOTP: {
+    validateOTP_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -946,6 +1429,86 @@ export interface operations {
             };
         };
     };
+    getCustomerProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WalletProfile"];
+                };
+            };
+        };
+    };
+    machinePayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                enable: boolean;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createInteraction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StringHolder"];
+                };
+            };
+        };
+    };
+    getActiveDynamicSessionCards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DynamicSessionCard"][];
+                };
+            };
+        };
+    };
     getStatus: {
         parameters: {
             query?: never;
@@ -1005,6 +1568,28 @@ export interface operations {
                         [key: string]: components["schemas"]["NativeAccountBalanceInfo"];
                     };
                 };
+            };
+        };
+    };
+    cancelDynamicSessionCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StringHolder"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
