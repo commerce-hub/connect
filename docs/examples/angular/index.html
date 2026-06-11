@@ -1,0 +1,73 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><commerce-hub-connect> | Examples | Angular 22</title>
+    <link rel="stylesheet" href="../../docs.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600|Roboto+Mono">
+    <link href="../../prism-okaidia.css" rel="stylesheet" />
+    <script type="module" src="../../commerce-hub-connect.bundled.js"></script>
+  </head>
+  <body>
+
+<header>
+  <h1>&lt;commerce-hub-connect></h1>
+  <h2>CommerceHub Connect Web SDK widget primitives.</h2>
+</header>
+
+<nav>
+  <a href="../../">Home</a>
+  <a href="../../install/">Install</a>
+  <a href="../../flow/">End-to-End Flow</a>
+  <a href="../">Examples</a>
+  <a href="../../api/">API</a>
+</nav>
+    <div id="main-wrapper">
+      <main>
+
+    <h1>Example: Angular 22</h1>
+    <section class="examples">
+      <nav class="collection">
+        <ul>
+          <li class=>
+            <a href="../">Render the widget and assign an InteractionResponse</a>
+          </li>
+          <li class=>
+            <a href="../design-config/">Customize merchant-safe colors, spacing, and copy</a>
+          </li>
+          <li class=>
+            <a href="../lit/">Bind SDK properties from a Lit host component</a>
+          </li>
+          <li class=>
+            <a href="../plain-javascript/">Create and mount the widget imperatively</a>
+          </li>
+          <li class=selected>
+            <a href="">Bind SDK properties from an Angular 22 component</a>
+          </li>
+        </ul>
+      </nav>
+      <div>
+<h3>Angular 22 component</h3>
+<pre class="language-ts"><code class="language-ts"><br><span class="token keyword">import</span> <span class="token punctuation">{</span><br>  Component<span class="token punctuation">,</span><br>  <span class="token constant">CUSTOM_ELEMENTS_SCHEMA</span><span class="token punctuation">,</span><br>  input<span class="token punctuation">,</span><br><span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'@angular/core'</span><span class="token punctuation">;</span><br><span class="token keyword">import</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><span class="token keyword">import</span> <span class="token keyword">type</span> <span class="token punctuation">{</span><br>  CommerceHubBaseURLInput<span class="token punctuation">,</span><br>  InteractionResponse<span class="token punctuation">,</span><br>  OnSuccessEvent<span class="token punctuation">,</span><br><span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><br><span class="token decorator"><span class="token at operator">@</span><span class="token function">Component</span></span><span class="token punctuation">(</span><span class="token punctuation">{</span><br>  selector<span class="token operator">:</span> <span class="token string">'app-checkout-payment'</span><span class="token punctuation">,</span><br>  schemas<span class="token operator">:</span> <span class="token punctuation">[</span><span class="token constant">CUSTOM_ELEMENTS_SCHEMA</span><span class="token punctuation">]</span><span class="token punctuation">,</span><br>  template<span class="token operator">:</span> <span class="token template-string"><span class="token template-punctuation string">`</span><span class="token string"><br>    &lt;commerce-hub-connect<br>      [baseURL]="baseUrl"<br>      [interactionResponse]="interactionResponse()"<br>      (onSuccess)="handleSuccess($event)"<br>    >&lt;/commerce-hub-connect><br>  </span><span class="token template-punctuation string">`</span></span><span class="token punctuation">,</span><br><span class="token punctuation">}</span><span class="token punctuation">)</span><br><span class="token keyword">export</span> <span class="token keyword">class</span> <span class="token class-name">CheckoutPaymentComponent</span> <span class="token punctuation">{</span><br>  <span class="token keyword">readonly</span> interactionResponse <span class="token operator">=</span> input<span class="token punctuation">.</span><span class="token generic-function"><span class="token function">required</span><span class="token generic class-name"><span class="token operator">&lt;</span>InteractionResponse<span class="token operator">></span></span></span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br>  <span class="token keyword">readonly</span> baseUrl<span class="token operator">:</span> CommerceHubBaseURLInput <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br>  selectedPaymentSourceId<span class="token operator">?</span><span class="token operator">:</span> <span class="token builtin">string</span><span class="token punctuation">;</span><br><br>  <span class="token function">handleSuccess</span><span class="token punctuation">(</span>event<span class="token operator">:</span> Event<span class="token punctuation">)</span> <span class="token punctuation">{</span><br>    <span class="token keyword">const</span> <span class="token punctuation">{</span>detail<span class="token operator">:</span> paymentSource<span class="token punctuation">}</span> <span class="token operator">=</span> event <span class="token keyword">as</span> OnSuccessEvent<span class="token punctuation">;</span><br>    <span class="token keyword">this</span><span class="token punctuation">.</span>selectedPaymentSourceId <span class="token operator">=</span> paymentSource<span class="token punctuation">.</span>id<span class="token punctuation">;</span><br>  <span class="token punctuation">}</span><br><span class="token punctuation">}</span><br></code></pre>
+<p>Angular 22 components are standalone by default, so this example does not set
+<code>standalone: true</code>. The component allows the custom element with
+<code>CUSTOM_ELEMENTS_SCHEMA</code> and binds object values such as <code>interactionResponse</code>
+through Angular property bindings rather than serializing them into HTML
+attributes.</p>
+
+      </div>
+    </section>
+
+      </main>
+    </div>
+
+<footer>
+  <p>
+    CommerceHub Connect Web SDK
+  </p>
+</footer>
+  </body>
+</html>

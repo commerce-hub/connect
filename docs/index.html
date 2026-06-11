@@ -12,12 +12,12 @@
     <script type="module" src="commerce-hub-connect.bundled.js"></script>
   </head>
   <body>
-    
+
 <header>
   <h1>&lt;commerce-hub-connect></h1>
-  <h2>Commerce Hub Connect Web SDK widget primitives.</h2>
+  <h2>CommerceHub Connect Web SDK widget primitives.</h2>
 </header>
-    
+
 <nav>
   <a href="">Home</a>
   <a href="install/">Install</a>
@@ -27,14 +27,14 @@
 </nav>
     <div id="main-wrapper">
       <main>
-        <h1>&lt;commerce-hub-connect&gt;</h1>
-<p><code>&lt;commerce-hub-connect&gt;</code> is the Commerce Hub Connect Web SDK widget. It lets a
-merchant host embed Commerce Hub payment-source flows as a standards-based web
-component while keeping Commerce Hub authentication and interaction creation on
+<h1>&lt;commerce-hub-connect&gt;</h1>
+<p><code>&lt;commerce-hub-connect&gt;</code> is the CommerceHub Connect Web SDK widget. It lets a
+merchant host embed CommerceHub payment-source flows as a standards-based web
+component while keeping CommerceHub authentication and interaction creation on
 the host backend.</p>
 <h2>What the SDK handles</h2>
 <ul>
-<li>OTP verification and resend for Commerce Hub interactions.</li>
+<li>OTP verification and resend for CommerceHub interactions.</li>
 <li>Saved payment-source selection, attach, verification, and deletion.</li>
 <li>Card entry with sensitive value masking before source creation.</li>
 <li>Manual ACH entry and Pay by Bank provider handoff.</li>
@@ -46,12 +46,13 @@ the host backend.</p>
 <p>The host application creates or retrieves an interaction, passes the resulting
 <code>InteractionResponse</code> into the widget, and listens for <code>onSuccess</code> when the
 shopper finishes with a selected payment source. The host then completes the
-merchant interaction with <code>POST /merchant/interaction/complete</code>; the widget does
-not call that endpoint internally.</p>
-<pre class="language-ts"><code class="language-ts"><br><span class="token keyword">import</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><br><span class="token keyword">const</span> widget <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">querySelector</span><span class="token punctuation">(</span><span class="token string">'commerce-hub-connect'</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br><span class="token keyword">if</span> <span class="token punctuation">(</span>widget<span class="token punctuation">)</span> <span class="token punctuation">{</span><br>  widget<span class="token punctuation">.</span>interactionResponse <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><span class="token string">'/api/commercehub/interaction'</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><br>    <span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span> response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><br>  <span class="token punctuation">)</span><span class="token punctuation">;</span><br>  widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br>  widget<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'onSuccess'</span><span class="token punctuation">,</span> <span class="token keyword">async</span> <span class="token punctuation">(</span>event<span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span><br>    <span class="token keyword">const</span> selectedPaymentSource <span class="token operator">=</span> event<span class="token punctuation">.</span>detail<span class="token punctuation">;</span><br>    <span class="token keyword">const</span> completedPaymentSource <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><br>      <span class="token string">'/api/commercehub/interaction/complete'</span><span class="token punctuation">,</span><br>      <span class="token punctuation">{</span><br>        method<span class="token operator">:</span> <span class="token string">'POST'</span><span class="token punctuation">,</span><br>        headers<span class="token operator">:</span> <span class="token punctuation">{</span><span class="token string-property property">'Content-Type'</span><span class="token operator">:</span> <span class="token string">'application/json'</span><span class="token punctuation">}</span><span class="token punctuation">,</span><br>        body<span class="token operator">:</span> <span class="token constant">JSON</span><span class="token punctuation">.</span><span class="token function">stringify</span><span class="token punctuation">(</span><span class="token punctuation">{</span>value<span class="token operator">:</span> widget<span class="token punctuation">.</span>interactionResponse<span class="token punctuation">.</span>interactionId<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span><br>      <span class="token punctuation">}</span><br>    <span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span> response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br>    <span class="token comment">// Store or reference selectedPaymentSource in host-owned state as needed.</span><br>    <span class="token comment">// Continue the host checkout flow with completedPaymentSource.</span><br>  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><span class="token punctuation">}</span><br></code></pre>
+merchant interaction with
+<code>GET /merchant/interaction/{interactionId}/complete</code>; the widget does not call
+that endpoint internally.</p>
+<pre class="language-ts"><code class="language-ts"><br><span class="token keyword">import</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><br><span class="token keyword">const</span> widget <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">querySelector</span><span class="token punctuation">(</span><span class="token string">'commerce-hub-connect'</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br><span class="token keyword">if</span> <span class="token punctuation">(</span>widget<span class="token punctuation">)</span> <span class="token punctuation">{</span><br>  widget<span class="token punctuation">.</span>interactionResponse <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><span class="token string">'/api/commercehub/interaction'</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><br>    <span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span> response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><br>  <span class="token punctuation">)</span><span class="token punctuation">;</span><br>  widget<span class="token punctuation">.</span>baseURL <span class="token operator">=</span> <span class="token string">'QA'</span><span class="token punctuation">;</span><br>  widget<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'onSuccess'</span><span class="token punctuation">,</span> <span class="token keyword">async</span> <span class="token punctuation">(</span>event<span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span><br>    <span class="token keyword">const</span> selectedPaymentSource <span class="token operator">=</span> event<span class="token punctuation">.</span>detail<span class="token punctuation">;</span><br>    <span class="token keyword">const</span> completedPaymentSource <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><br>      <span class="token template-string"><span class="token template-punctuation string">`</span><span class="token string">/api/commercehub/interaction/</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token function">encodeURIComponent</span><span class="token punctuation">(</span><br>        widget<span class="token punctuation">.</span>interactionResponse<span class="token punctuation">.</span>interactionId<br>      <span class="token punctuation">)</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">/complete</span><span class="token template-punctuation string">`</span></span><span class="token punctuation">,</span><br>      <span class="token punctuation">{</span>method<span class="token operator">:</span> <span class="token string">'GET'</span><span class="token punctuation">}</span><br>    <span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span> response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br>    <span class="token comment">// Store or reference selectedPaymentSource in host-owned state as needed.</span><br>    <span class="token comment">// Continue the host checkout flow with completedPaymentSource.</span><br>  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><span class="token punctuation">}</span><br></code></pre>
 <pre class="language-html"><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>commerce-hub-connect</span><span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>commerce-hub-connect</span><span class="token punctuation">></span></span></code></pre>
 <h2>Request routing</h2>
-<p>SDK-managed Commerce Hub calls always send
+<p>SDK-managed CommerceHub calls always send
 <code>interactionResponse.interactionId</code> as the <code>x-interaction-id</code> header. When
 <code>interactionResponse.oauth.access_token</code> is present, they also send
 <code>Authorization: Bearer &lt;token&gt;</code>. If the interaction id is missing, the widget
@@ -70,10 +71,10 @@ override production routing:</p>
 
       </main>
     </div>
-    
+
 <footer>
   <p>
-    Commerce Hub Connect Web SDK
+    CommerceHub Connect Web SDK
   </p>
 </footer>
   </body>

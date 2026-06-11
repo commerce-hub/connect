@@ -12,12 +12,12 @@
     <script type="module" src="../commerce-hub-connect.bundled.js"></script>
   </head>
   <body>
-    
+
 <header>
   <h1>&lt;commerce-hub-connect></h1>
-  <h2>Commerce Hub Connect Web SDK widget primitives.</h2>
+  <h2>CommerceHub Connect Web SDK widget primitives.</h2>
 </header>
-    
+
 <nav>
   <a href="../">Home</a>
   <a href="">Install</a>
@@ -27,7 +27,7 @@
 </nav>
     <div id="main-wrapper">
       <main>
-        <h1>Install</h1>
+<h1>Install</h1>
 <p>The SDK is being prepared for the public NPM registry. The current package name
 is <code>commerce-hub-connect-sdk</code>.</p>
 <pre class="language-bash"><code class="language-bash"><span class="token function">npm</span> <span class="token function">install</span> commerce-hub-connect-sdk</code></pre>
@@ -43,6 +43,8 @@ is <code>commerce-hub-connect-sdk</code>.</p>
 <p>The SDK is framework-agnostic. In React, Vue, Svelte, Angular, or Lit, import
 the package once and pass complex values as DOM properties rather than HTML
 attributes.</p>
+<p>See the <a href="../examples/angular/">Angular 22 example</a> for a component that binds
+SDK properties in the template and handles <code>onSuccess</code>.</p>
 <pre class="language-ts"><code class="language-ts"><br>widget<span class="token punctuation">.</span>interactionResponse <span class="token operator">=</span> interactionResponse<span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>designConfig <span class="token operator">=</span> designConfig<span class="token punctuation">;</span><br></code></pre>
 <p>Only <code>base-url</code> is available as a string attribute:</p>
 <pre class="language-html"><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>commerce-hub-connect</span> <span class="token attr-name">base-url</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>QA<span class="token punctuation">"</span></span><span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>commerce-hub-connect</span><span class="token punctuation">></span></span></code></pre>
@@ -52,10 +54,10 @@ attributes.</p>
 
       </main>
     </div>
-    
+
 <footer>
   <p>
-    Commerce Hub Connect Web SDK
+    CommerceHub Connect Web SDK
   </p>
 </footer>
   </body>
