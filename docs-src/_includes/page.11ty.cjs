@@ -22,14 +22,14 @@ module.exports = function (data) {
     )}"></script>
   </head>
   <body>
-    ${header()}
-    ${nav(data)}
+${header()}
+${nav(data)}
     <div id="main-wrapper">
       <main>
-        ${content}
+${content}
       </main>
     </div>
-    ${footer()}
+${footer()}
   </body>
 </html>`;
 };
