@@ -41,32 +41,7 @@ const flushElement = async (el: CommerceHubConnect) => {
   await el.updateComplete;
 };
 
-const testPayByBankConfig = {
-  apiKey: 'test-pay-by-bank-api-key',
-  configId: 'test-pay-by-bank-config-id',
-};
 const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
-
-const withTestPayByBankConfig = (designConfig?: unknown) => {
-  const config =
-    designConfig &&
-    typeof designConfig === 'object' &&
-    !Array.isArray(designConfig)
-      ? (designConfig as Record<string, unknown>)
-      : {};
-  const payByBank =
-    config.payByBank && typeof config.payByBank === 'object'
-      ? (config.payByBank as Record<string, unknown>)
-      : {};
-
-  return {
-    ...config,
-    payByBank: {
-      ...testPayByBankConfig,
-      ...payByBank,
-    },
-  };
-};
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
@@ -76,7 +51,7 @@ const renderConnect = async (
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
       .interactionResponse=${interactionResponse}
-      .designConfig=${withTestPayByBankConfig(designConfig)}
+      .designConfig=${designConfig}
       .baseURL=${baseURL}
     ></commerce-hub-connect>`
   )) as CommerceHubConnect;
@@ -670,10 +645,12 @@ const completePayByBankFlow = async ({
 suite('commerce-hub-connect flow', () => {
   const originalFetch = window.fetch;
   const originalPaymentSdk = paymentSdkWindow.PaymentSDK;
+  const originalConsoleError = console.error;
 
   teardown(() => {
     window.fetch = originalFetch;
     paymentSdkWindow.PaymentSDK = originalPaymentSdk;
+    console.error = originalConsoleError;
     document
       .querySelectorAll('script[data-commerce-hub-pay-by-bank-sdk="true"]')
       .forEach((script) => script.remove());
@@ -4127,6 +4104,81 @@ suite('commerce-hub-connect flow', () => {
       'interaction-payment'
     );
     assert.equal(requests[0].credentials, 'include');
+  });
+
+  test('add bank account uses built-in Pay by Bank credentials when designConfig omits them', async () => {
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+
+    assert.equal(
+      initConfig?.apiKey,
+      'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A'
+    );
+    assert.equal(
+      initConfig?.configId,
+      'cce84049-0940-4926-9a54-9eaca0c09830'
+    );
+  });
+
+  test('Pay by Bank startup errors are printed to the console', async () => {
+    const errors: unknown[][] = [];
+
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
+    };
+
+    paymentSdkWindow.PaymentSDK = {
+      init: () => undefined,
+      destroy: () => undefined,
+    };
+    window.fetch = async () =>
+      new Response(JSON.stringify({aggregatorSessionId: 'agg-session-1'}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await flushElement(el);
+
+    assert.lengthOf(errors, 1);
+    assert.equal(errors[0][0], 'CommerceHub Connect Pay by Bank failed');
+    assert.instanceOf(errors[0][1], Error);
+    assert.equal(
+      (errors[0][1] as Error).message,
+      'The /interaction/source/pbb/session response is missing one or more required values.'
+    );
   });
 
   test('Connect your bank success verifies the finalized bank source and shows an under-review outcome without events', async () => {
