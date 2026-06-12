@@ -112,9 +112,8 @@ screen stable and does not call the CommerceHub API.
 ## Design configuration
 
 Pass `.designConfig` to adjust merchant-safe colors, typography, spacing, copy,
-and Pay by Bank provider settings. Most fields are optional and omitted values
-fall back to SDK defaults. If the Pay by Bank handoff is enabled, provide
-`payByBank.apiKey` and `payByBank.configId` from your CommerceHub integration.
+and Pay by Bank provider settings. All fields are optional and omitted values
+fall back to SDK defaults.
 
 ```ts
 widget.designConfig = {
@@ -128,10 +127,6 @@ widget.designConfig = {
   baseFontSize: '16px',
   baseFontWeight: '400',
   shellPadding: '1.75rem 1.5rem 1.5rem',
-  payByBank: {
-    apiKey: '<pay-by-bank-api-key>',
-    configId: '<pay-by-bank-config-id>',
-  },
   copy: {
     otp: {
       title: 'Confirm your email',
