@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/profile/realm/{realmName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["enableRealmForMe"];
+        post?: never;
+        delete: operations["disableRealmForMe"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/interaction/source/pbb/session/{aldSessionId}/{pToken}": {
         parameters: {
             query?: never;
@@ -396,6 +412,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getCustomerProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/realm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAllRealms"];
         put?: never;
         post?: never;
         delete?: never;
@@ -804,6 +836,12 @@ export interface components {
             firstName?: string;
             lastName?: string;
             machinePayments?: boolean;
+            enableAllRealmsByDefault?: boolean;
+            enabledRealms?: string[];
+        };
+        RealmInfo: {
+            realm?: string;
+            description?: string;
         };
         SessionData: {
             publicKey?: string;
@@ -824,6 +862,46 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    enableRealmForMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                realmName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disableRealmForMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                realmName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     addPBBSource: {
         parameters: {
             query?: never;
@@ -1445,6 +1523,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["WalletProfile"];
+                };
+            };
+        };
+    };
+    getAllRealms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RealmInfo"][];
                 };
             };
         };
