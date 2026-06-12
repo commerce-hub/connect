@@ -54,6 +54,9 @@ The SDK is framework-agnostic. In React, Vue, Svelte, Angular, or Lit, import
 the package once and pass complex values as DOM properties rather than HTML
 attributes.
 
+See the [Angular 22 example](../examples/angular/) for a component that binds
+SDK properties in the template and handles `onSuccess`.
+
 ```ts
 {% raw %}
 widget.interactionResponse = interactionResponse;
