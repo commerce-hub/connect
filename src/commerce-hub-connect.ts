@@ -167,6 +167,7 @@ type CardDraft = {
   zip: string;
 };
 type BankAccountDraft = {
+  name: string;
   routingNumber: string;
   accountNumber: string;
   accountNumberReEntered: string;
@@ -1448,6 +1449,18 @@ export class CommerceHubConnect extends LitElement {
               })
             : ''}
           ${renderFormGrid([
+            renderTextField({
+              id: 'ach-account-nickname',
+              name: 'name',
+              label: 'Account Nickname',
+              value: this.bankAccountDraft.name,
+              span: 'full',
+              variant: 'card-form',
+              autocomplete: 'off',
+              dataField: 'name',
+              dataFieldScope: 'bankAccount',
+              disabled: isSaving,
+            }),
             renderTextField({
               id: 'ach-routing-number',
               name: 'routingNumber',
@@ -2802,6 +2815,10 @@ export class CommerceHubConnect extends LitElement {
       const bankAccountSource: BankAccountSourcePayload = {
         id: '',
         tenderType: 'BANK_ACCOUNT',
+        name: resolveBankAccountSourceName(
+          this.bankAccountDraft.name,
+          displayAccountNumber
+        ),
         bankAccount: {
           routingNumber: encryptedRoutingNumber,
           accountNumber: encryptedAccountNumber,
@@ -4317,6 +4334,7 @@ const createCardDraft = (): CardDraft => ({
 });
 
 const createBankAccountDraft = (): BankAccountDraft => ({
+  name: '',
   routingNumber: '',
   accountNumber: '',
   accountNumberReEntered: '',
@@ -4527,6 +4545,7 @@ const normalizeBankAccountDraftForValidation = (
   draft: BankAccountDraft,
   encryption: BankAccountEncryptionState
 ): BankAccountDraft => ({
+  name: draft.name.trim(),
   routingNumber: normalizeBankAccountDraftFieldForValidation(
     'routingNumber',
     draft,
@@ -4563,6 +4582,7 @@ const normalizeBankAccountDraftForDisplay = (
   draft: BankAccountDraft,
   encryption: BankAccountEncryptionState
 ): BankAccountDraft => ({
+  name: draft.name,
   routingNumber: normalizeBankAccountDraftFieldForDisplay(
     'routingNumber',
     draft,
@@ -4862,6 +4882,11 @@ const bankAccountFieldLastFour = (
   encryption: BankAccountEncryptionState,
   draft: BankAccountDraft
 ): string => lastFour(encryption[field].normalizedValue || draft[field]);
+
+const resolveBankAccountSourceName = (
+  name: string,
+  displayAccountNumber: string
+): string => name.trim() || `Bank Account xxxxxx${displayAccountNumber}`;
 
 const isValidCardNumber = (value: string): boolean => {
   const digits = normalizeCardNumber(value);
