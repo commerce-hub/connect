@@ -512,8 +512,11 @@ export class CommerceHubConnect extends LitElement {
 
   private pendingRequiredInfoDocKey?: string;
 
+  private interactionSnapshotInteractionId?: string;
   private interactionRefreshInteractionId?: string;
   private interactionRefreshPromise?: Promise<InteractionResponse>;
+  @state()
+  private interactionRefreshErrorMessage?: string;
   private nativeBalanceFetchKey?: string;
   private nativeBalanceQueuedFetchKey?: string;
   private minimumVerificationOverlayToken = 0;
@@ -534,8 +537,10 @@ export class CommerceHubConnect extends LitElement {
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
         this.paymentSourceEditMode = false;
+        this.interactionSnapshotInteractionId = undefined;
         this.interactionRefreshInteractionId = undefined;
         this.interactionRefreshPromise = undefined;
+        this.interactionRefreshErrorMessage = undefined;
         this.nativeBalanceFetchKey = undefined;
         this.nativeBalanceQueuedFetchKey = undefined;
         this.nativeAccountBalances = {};
@@ -788,6 +793,10 @@ export class CommerceHubConnect extends LitElement {
       });
     }
 
+    if (this.shouldRenderPaymentSourceRefreshError()) {
+      return this.renderPaymentSourceRefreshErrorScreen();
+    }
+
     if (!paymentMethods.length) {
       return this.renderNoSavedPaymentMethods();
     }
@@ -858,6 +867,30 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
+  private renderPaymentSourceRefreshErrorScreen(): TemplateResult {
+    return this.renderWidgetShell({
+      title: 'Payment methods unavailable',
+      showClose: false,
+      content: html`
+        <div class="payment-flow">
+          ${renderAlert({
+            variant: 'danger',
+            message:
+              this.interactionRefreshErrorMessage ??
+              "We couldn't load payment methods. Try again.",
+          })}
+          <div class="primitive-footer">
+            ${renderButton({
+              label: 'Try again',
+              variant: 'primary',
+              action: 'retry-interaction-refresh',
+            })}
+          </div>
+        </div>
+      `,
+    });
+  }
+
   private renderSelectedPaymentSourceScreen(): TemplateResult {
     const selectedSource = selectedPaymentSourceFromInteractionResponse(
       this.interactionResponse,
@@ -921,13 +954,26 @@ export class CommerceHubConnect extends LitElement {
       return false;
     }
 
-    if (this.interactionRefreshPromise) {
+    if (
+      this.interactionRefreshPromise &&
+      this.interactionRefreshInteractionId === interactionId
+    ) {
       return true;
     }
 
     return (
-      this.shouldRefreshPaymentSourcesFromInteraction() &&
-      interactionResponse?.paymentSources === undefined
+      !this.interactionRefreshErrorMessage &&
+      this.shouldRefreshPaymentSourcesFromInteraction()
+    );
+  }
+
+  private shouldRenderPaymentSourceRefreshError(): boolean {
+    const interactionId = this.interactionResponse?.interactionId;
+
+    return Boolean(
+      interactionId &&
+        this.interactionRefreshErrorMessage &&
+        this.interactionSnapshotInteractionId !== interactionId
     );
   }
 
@@ -1781,6 +1827,11 @@ export class CommerceHubConnect extends LitElement {
     if (action === 'change-payment-source') {
       this.resetRequiredInfo();
       this.showPaymentSourceList({refresh: true});
+      return;
+    }
+
+    if (action === 'retry-interaction-refresh') {
+      void this.retryInteractionRefresh();
       return;
     }
 
@@ -4031,8 +4082,6 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    this.interactionRefreshInteractionId = interactionId;
-
     try {
       await this.fetchInteraction(interactionId);
     } catch (cause) {
@@ -4163,15 +4212,11 @@ export class CommerceHubConnect extends LitElement {
       return false;
     }
 
-    if (this.interactionRefreshInteractionId === interactionId) {
+    if (this.interactionSnapshotInteractionId === interactionId) {
       return false;
     }
 
-    return (
-      (isPaymentSelectionReadyStatus(interactionResponse.status) ||
-        interactionResponse.status === 'PAYMENT_SOURCE_ATTACHED') &&
-      interactionResponse.paymentSources === undefined
-    );
+    return true;
   }
 
   private async fetchInteraction(
@@ -4185,6 +4230,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     this.interactionRefreshInteractionId = interactionId;
+    this.interactionRefreshErrorMessage = undefined;
     this.interactionRefreshPromise = this.createSdkClient(interactionId)
       .GET('/interaction')
       .then((response) => interactionResponseFromApi(response))
@@ -4195,16 +4241,40 @@ export class CommerceHubConnect extends LitElement {
           this.selectedPaymentSourceId
         );
 
+        this.interactionSnapshotInteractionId = interactionId;
         this.setInteractionResponseFromSdk(refreshedInteractionResponse);
 
         return refreshedInteractionResponse;
       })
+      .catch((cause) => {
+        if (this.interactionSnapshotInteractionId !== interactionId) {
+          this.interactionRefreshErrorMessage =
+            "We couldn't load payment methods. Try again.";
+        }
+
+        throw cause;
+      })
       .finally(() => {
         this.interactionRefreshPromise = undefined;
+        this.interactionRefreshInteractionId = undefined;
         this.requestUpdate();
       });
 
     return this.interactionRefreshPromise;
+  }
+
+  private async retryInteractionRefresh() {
+    const interactionId = this.interactionResponse?.interactionId;
+
+    if (!interactionId) {
+      return;
+    }
+
+    try {
+      await this.fetchInteraction(interactionId);
+    } catch (cause) {
+      void cause;
+    }
   }
 
   private syncBillingAddressesFromInteractionResponse(

@@ -46,8 +46,41 @@ const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
 const renderConnect = async (
   interactionResponse: InteractionResponse,
   designConfig?: unknown,
-  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL
+  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL,
+  options: {initialInteractionResponse?: InteractionResponse | false} = {}
 ) => {
+  const shouldStubInitialInteraction =
+    options.initialInteractionResponse !== false;
+
+  if (shouldStubInitialInteraction) {
+    const fetchForTest = window.fetch;
+    let servedInitialInteraction = false;
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (
+        !servedInitialInteraction &&
+        request.method === 'GET' &&
+        new URL(request.url).pathname === '/interaction'
+      ) {
+        servedInitialInteraction = true;
+
+        return new Response(
+          JSON.stringify(
+            options.initialInteractionResponse ?? interactionResponse
+          ),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
+      }
+
+      return fetchForTest(input, init);
+    };
+  }
+
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
       .interactionResponse=${interactionResponse}
@@ -57,6 +90,13 @@ const renderConnect = async (
   )) as CommerceHubConnect;
 
   await flushElement(el);
+
+  if (shouldStubInitialInteraction && interactionResponse.interactionId) {
+    await waitFor(
+      () => !el.shadowRoot!.querySelector('.payment-method-skeletons'),
+      'initial interaction refresh did not settle'
+    );
+  }
 
   return el;
 };
@@ -1320,10 +1360,15 @@ suite('commerce-hub-connect flow', () => {
 
     window.fetch = async () => pendingInteraction.promise;
 
-    const el = await renderConnect({
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-    });
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+      },
+      undefined,
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
@@ -4252,10 +4297,7 @@ suite('commerce-hub-connect flow', () => {
       initConfig?.apiKey,
       'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A'
     );
-    assert.equal(
-      initConfig?.configId,
-      'cce84049-0940-4926-9a54-9eaca0c09830'
-    );
+    assert.equal(initConfig?.configId, 'cce84049-0940-4926-9a54-9eaca0c09830');
   });
 
   test('Pay by Bank startup errors are printed to the console', async () => {

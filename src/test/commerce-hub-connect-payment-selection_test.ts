@@ -87,8 +87,41 @@ const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
-  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL
+  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL,
+  options: {initialInteractionResponse?: InteractionResponse | false} = {}
 ) => {
+  const shouldStubInitialInteraction =
+    options.initialInteractionResponse !== false;
+
+  if (shouldStubInitialInteraction) {
+    const fetchForTest = window.fetch;
+    let servedInitialInteraction = false;
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (
+        !servedInitialInteraction &&
+        request.method === 'GET' &&
+        new URL(request.url).pathname === '/interaction'
+      ) {
+        servedInitialInteraction = true;
+
+        return new Response(
+          JSON.stringify(
+            options.initialInteractionResponse ?? interactionResponse
+          ),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
+      }
+
+      return fetchForTest(input, init);
+    };
+  }
+
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
       .interactionResponse=${interactionResponse}
@@ -97,6 +130,13 @@ const renderConnect = async (
   )) as CommerceHubConnect;
 
   await flushElement(el);
+
+  if (shouldStubInitialInteraction) {
+    await waitFor(
+      () => !el.shadowRoot!.querySelector('.payment-method-skeletons'),
+      'initial interaction refresh did not settle'
+    );
+  }
 
   return el;
 };
@@ -172,6 +212,323 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notExists(rows[1].querySelector('.payment-method-radio'));
     assert.notEqual(rows[0].dataset.action, 'verify-payment-source');
     assert.equal(rows[1].dataset.action, undefined);
+  });
+
+  test('initial interaction refresh replaces stale host payment sources with the server response', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'server-card',
+              name: 'Server Visa',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111114242',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'stale-card',
+            name: 'Stale Mastercard',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Mastercard',
+              cardNumber: '5555555555554444',
+            },
+          },
+        ],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Server Visa',
+      'server payment method was not shown'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction']
+    );
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Stale Mastercard');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['server-card']
+    );
+  });
+
+  test('initial interaction refresh loads saved methods when the host payment sources are empty', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'BankAccount',
+              id: 'server-bank',
+              name: 'Server checking',
+              verificationInfo: {status: 'VERIFIED'},
+              bankAccount: {
+                bankName: 'Commerce National Bank',
+                accountNumber: '9876543210',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Server checking',
+      'server saved method was not shown'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction']
+    );
+  });
+
+  test('initial interaction refresh blocks stale selected-source UI until the server response arrives', async () => {
+    const requests: CapturedRequest[] = [];
+    const deferred = createDeferred<Response>();
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return deferred.promise;
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_ATTACHED',
+        selectedSource: {
+          tenderType: 'Card',
+          id: 'stale-card',
+          name: 'Stale selected card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'stale-card',
+            name: 'Stale selected card',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Visa',
+              cardNumber: '4111111111111111',
+            },
+          },
+        ],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    assert.exists(el.shadowRoot!.querySelector('.payment-method-skeletons'));
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Stale selected card');
+
+    deferred.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: {
+            tenderType: 'Card',
+            id: 'server-card',
+            name: 'Server selected card',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Visa',
+              cardNumber: '4111111111114242',
+            },
+          },
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'server-card',
+              name: 'Server selected card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111114242',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector(
+            '.selected-payment-method .payment-method-title'
+          )
+          ?.textContent?.trim() === 'Server selected card',
+      'server selected source was not shown'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction']
+    );
+  });
+
+  test('initial interaction refresh sends interaction and gateway auth headers while preserving oauth', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'server-card',
+              name: 'Server Visa',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111114242',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        oauth: {access_token: 'gateway-token'},
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'stale-card',
+            name: 'Stale Mastercard',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Mastercard',
+              cardNumber: '5555555555554444',
+            },
+          },
+        ],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Server Visa',
+      'server payment method was not shown'
+    );
+
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(
+      requests[0].headers.get('Authorization'),
+      'Bearer gateway-token'
+    );
+    assert.equal(el.interactionResponse?.oauth?.access_token, 'gateway-token');
   });
 
   test('renders all saved payment methods while filtering add actions by allowed tender types', async () => {
@@ -1061,10 +1418,14 @@ suite('commerce-hub-connect payment selection', () => {
       );
     };
 
-    const el = await renderConnect({
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-    });
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
 
     await waitFor(
       () => Boolean(el.shadowRoot!.querySelector('.payment-method-row')),
@@ -1116,25 +1477,106 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('interaction refresh failures keep the payment screen stable without emitting onError', async () => {
-    window.fetch = async () => {
-      throw new Error('network unavailable');
+  test('initial interaction refresh failure hides host payment methods and exposes retry', async () => {
+    const requests: CapturedRequest[] = [];
+    let shouldFail = true;
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (shouldFail) {
+        throw new Error('network unavailable');
+      }
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'server-card',
+              name: 'Server Visa',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111114242',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
     };
 
-    const el = await renderConnect({
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-    });
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'stale-card',
+            name: 'Stale Mastercard',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Mastercard',
+              cardNumber: '5555555555554444',
+            },
+          },
+        ],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
     const {errorEvents} = recordOutputEvents(el);
 
-    await nextFrame();
-    await nextFrame();
+    await waitFor(
+      () =>
+        Boolean(
+          el.shadowRoot!.querySelector(
+            '[data-action="retry-interaction-refresh"]'
+          )
+        ),
+      'retry action was not shown'
+    );
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods unavailable'
     );
+    assert.include(
+      el.shadowRoot!.querySelector('.alert-danger')?.textContent?.trim() ?? '',
+      "We couldn't load payment methods."
+    );
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Stale Mastercard');
+    assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
     assert.lengthOf(errorEvents, 0);
+
+    shouldFail = false;
+    await clickAction(el, 'retry-interaction-refresh');
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Server Visa',
+      'retry did not render the server payment method'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction', 'GET /interaction']
+    );
   });
 
   test('clicking a verified saved method shows the selected payment screen before attaching and emits onSuccess', async () => {
