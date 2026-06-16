@@ -222,11 +222,10 @@ suite('commerce-hub-connect payment selection', () => {
           name: 'Digital wallet',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+            positionId: 'wallet-position-7890',
             nickName: 'Commerce wallet',
-            product: 'Wallet',
-            maskedValue: '7890',
-            tenderId: 'native-tender-1',
+            productType: 'Wallet',
+            token: 'native-token-1',
           },
         },
       ],
@@ -301,11 +300,10 @@ suite('commerce-hub-connect payment selection', () => {
           id: 'native-account-1',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+            positionId: 'wallet-position-7890',
             nickName: 'Commerce wallet',
-            product: 'Wallet',
-            maskedValue: '7890',
-            tenderId: 'native-tender-1',
+            productType: 'Wallet',
+            token: 'native-token-1',
           },
         },
         {
@@ -313,11 +311,10 @@ suite('commerce-hub-connect payment selection', () => {
           id: 'native-account-2',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-4321'},
+            positionId: 'wallet-position-4321',
             nickName: 'Rewards wallet',
-            product: 'Rewards',
-            maskedValue: '4321',
-            tenderId: 'native-tender-2',
+            productType: 'Rewards',
+            token: 'native-token-2',
           },
         },
       ],
@@ -361,7 +358,7 @@ suite('commerce-hub-connect payment selection', () => {
           'native-account-1': {
             balance: 125.5,
           },
-          'native-tender-2': {
+          'wallet-position-4321': {
             balance: 9,
           },
         }),
@@ -412,11 +409,10 @@ suite('commerce-hub-connect payment selection', () => {
       id: 'native-account-1',
       verificationInfo: {status: 'VERIFIED'},
       account: {
-        handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+        positionId: 'wallet-position-7890',
         nickName: 'Commerce wallet',
-        product: 'Wallet',
-        maskedValue: '7890',
-        tenderId: 'native-tender-1',
+        productType: 'Wallet',
+        token: 'native-token-1',
       },
     };
 
@@ -491,7 +487,7 @@ suite('commerce-hub-connect payment selection', () => {
     balanceResponse.resolve(
       new Response(
         JSON.stringify({
-          'native-tender-1': {
+          'wallet-position-7890': {
             balance: 42.25,
           },
         }),
@@ -549,11 +545,10 @@ suite('commerce-hub-connect payment selection', () => {
       id: 'native-account-1',
       verificationInfo: {status: 'VERIFIED'},
       account: {
-        handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+        positionId: 'wallet-position-7890',
         nickName: 'Commerce wallet',
-        product: 'Wallet',
-        maskedValue: '7890',
-        tenderId: 'native-tender-1',
+        productType: 'Wallet',
+        token: 'native-token-1',
       },
     };
 

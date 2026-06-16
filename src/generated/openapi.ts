@@ -717,8 +717,6 @@ export interface components {
             clientId?: string;
             merchantId?: string;
             terminalId?: string;
-            dbaName?: string;
-            countryCode?: string;
         };
         NativeAccount: {
             tenderType: "NativeAccount";
@@ -726,17 +724,11 @@ export interface components {
             account?: components["schemas"]["NativeAccountDetail"];
         });
         NativeAccountDetail: {
-            handle?: components["schemas"]["NativeAccountHandle"];
+            positionId?: string;
+            productType?: string;
             nickName?: string;
-            tenderId?: string;
-            product?: string;
             country?: string;
-            maskedValue?: string;
             token?: string;
-        };
-        NativeAccountHandle: {
-            posnScope?: string;
-            posnAcctNbr?: string;
         };
         VerificationInfo: {
             token?: string;
@@ -850,6 +842,7 @@ export interface components {
             pToken?: string;
         };
         NativeAccountBalanceInfo: {
+            asset?: components["schemas"]["Asset"];
             /** Format: double */
             balance?: number;
         };

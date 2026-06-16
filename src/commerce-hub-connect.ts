@@ -5431,7 +5431,7 @@ const paymentSourceBrand = (source: PaymentSource): string => {
   }
 
   if (isNativePaymentSource(source)) {
-    return source.account?.product ?? 'Native account';
+    return source.account?.productType ?? 'Native account';
   }
 
   return 'DSC';
@@ -5442,7 +5442,7 @@ const paymentSourceAccountLabel = (source: PaymentSource): string => {
   const masked = `•••• ${last4}`;
 
   if (isNativePaymentSource(source)) {
-    const accountType = source.account?.product?.trim();
+    const accountType = source.account?.productType?.trim();
 
     return accountType ? `${accountType} ${masked}` : masked;
   }
@@ -5460,11 +5460,7 @@ const paymentSourceLast4 = (source: PaymentSource): string => {
   }
 
   if (isNativePaymentSource(source)) {
-    return lastFour(
-      source.account?.maskedValue ??
-        source.account?.handle?.posnAcctNbr ??
-        source.account?.tenderId
-    );
+    return lastFour(source.account?.positionId ?? source.account?.token);
   }
 
   return lastFour(source.id);
@@ -5516,12 +5512,7 @@ const nativeAccountBalanceForSource = (
 };
 
 const nativeAccountBalanceMatchKeys = (source: NativePaymentSource): string[] =>
-  [
-    source.id,
-    source.account?.tenderId,
-    source.account?.handle?.posnAcctNbr,
-    source.account?.token,
-  ]
+  [source.id, source.account?.positionId, source.account?.token]
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
 
