@@ -2007,4 +2007,232 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.lengthOf(requests, 0);
   });
+
+  test('renders a transfer screen for verified bank and native accounts', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'OTP_VALIDATION_SUCCESS',
+      features: ['TRANSFER'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-under-review',
+          name: 'Pending account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Harbor Trust',
+            accountNumber: '0000001234',
+          },
+        },
+        {
+          tenderType: 'DSCDisplayCard',
+          id: 'dynamic-card-1',
+          name: 'Dynamic credit card',
+          verificationInfo: {status: 'VERIFIED'},
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          name: 'Digital wallet',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            positionId: 'wallet-position-7890',
+            nickName: 'Commerce wallet',
+            productType: 'Wallet',
+            token: 'native-token-1',
+          },
+        },
+      ],
+    } as InteractionResponse);
+
+    const fromSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-from-source'
+    );
+    const toSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-to-source'
+    );
+    const amountInput =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount');
+    const currencySelect =
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-currency');
+    const transferButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="transfer"]'
+    );
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Transfer funds'
+    );
+    assert.isOk(fromSelect, 'expected From account dropdown');
+    assert.isOk(toSelect, 'expected To account dropdown');
+    assert.isOk(amountInput, 'expected amount input');
+    assert.isOk(currencySelect, 'expected currency dropdown');
+    assert.deepEqual(
+      [...fromSelect!.options].map((option) => [option.value, option.text]),
+      [
+        ['', 'Select account'],
+        ['bank-1', 'Operating account'],
+        ['native-account-1', 'Commerce wallet'],
+      ]
+    );
+    assert.deepEqual(
+      [...toSelect!.options].map((option) => [option.value, option.text]),
+      [
+        ['', 'Select account'],
+        ['bank-1', 'Operating account'],
+        ['native-account-1', 'Commerce wallet'],
+      ]
+    );
+    assert.deepEqual(
+      [...currencySelect!.options].map((option) => [option.value, option.text]),
+      [
+        ['USD', 'USD'],
+        ['CAD', 'CAD'],
+      ]
+    );
+    assert.isTrue(transferButton!.disabled);
+
+    fromSelect!.value = 'bank-1';
+    fromSelect!.dispatchEvent(new Event('change', {bubbles: true}));
+    toSelect!.value = 'native-account-1';
+    toSelect!.dispatchEvent(new Event('change', {bubbles: true}));
+    amountInput!.value = '25.75';
+    amountInput!.dispatchEvent(new Event('input', {bubbles: true}));
+    await flushElement(el);
+
+    assert.isFalse(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="transfer"]'
+      )!.disabled
+    );
+  });
+
+  test('posts a transfer request with selected accounts amount currency and auth headers', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          id: 'transfer-transaction-1',
+          amount: 25.75,
+          asset: {type: 'CURRENCY', id: 'CAD'},
+          credit: false,
+          timestamp: 1710000000000,
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'OTP_VALIDATION_SUCCESS',
+      oauth: {access_token: 'transfer-access-token'},
+      features: ['TRANSFER'],
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            positionId: 'wallet-position-7890',
+            nickName: 'Commerce wallet',
+            productType: 'Wallet',
+            token: 'native-token-1',
+          },
+        },
+      ],
+    } as InteractionResponse);
+
+    const fromSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-from-source'
+    )!;
+    const toSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-to-source'
+    )!;
+    const amountInput =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')!;
+    const currencySelect =
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-currency')!;
+
+    fromSelect.value = 'bank-1';
+    fromSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    toSelect.value = 'native-account-1';
+    toSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    amountInput.value = '25.75';
+    amountInput.dispatchEvent(new Event('input', {bubbles: true}));
+    currencySelect.value = 'CAD';
+    currencySelect.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="transfer"]'
+    )!.click();
+
+    await waitFor(() => requests.length === 1, 'expected transfer request');
+
+    assert.include(requests[0].url, '/interaction/source/native/transfer');
+    assert.equal(requests[0].method, 'POST');
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-transfer'
+    );
+    assert.equal(
+      requests[0].headers.get('authorization'),
+      'Bearer transfer-access-token'
+    );
+    assert.deepEqual(JSON.parse(requests[0].bodyText), {
+      fromSourceId: 'bank-1',
+      toSourceId: 'native-account-1',
+      amount: 25.75,
+      asset: {type: 'CURRENCY', id: 'CAD'},
+    });
+    assert.equal(
+      el.shadowRoot!.querySelector('.alert-success')?.textContent?.trim(),
+      'Transfer initiated.'
+    );
+  });
 });

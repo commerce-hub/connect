@@ -69,6 +69,7 @@ type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
 type InteractionStatus =
   | GeneratedInteractionResponse['status']
   | LegacyInteractionStatus;
+export type InteractionFeature = 'ADD_ACCOUNT' | 'SELECT' | 'TRANSFER';
 
 /**
  * Gateway-injected OAuth details returned with an interaction response.
@@ -86,9 +87,13 @@ export interface InteractionOAuth {
   status?: string;
 }
 
-export type InteractionResponse = Omit<GeneratedInteractionResponse, 'status'> & {
+export type InteractionResponse = Omit<
+  GeneratedInteractionResponse,
+  'status'
+> & {
   status?: InteractionStatus;
   oauth?: InteractionOAuth;
+  features?: InteractionFeature[];
 };
 
 /**
@@ -195,6 +200,14 @@ type BankAccountEncryptionState = Record<
 >;
 type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
 type BankAccountDraftErrors = Partial<Record<keyof BankAccountDraft, string>>;
+type TransferCurrency = 'USD' | 'CAD';
+type TransferDraft = {
+  fromSourceId: string;
+  toSourceId: string;
+  amount: string;
+  currency: TransferCurrency;
+};
+type TransferDraftErrors = Partial<Record<keyof TransferDraft, string>>;
 type AllowedTenderOptions = {
   card: boolean;
   bankAccount: boolean;
@@ -258,6 +271,10 @@ const BILLING_COUNTRY_OPTIONS = [
   {value: '', label: 'Select country or region'},
   {value: 'US', label: 'United States'},
 ];
+const TRANSFER_CURRENCY_OPTIONS = [
+  {value: 'USD', label: 'USD'},
+  {value: 'CAD', label: 'CAD'},
+] satisfies Array<{value: TransferCurrency; label: string}>;
 const BILLING_STATE_OPTIONS = [
   ['AL', 'Alabama'],
   ['AK', 'Alaska'],
@@ -423,6 +440,18 @@ export class CommerceHubConnect extends LitElement {
   private bankAccountSubmitError?: string;
 
   @state()
+  private transferDraft: TransferDraft = createTransferDraft();
+
+  @state()
+  private transferDraftErrors: TransferDraftErrors = {};
+
+  @state()
+  private transferSubmitError?: string;
+
+  @state()
+  private transferSubmitSuccess = false;
+
+  @state()
   @state()
   private cardFlowScreen?: 'form' | 'error';
 
@@ -512,6 +541,7 @@ export class CommerceHubConnect extends LitElement {
         this.nativeAccountBalances = {};
         this.nativeBalanceLoadingSourceIds = [];
         this.billingAddresses = [];
+        this.resetTransferFlow();
         this.resetSavedSourceVerification();
         this.resetRequiredInfo();
       }
@@ -603,7 +633,6 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderCurrentScreen(): TemplateResult {
-    console.log('renderCurrentScreen', this.bankFlowScreen);
     if (this.bankFlowScreen === 'provider') {
       return this.renderBankProviderScreen();
     }
@@ -639,6 +668,10 @@ export class CommerceHubConnect extends LitElement {
       status === 'OTP_VALIDATION_FAILED'
     ) {
       return this.renderOtpScreen(status);
+    }
+
+    if (this.shouldRenderTransferScreen()) {
+      return this.renderTransferScreen();
     }
 
     return this.renderPaymentSourceScreen();
@@ -1100,6 +1133,138 @@ export class CommerceHubConnect extends LitElement {
                 </div>
               `
             : ''}
+        </div>
+      `,
+    });
+  }
+
+  private shouldRenderTransferScreen(): boolean {
+    return (
+      isTransferFeatureEnabled(this.interactionResponse) &&
+      isPaymentSelectionReadyStatus(this.interactionResponse?.status)
+    );
+  }
+
+  private renderTransferScreen(): TemplateResult {
+    const transferSources = transferPaymentSourcesFromInteractionResponse(
+      this.interactionResponse
+    );
+    const isSubmitting = this.pendingAction === 'transfer';
+
+    if (transferSources.length < 2) {
+      return this.renderWidgetShell({
+        title: 'Transfer funds',
+        showClose: false,
+        showDivider: false,
+        content: html`
+          <div class="payment-flow">
+            ${renderEmptyState({
+              title: 'Transfer unavailable',
+              message:
+                'At least two verified bank or native accounts are required to transfer funds.',
+            })}
+          </div>
+        `,
+      });
+    }
+
+    const accountOptions = [
+      {value: '', label: 'Select account'},
+      ...transferSources.map((source) => ({
+        value: paymentSourceId(source),
+        label: paymentSourceDisplayName(source),
+      })),
+    ];
+
+    return this.renderWidgetShell({
+      title: 'Transfer funds',
+      showClose: false,
+      showDivider: false,
+      busy: isSubmitting,
+      overlay: isSubmitting
+        ? renderWidgetLoadingOverlay({
+            title: 'Initiating transfer',
+            helper: 'Submitting your transfer, please wait.',
+          })
+        : undefined,
+      content: html`
+        <div class="payment-flow card-form-screen">
+          ${this.transferSubmitError
+            ? renderAlert({
+                variant: 'danger',
+                message: this.transferSubmitError,
+              })
+            : ''}
+          ${this.transferSubmitSuccess
+            ? renderAlert({
+                variant: 'success',
+                message: 'Transfer initiated.',
+              })
+            : ''}
+          ${renderFormGrid([
+            renderSelectField({
+              id: 'transfer-from-source',
+              name: 'fromSourceId',
+              label: 'From',
+              value: this.transferDraft.fromSourceId,
+              options: accountOptions,
+              span: 'full',
+              variant: 'card-form',
+              dataField: 'fromSourceId',
+              dataFieldScope: 'transfer',
+              error: this.transferDraftErrors.fromSourceId,
+              disabled: isSubmitting,
+            }),
+            renderSelectField({
+              id: 'transfer-to-source',
+              name: 'toSourceId',
+              label: 'To',
+              value: this.transferDraft.toSourceId,
+              options: accountOptions,
+              span: 'full',
+              variant: 'card-form',
+              dataField: 'toSourceId',
+              dataFieldScope: 'transfer',
+              error: this.transferDraftErrors.toSourceId,
+              disabled: isSubmitting,
+            }),
+            renderTextField({
+              id: 'transfer-amount',
+              name: 'amount',
+              label: 'Amount',
+              value: this.transferDraft.amount,
+              variant: 'card-form',
+              inputmode: 'decimal',
+              dataField: 'amount',
+              dataFieldScope: 'transfer',
+              error: this.transferDraftErrors.amount,
+              disabled: isSubmitting,
+            }),
+            renderSelectField({
+              id: 'transfer-currency',
+              name: 'currency',
+              label: 'Currency',
+              value: this.transferDraft.currency,
+              options: TRANSFER_CURRENCY_OPTIONS,
+              variant: 'card-form',
+              dataField: 'currency',
+              dataFieldScope: 'transfer',
+              error: this.transferDraftErrors.currency,
+              disabled: isSubmitting,
+            }),
+          ])}
+          <div class="primitive-footer card-form-primary">
+            <div class="card-form-primary">
+              ${renderButton({
+                label: isSubmitting ? 'Transferring' : 'Transfer',
+                action: 'transfer',
+                loading: isSubmitting,
+                disabled:
+                  isSubmitting ||
+                  !isTransferDraftReady(this.transferDraft, transferSources),
+              })}
+            </div>
+          </div>
         </div>
       `,
     });
@@ -1667,6 +1832,11 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'transfer') {
+      void this.submitTransfer();
+      return;
+    }
+
     if (action === 'verify-otp') {
       void this.verifyOtp();
       return;
@@ -1786,6 +1956,22 @@ export class CommerceHubConnect extends LitElement {
       this.updateBankAccountDraftField(
         bankAccountInput.dataset.bankAccountField as keyof BankAccountDraft,
         bankAccountInput.value
+      );
+      return;
+    }
+
+    const transferInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          Boolean(item.dataset.transferField)
+      );
+
+    if (transferInput) {
+      this.updateTransferDraftField(
+        transferInput.dataset.transferField as keyof TransferDraft,
+        transferInput.value
       );
       return;
     }
@@ -1940,14 +2126,28 @@ export class CommerceHubConnect extends LitElement {
           Boolean(item.dataset.bankAccountField)
       );
 
-    if (!bankAccountSelect) {
+    if (bankAccountSelect) {
+      this.updateBankAccountDraftField(
+        bankAccountSelect.dataset.bankAccountField as keyof BankAccountDraft,
+        bankAccountSelect.value
+      );
       return;
     }
 
-    this.updateBankAccountDraftField(
-      bankAccountSelect.dataset.bankAccountField as keyof BankAccountDraft,
-      bankAccountSelect.value
-    );
+    const transferSelect = event
+      .composedPath()
+      .find(
+        (item): item is HTMLSelectElement =>
+          item instanceof HTMLSelectElement &&
+          Boolean(item.dataset.transferField)
+      );
+
+    if (transferSelect) {
+      this.updateTransferDraftField(
+        transferSelect.dataset.transferField as keyof TransferDraft,
+        transferSelect.value
+      );
+    }
   };
 
   private handlePaste = (event: Event) => {
@@ -2261,6 +2461,21 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountDraftErrors = {};
     this.bankAccountEncryption = createBankAccountEncryptionState();
     this.bankAccountSubmitError = undefined;
+  }
+
+  private updateTransferDraftField(field: keyof TransferDraft, value: string) {
+    const nextDraft = normalizeTransferDraft({
+      ...this.transferDraft,
+      [field]: value,
+    });
+
+    this.transferDraft = nextDraft;
+    this.transferDraftErrors = validateTransferDraft(
+      nextDraft,
+      transferPaymentSourcesFromInteractionResponse(this.interactionResponse)
+    );
+    this.transferSubmitError = undefined;
+    this.transferSubmitSuccess = false;
   }
 
   private updateBankAccountDraftField(
@@ -2866,6 +3081,65 @@ export class CommerceHubConnect extends LitElement {
       this.showAddedPaymentSourceStatus(createdSource);
     } catch (cause) {
       this.bankAccountSubmitError = apiErrorMessage(cause);
+    } finally {
+      this.pendingAction = undefined;
+    }
+  }
+
+  private async submitTransfer() {
+    if (this.pendingAction === 'transfer') {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId) {
+      return;
+    }
+
+    const transferSources = transferPaymentSourcesFromInteractionResponse(
+      this.interactionResponse
+    );
+    const normalizedDraft = normalizeTransferDraft(this.transferDraft);
+    const errors = validateTransferDraft(normalizedDraft, transferSources);
+
+    if (Object.keys(errors).length > 0) {
+      this.transferDraft = normalizedDraft;
+      this.transferDraftErrors = errors;
+      this.transferSubmitError = undefined;
+      this.transferSubmitSuccess = false;
+      return;
+    }
+
+    this.pendingAction = 'transfer';
+    this.transferDraft = normalizedDraft;
+    this.transferDraftErrors = {};
+    this.transferSubmitError = undefined;
+    this.transferSubmitSuccess = false;
+
+    try {
+      await this.requestCommerceHubJson<unknown>(
+        '/interaction/source/native/transfer',
+        interactionId,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            fromSourceId: normalizedDraft.fromSourceId,
+            toSourceId: normalizedDraft.toSourceId,
+            amount: Number(normalizedDraft.amount),
+            asset: {
+              type: 'CURRENCY',
+              id: normalizedDraft.currency,
+            },
+          }),
+          credentials: 'include',
+        }
+      );
+
+      this.transferSubmitSuccess = true;
+    } catch (cause) {
+      this.transferSubmitError = apiErrorMessage(cause);
     } finally {
       this.pendingAction = undefined;
     }
@@ -4040,6 +4314,13 @@ export class CommerceHubConnect extends LitElement {
     this.billingAddressSelectorExpanded = false;
   }
 
+  private resetTransferFlow() {
+    this.transferDraft = createTransferDraft();
+    this.transferDraftErrors = {};
+    this.transferSubmitError = undefined;
+    this.transferSubmitSuccess = false;
+  }
+
   private ensurePayByBankProviderContainer(containerId: string): HTMLElement {
     const existing = [...this.children].find(
       (child): child is HTMLElement =>
@@ -4112,14 +4393,14 @@ export class CommerceHubConnect extends LitElement {
   private interactionResponseWithPreservedGatewayOAuth(
     interactionResponse: InteractionResponse
   ): InteractionResponse {
-    if (interactionResponse.oauth) {
+    if (interactionResponse.oauth && interactionResponse.features) {
       return interactionResponse;
     }
 
     const currentInteractionResponse = this.interactionResponse;
 
     if (
-      !currentInteractionResponse?.oauth ||
+      !currentInteractionResponse ||
       (currentInteractionResponse.interactionId &&
         interactionResponse.interactionId &&
         currentInteractionResponse.interactionId !==
@@ -4130,7 +4411,9 @@ export class CommerceHubConnect extends LitElement {
 
     return {
       ...interactionResponse,
-      oauth: currentInteractionResponse.oauth,
+      oauth: interactionResponse.oauth ?? currentInteractionResponse.oauth,
+      features:
+        interactionResponse.features ?? currentInteractionResponse.features,
     };
   }
 
@@ -4338,6 +4621,13 @@ const createBankAccountDraft = (): BankAccountDraft => ({
   routingNumber: '',
   accountNumber: '',
   accountNumberReEntered: '',
+});
+
+const createTransferDraft = (): TransferDraft => ({
+  fromSourceId: '',
+  toSourceId: '',
+  amount: '',
+  currency: 'USD',
 });
 
 const createCardEncryptionFieldState = (): CardFieldEncryptionState => ({
@@ -4666,6 +4956,58 @@ const isBankAccountDraftReady = (
     })
   );
 };
+
+const normalizeTransferDraft = (draft: TransferDraft): TransferDraft => ({
+  fromSourceId: draft.fromSourceId.trim(),
+  toSourceId: draft.toSourceId.trim(),
+  amount: draft.amount.trim(),
+  currency: isTransferCurrency(draft.currency) ? draft.currency : 'USD',
+});
+
+const validateTransferDraft = (
+  draft: TransferDraft,
+  sources: PaymentSource[]
+): TransferDraftErrors => {
+  const errors: TransferDraftErrors = {};
+  const sourceIds = new Set(sources.map(paymentSourceId));
+  const amount = Number(draft.amount);
+
+  if (!draft.fromSourceId) {
+    errors.fromSourceId = 'Select a source account.';
+  } else if (!sourceIds.has(draft.fromSourceId)) {
+    errors.fromSourceId = 'Select a verified bank or native account.';
+  }
+
+  if (!draft.toSourceId) {
+    errors.toSourceId = 'Select a destination account.';
+  } else if (!sourceIds.has(draft.toSourceId)) {
+    errors.toSourceId = 'Select a verified bank or native account.';
+  } else if (draft.toSourceId === draft.fromSourceId) {
+    errors.toSourceId = 'Select a different destination account.';
+  }
+
+  if (!draft.amount) {
+    errors.amount = 'Enter an amount.';
+  } else if (!Number.isFinite(amount) || amount <= 0) {
+    errors.amount = 'Enter an amount greater than zero.';
+  }
+
+  if (!isTransferCurrency(draft.currency)) {
+    errors.currency = 'Select a currency.';
+  }
+
+  return errors;
+};
+
+const isTransferDraftReady = (
+  draft: TransferDraft,
+  sources: PaymentSource[]
+): boolean =>
+  Object.keys(validateTransferDraft(normalizeTransferDraft(draft), sources))
+    .length === 0;
+
+const isTransferCurrency = (currency: string): currency is TransferCurrency =>
+  currency === 'USD' || currency === 'CAD';
 
 const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
   const errors: CardDraftErrors = {};
@@ -5488,6 +5830,16 @@ const nativePaymentSourcesFromInteractionResponse = (
 ): NativePaymentSource[] =>
   (interactionResponse?.paymentSources ?? []).filter(isNativePaymentSource);
 
+const transferPaymentSourcesFromInteractionResponse = (
+  interactionResponse?: InteractionResponse
+): PaymentSource[] =>
+  (interactionResponse?.paymentSources ?? []).filter(
+    (source) =>
+      (isBankPaymentSource(source) || isNativePaymentSource(source)) &&
+      source.verificationInfo?.status === 'VERIFIED' &&
+      Boolean(paymentSourceId(source))
+  );
+
 const nativeBalanceFetchKey = (
   interactionId: string,
   sources: NativePaymentSource[]
@@ -5578,11 +5930,13 @@ const selectedPaymentSourceFromInteractionResponse = (
   return interactionResponse?.selectedSource;
 };
 
-const isPaymentSelectionReadyStatus = (
-  status?: InteractionStatus
-): boolean =>
+const isPaymentSelectionReadyStatus = (status?: InteractionStatus): boolean =>
   status === PAYMENT_SELECTION_READY_STATUS ||
   status === LEGACY_PAYMENT_SELECTION_READY_STATUS;
+
+const isTransferFeatureEnabled = (
+  interactionResponse?: InteractionResponse
+): boolean => interactionResponse?.features?.includes('TRANSFER') ?? false;
 
 const interactionResponseWithSelection = (
   current: InteractionResponse,

@@ -18,6 +18,7 @@ export type FlowActionName =
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
   | 'submit-required-info'
+  | 'transfer'
   | 'add-bank-account'
   | 'add-ach-manually'
   | 'add-card'
@@ -89,7 +90,7 @@ export interface TextFieldOptions {
   inputmode?: TextFieldInputMode;
   disabled?: boolean;
   dataField?: string;
-  dataFieldScope?: 'card' | 'bankAccount';
+  dataFieldScope?: 'card' | 'bankAccount' | 'transfer';
   error?: string;
 }
 
@@ -108,7 +109,7 @@ export interface SelectFieldOptions {
   variant?: FieldVariant;
   disabled?: boolean;
   dataField?: string;
-  dataFieldScope?: 'card' | 'bankAccount';
+  dataFieldScope?: 'card' | 'bankAccount' | 'transfer';
   error?: string;
 }
 

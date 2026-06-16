@@ -330,6 +330,9 @@ export const renderTextField = ({
       data-bank-account-field=${ifDefined(
         dataFieldScope === 'bankAccount' ? dataField : undefined
       )}
+      data-transfer-field=${ifDefined(
+        dataFieldScope === 'transfer' ? dataField : undefined
+      )}
       aria-invalid=${error ? 'true' : 'false'}
       aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
       ?disabled=${disabled}
@@ -391,6 +394,9 @@ export const renderSelectField = ({
       )}
       data-bank-account-field=${ifDefined(
         dataFieldScope === 'bankAccount' ? dataField : undefined
+      )}
+      data-transfer-field=${ifDefined(
+        dataFieldScope === 'transfer' ? dataField : undefined
       )}
       aria-invalid=${error ? 'true' : 'false'}
       aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
