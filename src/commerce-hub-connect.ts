@@ -15,6 +15,7 @@ import {primitiveStyles} from './internal/styles.js';
 import {
   renderAlert,
   renderButton,
+  renderDetailList,
   renderEmptyState,
   renderFormGrid,
   renderOutcomeShell,
@@ -208,6 +209,7 @@ type TransferDraft = {
   currency: TransferCurrency;
 };
 type TransferDraftErrors = Partial<Record<keyof TransferDraft, string>>;
+type TransferFlowScreen = 'form' | 'confirm';
 type AllowedTenderOptions = {
   card: boolean;
   bankAccount: boolean;
@@ -458,6 +460,9 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private transferFlowActive = false;
+
+  @state()
+  private transferFlowScreen: TransferFlowScreen = 'form';
 
   @state()
   @state()
@@ -1264,6 +1269,27 @@ export class CommerceHubConnect extends LitElement {
         label: paymentSourceDisplayName(source),
       })),
     ];
+    const normalizedDraft = normalizeTransferDraft(this.transferDraft);
+    const fromSource = transferSources.find(
+      (source) => paymentSourceId(source) === normalizedDraft.fromSourceId
+    );
+    const toSource = transferSources.find(
+      (source) => paymentSourceId(source) === normalizedDraft.toSourceId
+    );
+
+    if (
+      this.transferFlowScreen === 'confirm' &&
+      fromSource &&
+      toSource &&
+      isTransferDraftReady(normalizedDraft, transferSources)
+    ) {
+      return this.renderTransferConfirmationScreen(
+        fromSource,
+        toSource,
+        normalizedDraft,
+        isSubmitting
+      );
+    }
 
     return this.renderWidgetShell({
       title: 'Transfer funds',
@@ -1352,6 +1378,64 @@ export class CommerceHubConnect extends LitElement {
                 disabled:
                   isSubmitting ||
                   !isTransferDraftReady(this.transferDraft, transferSources),
+              })}
+            </div>
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  private renderTransferConfirmationScreen(
+    fromSource: PaymentSource,
+    toSource: PaymentSource,
+    draft: TransferDraft,
+    isSubmitting: boolean
+  ): TemplateResult {
+    return this.renderWidgetShell({
+      title: 'Confirm transfer',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'edit-transfer',
+        disabled: isSubmitting,
+      }),
+      showClose: false,
+      showDivider: false,
+      busy: isSubmitting,
+      overlay: isSubmitting
+        ? renderWidgetLoadingOverlay({
+            title: 'Initiating transfer',
+            helper: 'Submitting your transfer, please wait.',
+          })
+        : undefined,
+      content: html`
+        <div class="payment-flow card-form-screen">
+          ${this.transferSubmitError
+            ? renderAlert({
+                variant: 'danger',
+                message: this.transferSubmitError,
+              })
+            : ''}
+          ${renderDetailList([
+            {label: 'From', value: paymentSourceDisplayName(fromSource)},
+            {label: 'To', value: paymentSourceDisplayName(toSource)},
+            {label: 'Amount', value: formatTransferAmountForReview(draft)},
+          ])}
+          <div class="primitive-footer card-form-primary">
+            <div class="card-form-primary">
+              ${renderButton({
+                label: isSubmitting ? 'Transferring' : 'Confirm transfer',
+                action: 'confirm-transfer',
+                loading: isSubmitting,
+                disabled: isSubmitting,
+              })}
+            </div>
+            <div class="card-form-primary">
+              ${renderButton({
+                label: 'Edit',
+                variant: 'secondary',
+                action: 'edit-transfer',
+                disabled: isSubmitting,
               })}
             </div>
           </div>
@@ -1939,6 +2023,16 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'transfer') {
+      this.reviewTransfer();
+      return;
+    }
+
+    if (action === 'edit-transfer') {
+      this.transferFlowScreen = 'form';
+      return;
+    }
+
+    if (action === 'confirm-transfer') {
       void this.submitTransfer();
       return;
     }
@@ -2580,6 +2674,7 @@ export class CommerceHubConnect extends LitElement {
       nextDraft,
       transferPaymentSourcesFromInteractionResponse(this.interactionResponse)
     );
+    this.transferFlowScreen = 'form';
     this.transferSubmitError = undefined;
     this.transferSubmitSuccess = false;
   }
@@ -3192,6 +3287,32 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
+  private reviewTransfer() {
+    if (this.pendingAction === 'transfer') {
+      return;
+    }
+
+    const transferSources = transferPaymentSourcesFromInteractionResponse(
+      this.interactionResponse
+    );
+    const normalizedDraft = normalizeTransferDraft(this.transferDraft);
+    const errors = validateTransferDraft(normalizedDraft, transferSources);
+
+    if (Object.keys(errors).length > 0) {
+      this.transferDraft = normalizedDraft;
+      this.transferDraftErrors = errors;
+      this.transferSubmitError = undefined;
+      this.transferSubmitSuccess = false;
+      return;
+    }
+
+    this.transferDraft = normalizedDraft;
+    this.transferDraftErrors = {};
+    this.transferSubmitError = undefined;
+    this.transferSubmitSuccess = false;
+    this.transferFlowScreen = 'confirm';
+  }
+
   private async submitTransfer() {
     if (this.pendingAction === 'transfer') {
       return;
@@ -3212,6 +3333,7 @@ export class CommerceHubConnect extends LitElement {
     if (Object.keys(errors).length > 0) {
       this.transferDraft = normalizedDraft;
       this.transferDraftErrors = errors;
+      this.transferFlowScreen = 'form';
       this.transferSubmitError = undefined;
       this.transferSubmitSuccess = false;
       return;
@@ -3243,6 +3365,7 @@ export class CommerceHubConnect extends LitElement {
         }
       );
 
+      this.transferFlowScreen = 'form';
       this.transferSubmitSuccess = true;
     } catch (cause) {
       this.transferSubmitError = apiErrorMessage(cause);
@@ -4442,6 +4565,7 @@ export class CommerceHubConnect extends LitElement {
 
   private resetTransferFlow() {
     this.transferFlowActive = false;
+    this.transferFlowScreen = 'form';
     this.transferDraft = createTransferDraft();
     this.transferDraftErrors = {};
     this.transferSubmitError = undefined;
@@ -5136,6 +5260,9 @@ const isTransferDraftReady = (
 
 const isTransferCurrency = (currency: string): currency is TransferCurrency =>
   currency === 'USD' || currency === 'CAD';
+
+const formatTransferAmountForReview = (draft: TransferDraft): string =>
+  `${Number(draft.amount).toFixed(2)} ${draft.currency}`;
 
 const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
   const errors: CardDraftErrors = {};

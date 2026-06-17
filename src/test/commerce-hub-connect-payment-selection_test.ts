@@ -2569,7 +2569,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('posts a transfer request with selected accounts amount currency and auth headers', async () => {
+  test('reviews transfer details before posting selected accounts amount currency and auth headers', async () => {
     const requests: CapturedRequest[] = [];
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -2650,9 +2650,30 @@ suite('commerce-hub-connect payment selection', () => {
     currencySelect.dispatchEvent(new Event('change', {bubbles: true}));
     await flushElement(el);
 
-    el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '[data-action="transfer"]'
-    )!.click();
+    await clickAction(el, 'transfer');
+
+    assert.lengthOf(requests, 0);
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Confirm transfer'
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.detail-list .detail-row'
+        ),
+      ].map((row) => [
+        row.querySelector('.detail-label')?.textContent?.trim(),
+        row.querySelector('.detail-value')?.textContent?.trim(),
+      ]),
+      [
+        ['From', 'Operating account'],
+        ['To', 'Commerce wallet'],
+        ['Amount', '25.75 CAD'],
+      ]
+    );
+
+    await clickAction(el, 'confirm-transfer');
 
     await waitFor(() => requests.length === 1, 'expected transfer request');
 
@@ -2675,6 +2696,106 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(
       el.shadowRoot!.querySelector('.alert-success')?.textContent?.trim(),
       'Transfer initiated.'
+    );
+  });
+
+  test('returns from transfer confirmation to the filled transfer form without posting', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'OTP_VALIDATION_SUCCESS',
+      features: ['TRANSFER'],
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            positionId: 'wallet-position-7890',
+            nickName: 'Commerce wallet',
+            productType: 'Wallet',
+            token: 'native-token-1',
+          },
+        },
+      ],
+    } as InteractionResponse);
+
+    const fromSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-from-source'
+    )!;
+    const toSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-to-source'
+    )!;
+    const amountInput =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')!;
+    const currencySelect =
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-currency')!;
+
+    fromSelect.value = 'bank-1';
+    fromSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    toSelect.value = 'native-account-1';
+    toSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    amountInput.value = '25.75';
+    amountInput.dispatchEvent(new Event('input', {bubbles: true}));
+    currencySelect.value = 'CAD';
+    currencySelect.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+
+    await clickAction(el, 'transfer');
+    await clickAction(el, 'edit-transfer');
+
+    assert.lengthOf(requests, 0);
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Transfer funds'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-from-source')
+        ?.value,
+      'bank-1'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-to-source')
+        ?.value,
+      'native-account-1'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')?.value,
+      '25.75'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-currency')
+        ?.value,
+      'CAD'
     );
   });
 });

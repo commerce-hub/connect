@@ -19,6 +19,8 @@ export type FlowActionName =
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
   | 'open-transfer'
+  | 'edit-transfer'
+  | 'confirm-transfer'
   | 'submit-required-info'
   | 'transfer'
   | 'add-bank-account'
