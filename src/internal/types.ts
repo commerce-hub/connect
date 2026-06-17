@@ -195,7 +195,7 @@ export interface PaymentMethod {
   disabled?: boolean;
 }
 
-export type SourceActionIcon = 'card' | 'bank';
+export type SourceActionIcon = 'card' | 'bank' | 'transfer';
 export type SourceActionVariant = 'card' | 'link';
 
 export interface SourceActionOptions {

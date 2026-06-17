@@ -1272,6 +1272,51 @@ export const primitiveStyles = css`
     font-weight: inherit;
   }
 
+  .source-action-icon-transfer {
+    position: relative;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0;
+  }
+
+  .source-action-transfer-arrow {
+    position: absolute;
+    width: 0.875rem;
+    height: 0.4375rem;
+    border-top: 0.125rem solid currentColor;
+  }
+
+  .source-action-transfer-arrow::after {
+    content: '';
+    position: absolute;
+    top: -0.3125rem;
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-top: 0.125rem solid currentColor;
+    border-right: 0.125rem solid currentColor;
+  }
+
+  .source-action-transfer-arrow-forward {
+    top: 0.4375rem;
+    left: 0.25rem;
+  }
+
+  .source-action-transfer-arrow-forward::after {
+    right: -0.0625rem;
+    transform: rotate(45deg);
+  }
+
+  .source-action-transfer-arrow-back {
+    right: 0.25rem;
+    bottom: 0.3125rem;
+    transform: rotate(180deg);
+  }
+
+  .source-action-transfer-arrow-back::after {
+    right: -0.0625rem;
+    transform: rotate(45deg);
+  }
+
   .source-action-copy {
     display: grid;
     min-width: 0;

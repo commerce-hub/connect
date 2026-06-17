@@ -1030,6 +1030,12 @@ suite('commerce-hub-connect flow', () => {
     const addCardIcon = addCardLink.querySelector<HTMLElement>(
       '.source-action-icon'
     )!;
+    const addBankIcon = el.shadowRoot!.querySelector<HTMLElement>(
+      '[data-action="add-bank-account"] .source-action-icon'
+    )!;
+    const transferIcon = el.shadowRoot!.querySelector<HTMLElement>(
+      '[data-action="open-transfer"] .source-action-icon'
+    )!;
     const unselectedRow = rows[1]!;
 
     assert.notExists(el.shadowRoot!.querySelector('.source-action-link-icon'));
@@ -1042,6 +1048,13 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector(
         '[data-action="add-bank-account"] .source-action-icon'
       )
+    );
+    assert.equal(addCardIcon.textContent?.trim(), '+');
+    assert.equal(addBankIcon.textContent?.trim(), '+');
+    assert.equal(transferIcon.textContent?.trim(), '');
+    assert.equal(
+      transferIcon.classList.contains('source-action-icon-transfer'),
+      true
     );
     assert.equal(
       getComputedStyle(addCardLink).backgroundColor,
@@ -3657,8 +3670,10 @@ suite('commerce-hub-connect flow', () => {
       ['add-card', 'add-bank-account', 'open-transfer']
     );
     assert.equal(
-      el.shadowRoot!
-        .querySelector('[data-action="open-transfer"] .source-action-link-title')
+      el
+        .shadowRoot!.querySelector(
+          '[data-action="open-transfer"] .source-action-link-title'
+        )
         ?.textContent?.trim(),
       'Transfer funds'
     );

@@ -880,7 +880,7 @@ export class CommerceHubConnect extends LitElement {
                     ? renderSourceAction({
                         label: 'Transfer funds',
                         action: 'open-transfer',
-                        icon: 'bank',
+                        icon: 'transfer',
                         variant: 'link',
                         disabled: isPaymentSourceActionPending,
                       })
@@ -1208,7 +1208,7 @@ export class CommerceHubConnect extends LitElement {
                     ? renderSourceAction({
                         label: 'Transfer funds',
                         action: 'open-transfer',
-                        icon: 'bank',
+                        icon: 'transfer',
                         variant: 'link',
                         disabled: isDeletePending,
                       })
