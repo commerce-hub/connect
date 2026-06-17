@@ -18,6 +18,7 @@ export type FlowActionName =
   | 'cancel-delete-payment-source'
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
+  | 'open-transfer'
   | 'submit-required-info'
   | 'transfer'
   | 'add-bank-account'

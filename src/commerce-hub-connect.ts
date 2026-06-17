@@ -267,6 +267,11 @@ const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NEW_BILLING_ADDRESS_VALUE = '__new__';
 const PAYMENT_SELECTION_READY_STATUS = 'OTP_VALIDATION_SUCCESS' as const;
 const LEGACY_PAYMENT_SELECTION_READY_STATUS = 'PAYMENT_SOURCE_REQUESTED';
+const DEFAULT_INTERACTION_FEATURES = [
+  'ADD_ACCOUNT',
+  'SELECT',
+  'TRANSFER',
+] satisfies InteractionFeature[];
 const BILLING_COUNTRY_OPTIONS = [
   {value: '', label: 'Select country or region'},
   {value: 'US', label: 'United States'},
@@ -450,6 +455,9 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private transferSubmitSuccess = false;
+
+  @state()
+  private transferFlowActive = false;
 
   @state()
   @state()
@@ -771,6 +779,9 @@ export class CommerceHubConnect extends LitElement {
     );
     const hasAddPaymentActions =
       allowedTenderOptions.card || allowedTenderOptions.bankAccount;
+    const showTransferAction =
+      allowedTenderOptions.bankAccount &&
+      isAddSelectTransferFeatureEnabled(this.interactionResponse);
     const isPaymentSourceActionPending =
       this.pendingAction === 'attach-payment-source' ||
       this.pendingAction === 'verify-payment-source' ||
@@ -855,6 +866,15 @@ export class CommerceHubConnect extends LitElement {
                     ? renderSourceAction({
                         label: copy.addBankAccountTitle,
                         action: 'add-bank-account',
+                        icon: 'bank',
+                        variant: 'link',
+                        disabled: isPaymentSourceActionPending,
+                      })
+                    : ''}
+                  ${showTransferAction
+                    ? renderSourceAction({
+                        label: 'Transfer funds',
+                        action: 'open-transfer',
                         icon: 'bank',
                         variant: 'link',
                         disabled: isPaymentSourceActionPending,
@@ -1139,6 +1159,9 @@ export class CommerceHubConnect extends LitElement {
     );
     const hasAddPaymentActions =
       allowedTenderOptions.card || allowedTenderOptions.bankAccount;
+    const showTransferAction =
+      allowedTenderOptions.bankAccount &&
+      isAddSelectTransferFeatureEnabled(this.interactionResponse);
 
     return this.renderWidgetShell({
       title: copy.title,
@@ -1176,6 +1199,15 @@ export class CommerceHubConnect extends LitElement {
                         disabled: isDeletePending,
                       })
                     : ''}
+                  ${showTransferAction
+                    ? renderSourceAction({
+                        label: 'Transfer funds',
+                        action: 'open-transfer',
+                        icon: 'bank',
+                        variant: 'link',
+                        disabled: isDeletePending,
+                      })
+                    : ''}
                 </div>
               `
             : ''}
@@ -1185,9 +1217,12 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private shouldRenderTransferScreen(): boolean {
+    const interactionResponse = this.interactionResponse;
+
     return (
-      isTransferFeatureEnabled(this.interactionResponse) &&
-      isPaymentSelectionReadyStatus(this.interactionResponse?.status)
+      (this.transferFlowActive ||
+        isTransferOnlyFeatureEnabled(interactionResponse)) &&
+      isPaymentSelectionReadyStatus(interactionResponse?.status)
     );
   }
 
@@ -1196,10 +1231,18 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse
     );
     const isSubmitting = this.pendingAction === 'transfer';
+    const headerAction = this.transferFlowActive
+      ? renderTextLinkButton({
+          label: 'Back',
+          action: 'back-to-payment-methods',
+          disabled: isSubmitting,
+        })
+      : undefined;
 
     if (transferSources.length < 2) {
       return this.renderWidgetShell({
         title: 'Transfer funds',
+        headerAction,
         showClose: false,
         showDivider: false,
         content: html`
@@ -1224,6 +1267,7 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Transfer funds',
+      headerAction,
       showClose: false,
       showDivider: false,
       busy: isSubmitting,
@@ -1880,6 +1924,17 @@ export class CommerceHubConnect extends LitElement {
 
     if (action === 'submit-required-info') {
       void this.submitRequiredInfo();
+      return;
+    }
+
+    if (action === 'open-transfer') {
+      this.paymentSourceEditMode = false;
+      this.paymentSourceView = 'list';
+      this.resetCardFlow();
+      this.resetBankFlow();
+      this.resetRequiredInfo();
+      this.resetTransferFlow();
+      this.transferFlowActive = true;
       return;
     }
 
@@ -3545,6 +3600,7 @@ export class CommerceHubConnect extends LitElement {
     this.clearDeletePaymentSourceConfirmation();
     this.paymentSourceEditMode = false;
     this.paymentSourceView = 'list';
+    this.resetTransferFlow();
 
     if (refresh) {
       void this.refreshPaymentSourcesForList();
@@ -4385,6 +4441,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private resetTransferFlow() {
+    this.transferFlowActive = false;
     this.transferDraft = createTransferDraft();
     this.transferDraftErrors = {};
     this.transferSubmitError = undefined;
@@ -4456,8 +4513,9 @@ export class CommerceHubConnect extends LitElement {
   private setInteractionResponseFromSdk(
     interactionResponse: InteractionResponse
   ) {
-    this.interactionResponse =
-      this.interactionResponseWithPreservedGatewayOAuth(interactionResponse);
+    this.interactionResponse = interactionResponseWithDefaultFeatures(
+      this.interactionResponseWithPreservedGatewayOAuth(interactionResponse)
+    );
   }
 
   private interactionResponseWithPreservedGatewayOAuth(
@@ -6004,9 +6062,34 @@ const isPaymentSelectionReadyStatus = (status?: InteractionStatus): boolean =>
   status === PAYMENT_SELECTION_READY_STATUS ||
   status === LEGACY_PAYMENT_SELECTION_READY_STATUS;
 
-const isTransferFeatureEnabled = (
+const isTransferOnlyFeatureEnabled = (
   interactionResponse?: InteractionResponse
-): boolean => interactionResponse?.features?.includes('TRANSFER') ?? false;
+): boolean =>
+  Boolean(
+    interactionResponse &&
+      interactionResponse.features?.includes('TRANSFER') &&
+      !interactionResponse.features.includes('ADD_ACCOUNT') &&
+      !interactionResponse.features.includes('SELECT')
+  );
+
+const isAddSelectTransferFeatureEnabled = (
+  interactionResponse?: InteractionResponse
+): boolean =>
+  Boolean(
+    interactionResponse?.features?.includes('ADD_ACCOUNT') &&
+      interactionResponse.features.includes('SELECT') &&
+      interactionResponse.features.includes('TRANSFER')
+  );
+
+const interactionResponseWithDefaultFeatures = (
+  interactionResponse: InteractionResponse
+): InteractionResponse =>
+  interactionResponse.features
+    ? interactionResponse
+    : {
+        ...interactionResponse,
+        features: [...DEFAULT_INTERACTION_FEATURES],
+      };
 
 const interactionResponseWithSelection = (
   current: InteractionResponse,

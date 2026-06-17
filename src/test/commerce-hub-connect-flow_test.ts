@@ -1022,7 +1022,7 @@ suite('commerce-hub-connect flow', () => {
       [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
         (item) => item.textContent?.trim()
       ),
-      ['Add credit or debit card', 'Add bank account']
+      ['Add credit or debit card', 'Add bank account', 'Transfer funds']
     );
     const addCardLink = el.shadowRoot!.querySelector<HTMLElement>(
       '[data-action="add-card"]'
@@ -1254,7 +1254,7 @@ suite('commerce-hub-connect flow', () => {
       [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
         (item) => item.textContent?.trim()
       ),
-      ['Use card', 'Use bank account']
+      ['Use card', 'Use bank account', 'Transfer funds']
     );
     assert.deepEqual(
       [...el.shadowRoot!.querySelectorAll('.source-action-link-subtitle')].map(
@@ -1348,7 +1348,7 @@ suite('commerce-hub-connect flow', () => {
       [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
         (item) => item.textContent?.trim()
       ),
-      ['Add credit or debit card', 'Add bank account']
+      ['Add credit or debit card', 'Add bank account', 'Transfer funds']
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
@@ -1443,7 +1443,7 @@ suite('commerce-hub-connect flow', () => {
       [...el.shadowRoot!.querySelectorAll('.source-action-link-title')].map(
         (item) => item.textContent?.trim()
       ),
-      ['Add card', 'Connect bank']
+      ['Add card', 'Connect bank', 'Transfer funds']
     );
     assert.deepEqual(
       [...el.shadowRoot!.querySelectorAll('.source-action-link-subtitle')].map(
@@ -3590,6 +3590,11 @@ suite('commerce-hub-connect flow', () => {
       el.interactionResponse?.oauth?.access_token,
       'gateway-access-token-1'
     );
+    assert.deepEqual(el.interactionResponse?.features, [
+      'ADD_ACCOUNT',
+      'SELECT',
+      'TRANSFER',
+    ]);
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Pay with'
@@ -3604,6 +3609,104 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
       '•••• 4242'
     );
+  });
+
+  test('defaults missing interaction features and renders transfer after add bank account', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'First Bank',
+            accountNumber: '1111111111111111',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-2',
+          name: 'Savings account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Second Bank',
+            accountNumber: '2222222222222222',
+          },
+        },
+      ],
+    });
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Pay with'
+    );
+    assert.deepEqual(el.interactionResponse?.features, [
+      'ADD_ACCOUNT',
+      'SELECT',
+      'TRANSFER',
+    ]);
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+          '.payment-action-links [data-action]'
+        ),
+      ].map((button) => button.dataset.action),
+      ['add-card', 'add-bank-account', 'open-transfer']
+    );
+    assert.equal(
+      el.shadowRoot!
+        .querySelector('[data-action="open-transfer"] .source-action-link-title')
+        ?.textContent?.trim(),
+      'Transfer funds'
+    );
+
+    await clickAction(el, 'open-transfer');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Transfer funds'
+    );
+    assert.exists(el.shadowRoot!.querySelector('#transfer-from-source'));
+    assert.exists(el.shadowRoot!.querySelector('#transfer-to-source'));
+  });
+
+  test('respects explicit interaction features when transfer is omitted', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['ADD_ACCOUNT', 'SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'First Bank',
+            accountNumber: '1111111111111111',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-2',
+          name: 'Savings account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Second Bank',
+            accountNumber: '2222222222222222',
+          },
+        },
+      ],
+    });
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Pay with'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('[data-action="transfer"]'));
   });
 
   test('baseURL QA preset routes SDK-managed OTP validation requests to the CommerceHub preset origin', async () => {
