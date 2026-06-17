@@ -201,12 +201,10 @@ type BankAccountEncryptionState = Record<
 >;
 type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
 type BankAccountDraftErrors = Partial<Record<keyof BankAccountDraft, string>>;
-type TransferCurrency = 'USD' | 'CAD';
 type TransferDraft = {
   fromSourceId: string;
   toSourceId: string;
   amount: string;
-  currency: TransferCurrency;
 };
 type TransferDraftErrors = Partial<Record<keyof TransferDraft, string>>;
 type TransferFlowScreen = 'form' | 'confirm';
@@ -274,14 +272,11 @@ const DEFAULT_INTERACTION_FEATURES = [
   'SELECT',
   'TRANSFER',
 ] satisfies InteractionFeature[];
+const TRANSFER_CURRENCY = 'USD';
 const BILLING_COUNTRY_OPTIONS = [
   {value: '', label: 'Select country or region'},
   {value: 'US', label: 'United States'},
 ];
-const TRANSFER_CURRENCY_OPTIONS = [
-  {value: 'USD', label: 'USD'},
-  {value: 'CAD', label: 'CAD'},
-] satisfies Array<{value: TransferCurrency; label: string}>;
 const BILLING_STATE_OPTIONS = [
   ['AL', 'Alabama'],
   ['AK', 'Alaska'],
@@ -1354,18 +1349,6 @@ export class CommerceHubConnect extends LitElement {
               dataField: 'amount',
               dataFieldScope: 'transfer',
               error: this.transferDraftErrors.amount,
-              disabled: isSubmitting,
-            }),
-            renderSelectField({
-              id: 'transfer-currency',
-              name: 'currency',
-              label: 'Currency',
-              value: this.transferDraft.currency,
-              options: TRANSFER_CURRENCY_OPTIONS,
-              variant: 'card-form',
-              dataField: 'currency',
-              dataFieldScope: 'transfer',
-              error: this.transferDraftErrors.currency,
               disabled: isSubmitting,
             }),
           ])}
@@ -3358,7 +3341,7 @@ export class CommerceHubConnect extends LitElement {
             amount: Number(normalizedDraft.amount),
             asset: {
               type: 'CURRENCY',
-              id: normalizedDraft.currency,
+              id: TRANSFER_CURRENCY,
             },
           }),
           credentials: 'include',
@@ -4879,7 +4862,6 @@ const createTransferDraft = (): TransferDraft => ({
   fromSourceId: '',
   toSourceId: '',
   amount: '',
-  currency: 'USD',
 });
 
 const createCardEncryptionFieldState = (): CardFieldEncryptionState => ({
@@ -5213,7 +5195,6 @@ const normalizeTransferDraft = (draft: TransferDraft): TransferDraft => ({
   fromSourceId: draft.fromSourceId.trim(),
   toSourceId: draft.toSourceId.trim(),
   amount: draft.amount.trim(),
-  currency: isTransferCurrency(draft.currency) ? draft.currency : 'USD',
 });
 
 const validateTransferDraft = (
@@ -5244,10 +5225,6 @@ const validateTransferDraft = (
     errors.amount = 'Enter an amount greater than zero.';
   }
 
-  if (!isTransferCurrency(draft.currency)) {
-    errors.currency = 'Select a currency.';
-  }
-
   return errors;
 };
 
@@ -5258,11 +5235,8 @@ const isTransferDraftReady = (
   Object.keys(validateTransferDraft(normalizeTransferDraft(draft), sources))
     .length === 0;
 
-const isTransferCurrency = (currency: string): currency is TransferCurrency =>
-  currency === 'USD' || currency === 'CAD';
-
 const formatTransferAmountForReview = (draft: TransferDraft): string =>
-  `${Number(draft.amount).toFixed(2)} ${draft.currency}`;
+  `${Number(draft.amount).toFixed(2)} ${TRANSFER_CURRENCY}`;
 
 const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
   const errors: CardDraftErrors = {};

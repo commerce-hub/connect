@@ -2515,8 +2515,6 @@ suite('commerce-hub-connect payment selection', () => {
     );
     const amountInput =
       el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount');
-    const currencySelect =
-      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-currency');
     const transferButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '[data-action="transfer"]'
     );
@@ -2528,7 +2526,10 @@ suite('commerce-hub-connect payment selection', () => {
     assert.isOk(fromSelect, 'expected From account dropdown');
     assert.isOk(toSelect, 'expected To account dropdown');
     assert.isOk(amountInput, 'expected amount input');
-    assert.isOk(currencySelect, 'expected currency dropdown');
+    assert.notExists(
+      el.shadowRoot!.querySelector('#transfer-currency'),
+      'expected no currency dropdown'
+    );
     assert.deepEqual(
       [...fromSelect!.options].map((option) => [option.value, option.text]),
       [
@@ -2543,13 +2544,6 @@ suite('commerce-hub-connect payment selection', () => {
         ['', 'Select account'],
         ['bank-1', 'Operating account'],
         ['native-account-1', 'Commerce wallet'],
-      ]
-    );
-    assert.deepEqual(
-      [...currencySelect!.options].map((option) => [option.value, option.text]),
-      [
-        ['USD', 'USD'],
-        ['CAD', 'CAD'],
       ]
     );
     assert.isTrue(transferButton!.disabled);
@@ -2569,7 +2563,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('reviews transfer details before posting selected accounts amount currency and auth headers', async () => {
+  test('reviews transfer details before posting selected accounts amount USD currency and auth headers', async () => {
     const requests: CapturedRequest[] = [];
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -2588,7 +2582,7 @@ suite('commerce-hub-connect payment selection', () => {
         JSON.stringify({
           id: 'transfer-transaction-1',
           amount: 25.75,
-          asset: {type: 'CURRENCY', id: 'CAD'},
+          asset: {type: 'CURRENCY', id: 'USD'},
           credit: false,
           timestamp: 1710000000000,
         }),
@@ -2637,8 +2631,6 @@ suite('commerce-hub-connect payment selection', () => {
     )!;
     const amountInput =
       el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')!;
-    const currencySelect =
-      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-currency')!;
 
     fromSelect.value = 'bank-1';
     fromSelect.dispatchEvent(new Event('change', {bubbles: true}));
@@ -2646,8 +2638,6 @@ suite('commerce-hub-connect payment selection', () => {
     toSelect.dispatchEvent(new Event('change', {bubbles: true}));
     amountInput.value = '25.75';
     amountInput.dispatchEvent(new Event('input', {bubbles: true}));
-    currencySelect.value = 'CAD';
-    currencySelect.dispatchEvent(new Event('change', {bubbles: true}));
     await flushElement(el);
 
     await clickAction(el, 'transfer');
@@ -2669,7 +2659,7 @@ suite('commerce-hub-connect payment selection', () => {
       [
         ['From', 'Operating account'],
         ['To', 'Commerce wallet'],
-        ['Amount', '25.75 CAD'],
+        ['Amount', '25.75 USD'],
       ]
     );
 
@@ -2691,7 +2681,7 @@ suite('commerce-hub-connect payment selection', () => {
       fromSourceId: 'bank-1',
       toSourceId: 'native-account-1',
       amount: 25.75,
-      asset: {type: 'CURRENCY', id: 'CAD'},
+      asset: {type: 'CURRENCY', id: 'USD'},
     });
     assert.equal(
       el.shadowRoot!.querySelector('.alert-success')?.textContent?.trim(),
@@ -2757,8 +2747,6 @@ suite('commerce-hub-connect payment selection', () => {
     )!;
     const amountInput =
       el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')!;
-    const currencySelect =
-      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-currency')!;
 
     fromSelect.value = 'bank-1';
     fromSelect.dispatchEvent(new Event('change', {bubbles: true}));
@@ -2766,8 +2754,6 @@ suite('commerce-hub-connect payment selection', () => {
     toSelect.dispatchEvent(new Event('change', {bubbles: true}));
     amountInput.value = '25.75';
     amountInput.dispatchEvent(new Event('input', {bubbles: true}));
-    currencySelect.value = 'CAD';
-    currencySelect.dispatchEvent(new Event('change', {bubbles: true}));
     await flushElement(el);
 
     await clickAction(el, 'transfer');
@@ -2792,10 +2778,9 @@ suite('commerce-hub-connect payment selection', () => {
       el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')?.value,
       '25.75'
     );
-    assert.equal(
-      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-currency')
-        ?.value,
-      'CAD'
+    assert.notExists(
+      el.shadowRoot!.querySelector('#transfer-currency'),
+      'expected no currency dropdown'
     );
   });
 });
