@@ -889,13 +889,13 @@ suite('demo host page', () => {
     );
     assert.notProperty(createRequest.body ?? {}, 'email');
     assert.deepInclude(createRequest.body ?? {}, {
-      partyId: '1',
+      partyId: '104604000020044',
       advancedVerification: true,
       mode: 'PRE_AUTHENTICATED',
     });
     assert.deepEqual(createRequest.body?.merchantData, {
-      clientId: 'marriot',
-      merchantId: '101475000000009',
+      clientId: 'marriottest',
+      merchantId: '104604000000046',
       terminalId: '10000001',
       dbaName: 'Marriott Bonvoy',
       countryCode: 'US',
@@ -985,10 +985,14 @@ suite('demo host page', () => {
       `${pageWindow.location.origin}/__commercehub/LOCAL_MERCHANT/merchant/interaction/create`
     );
     assert.notProperty(createRequest.body ?? {}, 'email');
-    assert.propertyVal(createRequest.body ?? {}, 'partyId', '1');
+    assert.propertyVal(
+      createRequest.body ?? {},
+      'partyId',
+      '104604000020044'
+    );
     assert.deepEqual(createRequest.body?.merchantData, {
-      clientId: 'marriot',
-      merchantId: '101475000000009',
+      clientId: 'marriottest',
+      merchantId: '104604000000046',
       terminalId: '10000001',
     });
     assert.notProperty(createRequest.body?.merchantData ?? {}, 'dbaName');
@@ -1159,10 +1163,10 @@ suite('demo host page', () => {
     const response = await fetch('/dev/index.html');
     const html = await response.text();
 
-    assert.include(html, "partyId: '1'");
+    assert.include(html, "partyId: '104604000020044'");
     assert.notInclude(html, "email: 'shopper@example.com'");
-    assert.include(html, "clientId: 'marriot'");
-    assert.include(html, "merchantId: '101475000000009'");
+    assert.include(html, "clientId: 'marriottest'");
+    assert.include(html, "merchantId: '104604000000046'");
     assert.include(html, "terminalId: '10000001'");
     assert.include(html, "dbaName: ''");
     assert.include(html, "countryCode: ''");

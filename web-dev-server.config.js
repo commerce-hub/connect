@@ -68,7 +68,7 @@ const commerceHubProxyMiddleware = async (context, next) => {
   }
 
   const hasBody = !['GET', 'HEAD'].includes(context.method);
-  const shouldSignDevMerchantInteraction =
+  const shouldSignMerchantInteraction =
     isCommerceHubDevSignedMerchantInteractionRequest({
       preset,
       method: context.method,
@@ -76,7 +76,7 @@ const commerceHubProxyMiddleware = async (context, next) => {
     });
   let body = hasBody ? context.req : undefined;
 
-  if (shouldSignDevMerchantInteraction) {
+  if (shouldSignMerchantInteraction) {
     const bodyBuffer = hasBody
       ? await readRequestBody(context.req)
       : Buffer.alloc(0);

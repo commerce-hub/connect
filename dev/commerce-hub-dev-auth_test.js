@@ -65,23 +65,26 @@ test('requires CommerceHub DEV HMAC credentials from env vars', () => {
   );
 });
 
-test('gates CommerceHub DEV HMAC auth to signed merchant interaction POST requests', () => {
-  assert.equal(
-    isCommerceHubDevSignedMerchantInteractionRequest({
-      preset: 'DEV',
-      method: 'POST',
-      path: '/merchant/interaction/create',
-    }),
-    true
-  );
-  assert.equal(
-    isCommerceHubDevSignedMerchantInteractionRequest({
-      preset: 'DEV',
-      method: 'GET',
-      path: '/merchant/interaction/interaction-1/complete',
-    }),
-    true
-  );
+test('gates CommerceHub HMAC auth to remote merchant interaction requests', () => {
+  for (const preset of ['DEV', 'QA', 'PROD']) {
+    assert.equal(
+      isCommerceHubDevSignedMerchantInteractionRequest({
+        preset,
+        method: 'POST',
+        path: '/merchant/interaction/create',
+      }),
+      true
+    );
+    assert.equal(
+      isCommerceHubDevSignedMerchantInteractionRequest({
+        preset,
+        method: 'GET',
+        path: '/merchant/interaction/interaction-1/complete',
+      }),
+      true
+    );
+  }
+
   assert.equal(
     isCommerceHubDevSignedMerchantInteractionRequest({
       preset: 'DEV',
@@ -92,7 +95,15 @@ test('gates CommerceHub DEV HMAC auth to signed merchant interaction POST reques
   );
   assert.equal(
     isCommerceHubDevSignedMerchantInteractionRequest({
-      preset: 'QA',
+      preset: 'LOCAL_MERCHANT',
+      method: 'POST',
+      path: '/merchant/interaction/create',
+    }),
+    false
+  );
+  assert.equal(
+    isCommerceHubDevSignedMerchantInteractionRequest({
+      preset: 'UNKNOWN',
       method: 'POST',
       path: '/merchant/interaction/create',
     }),

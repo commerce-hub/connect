@@ -10,9 +10,9 @@ create and complete requests through `/__commercehub/LOCAL_MERCHANT` while the
 widget runtime still uses the runtime custom base URL, which defaults to
 `http://localhost:8081`.
 
-The `DEV` example host create-interaction request is signed by the local proxy
-with CommerceHub HMAC headers. Provide local credentials from your shell before
-starting the dev server:
+The `DEV`, `QA`, and `PROD` example host create and complete requests are signed
+by the local proxy with CommerceHub HMAC headers. Provide local credentials from
+your shell before starting the dev server:
 
 ```bash
 COMMERCE_HUB_DEV_API_KEY="OA8U37GoO1M8VAj2fRBDAiC4KeiJ3aGXBrI752kBAbKuw2PN" \
@@ -22,5 +22,5 @@ npm run serve
 ```
 
 `COMMERCE_HUB_DEV_API_KEY` and `COMMERCE_HUB_DEV_API_SECRET` are required for
-signed DEV create and complete requests. `COMMERCE_HUB_DEV_USER_EMAIL` is
-optional and defaults to `user@example.com`.
+signed create and complete requests to named remote environments.
+`COMMERCE_HUB_DEV_USER_EMAIL` is optional and defaults to `user@example.com`.
