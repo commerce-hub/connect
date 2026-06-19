@@ -36,15 +36,18 @@ request. The SDK owns the browser widget once the host passes an
 2. Your frontend receives the resulting `InteractionResponse`.
 3. Your frontend mounts `<commerce-hub-connect>` and assigns
    `.interactionResponse`.
-4. The SDK renders the current interaction step and performs SDK-managed calls
+4. The SDK uses the host response as bootstrap data for `interactionId` and
+   optional gateway OAuth, immediately calls `GET /interaction`, and renders
+   payment methods from that server-fetched interaction state.
+5. The SDK renders the current interaction step and performs SDK-managed calls
    with `interactionResponse.interactionId` as the `x-interaction-id` header,
    and with `Authorization: Bearer <token>` when
    `interactionResponse.oauth.access_token` is present.
-5. The shopper completes the required flow, such as OTP, saved source
+6. The shopper completes the required flow, such as OTP, saved source
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
-6. The SDK emits `onSuccess` with the selected `PaymentSource` in
+7. The SDK emits `onSuccess` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
-7. Your host completes the merchant interaction with
+8. Your host completes the merchant interaction with
    `GET /merchant/interaction/{interactionId}/complete` and treats the
    merchant response as the completed source.
 
@@ -105,6 +108,13 @@ The widget always sends `x-interaction-id` with
 `interactionResponse.interactionId`. When
 `interactionResponse.oauth.access_token` is present, it also sends
 `Authorization: Bearer <token>`.
+
+When a new `interactionResponse.interactionId` is assigned, the widget calls
+`GET /interaction` before rendering saved or selected payment methods. Any
+host-provided `paymentSources`, `selectedSource`, billing addresses, or status
+fields are bootstrap data only; the SDK treats the server-fetched interaction as
+the authoritative widget state. Gateway OAuth from the host response is
+preserved when the server response omits it.
 
 If `interactionResponse.interactionId` is missing, the widget keeps the current
 screen stable and does not call the CommerceHub API.

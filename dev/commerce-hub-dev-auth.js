@@ -8,12 +8,14 @@ export const COMMERCE_HUB_DEV_AUTH_ENV = {
 
 export const DEFAULT_COMMERCE_HUB_DEV_USER_EMAIL = 'user@example.com';
 
+const COMMERCE_HUB_SIGNED_PROXY_PRESETS = new Set(['DEV', 'QA', 'PROD']);
+
 export const isCommerceHubDevSignedMerchantInteractionRequest = ({
   preset,
   method,
   path,
 }) => {
-  if (preset !== 'DEV') {
+  if (!COMMERCE_HUB_SIGNED_PROXY_PRESETS.has(preset)) {
     return false;
   }
 
@@ -73,7 +75,9 @@ const readRequiredEnv = (env, key) => {
   const value = env[key]?.trim();
 
   if (!value) {
-    throw new Error(`${key} is required to sign CommerceHub DEV requests.`);
+    throw new Error(
+      `${key} is required to sign CommerceHub proxy requests.`
+    );
   }
 
   return value;

@@ -87,8 +87,41 @@ const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
-  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL
+  baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL,
+  options: {initialInteractionResponse?: InteractionResponse | false} = {}
 ) => {
+  const shouldStubInitialInteraction =
+    options.initialInteractionResponse !== false;
+
+  if (shouldStubInitialInteraction) {
+    const fetchForTest = window.fetch;
+    let servedInitialInteraction = false;
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (
+        !servedInitialInteraction &&
+        request.method === 'GET' &&
+        new URL(request.url).pathname === '/interaction'
+      ) {
+        servedInitialInteraction = true;
+
+        return new Response(
+          JSON.stringify(
+            options.initialInteractionResponse ?? interactionResponse
+          ),
+          {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }
+        );
+      }
+
+      return fetchForTest(input, init);
+    };
+  }
+
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
       .interactionResponse=${interactionResponse}
@@ -97,6 +130,13 @@ const renderConnect = async (
   )) as CommerceHubConnect;
 
   await flushElement(el);
+
+  if (shouldStubInitialInteraction) {
+    await waitFor(
+      () => !el.shadowRoot!.querySelector('.payment-method-skeletons'),
+      'initial interaction refresh did not settle'
+    );
+  }
 
   return el;
 };
@@ -174,6 +214,323 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(rows[1].dataset.action, undefined);
   });
 
+  test('initial interaction refresh replaces stale host payment sources with the server response', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'server-card',
+              name: 'Server Visa',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111114242',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'stale-card',
+            name: 'Stale Mastercard',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Mastercard',
+              cardNumber: '5555555555554444',
+            },
+          },
+        ],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Server Visa',
+      'server payment method was not shown'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction']
+    );
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Stale Mastercard');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['server-card']
+    );
+  });
+
+  test('initial interaction refresh loads saved methods when the host payment sources are empty', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'BankAccount',
+              id: 'server-bank',
+              name: 'Server checking',
+              verificationInfo: {status: 'VERIFIED'},
+              bankAccount: {
+                bankName: 'Commerce National Bank',
+                accountNumber: '9876543210',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Server checking',
+      'server saved method was not shown'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction']
+    );
+  });
+
+  test('initial interaction refresh blocks stale selected-source UI until the server response arrives', async () => {
+    const requests: CapturedRequest[] = [];
+    const deferred = createDeferred<Response>();
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return deferred.promise;
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_ATTACHED',
+        selectedSource: {
+          tenderType: 'Card',
+          id: 'stale-card',
+          name: 'Stale selected card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'stale-card',
+            name: 'Stale selected card',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Visa',
+              cardNumber: '4111111111111111',
+            },
+          },
+        ],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    assert.exists(el.shadowRoot!.querySelector('.payment-method-skeletons'));
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Stale selected card');
+
+    deferred.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: {
+            tenderType: 'Card',
+            id: 'server-card',
+            name: 'Server selected card',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Visa',
+              cardNumber: '4111111111114242',
+            },
+          },
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'server-card',
+              name: 'Server selected card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111114242',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector(
+            '.selected-payment-method .payment-method-title'
+          )
+          ?.textContent?.trim() === 'Server selected card',
+      'server selected source was not shown'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction']
+    );
+  });
+
+  test('initial interaction refresh sends interaction and gateway auth headers while preserving oauth', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'server-card',
+              name: 'Server Visa',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111114242',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        oauth: {access_token: 'gateway-token'},
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'stale-card',
+            name: 'Stale Mastercard',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Mastercard',
+              cardNumber: '5555555555554444',
+            },
+          },
+        ],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Server Visa',
+      'server payment method was not shown'
+    );
+
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-payment'
+    );
+    assert.equal(
+      requests[0].headers.get('Authorization'),
+      'Bearer gateway-token'
+    );
+    assert.equal(el.interactionResponse?.oauth?.access_token, 'gateway-token');
+  });
+
   test('renders all saved payment methods while filtering add actions by allowed tender types', async () => {
     window.fetch = async () =>
       new Response(JSON.stringify({}), {
@@ -222,11 +579,10 @@ suite('commerce-hub-connect payment selection', () => {
           name: 'Digital wallet',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+            positionId: 'wallet-position-7890',
             nickName: 'Commerce wallet',
-            product: 'Wallet',
-            maskedValue: '7890',
-            tenderId: 'native-tender-1',
+            productType: 'Wallet',
+            token: 'native-token-1',
           },
         },
       ],
@@ -301,11 +657,10 @@ suite('commerce-hub-connect payment selection', () => {
           id: 'native-account-1',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+            positionId: 'wallet-position-7890',
             nickName: 'Commerce wallet',
-            product: 'Wallet',
-            maskedValue: '7890',
-            tenderId: 'native-tender-1',
+            productType: 'Wallet',
+            token: 'native-token-1',
           },
         },
         {
@@ -313,11 +668,10 @@ suite('commerce-hub-connect payment selection', () => {
           id: 'native-account-2',
           verificationInfo: {status: 'VERIFIED'},
           account: {
-            handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-4321'},
+            positionId: 'wallet-position-4321',
             nickName: 'Rewards wallet',
-            product: 'Rewards',
-            maskedValue: '4321',
-            tenderId: 'native-tender-2',
+            productType: 'Rewards',
+            token: 'native-token-2',
           },
         },
       ],
@@ -361,7 +715,7 @@ suite('commerce-hub-connect payment selection', () => {
           'native-account-1': {
             balance: 125.5,
           },
-          'native-tender-2': {
+          'wallet-position-4321': {
             balance: 9,
           },
         }),
@@ -412,11 +766,10 @@ suite('commerce-hub-connect payment selection', () => {
       id: 'native-account-1',
       verificationInfo: {status: 'VERIFIED'},
       account: {
-        handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+        positionId: 'wallet-position-7890',
         nickName: 'Commerce wallet',
-        product: 'Wallet',
-        maskedValue: '7890',
-        tenderId: 'native-tender-1',
+        productType: 'Wallet',
+        token: 'native-token-1',
       },
     };
 
@@ -491,7 +844,7 @@ suite('commerce-hub-connect payment selection', () => {
     balanceResponse.resolve(
       new Response(
         JSON.stringify({
-          'native-tender-1': {
+          'wallet-position-7890': {
             balance: 42.25,
           },
         }),
@@ -549,11 +902,10 @@ suite('commerce-hub-connect payment selection', () => {
       id: 'native-account-1',
       verificationInfo: {status: 'VERIFIED'},
       account: {
-        handle: {posnScope: 'wallet', posnAcctNbr: 'wallet-handle-7890'},
+        positionId: 'wallet-position-7890',
         nickName: 'Commerce wallet',
-        product: 'Wallet',
-        maskedValue: '7890',
-        tenderId: 'native-tender-1',
+        productType: 'Wallet',
+        token: 'native-token-1',
       },
     };
 
@@ -1066,10 +1418,14 @@ suite('commerce-hub-connect payment selection', () => {
       );
     };
 
-    const el = await renderConnect({
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-    });
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
 
     await waitFor(
       () => Boolean(el.shadowRoot!.querySelector('.payment-method-row')),
@@ -1121,25 +1477,106 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('interaction refresh failures keep the payment screen stable without emitting onError', async () => {
-    window.fetch = async () => {
-      throw new Error('network unavailable');
+  test('initial interaction refresh failure hides host payment methods and exposes retry', async () => {
+    const requests: CapturedRequest[] = [];
+    let shouldFail = true;
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (shouldFail) {
+        throw new Error('network unavailable');
+      }
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'server-card',
+              name: 'Server Visa',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {
+                network: 'Visa',
+                cardNumber: '4111111111114242',
+              },
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
     };
 
-    const el = await renderConnect({
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-    });
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'stale-card',
+            name: 'Stale Mastercard',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Mastercard',
+              cardNumber: '5555555555554444',
+            },
+          },
+        ],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
     const {errorEvents} = recordOutputEvents(el);
 
-    await nextFrame();
-    await nextFrame();
+    await waitFor(
+      () =>
+        Boolean(
+          el.shadowRoot!.querySelector(
+            '[data-action="retry-interaction-refresh"]'
+          )
+        ),
+      'retry action was not shown'
+    );
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods unavailable'
     );
+    assert.include(
+      el.shadowRoot!.querySelector('.alert-danger')?.textContent?.trim() ?? '',
+      "We couldn't load payment methods."
+    );
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Stale Mastercard');
+    assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
     assert.lengthOf(errorEvents, 0);
+
+    shouldFail = false;
+    await clickAction(el, 'retry-interaction-refresh');
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Server Visa',
+      'retry did not render the server payment method'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['GET /interaction', 'GET /interaction']
+    );
   });
 
   test('clicking a verified saved method shows the selected payment screen before attaching and emits onSuccess', async () => {
@@ -2011,5 +2448,339 @@ suite('commerce-hub-connect payment selection', () => {
       el.shadowRoot!.querySelector('[data-action="use-different-method"]')
     );
     assert.lengthOf(requests, 0);
+  });
+
+  test('renders a transfer screen for verified bank and native accounts', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'OTP_VALIDATION_SUCCESS',
+      features: ['TRANSFER'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-under-review',
+          name: 'Pending account',
+          verificationInfo: {status: 'UNDER_REVIEW'},
+          bankAccount: {
+            bankName: 'Harbor Trust',
+            accountNumber: '0000001234',
+          },
+        },
+        {
+          tenderType: 'DSCDisplayCard',
+          id: 'dynamic-card-1',
+          name: 'Dynamic credit card',
+          verificationInfo: {status: 'VERIFIED'},
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          name: 'Digital wallet',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            positionId: 'wallet-position-7890',
+            nickName: 'Commerce wallet',
+            productType: 'Wallet',
+            token: 'native-token-1',
+          },
+        },
+      ],
+    } as InteractionResponse);
+
+    const fromSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-from-source'
+    );
+    const toSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-to-source'
+    );
+    const amountInput =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount');
+    const transferButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="transfer"]'
+    );
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Transfer funds'
+    );
+    assert.isOk(fromSelect, 'expected From account dropdown');
+    assert.isOk(toSelect, 'expected To account dropdown');
+    assert.isOk(amountInput, 'expected amount input');
+    assert.notExists(
+      el.shadowRoot!.querySelector('#transfer-currency'),
+      'expected no currency dropdown'
+    );
+    assert.deepEqual(
+      [...fromSelect!.options].map((option) => [option.value, option.text]),
+      [
+        ['', 'Select account'],
+        ['bank-1', 'Operating account'],
+        ['native-account-1', 'Commerce wallet'],
+      ]
+    );
+    assert.deepEqual(
+      [...toSelect!.options].map((option) => [option.value, option.text]),
+      [
+        ['', 'Select account'],
+        ['bank-1', 'Operating account'],
+        ['native-account-1', 'Commerce wallet'],
+      ]
+    );
+    assert.isTrue(transferButton!.disabled);
+
+    fromSelect!.value = 'bank-1';
+    fromSelect!.dispatchEvent(new Event('change', {bubbles: true}));
+    toSelect!.value = 'native-account-1';
+    toSelect!.dispatchEvent(new Event('change', {bubbles: true}));
+    amountInput!.value = '25.75';
+    amountInput!.dispatchEvent(new Event('input', {bubbles: true}));
+    await flushElement(el);
+
+    assert.isFalse(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="transfer"]'
+      )!.disabled
+    );
+  });
+
+  test('reviews transfer details before posting selected accounts amount USD currency and auth headers', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(
+        JSON.stringify({
+          id: 'transfer-transaction-1',
+          amount: 25.75,
+          asset: {type: 'CURRENCY', id: 'USD'},
+          credit: false,
+          timestamp: 1710000000000,
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'OTP_VALIDATION_SUCCESS',
+      oauth: {access_token: 'transfer-access-token'},
+      features: ['TRANSFER'],
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            positionId: 'wallet-position-7890',
+            nickName: 'Commerce wallet',
+            productType: 'Wallet',
+            token: 'native-token-1',
+          },
+        },
+      ],
+    } as InteractionResponse);
+
+    const fromSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-from-source'
+    )!;
+    const toSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-to-source'
+    )!;
+    const amountInput =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')!;
+
+    fromSelect.value = 'bank-1';
+    fromSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    toSelect.value = 'native-account-1';
+    toSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    amountInput.value = '25.75';
+    amountInput.dispatchEvent(new Event('input', {bubbles: true}));
+    await flushElement(el);
+
+    await clickAction(el, 'transfer');
+
+    assert.lengthOf(requests, 0);
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Confirm transfer'
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.detail-list .detail-row'
+        ),
+      ].map((row) => [
+        row.querySelector('.detail-label')?.textContent?.trim(),
+        row.querySelector('.detail-value')?.textContent?.trim(),
+      ]),
+      [
+        ['From', 'Operating account'],
+        ['To', 'Commerce wallet'],
+        ['Amount', '25.75 USD'],
+      ]
+    );
+
+    await clickAction(el, 'confirm-transfer');
+
+    await waitFor(() => requests.length === 1, 'expected transfer request');
+
+    assert.include(requests[0].url, '/interaction/source/native/transfer');
+    assert.equal(requests[0].method, 'POST');
+    assert.equal(
+      requests[0].headers.get('x-interaction-id'),
+      'interaction-transfer'
+    );
+    assert.equal(
+      requests[0].headers.get('authorization'),
+      'Bearer transfer-access-token'
+    );
+    assert.deepEqual(JSON.parse(requests[0].bodyText), {
+      fromSourceId: 'bank-1',
+      toSourceId: 'native-account-1',
+      amount: 25.75,
+      asset: {type: 'CURRENCY', id: 'USD'},
+    });
+    assert.equal(
+      el.shadowRoot!.querySelector('.alert-success')?.textContent?.trim(),
+      'Transfer initiated.'
+    );
+  });
+
+  test('returns from transfer confirmation to the filled transfer form without posting', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'OTP_VALIDATION_SUCCESS',
+      features: ['TRANSFER'],
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            positionId: 'wallet-position-7890',
+            nickName: 'Commerce wallet',
+            productType: 'Wallet',
+            token: 'native-token-1',
+          },
+        },
+      ],
+    } as InteractionResponse);
+
+    const fromSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-from-source'
+    )!;
+    const toSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-to-source'
+    )!;
+    const amountInput =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')!;
+
+    fromSelect.value = 'bank-1';
+    fromSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    toSelect.value = 'native-account-1';
+    toSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    amountInput.value = '25.75';
+    amountInput.dispatchEvent(new Event('input', {bubbles: true}));
+    await flushElement(el);
+
+    await clickAction(el, 'transfer');
+    await clickAction(el, 'edit-transfer');
+
+    assert.lengthOf(requests, 0);
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Transfer funds'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-from-source')
+        ?.value,
+      'bank-1'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>('#transfer-to-source')
+        ?.value,
+      'native-account-1'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')?.value,
+      '25.75'
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('#transfer-currency'),
+      'expected no currency dropdown'
+    );
   });
 });

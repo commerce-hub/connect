@@ -29,6 +29,12 @@ merchant interaction with
 `GET /merchant/interaction/{interactionId}/complete`; the widget does not call
 that endpoint internally.
 
+The host response is bootstrap data. When a new
+`interactionResponse.interactionId` is assigned, the widget immediately calls
+`GET /interaction` and renders saved or selected payment methods only from that
+server-fetched response. Host-provided `paymentSources`, `selectedSource`,
+billing addresses, and status fields are not authoritative widget state.
+
 ```ts
 {% raw %}
 import 'commerce-hub-connect-sdk';
@@ -67,6 +73,9 @@ SDK-managed CommerceHub calls always send
 `interactionResponse.oauth.access_token` is present, they also send
 `Authorization: Bearer <token>`. If the interaction id is missing, the widget
 does not call the API and keeps the current screen stable.
+
+Gateway OAuth from the host response is preserved for SDK-managed calls when
+the refreshed `GET /interaction` response omits it.
 
 The widget uses the `PROD` preset by default. Set `.baseURL` to a different
 preset or custom origin before the shopper starts the flow only when you need to

@@ -59,11 +59,18 @@ document.querySelector('#payment-host')?.replaceChildren(widget);
 
 ## 3. Let the SDK advance the shopper flow
 
-The widget renders the correct screen for the current interaction state. It
-always sends `interactionResponse.interactionId` as the `x-interaction-id`
-header for SDK-managed CommerceHub calls. When
+The widget uses the host-provided `InteractionResponse` as bootstrap data for
+`interactionId` and optional gateway OAuth. When a new
+`interactionResponse.interactionId` is assigned, it immediately calls
+`GET /interaction` and uses that server-fetched response as the authoritative
+state for payment methods, selected source, billing addresses, and status.
+Host-provided `paymentSources` are not rendered as authoritative saved methods.
+
+The widget always sends `interactionResponse.interactionId` as the
+`x-interaction-id` header for SDK-managed CommerceHub calls. When
 `interactionResponse.oauth.access_token` is present, it also sends
-`Authorization: Bearer <token>`.
+`Authorization: Bearer <token>`. Gateway OAuth from the host response is
+preserved when the refreshed interaction response omits it.
 
 SDK-managed calls include:
 

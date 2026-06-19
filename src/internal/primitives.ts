@@ -330,6 +330,9 @@ export const renderTextField = ({
       data-bank-account-field=${ifDefined(
         dataFieldScope === 'bankAccount' ? dataField : undefined
       )}
+      data-transfer-field=${ifDefined(
+        dataFieldScope === 'transfer' ? dataField : undefined
+      )}
       aria-invalid=${error ? 'true' : 'false'}
       aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
       ?disabled=${disabled}
@@ -391,6 +394,9 @@ export const renderSelectField = ({
       )}
       data-bank-account-field=${ifDefined(
         dataFieldScope === 'bankAccount' ? dataField : undefined
+      )}
+      data-transfer-field=${ifDefined(
+        dataFieldScope === 'transfer' ? dataField : undefined
       )}
       aria-invalid=${error ? 'true' : 'false'}
       aria-describedby=${ifDefined(error ? `${id}-error` : undefined)}
@@ -649,6 +655,23 @@ export const renderSelectedPaymentMethod = ({
   `;
 };
 
+const renderSourceActionIcon = (icon: SourceActionOptions['icon']) =>
+  icon === 'transfer'
+    ? html`
+        <span
+          class="source-action-icon source-action-icon-transfer"
+          aria-hidden="true"
+        >
+          <span
+            class="source-action-transfer-arrow source-action-transfer-arrow-forward"
+          ></span>
+          <span
+            class="source-action-transfer-arrow source-action-transfer-arrow-back"
+          ></span>
+        </span>
+      `
+    : html`<span class="source-action-icon" aria-hidden="true">+</span>`;
+
 export const renderSourceAction = ({
   label,
   subtitle,
@@ -665,7 +688,7 @@ export const renderSourceAction = ({
           data-action=${action}
           ?disabled=${disabled}
         >
-          <span class="source-action-icon" aria-hidden="true">+</span>
+          ${renderSourceActionIcon(icon)}
           <span class="source-action-link-copy">
             <span class="source-action-link-title source-action-title">
               ${label}
@@ -692,7 +715,7 @@ export const renderSourceAction = ({
           data-action=${action}
           ?disabled=${disabled}
         >
-          <span class="source-action-icon" aria-hidden="true">+</span>
+          ${renderSourceActionIcon(icon)}
           <span class="source-action-copy">
             <span class="source-action-title">${label}</span>
             ${subtitle

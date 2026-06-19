@@ -20,7 +20,7 @@ export type CommerceHubBaseURLInput = CommerceHubBaseURLPreset | string;
 export const COMMERCE_HUB_BASE_URLS: Record<CommerceHubBaseURLPreset, string> =
   {
     DEV: 'https://connect-dev.fiservapis.com/chc',
-    QA: 'https://qa.openfx-nonprod.aws.fisv.cloud',
+    QA: 'https://connect-qa.fiservapis.com/chc',
     PROD: 'https://connect.fiservapis.com/chc',
   };
 

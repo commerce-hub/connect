@@ -48,6 +48,11 @@ if (widget) {
 {% endraw %}
 ```
 
+The assigned `InteractionResponse` only bootstraps the widget with
+`interactionId` and optional gateway OAuth. The SDK calls `GET /interaction`
+when that id is assigned and renders saved or selected payment methods from the
+server-fetched interaction state, not from host-provided `paymentSources`.
+
 ## Frameworks
 
 The SDK is framework-agnostic. In React, Vue, Svelte, Angular, or Lit, import

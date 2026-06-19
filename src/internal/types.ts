@@ -10,6 +10,7 @@ export type FlowActionName =
   | 'verify-otp'
   | 'resend-otp'
   | 'attach-payment-source'
+  | 'retry-interaction-refresh'
   | 'change-payment-source'
   | 'toggle-payment-source-edit-mode'
   | 'verify-payment-source'
@@ -17,7 +18,11 @@ export type FlowActionName =
   | 'cancel-delete-payment-source'
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
+  | 'open-transfer'
+  | 'edit-transfer'
+  | 'confirm-transfer'
   | 'submit-required-info'
+  | 'transfer'
   | 'add-bank-account'
   | 'add-ach-manually'
   | 'add-card'
@@ -89,7 +94,7 @@ export interface TextFieldOptions {
   inputmode?: TextFieldInputMode;
   disabled?: boolean;
   dataField?: string;
-  dataFieldScope?: 'card' | 'bankAccount';
+  dataFieldScope?: 'card' | 'bankAccount' | 'transfer';
   error?: string;
 }
 
@@ -108,7 +113,7 @@ export interface SelectFieldOptions {
   variant?: FieldVariant;
   disabled?: boolean;
   dataField?: string;
-  dataFieldScope?: 'card' | 'bankAccount';
+  dataFieldScope?: 'card' | 'bankAccount' | 'transfer';
   error?: string;
 }
 
@@ -190,7 +195,7 @@ export interface PaymentMethod {
   disabled?: boolean;
 }
 
-export type SourceActionIcon = 'card' | 'bank';
+export type SourceActionIcon = 'card' | 'bank' | 'transfer';
 export type SourceActionVariant = 'card' | 'link';
 
 export interface SourceActionOptions {
