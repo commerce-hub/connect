@@ -10,7 +10,9 @@ module.exports = () => {
   const customElements = JSON.parse(
     fs.readFileSync('custom-elements.json', 'utf-8')
   );
+  const runtimeOpenapi = JSON.parse(fs.readFileSync('swagger.json', 'utf-8'));
   return {
     customElements,
+    runtimeOpenapi,
   };
 };
