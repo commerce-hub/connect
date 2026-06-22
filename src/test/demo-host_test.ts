@@ -777,6 +777,11 @@ suite('demo host page', () => {
     assert.include(html, 'body: JSON.stringify(interactionRequest)');
     assert.include(html, 'widget.designConfig = designConfig');
     assert.include(html, 'widget.baseURL = resolveWidgetBaseURL()');
+    assert.include(html, "widget.addEventListener('onListPaymentMethods'");
+    assert.include(html, "widget.addEventListener('onAddPaymentMethod'");
+    assert.include(html, "widget.addEventListener('onVerifyPaymentMethod'");
+    assert.include(html, "widget.addEventListener('onDeletePaymentMethod'");
+    assert.include(html, "widget.addEventListener('onTransfer'");
     assert.include(html, "createApiUrl('/merchant/interaction/create')");
     assert.include(html, '/merchant/interaction/${encodeURIComponent');
     assert.include(html, 'completeMerchantInteraction(');
@@ -1103,6 +1108,25 @@ suite('demo host page', () => {
     );
 
     connectWidget?.dispatchEvent(
+      new CustomEvent('onAddPaymentMethod', {
+        detail: {
+          tenderType: 'Card',
+          id: 'added-source-1',
+          name: 'Added source',
+          verificationInfo: {status: 'VERIFIED'},
+        },
+      })
+    );
+
+    await waitFor(
+      () =>
+        (
+          pageDocument.querySelector('#completion-output')?.textContent ?? ''
+        ).includes('"event": "onAddPaymentMethod"'),
+      'expected SDK operation event to appear in the event output'
+    );
+
+    connectWidget?.dispatchEvent(
       new CustomEvent('onSelect', {
         detail: {
           tenderType: 'Card',
@@ -1150,6 +1174,14 @@ suite('demo host page', () => {
     assert.include(
       pageDocument.querySelector('#interaction-input')?.textContent ?? '',
       '"interactionId": "demo-interaction-1"'
+    );
+    assert.include(
+      pageDocument.querySelector('#completion-output')?.textContent ?? '',
+      '"event": "onAddPaymentMethod"'
+    );
+    assert.include(
+      pageDocument.querySelector('#completion-output')?.textContent ?? '',
+      '"id": "added-source-1"'
     );
     assert.include(
       pageDocument.querySelector('#completion-output')?.textContent ?? '',
