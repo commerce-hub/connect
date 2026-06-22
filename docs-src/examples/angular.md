@@ -19,7 +19,7 @@ import 'commerce-hub-connect-sdk';
 import type {
   CommerceHubBaseURLInput,
   InteractionResponse,
-  OnSuccessEvent,
+  OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
 @Component({
@@ -29,7 +29,7 @@ import type {
     <commerce-hub-connect
       [baseURL]="baseUrl"
       [interactionResponse]="interactionResponse()"
-      (onSuccess)="handleSuccess($event)"
+      (onSelect)="handleSelect($event)"
     ></commerce-hub-connect>
   `,
 })
@@ -38,8 +38,8 @@ export class CheckoutPaymentComponent {
   readonly baseUrl: CommerceHubBaseURLInput = 'QA';
   selectedPaymentSourceId?: string;
 
-  handleSuccess(event: Event) {
-    const {detail: paymentSource} = event as OnSuccessEvent;
+  handleSelect(event: Event) {
+    const {detail: paymentSource} = event as OnSelectEvent;
     this.selectedPaymentSourceId = paymentSource.id;
   }
 }

@@ -56,7 +56,7 @@ request. The SDK owns the browser widget once the host passes an
    `interactionResponse.oauth.access_token` is present.
 5. The shopper completes the required flow, such as OTP, saved source
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
-6. The SDK emits `onSuccess` with the selected `PaymentSource` in
+6. The SDK emits `onSelect` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
 7. Your host completes the merchant interaction with
    `GET /merchant/interaction/{interactionId}/complete` and treats the
@@ -135,7 +135,7 @@ widget.interactionResponse = await fetch('/api/commercehub/interaction', {
   body: JSON.stringify({orderId: 'order-123'}),
 }).then((response) => response.json());
 
-widget.addEventListener('onSuccess', async (event) => {
+widget.addEventListener('onSelect', async (event) => {
   const paymentSource = event.detail;
   const completedPaymentSource = await fetch(
     `/api/commercehub/interaction/${encodeURIComponent(
@@ -168,7 +168,7 @@ import {html, LitElement} from 'lit';
 import 'commerce-hub-connect-sdk';
 import type {
   InteractionResponse,
-  OnSuccessEvent,
+  OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
 class CheckoutPayment extends LitElement {
@@ -178,11 +178,11 @@ class CheckoutPayment extends LitElement {
     return html`<commerce-hub-connect
       .interactionResponse=${this.interactionResponse}
       .baseURL=${'QA'}
-      @onSuccess=${this.handleSuccess}
+      @onSelect=${this.handleSelect}
     ></commerce-hub-connect>`;
   }
 
-  private async handleSuccess(event: OnSuccessEvent) {
+  private async handleSelect(event: OnSelectEvent) {
     const completedPaymentSource = await fetch(
       `/api/commercehub/interaction/${encodeURIComponent(
         this.interactionResponse?.interactionId ?? ''
@@ -237,15 +237,15 @@ CommerceHub API and keeps the current screen stable.
 
 ## Handling Completion
 
-Listen for `onSuccess` on the element. The event detail is the selected
-`PaymentSource`. Keep `onSuccess` as the widget boundary, then have the host
+Listen for `onSelect` on the element. The event detail is the selected
+`PaymentSource`. Keep `onSelect` as the widget boundary, then have the host
 complete the merchant interaction with
 `GET /merchant/interaction/{interactionId}/complete` through your backend or
 typed CommerceHub merchant client, and treat the response as the authoritative
 completed `PaymentSource`.
 
 ```ts
-widget.addEventListener('onSuccess', async (event) => {
+widget.addEventListener('onSelect', async (event) => {
   const paymentSource = event.detail;
 
   const completedPaymentSource = await fetch(
@@ -351,7 +351,7 @@ if (widget) {
 
 | Event       | Detail          | Description                                                                                |
 | ----------- | --------------- | ------------------------------------------------------------------------------------------ |
-| `onSuccess` | `PaymentSource` | Emitted after a verified payment source is attached or selected by the SDK-managed widget. |
+| `onSelect` | `PaymentSource` | Emitted after a verified payment source is attached or selected by the SDK-managed widget. |
 
 ## Exported Types and Helpers
 
@@ -361,9 +361,9 @@ The SDK exports:
 - `InteractionResponse`
 - `PaymentSource`
 - `DesignConfig`
-- `OnSuccessEvent`
+- `OnSelectEvent`
 - `OnErrorEvent`
-- `ON_SUCCESS_EVENT`
+- `ON_SELECT_EVENT`
 - `ON_ERROR_EVENT`
 - `createCommerceHubClient`
 - `createCommerceHubMerchantClient`

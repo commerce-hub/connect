@@ -62,7 +62,7 @@ const renderConnect = async (
       if (
         !servedInitialInteraction &&
         request.method === 'GET' &&
-        new URL(request.url).pathname === '/interaction'
+        new URL(request.url).pathname.endsWith('/interaction')
       ) {
         servedInitialInteraction = true;
 
@@ -382,7 +382,7 @@ const recordOutputEvents = (el: Element) => {
   const successEvents: CustomEvent<PaymentSource>[] = [];
   const errorEvents: CustomEvent<unknown>[] = [];
 
-  el.addEventListener('onSuccess', (event) => {
+  el.addEventListener('onSelect', (event) => {
     successEvents.push(event as CustomEvent<PaymentSource>);
   });
   el.addEventListener('onError', (event) => {
@@ -3761,7 +3761,7 @@ suite('commerce-hub-connect flow', () => {
     await setOtpValue(el, '123456');
     await clickAction(el, 'verify-otp');
 
-    await waitForRequest(requests, '/interaction/otp/validate', 'POST');
+    await waitForRequest(requests, '/chc/interaction/otp/validate', 'POST');
 
     assert.equal(
       requests[0].url,
@@ -3893,7 +3893,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('confirming a selected method refreshes payment info, emits onSuccess, and shows the selected payment review', async () => {
+  test('confirming a selected method refreshes payment info, emits onSelect, and shows the selected payment review', async () => {
     const requests: CapturedRequest[] = [];
     const selectedSource: PaymentSource = {
       tenderType: 'Card',

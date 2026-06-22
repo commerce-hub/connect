@@ -1624,7 +1624,7 @@ Select or attach a payment source to complete the active interaction.
         widget.baseURL = resolveWidgetBaseURL();
         widget.interactionResponse = interactionResponse;
         widget.designConfig = designConfig;
-        widget.addEventListener('onSuccess', (event) => {
+        widget.addEventListener('onSelect', (event) => {
           void handleWidgetSuccess(event);
         });
         widgetHost.replaceChildren(widget);

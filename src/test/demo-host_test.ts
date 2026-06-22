@@ -90,7 +90,7 @@ suite('demo host page', () => {
     assert.include(html, "features: ['ADD_ACCOUNT', 'SELECT']");
     assert.include(html, "await import('./../commerce-hub-connect.js')");
     assert.include(html, "document.createElement('commerce-hub-connect')");
-    assert.include(html, "widget.addEventListener('onSuccess'");
+    assert.include(html, "widget.addEventListener('onSelect'");
     assert.include(html, 'widget.interactionResponse = interactionResponse');
   });
 
@@ -198,7 +198,7 @@ suite('demo host page', () => {
       '#alibaba-rewards-connect-widget'
     );
     rewardsWidget?.dispatchEvent(
-      new CustomEvent('onSuccess', {
+      new CustomEvent('onSelect', {
         detail: {
           displayName: 'Alibaba Rewards Account',
           accountName: 'Alibaba Rewards Plus',
@@ -460,7 +460,7 @@ suite('demo host page', () => {
     assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, "await import('./../commerce-hub-connect.js')");
     assert.include(html, "document.createElement('commerce-hub-connect')");
-    assert.include(html, "widget.addEventListener('onSuccess'");
+    assert.include(html, "widget.addEventListener('onSelect'");
     assert.include(html, 'widget.interactionResponse = interactionResponse');
     assert.notInclude(html, 'Developer Info');
     assert.notInclude(html, 'Legacy Individual Developer');
@@ -575,7 +575,7 @@ suite('demo host page', () => {
       '#clover-merchant-connect-widget'
     );
     widget?.dispatchEvent(
-      new CustomEvent('onSuccess', {
+      new CustomEvent('onSelect', {
         detail: {
           tenderType: 'BankAccount',
           id: 'bank-sdk-1',
@@ -1103,7 +1103,7 @@ suite('demo host page', () => {
     );
 
     connectWidget?.dispatchEvent(
-      new CustomEvent('onSuccess', {
+      new CustomEvent('onSelect', {
         detail: {
           tenderType: 'Card',
           id: 'selected-source-1',

@@ -550,7 +550,7 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
-  test('does not emit onSuccess when interaction response changes', async () => {
+  test('does not emit onSelect when interaction response changes', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect></commerce-hub-connect>`
     )) as CommerceHubConnect;
@@ -565,7 +565,7 @@ suite('commerce-hub-connect primitives', () => {
     };
     const events: CustomEvent<PaymentSource>[] = [];
 
-    el.addEventListener('onSuccess', (event) => {
+    el.addEventListener('onSelect', (event) => {
       events.push(event as CustomEvent<PaymentSource>);
     });
 

@@ -45,7 +45,7 @@ request. The SDK owns the browser widget once the host passes an
    `interactionResponse.oauth.access_token` is present.
 6. The shopper completes the required flow, such as OTP, saved source
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
-7. The SDK emits `onSuccess` with the selected `PaymentSource` in
+7. The SDK emits `onSelect` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
 8. Your host completes the merchant interaction with
    `GET /merchant/interaction/{interactionId}/complete` and treats the
@@ -55,7 +55,7 @@ request. The SDK owns the browser widget once the host passes an
 import 'commerce-hub-connect-sdk';
 import type {
   InteractionResponse,
-  OnSuccessEvent,
+  OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
 const interactionResponse: InteractionResponse = await fetch(
@@ -67,8 +67,8 @@ const widget = document.querySelector('commerce-hub-connect');
 if (widget) {
   widget.interactionResponse = interactionResponse;
   widget.baseURL = 'QA';
-  widget.addEventListener('onSuccess', async (event: Event) => {
-    const {detail: paymentSource} = event as OnSuccessEvent;
+  widget.addEventListener('onSelect', async (event: Event) => {
+    const {detail: paymentSource} = event as OnSelectEvent;
 
     // Store or reference paymentSource in host-owned state as needed.
 

@@ -117,7 +117,7 @@ export type PaymentSource = NonNullable<
  * Event emitted after the widget successfully attaches or selects a verified
  * payment source.
  */
-export type OnSuccessEvent = CustomEvent<PaymentSource>;
+export type OnSelectEvent = CustomEvent<PaymentSource>;
 
 /**
  * Event type reserved for future public SDK error handling.
@@ -125,9 +125,9 @@ export type OnSuccessEvent = CustomEvent<PaymentSource>;
 export type OnErrorEvent = CustomEvent<InteractionError>;
 
 /**
- * Name of the success event emitted by `<commerce-hub-connect>`.
+ * Name of the selection event emitted by `<commerce-hub-connect>`.
  */
-export const ON_SUCCESS_EVENT = 'onSuccess';
+export const ON_SELECT_EVENT = 'onSelect';
 
 /**
  * Reserved error event name. The current widget renders recoverable flow errors
@@ -370,7 +370,7 @@ const demoPaymentMethods: PaymentMethod[] = [
  * OTP, saved payment-source selection, source creation, source verification,
  * Pay by Bank handoff, and required-info collection.
  *
- * @fires onSuccess - Emitted with a `PaymentSource` detail after a verified
+ * @fires onSelect - Emitted with a `PaymentSource` detail after a verified
  * payment source is attached or selected.
  */
 @customElement('commerce-hub-connect')
@@ -3533,7 +3533,7 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(refreshedInteractionResponse);
       this.paymentSourceView = 'selected';
       this.dispatchEvent(
-        new CustomEvent(ON_SUCCESS_EVENT, {detail: attachedSource})
+        new CustomEvent(ON_SELECT_EVENT, {detail: attachedSource})
       );
     } catch (cause) {
       void cause;
@@ -7020,7 +7020,7 @@ declare global {
   }
 
   interface HTMLElementEventMap {
-    [ON_SUCCESS_EVENT]: OnSuccessEvent;
+    [ON_SELECT_EVENT]: OnSelectEvent;
     [ON_ERROR_EVENT]: OnErrorEvent;
   }
 

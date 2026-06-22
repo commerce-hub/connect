@@ -109,7 +109,7 @@ suite('Alibaba buyer account demo', () => {
     assert.include(html, 'advancedVerification: true');
     assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, "await import('../commerce-hub-connect.js')");
-    assert.include(html, "widget.addEventListener('onSuccess'");
+    assert.include(html, "widget.addEventListener('onSelect'");
     assert.include(html, 'data-page="home"');
   });
 
@@ -340,7 +340,7 @@ suite('Alibaba buyer account demo', () => {
 
     const widget = pageDocument!.querySelector('#alibaba-buyer-connect-widget');
     widget?.dispatchEvent(
-      new CustomEvent('onSuccess', {
+      new CustomEvent('onSelect', {
         detail: {
           tenderType: 'BankAccount',
           id: 'bank-alibaba-1',
@@ -431,7 +431,7 @@ suite('Alibaba buyer account demo', () => {
       '#alibaba-buyer-connect-widget'
     );
     changedWidget?.dispatchEvent(
-      new CustomEvent('onSuccess', {
+      new CustomEvent('onSelect', {
         detail: {
           tenderType: 'BankAccount',
           id: 'bank-alibaba-2',

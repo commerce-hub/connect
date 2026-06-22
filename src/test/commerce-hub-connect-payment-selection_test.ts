@@ -150,16 +150,20 @@ const clickAction = async (el: CommerceHubConnect, action: string) => {
 
 const recordOutputEvents = (el: Element) => {
   const successEvents: CustomEvent<PaymentSource>[] = [];
+  const legacySuccessEvents: CustomEvent<PaymentSource>[] = [];
   const errorEvents: CustomEvent<unknown>[] = [];
 
-  el.addEventListener('onSuccess', (event) => {
+  el.addEventListener('onSelect', (event) => {
     successEvents.push(event as CustomEvent<PaymentSource>);
+  });
+  el.addEventListener('onSuccess', (event) => {
+    legacySuccessEvents.push(event as CustomEvent<PaymentSource>);
   });
   el.addEventListener('onError', (event) => {
     errorEvents.push(event as CustomEvent<unknown>);
   });
 
-  return {successEvents, errorEvents};
+  return {successEvents, legacySuccessEvents, errorEvents};
 };
 
 suite('commerce-hub-connect payment selection', () => {
@@ -1579,7 +1583,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('clicking a verified saved method shows the selected payment screen before attaching and emits onSuccess', async () => {
+  test('clicking a verified saved method shows the selected payment screen before attaching and emits onSelect', async () => {
     const requests: CapturedRequest[] = [];
     const selectedSource: PaymentSource = {
       tenderType: 'Card',
@@ -1636,7 +1640,8 @@ suite('commerce-hub-connect payment selection', () => {
       status: 'PAYMENT_SOURCE_REQUESTED',
       paymentSources: [selectedSource],
     });
-    const {successEvents, errorEvents} = recordOutputEvents(el);
+    const {successEvents, legacySuccessEvents, errorEvents} =
+      recordOutputEvents(el);
 
     el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.payment-method-row'
@@ -1694,6 +1699,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(requests[0].credentials, 'include');
     assert.lengthOf(successEvents, 1);
     assert.deepEqual(successEvents[0].detail, refreshedSource);
+    assert.lengthOf(legacySuccessEvents, 0);
     assert.lengthOf(errorEvents, 0);
     assert.equal(el.interactionResponse?.selectedSource?.id, 'card-1');
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');

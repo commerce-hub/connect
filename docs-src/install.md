@@ -60,7 +60,7 @@ the package once and pass complex values as DOM properties rather than HTML
 attributes.
 
 See the [Angular 22 example](../examples/angular/) for a component that binds
-SDK properties in the template and handles `onSuccess`.
+SDK properties in the template and handles `onSelect`.
 
 ```ts
 {% raw %}

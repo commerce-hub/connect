@@ -14,7 +14,7 @@ import {html, LitElement} from 'lit';
 import 'commerce-hub-connect-sdk';
 import type {
   InteractionResponse,
-  OnSuccessEvent,
+  OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
 class CheckoutPayment extends LitElement {
@@ -24,11 +24,11 @@ class CheckoutPayment extends LitElement {
     return html`<commerce-hub-connect
       .interactionResponse=${this.interactionResponse}
       .baseURL=${'QA'}
-      @onSuccess=${this.handleSuccess}
+      @onSelect=${this.handleSelect}
     ></commerce-hub-connect>`;
   }
 
-  private async handleSuccess(event: OnSuccessEvent) {
+  private async handleSelect(event: OnSelectEvent) {
     const completedPaymentSource = await fetch(
       `/api/commercehub/interaction/${encodeURIComponent(
         this.interactionResponse?.interactionId ?? ''

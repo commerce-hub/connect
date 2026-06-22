@@ -87,8 +87,8 @@ CommerceHub API and keeps the current screen stable.
 
 ## 4. Handle completion
 
-Listen for `onSuccess` on the element. The event detail is the selected
-`PaymentSource`. Keep `onSuccess` as the widget boundary, then have the host
+Listen for `onSelect` on the element. The event detail is the selected
+`PaymentSource`. Keep `onSelect` as the widget boundary, then have the host
 complete the merchant interaction with
 `GET /merchant/interaction/{interactionId}/complete` through your backend or
 typed CommerceHub merchant client, and treat the response as the authoritative
@@ -96,7 +96,7 @@ completed `PaymentSource`.
 
 ```ts
 {% raw %}
-widget.addEventListener('onSuccess', async (event) => {
+widget.addEventListener('onSelect', async (event) => {
   const paymentSource = event.detail;
 
   const completedPaymentSource = await fetch(

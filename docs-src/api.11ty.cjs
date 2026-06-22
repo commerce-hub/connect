@@ -86,13 +86,13 @@ module.exports = class Docs {
 const normalizeEvents = (events) => {
   const normalized =
     events?.map((event) => {
-      if (event.name !== 'ON_SUCCESS_EVENT') {
+      if (event.name !== 'ON_SELECT_EVENT') {
         return event;
       }
 
       return {
         ...event,
-        name: 'onSuccess',
+        name: 'onSelect',
         description:
           event.description ||
           'Emitted with the selected PaymentSource after a verified payment source is attached or selected.',
