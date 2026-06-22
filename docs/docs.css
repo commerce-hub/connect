@@ -21,6 +21,8 @@ body {
 main {
   max-width: 1024px;
   margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
 }
 
 a:visited {
@@ -155,6 +157,7 @@ table {
   width: 100%;
   border-collapse: collapse;
 }
+
 th {
   font-weight: 600;
 }
@@ -165,4 +168,165 @@ th {
   padding: 4px;
   text-align: left;
   vertical-align: top;
+}
+
+.api-intro {
+  max-width: 720px;
+}
+
+.api-intro p,
+.api-item__description p {
+  margin: 0;
+}
+
+.api-intro p + p,
+.api-item__description p + p {
+  margin-top: 12px;
+}
+
+.api-section {
+  margin-top: 36px;
+}
+
+.api-section--nested {
+  margin-top: 20px;
+}
+
+.api-section--nested h3 {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.api-list {
+  display: grid;
+  gap: 0;
+}
+
+.api-item {
+  border-top: 1px solid #d8dee4;
+  padding: 16px 0;
+}
+
+.api-item:last-child {
+  border-bottom: 1px solid #d8dee4;
+}
+
+.api-item__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+}
+
+.api-item__name,
+.api-schema__name,
+code {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.api-item__name {
+  color: #054861;
+  font-size: 0.95em;
+}
+
+.api-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.api-meta--stacked {
+  display: grid;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.api-meta__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  min-width: 0;
+}
+
+.api-meta__label {
+  color: #5b6570;
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.api-meta__value {
+  margin: 0;
+  min-width: 0;
+}
+
+.api-item__description {
+  margin-top: 10px;
+  max-width: 760px;
+}
+
+.api-schemas {
+  border-bottom: 1px solid #d8dee4;
+  margin-top: 24px;
+}
+
+.api-schema {
+  border-top: 1px solid #d8dee4;
+}
+
+.api-schema__summary {
+  align-items: baseline;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 16px 0;
+}
+
+.api-schema__summary:hover .api-schema__name {
+  text-decoration: underline;
+}
+
+.api-schema__name {
+  color: #054861;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.api-schema__meta {
+  color: #5b6570;
+  font-size: 0.88em;
+}
+
+.api-schema__body {
+  padding: 0 0 20px 24px;
+}
+
+@media (max-width: 640px) {
+  body {
+    min-width: 0;
+  }
+
+  main {
+    padding: 0 16px;
+  }
+
+  section.columns,
+  section.examples {
+    grid-template-columns: 1fr;
+  }
+
+  .api-meta,
+  .api-meta__item,
+  .api-schema__summary {
+    display: grid;
+  }
+
+  .api-schema__body {
+    padding-left: 0;
+  }
 }

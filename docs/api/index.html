@@ -29,76 +29,4432 @@
       <main>
 
      <h1>API</h1>
-     
+
        <h2>&lt;commerce-hub-connect></h2>
+       <div class="api-intro">
+
        <div>
-         CommerceHub Connect Web SDK widget shell.
-
-Renders SDK-managed shopper flows for CommerceHub interactions, including
-OTP, saved payment-source selection, source creation, source verification,
-Pay by Bank handoff, and required-info collection.
+         <p>CommerceHub Connect Web SDK widget shell.</p><p>Renders SDK-managed shopper flows for CommerceHub interactions, including OTP, saved payment-source selection, source creation, source verification, Pay by Bank handoff, and required-info collection.</p>
        </div>
-       
-   <h3>Attributes</h3>
-   <table>
-     <tr>
-       <th>Name</th><th>Description</th><th>Type</th><th>Default</th>
-     </tr>
-     
-       <tr>
-         <td>base-url</td><td>CommerceHub API base URL preset or custom origin for SDK-managed requests.</td><td>CommerceHubBaseURLInput | undefined</td><td></td>
-       </tr>
-     
-   </table>
- 
-       
-   <h3>Properties</h3>
-   <table>
-     <tr>
-       <th>Name</th><th>Attribute</th><th>Description</th><th>Type</th><th>Default</th>
-     </tr>
-     
-       <tr>
-         <td>interactionResponse</td><td></td><td>CommerceHub interaction payload that controls the visible widget state.
 
-Assign this as a DOM property, not as an HTML attribute. SDK-managed API
-calls use `interactionResponse.interactionId` as the `x-interaction-id`
-header.</td><td>InteractionResponse | undefined</td><td></td>
-       </tr>
-     
-       <tr>
-         <td>designConfig</td><td></td><td>Optional merchant-safe colors, typography, spacing, copy, and Pay by Bank
-provider settings.
+       </div>
 
-Assign this as a DOM property. Omitted nested values fall back to SDK
-defaults.</td><td>DesignConfig | undefined</td><td></td>
-       </tr>
-     
-       <tr>
-         <td>baseURL</td><td>base-url</td><td>CommerceHub API base URL preset or custom origin for SDK-managed requests.</td><td>CommerceHubBaseURLInput | undefined</td><td></td>
-       </tr>
-     
-   </table>
-   
-       
-       
-   <h3>Events</h3>
-   <table>
-     <tr>
-       <th>Name</th><th>Description</th>
-     </tr>
-     
-       <tr>
-         <td>onSuccess</td><td>Emitted with the selected PaymentSource after a verified payment source is attached or selected.</td>
-       </tr>
-     
-   </table>
-     
-         
-       
-       
-       
-   
+
+     <section class="api-section">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">interactionResponse</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>InteractionResponse | undefined</code></dd>
+           </div>
+
+       </dl>
+
+
+       <div class="api-item__description">
+         <p>CommerceHub interaction payload that controls the visible widget state.</p><p>Assign this as a DOM property, not as an HTML attribute. SDK-managed API calls use <code>interactionResponse.interactionId</code> as the <code>x-interaction-id</code> header.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">designConfig</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>DesignConfig | undefined</code></dd>
+           </div>
+
+       </dl>
+
+
+       <div class="api-item__description">
+         <p>Optional merchant-safe colors, typography, spacing, copy, and Pay by Bank provider settings.</p><p>Assign this as a DOM property. Omitted nested values fall back to SDK defaults.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">baseURL</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Attribute</dt>
+             <dd class="api-meta__value"><code>base-url</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>CommerceHubBaseURLInput | undefined</code></dd>
+           </div>
+
+       </dl>
+
+
+       <div class="api-item__description">
+         <p>CommerceHub API base URL preset or custom origin for SDK-managed requests.</p>
+       </div>
+
+
+     </article>
+
+       </div>
+     </section>
+
+
+
+
+     <section class="api-section">
+       <h3>Events</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">onSelect</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Emitted with the selected PaymentSource after a verified payment source is attached or selected.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">onAddPaymentMethod</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Emitted with a <code>PaymentSource</code> detail after a payment source is successfully created.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">onVerifyPaymentMethod</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Emitted with a <code>PaymentSource</code> detail after a payment source is successfully verified.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">onDeletePaymentMethod</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Emitted with the deleted payment source id after a payment source is successfully deleted.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">onListPaymentMethods</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Emitted with a <code>PaymentSource[]</code> detail after payment sources are successfully refreshed from the interaction.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">onTransfer</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Emitted with a <code>NativeAccountTransaction</code> detail after a native account transfer is successfully initiated.</p>
+       </div>
+
+
+     </article>
+
+       </div>
+     </section>
+
+
+
+
+
+
+
+     <h2>Runtime Schemas</h2>
+     <p>Generated from <code>swagger.json</code> <code>components.schemas</code>.</p>
+     <section class="api-schemas">
+
+     <details class="api-schema" id="schema-DocInfo">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">DocInfo</span>
+         <span class="api-schema__meta">object · 3 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">docType</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">DRIVER_LICENSE_NUMBER, DRIVER_LICENSE_PHOTO, BANK_STATEMENT, BANK_LETTER, BANK_CHECK, SOCIAL_SECURITY_NUMBER</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">mandatory</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">boolean</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">value</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-VerificationResponse">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">VerificationResponse</span>
+         <span class="api-schema__meta">object · 3 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">sourceId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">status</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">NOT_VERIFIED, REQUIRE_INFO, UNDER_REVIEW, DECLINED, VERIFIED</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">docs</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of <a href="#schema-DocInfo">DocInfo</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-Address">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">Address</span>
+         <span class="api-schema__meta">object · 8 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">id</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">street</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">houseNumberOrName</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">recipientNameOrAddress</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">city</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">stateOrProvince</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">postalCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">country</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-PhoneDetails">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">PhoneDetails</span>
+         <span class="api-schema__meta">object · 3 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">countryCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">phoneNumber</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">verifiedTimestamp</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int64)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-StringHolder">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">StringHolder</span>
+         <span class="api-schema__meta">object · 1 field</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">value</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-Name">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">Name</span>
+         <span class="api-schema__meta">object · 2 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">firstName</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">lastName</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-Asset">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">Asset</span>
+         <span class="api-schema__meta">object · 2 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">type</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">CURRENCY</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">id</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-DSCCreateRequest">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">DSCCreateRequest</span>
+         <span class="api-schema__meta">object · 5 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">amount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">asset</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-Asset">Asset</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">paymentSourceId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">expiryMinutes</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int32)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">realm</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-AbstractSource">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">AbstractSource</span>
+         <span class="api-schema__meta">object · 4 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Discriminator</dt>
+             <dd class="api-meta__value"><code>tenderType</code></dd>
+           </div>
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">id</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">name</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">tenderType</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">CARD, BANK_ACCOUNT, DYNAMIC_SESSION_CARD, NATIVE_ACCOUNT</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">verificationInfo</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-VerificationInfo">VerificationInfo</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-BankAccount">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">BankAccount</span>
+         <span class="api-schema__meta">composition · 1 field</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Composition</dt>
+             <dd class="api-meta__value">all of <a href="#schema-AbstractSource">AbstractSource</a>, object</dd>
+           </div>
+
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">bankAccount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-BankAccountDetail">BankAccountDetail</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-BankAccountDetail">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">BankAccountDetail</span>
+         <span class="api-schema__meta">object · 7 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">bankName</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">routingNumber</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">accountNumber</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">accountType</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">routingNumberEncrypted</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">accountNumberEncrypted</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">accountNumberReEntered</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-Card">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">Card</span>
+         <span class="api-schema__meta">composition · 2 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Composition</dt>
+             <dd class="api-meta__value">all of <a href="#schema-AbstractSource">AbstractSource</a>, object</dd>
+           </div>
+
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">billingAddressId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">card</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-CardDetail">CardDetail</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-CardDetail">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">CardDetail</span>
+         <span class="api-schema__meta">object · 8 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">cardNumber</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">nameOnCard</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">expirationMonth</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">expirationYear</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">cvv</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">network</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">Visa, Mastercard, AmericanExpress, Discover</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">cardNumberEncrypted</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">cvvEncrypted</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-DSCDisplayCard">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">DSCDisplayCard</span>
+         <span class="api-schema__meta">composition · 0 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Composition</dt>
+             <dd class="api-meta__value">all of <a href="#schema-AbstractSource">AbstractSource</a></dd>
+           </div>
+
+
+
+         </dl>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-DynamicSessionCard">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">DynamicSessionCard</span>
+         <span class="api-schema__meta">object · 14 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">clientId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">email</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">id</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">source</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">one of <a href="#schema-BankAccount">BankAccount</a>, <a href="#schema-Card">Card</a>, <a href="#schema-DSCDisplayCard">DSCDisplayCard</a>, <a href="#schema-NativeAccount">NativeAccount</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">asset</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-Asset">Asset</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">createTimestamp</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int64)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">expiryTimestamp</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int64)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">totalAmount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">saleAmount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">remainingAmount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">finalRefundedAmount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">status</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">ACTIVE, INACTIVE</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">realm</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">merchantData</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-MerchantData">MerchantData</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-MerchantData">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">MerchantData</span>
+         <span class="api-schema__meta">object · 3 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">clientId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">merchantId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">terminalId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-NativeAccount">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">NativeAccount</span>
+         <span class="api-schema__meta">composition · 1 field</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Composition</dt>
+             <dd class="api-meta__value">all of <a href="#schema-AbstractSource">AbstractSource</a>, object</dd>
+           </div>
+
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">account</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-NativeAccountDetail">NativeAccountDetail</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-NativeAccountDetail">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">NativeAccountDetail</span>
+         <span class="api-schema__meta">object · 5 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">positionId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">productType</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">nickName</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">country</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">token</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-VerificationInfo">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">VerificationInfo</span>
+         <span class="api-schema__meta">object · 4 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">token</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">status</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">NOT_VERIFIED, REQUIRE_INFO, UNDER_REVIEW, DECLINED, VERIFIED</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">lastTimestamp</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int64)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">docs</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of <a href="#schema-DocInfo">DocInfo</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-PaymentsSearchRequest">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">PaymentsSearchRequest</span>
+         <span class="api-schema__meta">object · 3 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">fromDate</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int32)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">toDate</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int32)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">clientId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-Payment">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">Payment</span>
+         <span class="api-schema__meta">object · 18 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">clientId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">email</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">merchantTransactionId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">agentId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">merchantOrderId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">merchantInvoiceNumber</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">type</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">CREDIT, DEBIT</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">amount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">asset</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-Asset">Asset</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">timestamp</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int64)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">source</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">one of <a href="#schema-BankAccount">BankAccount</a>, <a href="#schema-Card">Card</a>, <a href="#schema-DSCDisplayCard">DSCDisplayCard</a>, <a href="#schema-NativeAccount">NativeAccount</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">channel</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">ONLINE, MACHINE</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">status</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">PENDING, APPROVED, DECLINED</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">referenceMerchantTransactionId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">realm</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">merchantData</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-MerchantData">MerchantData</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">apiTraceId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">message</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-OTPValidateRequest">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">OTPValidateRequest</span>
+         <span class="api-schema__meta">object · 3 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">email</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">otp</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">channel</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">EMAIL, PHONE</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-OTPResponse">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">OTPResponse</span>
+         <span class="api-schema__meta">object · 3 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">email</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">phone</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-PhoneDetails">PhoneDetails</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">channel</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">EMAIL, PHONE</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-DocFieldValue">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">DocFieldValue</span>
+         <span class="api-schema__meta">object · 3 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">value</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">docType</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">DRIVER_LICENSE_NUMBER, DRIVER_LICENSE_PHOTO, BANK_STATEMENT, BANK_LETTER, BANK_CHECK, SOCIAL_SECURITY_NUMBER</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">docValue</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-InteractionResponse">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">InteractionResponse</span>
+         <span class="api-schema__meta">object · 8 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">interactionId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">status</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">OTP_VALIDATION_PENDING, OTP_VALIDATION_FAILED, OTP_VALIDATION_SUCCESS, PAYMENT_SOURCE_ATTACHED, COMPLETE</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">email</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">selectedSource</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">one of <a href="#schema-BankAccount">BankAccount</a>, <a href="#schema-Card">Card</a>, <a href="#schema-DSCDisplayCard">DSCDisplayCard</a>, <a href="#schema-NativeAccount">NativeAccount</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">allowedTenderTypes</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">CARD, BANK_ACCOUNT, DYNAMIC_SESSION_CARD, NATIVE_ACCOUNT; unique items</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">paymentSources</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of one of <a href="#schema-BankAccount">BankAccount</a>, <a href="#schema-Card">Card</a>, <a href="#schema-DSCDisplayCard">DSCDisplayCard</a>, <a href="#schema-NativeAccount">NativeAccount</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">phone</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-PhoneDetails">PhoneDetails</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">billerAddress</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of <a href="#schema-Address">Address</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-TransferRequest">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">TransferRequest</span>
+         <span class="api-schema__meta">object · 4 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">fromSourceId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">toSourceId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">amount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">asset</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-Asset">Asset</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-NativeAccountTransaction">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">NativeAccountTransaction</span>
+         <span class="api-schema__meta">object · 6 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">id</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">account</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">one of <a href="#schema-BankAccount">BankAccount</a>, <a href="#schema-Card">Card</a>, <a href="#schema-DSCDisplayCard">DSCDisplayCard</a>, <a href="#schema-NativeAccount">NativeAccount</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">amount</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">asset</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-Asset">Asset</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">credit</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">boolean</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">timestamp</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">integer (int64)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-AccountTransactionsSearchRequest">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">AccountTransactionsSearchRequest</span>
+         <span class="api-schema__meta">object · 4 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">sourceId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">fromDate</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">toDate</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">creditDebit</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of boolean</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">unique items</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-WalletProfile">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">WalletProfile</span>
+         <span class="api-schema__meta">object · 7 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">email</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">phone</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-PhoneDetails">PhoneDetails</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">firstName</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">lastName</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">machinePayments</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">boolean</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">enableAllRealmsByDefault</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">boolean</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">enabledRealms</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">unique items</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-RealmInfo">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">RealmInfo</span>
+         <span class="api-schema__meta">object · 2 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">realm</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">description</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-SessionData">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">SessionData</span>
+         <span class="api-schema__meta">object · 4 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">publicKey</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">tokenID</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">aggregatorSessionId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">pToken</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     <details class="api-schema" id="schema-NativeAccountBalanceInfo">
+       <summary class="api-schema__summary">
+         <span class="api-schema__name">NativeAccountBalanceInfo</span>
+         <span class="api-schema__meta">object · 2 fields</span>
+       </summary>
+       <div class="api-schema__body">
+         <dl class="api-meta api-meta--stacked">
+
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><code>object</code></dd>
+           </div>
+
+
+         </dl>
+
+     <section class="api-section api-section--nested">
+       <h3>Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">asset</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-Asset">Asset</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">balance</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">number (double)</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+       </div>
+     </section>
+
+       </div>
+     </details>
+
+     </section>
+
+
       </main>
     </div>
 
