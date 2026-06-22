@@ -47,8 +47,9 @@ server-fetched interaction state, not from host-provided <code>paymentSources</c
 <p>The SDK is framework-agnostic. In React, Vue, Svelte, Angular, or Lit, import
 the package once and pass complex values as DOM properties rather than HTML
 attributes.</p>
-<p>See the <a href="../examples/angular/">Angular 22 example</a> for a component that binds
-SDK properties in the template and handles <code>onSelect</code>.</p>
+<p>See the <a href="../examples/angular/">Angular 22 example</a> and
+<a href="../examples/react/">React example</a> for components that bind SDK properties and
+handle <code>onSelect</code>.</p>
 <pre class="language-ts"><code class="language-ts"><br>widget<span class="token punctuation">.</span>interactionResponse <span class="token operator">=</span> interactionResponse<span class="token punctuation">;</span><br>widget<span class="token punctuation">.</span>designConfig <span class="token operator">=</span> designConfig<span class="token punctuation">;</span><br></code></pre>
 <p>Only <code>base-url</code> is available as a string attribute:</p>
 <pre class="language-html"><code class="language-html"><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;</span>commerce-hub-connect</span> <span class="token attr-name">base-url</span><span class="token attr-value"><span class="token punctuation attr-equals">=</span><span class="token punctuation">"</span>QA<span class="token punctuation">"</span></span><span class="token punctuation">></span></span><span class="token tag"><span class="token tag"><span class="token punctuation">&lt;/</span>commerce-hub-connect</span><span class="token punctuation">></span></span></code></pre>

@@ -59,8 +59,9 @@ The SDK is framework-agnostic. In React, Vue, Svelte, Angular, or Lit, import
 the package once and pass complex values as DOM properties rather than HTML
 attributes.
 
-See the [Angular 22 example](../examples/angular/) for a component that binds
-SDK properties in the template and handles `onSelect`.
+See the [Angular 22 example](../examples/angular/) and
+[React example](../examples/react/) for components that bind SDK properties and
+handle `onSelect`.
 
 ```ts
 {% raw %}
