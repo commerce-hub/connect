@@ -29,6 +29,10 @@ merchant interaction with
 `GET /merchant/interaction/{interactionId}/complete`; the widget does not call
 that endpoint internally.
 
+For SDK-managed operations before completion, the widget also emits success-only
+events: `onListPaymentMethods`, `onAddPaymentMethod`,
+`onVerifyPaymentMethod`, `onDeletePaymentMethod`, and `onTransfer`.
+
 The host response is bootstrap data. When a new
 `interactionResponse.interactionId` is assigned, the widget immediately calls
 `GET /interaction` and renders saved or selected payment methods only from that

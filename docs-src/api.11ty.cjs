@@ -21,7 +21,7 @@ module.exports = class Docs {
         []
       )
       .filter((element) => element.tagName === 'commerce-hub-connect');
-    return `
+    const html = `
      <h1>API</h1>
      ${elements
        .map(
@@ -41,7 +41,7 @@ module.exports = class Docs {
          element.members.filter(
            (m) => m.kind === 'field' && m.privacy !== 'private'
          )
-       )}  
+       )}
        ${renderTable(
          'Methods',
          ['name', 'parameters', 'description', 'return.type.text'],
@@ -60,12 +60,12 @@ module.exports = class Docs {
          'Events',
          ['name', 'description'],
          normalizeEvents(element.events)
-       )}    
+       )}
        ${renderTable(
          'Slots',
          [['name', '(default)'], 'description'],
          element.slots
-       )}  
+       )}
        ${renderTable(
          'CSS Shadow Parts',
          ['name', 'description'],
@@ -80,22 +80,34 @@ module.exports = class Docs {
        )
        .join('')}
    `;
+
+    return html.replace(/[ \t]+$/gm, '');
   }
 };
 
 const normalizeEvents = (events) => {
+  const publicEventNames = {
+    ON_SELECT_EVENT: 'onSelect',
+    ON_ADD_PAYMENT_METHOD_EVENT: 'onAddPaymentMethod',
+    ON_VERIFY_PAYMENT_METHOD_EVENT: 'onVerifyPaymentMethod',
+    ON_DELETE_PAYMENT_METHOD_EVENT: 'onDeletePaymentMethod',
+    ON_LIST_PAYMENT_METHODS_EVENT: 'onListPaymentMethods',
+    ON_TRANSFER_EVENT: 'onTransfer',
+  };
   const normalized =
     events?.map((event) => {
-      if (event.name !== 'ON_SELECT_EVENT') {
+      const name = publicEventNames[event.name];
+
+      if (!name) {
         return event;
       }
 
       return {
         ...event,
-        name: 'onSelect',
+        name,
         description:
           event.description ||
-          'Emitted with the selected PaymentSource after a verified payment source is attached or selected.',
+          eventDescriptions[name],
       };
     }) ?? [];
   const byName = new Map();
@@ -109,6 +121,21 @@ const normalizeEvents = (events) => {
   }
 
   return [...byName.values()];
+};
+
+const eventDescriptions = {
+  onSelect:
+    'Emitted with the selected PaymentSource after a verified payment source is attached or selected.',
+  onAddPaymentMethod:
+    'Emitted with the created or finalized PaymentSource after a payment method is successfully added.',
+  onVerifyPaymentMethod:
+    'Emitted with the verified or updated PaymentSource after a payment method is successfully verified.',
+  onDeletePaymentMethod:
+    'Emitted with the deleted payment source id after a payment method is successfully deleted.',
+  onListPaymentMethods:
+    'Emitted with PaymentSource[] after payment methods are successfully refreshed from the interaction.',
+  onTransfer:
+    'Emitted with the NativeAccountTransaction after a native account transfer is successfully initiated.',
 };
 
 /**
@@ -148,13 +175,12 @@ const renderTable = (name, properties, data) => {
          .join('')}
      </tr>
      ${data
-       .map(
-         (i) => `
-       <tr>
-         ${properties.map((p) => `<td>${get(i, p)}</td>`).join('')}
-       </tr>
-     `
-       )
+      .map(
+        (i) => `
+      <tr>
+        ${properties.map((p) => `<td>${get(i, p)}</td>`).join('')}
+      </tr>`
+      )
        .join('')}
    </table>
  `;

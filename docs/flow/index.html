@@ -75,6 +75,38 @@ completed <code>PaymentSource</code>.</p>
 <pre class="language-ts"><code class="language-ts"><br>widget<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'onSelect'</span><span class="token punctuation">,</span> <span class="token keyword">async</span> <span class="token punctuation">(</span>event<span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span><br>  <span class="token keyword">const</span> paymentSource <span class="token operator">=</span> event<span class="token punctuation">.</span>detail<span class="token punctuation">;</span><br><br>  <span class="token keyword">const</span> completedPaymentSource <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><br>    <span class="token template-string"><span class="token template-punctuation string">`</span><span class="token string">/api/commercehub/interaction/</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token function">encodeURIComponent</span><span class="token punctuation">(</span><br>      interactionResponse<span class="token punctuation">.</span>interactionId<br>    <span class="token punctuation">)</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">/complete</span><span class="token template-punctuation string">`</span></span><span class="token punctuation">,</span><br>    <span class="token punctuation">{</span>method<span class="token operator">:</span> <span class="token string">'GET'</span><span class="token punctuation">}</span><br>  <span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">then</span><span class="token punctuation">(</span><span class="token punctuation">(</span>response<span class="token punctuation">)</span> <span class="token operator">=></span> response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br>  <span class="token keyword">await</span> <span class="token function">fetch</span><span class="token punctuation">(</span><span class="token string">'/api/orders/confirm-payment-source'</span><span class="token punctuation">,</span> <span class="token punctuation">{</span><br>    method<span class="token operator">:</span> <span class="token string">'POST'</span><span class="token punctuation">,</span><br>    headers<span class="token operator">:</span> <span class="token punctuation">{</span><span class="token string-property property">'Content-Type'</span><span class="token operator">:</span> <span class="token string">'application/json'</span><span class="token punctuation">}</span><span class="token punctuation">,</span><br>    body<span class="token operator">:</span> <span class="token constant">JSON</span><span class="token punctuation">.</span><span class="token function">stringify</span><span class="token punctuation">(</span><span class="token punctuation">{</span><br>      orderId<span class="token punctuation">,</span><br>      selectedPaymentSourceId<span class="token operator">:</span> paymentSource<span class="token punctuation">.</span>id<span class="token punctuation">,</span><br>      completedPaymentSourceId<span class="token operator">:</span> completedPaymentSource<span class="token punctuation">.</span>id<span class="token punctuation">,</span><br>    <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span><br>  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br></code></pre>
 <p>Do not assign the completion response back to <code>widget.interactionResponse</code>; the
 completion response is a <code>PaymentSource</code>, not an <code>InteractionResponse</code>.</p>
+<p>The SDK also emits success-only operation events for host telemetry or local UI
+state. These events use raw operation results in <code>event.detail</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>onListPaymentMethods</code></td>
+<td><code>PaymentSource[]</code> from a successful <code>GET /interaction</code> refresh.</td>
+</tr>
+<tr>
+<td><code>onAddPaymentMethod</code></td>
+<td>Created or finalized <code>PaymentSource</code>.</td>
+</tr>
+<tr>
+<td><code>onVerifyPaymentMethod</code></td>
+<td>Verified or updated <code>PaymentSource</code>.</td>
+</tr>
+<tr>
+<td><code>onDeletePaymentMethod</code></td>
+<td>Deleted payment source id.</td>
+</tr>
+<tr>
+<td><code>onTransfer</code></td>
+<td><code>NativeAccountTransaction</code> returned by native account transfer.</td>
+</tr>
+</tbody>
+</table>
 <p>The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
 event for those states.</p>

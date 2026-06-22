@@ -114,10 +114,43 @@ export type PaymentSource = NonNullable<
 >[number];
 
 /**
+ * CommerceHub native account transfer response returned after a transfer is
+ * initiated.
+ */
+export type NativeAccountTransaction =
+  components['schemas']['NativeAccountTransaction'];
+
+/**
  * Event emitted after the widget successfully attaches or selects a verified
  * payment source.
  */
 export type OnSelectEvent = CustomEvent<PaymentSource>;
+
+/**
+ * Event emitted after the widget successfully creates a payment source.
+ */
+export type OnAddPaymentMethodEvent = CustomEvent<PaymentSource>;
+
+/**
+ * Event emitted after the widget successfully verifies a payment source.
+ */
+export type OnVerifyPaymentMethodEvent = CustomEvent<PaymentSource>;
+
+/**
+ * Event emitted after the widget successfully deletes a payment source.
+ */
+export type OnDeletePaymentMethodEvent = CustomEvent<string>;
+
+/**
+ * Event emitted after the widget successfully refreshes listed payment sources.
+ */
+export type OnListPaymentMethodsEvent = CustomEvent<PaymentSource[]>;
+
+/**
+ * Event emitted after the widget successfully initiates a native account
+ * transfer.
+ */
+export type OnTransferEvent = CustomEvent<NativeAccountTransaction>;
 
 /**
  * Event type reserved for future public SDK error handling.
@@ -128,6 +161,36 @@ export type OnErrorEvent = CustomEvent<InteractionError>;
  * Name of the selection event emitted by `<commerce-hub-connect>`.
  */
 export const ON_SELECT_EVENT = 'onSelect';
+
+/**
+ * Name of the payment-source creation event emitted by
+ * `<commerce-hub-connect>`.
+ */
+export const ON_ADD_PAYMENT_METHOD_EVENT = 'onAddPaymentMethod';
+
+/**
+ * Name of the payment-source verification event emitted by
+ * `<commerce-hub-connect>`.
+ */
+export const ON_VERIFY_PAYMENT_METHOD_EVENT = 'onVerifyPaymentMethod';
+
+/**
+ * Name of the payment-source deletion event emitted by
+ * `<commerce-hub-connect>`.
+ */
+export const ON_DELETE_PAYMENT_METHOD_EVENT = 'onDeletePaymentMethod';
+
+/**
+ * Name of the payment-source list refresh event emitted by
+ * `<commerce-hub-connect>`.
+ */
+export const ON_LIST_PAYMENT_METHODS_EVENT = 'onListPaymentMethods';
+
+/**
+ * Name of the native account transfer event emitted by
+ * `<commerce-hub-connect>`.
+ */
+export const ON_TRANSFER_EVENT = 'onTransfer';
 
 /**
  * Reserved error event name. The current widget renders recoverable flow errors
@@ -372,6 +435,16 @@ const demoPaymentMethods: PaymentMethod[] = [
  *
  * @fires onSelect - Emitted with a `PaymentSource` detail after a verified
  * payment source is attached or selected.
+ * @fires onAddPaymentMethod - Emitted with a `PaymentSource` detail after a
+ * payment source is successfully created.
+ * @fires onVerifyPaymentMethod - Emitted with a `PaymentSource` detail after a
+ * payment source is successfully verified.
+ * @fires onDeletePaymentMethod - Emitted with the deleted payment source id
+ * after a payment source is successfully deleted.
+ * @fires onListPaymentMethods - Emitted with a `PaymentSource[]` detail after
+ * payment sources are successfully refreshed from the interaction.
+ * @fires onTransfer - Emitted with a `NativeAccountTransaction` detail after a
+ * native account transfer is successfully initiated.
  */
 @customElement('commerce-hub-connect')
 export class CommerceHubConnect extends LitElement {
@@ -616,6 +689,10 @@ export class CommerceHubConnect extends LitElement {
     this.clearDeletePaymentSourceConfirmation();
     this.removePayByBankProviderContainer();
     destroyPaymentSdk();
+  }
+
+  private emitSdkEvent<T>(name: string, detail: T) {
+    this.dispatchEvent(new CustomEvent<T>(name, {detail}));
   }
 
   private renderWidgetShell({
@@ -3123,6 +3200,7 @@ export class CommerceHubConnect extends LitElement {
       this.cardEncryption = createCardEncryptionState();
       this.cardSubmitError = undefined;
       this.setInteractionResponseFromSdk(nextInteractionResponse);
+      this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
 
       if (createdSource.verificationInfo?.status === 'VERIFIED') {
         await this.attachPaymentSource(paymentSourceId);
@@ -3256,6 +3334,7 @@ export class CommerceHubConnect extends LitElement {
       this.bankAccountEncryption = createBankAccountEncryptionState();
       this.bankAccountSubmitError = undefined;
       this.setInteractionResponseFromSdk(nextInteractionResponse);
+      this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
 
       if (createdSource.verificationInfo?.status === 'VERIFIED') {
         await this.attachPaymentSource(paymentSourceId);
@@ -3329,27 +3408,29 @@ export class CommerceHubConnect extends LitElement {
     this.transferSubmitSuccess = false;
 
     try {
-      await this.requestCommerceHubJson<unknown>(
-        '/interaction/source/native/transfer',
-        interactionId,
-        {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            fromSourceId: normalizedDraft.fromSourceId,
-            toSourceId: normalizedDraft.toSourceId,
-            amount: Number(normalizedDraft.amount),
-            asset: {
-              type: 'CURRENCY',
-              id: TRANSFER_CURRENCY,
-            },
-          }),
-          credentials: 'include',
-        }
-      );
+      const transaction =
+        await this.requestCommerceHubJson<NativeAccountTransaction>(
+          '/interaction/source/native/transfer',
+          interactionId,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              fromSourceId: normalizedDraft.fromSourceId,
+              toSourceId: normalizedDraft.toSourceId,
+              amount: Number(normalizedDraft.amount),
+              asset: {
+                type: 'CURRENCY',
+                id: TRANSFER_CURRENCY,
+              },
+            }),
+            credentials: 'include',
+          }
+        );
 
       this.transferFlowScreen = 'form';
       this.transferSubmitSuccess = true;
+      this.emitSdkEvent(ON_TRANSFER_EVENT, transaction);
     } catch (cause) {
       this.transferSubmitError = apiErrorMessage(cause);
     } finally {
@@ -3591,6 +3672,7 @@ export class CommerceHubConnect extends LitElement {
       );
 
       this.setInteractionResponseFromSdk(nextInteractionResponse);
+      this.emitSdkEvent(ON_VERIFY_PAYMENT_METHOD_EVENT, verifiedSource);
 
       if (requiresAdditionalVerificationInfo(verifiedSource)) {
         this.showRequiredInfoSource(verifiedSource);
@@ -3658,6 +3740,7 @@ export class CommerceHubConnect extends LitElement {
       }
 
       this.setInteractionResponseFromSdk(nextInteractionResponse);
+      this.emitSdkEvent(ON_DELETE_PAYMENT_METHOD_EVENT, paymentSourceId);
     } catch (cause) {
       void cause;
     } finally {
@@ -3897,6 +3980,7 @@ export class CommerceHubConnect extends LitElement {
           verifiedSource,
           await this.verifyRequiredInfoStep2(interactionId, sourceId)
         );
+        this.emitSdkEvent(ON_VERIFY_PAYMENT_METHOD_EVENT, verifiedSource);
 
         if (
           requiresAdditionalVerificationInfo(verifiedSource) &&
@@ -3911,6 +3995,7 @@ export class CommerceHubConnect extends LitElement {
             verifiedSource,
             await this.verifyRequiredInfoStep2(interactionId, sourceId)
           );
+          this.emitSdkEvent(ON_VERIFY_PAYMENT_METHOD_EVENT, verifiedSource);
         }
       } else {
         await this.uploadRequiredInfoEntries(
@@ -3922,6 +4007,7 @@ export class CommerceHubConnect extends LitElement {
           verifiedSource,
           await this.verifyRequiredInfoStep2(interactionId, sourceId)
         );
+        this.emitSdkEvent(ON_VERIFY_PAYMENT_METHOD_EVENT, verifiedSource);
       }
 
       const nextInteractionResponse = withUpsertedSourcePreservingSelection(
@@ -4215,6 +4301,10 @@ export class CommerceHubConnect extends LitElement {
               );
 
             this.setInteractionResponseFromSdk(nextInteractionResponse);
+            this.emitSdkEvent(
+              ON_ADD_PAYMENT_METHOD_EVENT,
+              resolvedBankSource
+            );
             this.resetBankFlow();
 
             if (resolvedBankSource.verificationInfo?.status === 'VERIFIED') {
@@ -4405,6 +4495,10 @@ export class CommerceHubConnect extends LitElement {
 
         this.interactionSnapshotInteractionId = interactionId;
         this.setInteractionResponseFromSdk(refreshedInteractionResponse);
+        this.emitSdkEvent(
+          ON_LIST_PAYMENT_METHODS_EVENT,
+          refreshedInteractionResponse.paymentSources ?? []
+        );
 
         return refreshedInteractionResponse;
       })
@@ -7021,6 +7115,11 @@ declare global {
 
   interface HTMLElementEventMap {
     [ON_SELECT_EVENT]: OnSelectEvent;
+    [ON_ADD_PAYMENT_METHOD_EVENT]: OnAddPaymentMethodEvent;
+    [ON_VERIFY_PAYMENT_METHOD_EVENT]: OnVerifyPaymentMethodEvent;
+    [ON_DELETE_PAYMENT_METHOD_EVENT]: OnDeletePaymentMethodEvent;
+    [ON_LIST_PAYMENT_METHODS_EVENT]: OnListPaymentMethodsEvent;
+    [ON_TRANSFER_EVENT]: OnTransferEvent;
     [ON_ERROR_EVENT]: OnErrorEvent;
   }
 

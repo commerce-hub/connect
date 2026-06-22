@@ -14,6 +14,7 @@ import {html, LitElement} from 'lit';
 import 'commerce-hub-connect-sdk';
 import type {
   InteractionResponse,
+  OnAddPaymentMethodEvent,
   OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
@@ -24,8 +25,15 @@ class CheckoutPayment extends LitElement {
     return html`<commerce-hub-connect
       .interactionResponse=${this.interactionResponse}
       .baseURL=${'QA'}
+      @onAddPaymentMethod=${this.handlePaymentMethodAdded}
       @onSelect=${this.handleSelect}
     ></commerce-hub-connect>`;
+  }
+
+  private handlePaymentMethodAdded(event: OnAddPaymentMethodEvent) {
+    this.dispatchEvent(
+      new CustomEvent('payment-method-added', {detail: event.detail})
+    );
   }
 
   private async handleSelect(event: OnSelectEvent) {

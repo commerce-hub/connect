@@ -58,7 +58,9 @@ request. The SDK owns the browser widget once the host passes an
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
 6. The SDK emits `onSelect` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
-7. Your host completes the merchant interaction with
+7. The SDK also emits success-only operation events for SDK-managed source
+   listing, creation, verification, deletion, and native account transfers.
+8. Your host completes the merchant interaction with
    `GET /merchant/interaction/{interactionId}/complete` and treats the
    merchant response as the completed source.
 
@@ -225,7 +227,7 @@ SDK-managed calls include:
 - Saved source attach, verification, and deletion.
 - Required-info upload and verification.
 - Pay by Bank session launch and finalization.
-- Native account balance lookup.
+- Native account balance lookup and transfer initiation.
 
 The widget always sends `x-interaction-id` with
 `interactionResponse.interactionId`. When
@@ -269,6 +271,17 @@ widget.addEventListener('onSelect', async (event) => {
 
 Do not assign the completion response back to `widget.interactionResponse`; the
 completion response is a `PaymentSource`, not an `InteractionResponse`.
+
+The SDK also emits success-only operation events for host telemetry or local UI
+state. These events use raw operation results in `event.detail`:
+
+| Event | Detail |
+| --- | --- |
+| `onListPaymentMethods` | `PaymentSource[]` from a successful `GET /interaction` refresh. |
+| `onAddPaymentMethod` | Created or finalized `PaymentSource`. |
+| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`. |
+| `onDeletePaymentMethod` | Deleted payment source id. |
+| `onTransfer` | `NativeAccountTransaction` returned by native account transfer. |
 
 The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
@@ -349,9 +362,14 @@ if (widget) {
 
 ### Event
 
-| Event       | Detail          | Description                                                                                |
-| ----------- | --------------- | ------------------------------------------------------------------------------------------ |
+| Event | Detail | Description |
+| --- | --- | --- |
 | `onSelect` | `PaymentSource` | Emitted after a verified payment source is attached or selected by the SDK-managed widget. |
+| `onListPaymentMethods` | `PaymentSource[]` | Emitted after payment sources are refreshed from `GET /interaction`. |
+| `onAddPaymentMethod` | `PaymentSource` | Emitted after the SDK creates or finalizes a payment source. |
+| `onVerifyPaymentMethod` | `PaymentSource` | Emitted after the SDK verifies or updates a payment source. |
+| `onDeletePaymentMethod` | `string` | Emitted with the deleted payment source id. |
+| `onTransfer` | `NativeAccountTransaction` | Emitted after a native account transfer is initiated. |
 
 ## Exported Types and Helpers
 

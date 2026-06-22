@@ -122,6 +122,17 @@ widget.addEventListener('onSelect', async (event) => {
 Do not assign the completion response back to `widget.interactionResponse`; the
 completion response is a `PaymentSource`, not an `InteractionResponse`.
 
+The SDK also emits success-only operation events for host telemetry or local UI
+state. These events use raw operation results in `event.detail`:
+
+| Event | Detail |
+| --- | --- |
+| `onListPaymentMethods` | `PaymentSource[]` from a successful `GET /interaction` refresh. |
+| `onAddPaymentMethod` | Created or finalized `PaymentSource`. |
+| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`. |
+| `onDeletePaymentMethod` | Deleted payment source id. |
+| `onTransfer` | `NativeAccountTransaction` returned by native account transfer. |
+
 The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
 event for those states.

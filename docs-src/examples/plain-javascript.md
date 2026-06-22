@@ -41,6 +41,12 @@ widget.addEventListener('onSelect', async (event) => {
   });
 });
 
+widget.addEventListener('onAddPaymentMethod', (event) => {
+  widget.dispatchEvent(
+    new CustomEvent('payment-method-added', {detail: event.detail})
+  );
+});
+
 host?.replaceChildren(widget);
 {% endraw %}
 ```

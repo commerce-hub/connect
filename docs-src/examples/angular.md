@@ -20,6 +20,7 @@ import type {
   CommerceHubBaseURLInput,
   InteractionResponse,
   OnSelectEvent,
+  OnTransferEvent,
 } from 'commerce-hub-connect-sdk';
 
 @Component({
@@ -30,6 +31,7 @@ import type {
       [baseURL]="baseUrl"
       [interactionResponse]="interactionResponse()"
       (onSelect)="handleSelect($event)"
+      (onTransfer)="handleTransfer($event)"
     ></commerce-hub-connect>
   `,
 })
@@ -37,10 +39,16 @@ export class CheckoutPaymentComponent {
   readonly interactionResponse = input.required<InteractionResponse>();
   readonly baseUrl: CommerceHubBaseURLInput = 'QA';
   selectedPaymentSourceId?: string;
+  lastTransferId?: string;
 
   handleSelect(event: Event) {
     const {detail: paymentSource} = event as OnSelectEvent;
     this.selectedPaymentSourceId = paymentSource.id;
+  }
+
+  handleTransfer(event: Event) {
+    const {detail: transaction} = event as OnTransferEvent;
+    this.lastTransferId = transaction.id;
   }
 }
 {% endraw %}

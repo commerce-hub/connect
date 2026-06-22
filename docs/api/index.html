@@ -29,7 +29,7 @@
       <main>
 
      <h1>API</h1>
-     
+
        <h2>&lt;commerce-hub-connect></h2>
        <div>
          CommerceHub Connect Web SDK widget shell.
@@ -38,67 +38,80 @@ Renders SDK-managed shopper flows for CommerceHub interactions, including
 OTP, saved payment-source selection, source creation, source verification,
 Pay by Bank handoff, and required-info collection.
        </div>
-       
+
    <h3>Attributes</h3>
    <table>
      <tr>
        <th>Name</th><th>Description</th><th>Type</th><th>Default</th>
      </tr>
-     
-       <tr>
-         <td>base-url</td><td>CommerceHub API base URL preset or custom origin for SDK-managed requests.</td><td>CommerceHubBaseURLInput | undefined</td><td></td>
-       </tr>
-     
+
+      <tr>
+        <td>base-url</td><td>CommerceHub API base URL preset or custom origin for SDK-managed requests.</td><td>CommerceHubBaseURLInput | undefined</td><td></td>
+      </tr>
    </table>
- 
-       
+
+
    <h3>Properties</h3>
    <table>
      <tr>
        <th>Name</th><th>Attribute</th><th>Description</th><th>Type</th><th>Default</th>
      </tr>
-     
-       <tr>
-         <td>interactionResponse</td><td></td><td>CommerceHub interaction payload that controls the visible widget state.
+
+      <tr>
+        <td>interactionResponse</td><td></td><td>CommerceHub interaction payload that controls the visible widget state.
 
 Assign this as a DOM property, not as an HTML attribute. SDK-managed API
 calls use `interactionResponse.interactionId` as the `x-interaction-id`
 header.</td><td>InteractionResponse | undefined</td><td></td>
-       </tr>
-     
-       <tr>
-         <td>designConfig</td><td></td><td>Optional merchant-safe colors, typography, spacing, copy, and Pay by Bank
+      </tr>
+      <tr>
+        <td>designConfig</td><td></td><td>Optional merchant-safe colors, typography, spacing, copy, and Pay by Bank
 provider settings.
 
 Assign this as a DOM property. Omitted nested values fall back to SDK
 defaults.</td><td>DesignConfig | undefined</td><td></td>
-       </tr>
-     
-       <tr>
-         <td>baseURL</td><td>base-url</td><td>CommerceHub API base URL preset or custom origin for SDK-managed requests.</td><td>CommerceHubBaseURLInput | undefined</td><td></td>
-       </tr>
-     
+      </tr>
+      <tr>
+        <td>baseURL</td><td>base-url</td><td>CommerceHub API base URL preset or custom origin for SDK-managed requests.</td><td>CommerceHubBaseURLInput | undefined</td><td></td>
+      </tr>
    </table>
-   
-       
-       
+
+
+
    <h3>Events</h3>
    <table>
      <tr>
        <th>Name</th><th>Description</th>
      </tr>
-     
-       <tr>
-         <td>onSelect</td><td>Emitted with the selected PaymentSource after a verified payment source is attached or selected.</td>
-       </tr>
-     
+
+      <tr>
+        <td>name</td><td></td>
+      </tr>
+      <tr>
+        <td>onSelect</td><td>Emitted with the selected PaymentSource after a verified payment source is attached or selected.</td>
+      </tr>
+      <tr>
+        <td>onAddPaymentMethod</td><td>Emitted with a `PaymentSource` detail after a payment source is successfully created.</td>
+      </tr>
+      <tr>
+        <td>onVerifyPaymentMethod</td><td>Emitted with a `PaymentSource` detail after a payment source is successfully verified.</td>
+      </tr>
+      <tr>
+        <td>onDeletePaymentMethod</td><td>Emitted with the deleted payment source id after a payment source is successfully deleted.</td>
+      </tr>
+      <tr>
+        <td>onListPaymentMethods</td><td>Emitted with a `PaymentSource[]` detail after payment sources are successfully refreshed from the interaction.</td>
+      </tr>
+      <tr>
+        <td>onTransfer</td><td>Emitted with a `NativeAccountTransaction` detail after a native account transfer is successfully initiated.</td>
+      </tr>
    </table>
-     
-         
-       
-       
-       
-   
+
+
+
+
+
+
       </main>
     </div>
 
