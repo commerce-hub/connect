@@ -2265,7 +2265,7 @@
 
           widget = document.createElement('commerce-hub-connect');
           widget.id = 'alibaba-buyer-connect-widget';
-          widget.addEventListener('onSuccess', handleBankLinkSuccess);
+          widget.addEventListener('onSelect', handleBankLinkSuccess);
           widget.interactionResponse = interactionResponse;
           widget.baseURL = commerceHubApiBaseUrl;
           widget.designConfig = {

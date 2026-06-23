@@ -4,6 +4,7 @@ import '../commerce-hub-connect.js';
 import {
   COMMERCE_HUB_BASE_URLS,
   type InteractionResponse,
+  type NativeAccountTransaction,
   type PaymentSource,
   type CommerceHubBaseURLInput,
 } from '../commerce-hub-connect.js';
@@ -62,7 +63,7 @@ const renderConnect = async (
       if (
         !servedInitialInteraction &&
         request.method === 'GET' &&
-        new URL(request.url).pathname === '/interaction'
+        new URL(request.url).pathname.endsWith('/interaction')
       ) {
         servedInitialInteraction = true;
 
@@ -380,16 +381,53 @@ const savedBillingAddressResponse = () => ({
 
 const recordOutputEvents = (el: Element) => {
   const successEvents: CustomEvent<PaymentSource>[] = [];
+  const addPaymentMethodEvents: CustomEvent<PaymentSource>[] = [];
+  const verifyPaymentMethodEvents: CustomEvent<PaymentSource>[] = [];
+  const deletePaymentMethodEvents: CustomEvent<string>[] = [];
+  const listPaymentMethodsEvents: CustomEvent<PaymentSource[]>[] = [];
+  const transferEvents: CustomEvent<NativeAccountTransaction>[] = [];
   const errorEvents: CustomEvent<unknown>[] = [];
+  const eventOrder: string[] = [];
 
-  el.addEventListener('onSuccess', (event) => {
+  el.addEventListener('onSelect', (event) => {
+    eventOrder.push('onSelect');
     successEvents.push(event as CustomEvent<PaymentSource>);
   });
+  el.addEventListener('onAddPaymentMethod', (event) => {
+    eventOrder.push('onAddPaymentMethod');
+    addPaymentMethodEvents.push(event as CustomEvent<PaymentSource>);
+  });
+  el.addEventListener('onVerifyPaymentMethod', (event) => {
+    eventOrder.push('onVerifyPaymentMethod');
+    verifyPaymentMethodEvents.push(event as CustomEvent<PaymentSource>);
+  });
+  el.addEventListener('onDeletePaymentMethod', (event) => {
+    eventOrder.push('onDeletePaymentMethod');
+    deletePaymentMethodEvents.push(event as CustomEvent<string>);
+  });
+  el.addEventListener('onListPaymentMethods', (event) => {
+    eventOrder.push('onListPaymentMethods');
+    listPaymentMethodsEvents.push(event as CustomEvent<PaymentSource[]>);
+  });
+  el.addEventListener('onTransfer', (event) => {
+    eventOrder.push('onTransfer');
+    transferEvents.push(event as CustomEvent<NativeAccountTransaction>);
+  });
   el.addEventListener('onError', (event) => {
+    eventOrder.push('onError');
     errorEvents.push(event as CustomEvent<unknown>);
   });
 
-  return {successEvents, errorEvents};
+  return {
+    successEvents,
+    addPaymentMethodEvents,
+    verifyPaymentMethodEvents,
+    deletePaymentMethodEvents,
+    listPaymentMethodsEvents,
+    transferEvents,
+    errorEvents,
+    eventOrder,
+  };
 };
 
 type VerificationStatus = NonNullable<
@@ -694,6 +732,51 @@ suite('commerce-hub-connect flow', () => {
     document
       .querySelectorAll('script[data-commerce-hub-pay-by-bank-sdk="true"]')
       .forEach((script) => script.remove());
+  });
+
+  test('initial successful interaction refresh emits listed payment sources', async () => {
+    const listedSource: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-listed-1',
+      name: 'Listed card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {
+        network: 'Visa',
+        cardNumber: '4111111111111111',
+      },
+    };
+
+    window.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-list',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [listedSource],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+
+    const host = await fixture<HTMLDivElement>(testingHtml`<div></div>`);
+    const el = document.createElement(
+      'commerce-hub-connect'
+    ) as CommerceHubConnect;
+    const {listPaymentMethodsEvents, errorEvents} = recordOutputEvents(el);
+
+    el.interactionResponse = {
+      interactionId: 'interaction-list',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    };
+    el.baseURL = TEST_COMMERCE_HUB_BASE_URL;
+    host.append(el);
+    await waitFor(
+      () => listPaymentMethodsEvents.length === 1,
+      'initial list event was not emitted'
+    );
+    await flushElement(el);
+
+    assert.deepEqual(listPaymentMethodsEvents[0].detail, [listedSource]);
+    assert.lengthOf(errorEvents, 0);
   });
 
   test('renders OTP pending with SDK v3 title, verify CTA before resend, and compact inputs', async () => {
@@ -1814,7 +1897,6 @@ suite('commerce-hub-connect flow', () => {
       status: 'PAYMENT_SOURCE_REQUESTED',
       paymentSources: [],
     });
-
     await clickAction(el, 'add-card');
     await fillNewCardForm(el);
     await blurField(el, 'card-number');
@@ -3081,6 +3163,12 @@ suite('commerce-hub-connect flow', () => {
       status: 'PAYMENT_SOURCE_REQUESTED',
       paymentSources: [],
     });
+    const {
+      successEvents,
+      addPaymentMethodEvents,
+      errorEvents,
+      eventOrder,
+    } = recordOutputEvents(el);
 
     await clickAction(el, 'add-card');
     await fillNewCardForm(el);
@@ -3155,6 +3243,22 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(requests[4].credentials, 'include');
     assert.equal(el.interactionResponse?.selectedSource?.id, 'card-created-1');
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');
+    assert.lengthOf(addPaymentMethodEvents, 1);
+    assert.equal(addPaymentMethodEvents[0].detail.id, 'card-created-1');
+    assert.equal(addPaymentMethodEvents[0].detail.name, 'Ada corporate card');
+    assert.lengthOf(successEvents, 1);
+    assert.deepEqual(successEvents[0].detail, {
+      id: 'card-created-1',
+      tenderType: 'Card',
+      name: 'Attached card from source response',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {
+        network: 'Mastercard',
+        cardNumber: '5555555555554444',
+      },
+    });
+    assert.deepEqual(eventOrder, ['onAddPaymentMethod', 'onSelect']);
+    assert.lengthOf(errorEvents, 0);
     const rows = [
       ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
         '.payment-method-row'
@@ -3724,6 +3828,82 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(el.shadowRoot!.querySelector('[data-action="transfer"]'));
   });
 
+  test('confirmed transfer emits native account transaction response', async () => {
+    const transaction: NativeAccountTransaction = {
+      id: 'transfer-transaction-1',
+      amount: 25.75,
+      asset: {type: 'CURRENCY', id: 'USD'},
+      credit: false,
+      timestamp: 1710000000000,
+    };
+
+    window.fetch = async () =>
+      new Response(JSON.stringify(transaction), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-transfer',
+        status: 'OTP_VALIDATION_SUCCESS',
+        features: ['TRANSFER'],
+        paymentSources: [
+          {
+            tenderType: 'BankAccount',
+            id: 'bank-1',
+            name: 'Operating account',
+            verificationInfo: {status: 'VERIFIED'},
+            bankAccount: {
+              bankName: 'Commerce National Bank',
+              accountNumber: '9876543210',
+            },
+          },
+          {
+            tenderType: 'NativeAccount',
+            id: 'native-account-1',
+            verificationInfo: {status: 'VERIFIED'},
+            account: {
+              positionId: 'wallet-position-7890',
+              nickName: 'Commerce wallet',
+              productType: 'Wallet',
+              token: 'native-token-1',
+            },
+          },
+        ],
+      } as InteractionResponse,
+      undefined,
+      TEST_COMMERCE_HUB_BASE_URL
+    );
+    const {transferEvents, errorEvents} = recordOutputEvents(el);
+    const fromSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-from-source'
+    )!;
+    const toSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#transfer-to-source'
+    )!;
+    const amountInput =
+      el.shadowRoot!.querySelector<HTMLInputElement>('#transfer-amount')!;
+
+    fromSelect.value = 'bank-1';
+    fromSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    toSelect.value = 'native-account-1';
+    toSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    amountInput.value = '25.75';
+    amountInput.dispatchEvent(new Event('input', {bubbles: true}));
+    await flushElement(el);
+
+    await clickAction(el, 'transfer');
+    await clickAction(el, 'confirm-transfer');
+    await waitFor(
+      () => transferEvents.length === 1,
+      'transfer event was not emitted'
+    );
+
+    assert.deepEqual(transferEvents[0].detail, transaction);
+    assert.lengthOf(errorEvents, 0);
+  });
+
   test('baseURL QA preset routes SDK-managed OTP validation requests to the CommerceHub preset origin', async () => {
     const requests: CapturedRequest[] = [];
 
@@ -3761,7 +3941,7 @@ suite('commerce-hub-connect flow', () => {
     await setOtpValue(el, '123456');
     await clickAction(el, 'verify-otp');
 
-    await waitForRequest(requests, '/interaction/otp/validate', 'POST');
+    await waitForRequest(requests, '/chc/interaction/otp/validate', 'POST');
 
     assert.equal(
       requests[0].url,
@@ -3893,7 +4073,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('confirming a selected method refreshes payment info, emits onSuccess, and shows the selected payment review', async () => {
+  test('confirming a selected method refreshes payment info, emits onSelect, and shows the selected payment review', async () => {
     const requests: CapturedRequest[] = [];
     const selectedSource: PaymentSource = {
       tenderType: 'Card',
@@ -4003,6 +4183,57 @@ suite('commerce-hub-connect flow', () => {
       '•••• 1111'
     );
     assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+  });
+
+  test('confirmed source deletion emits deleted payment source id', async () => {
+    window.fetch = async () => new Response('', {status: 200});
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [
+          {
+            tenderType: 'Card',
+            id: 'card-1',
+            name: 'Corporate card',
+            verificationInfo: {status: 'VERIFIED'},
+            card: {
+              network: 'Visa',
+              cardNumber: '4111111111111111',
+            },
+          },
+          {
+            tenderType: 'BankAccount',
+            id: 'bank-1',
+            name: 'Operating account',
+            verificationInfo: {status: 'UNDER_REVIEW'},
+            bankAccount: {
+              bankName: 'Commerce National Bank',
+              accountNumber: '9876543210',
+            },
+          },
+        ],
+      },
+      undefined,
+      TEST_COMMERCE_HUB_BASE_URL
+    );
+    const {deletePaymentMethodEvents, errorEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'toggle-payment-source-edit-mode');
+    await clickAction(el, 'delete-payment-source');
+    await clickAction(el, 'delete-payment-source');
+    await waitFor(
+      () => deletePaymentMethodEvents.length === 1,
+      'delete event was not emitted'
+    );
+
+    assert.equal(deletePaymentMethodEvents[0].detail, 'card-1');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['bank-1']
+    );
+    assert.lengthOf(errorEvents, 0);
   });
 
   test('missing interactionId does not emit onError and keeps the current screen stable', async () => {
@@ -4169,6 +4400,81 @@ suite('commerce-hub-connect flow', () => {
     } finally {
       timer.restore();
     }
+  });
+
+  test('saved payment verification emits verified source before onSelect attach event', async () => {
+    const verifiedSource: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Corporate card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {
+        network: 'Visa',
+        cardNumber: '4111111111111111',
+      },
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      if (pathname === '/interaction/verify/step1') {
+        return new Response(
+          JSON.stringify({
+            sourceId: 'card-1',
+            status: 'VERIFIED',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/interaction/source/card-1/attach') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_ATTACHED',
+            selectedSource: verifiedSource,
+            paymentSources: [verifiedSource],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [
+          {
+            ...verifiedSource,
+            verificationInfo: {status: 'NOT_VERIFIED'},
+          },
+        ],
+      },
+      undefined,
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+    const {verifyPaymentMethodEvents, successEvents, eventOrder} =
+      recordOutputEvents(el);
+
+    await clickAction(el, 'verify-payment-source');
+    await waitFor(
+      () => successEvents.length === 1,
+      'verified source was not attached'
+    );
+
+    assert.lengthOf(verifyPaymentMethodEvents, 1);
+    assert.deepEqual(verifyPaymentMethodEvents[0].detail, verifiedSource);
+    assert.lengthOf(successEvents, 1);
+    assert.deepEqual(successEvents[0].detail, verifiedSource);
+    assert.deepEqual(eventOrder, ['onVerifyPaymentMethod', 'onSelect']);
   });
 
   test('Connect your bank shows a loading frame until PaymentSDK init is ready', async () => {
@@ -4566,8 +4872,14 @@ suite('commerce-hub-connect flow', () => {
   });
 
   test('Connect your bank success preselects a finalized VERIFIED bank source and shows payment-method-saved summary', async () => {
-    const {el, requests, successEvents, errorEvents} =
-      await completePayByBankFlow({finalizedStatus: 'VERIFIED'});
+    const {
+      el,
+      requests,
+      successEvents,
+      addPaymentMethodEvents,
+      errorEvents,
+      eventOrder,
+    } = await completePayByBankFlow({finalizedStatus: 'VERIFIED'});
 
     assert.deepEqual(
       requests.map(
@@ -4623,8 +4935,11 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-new');
     assert.equal(el.interactionResponse?.status, 'PAYMENT_SOURCE_ATTACHED');
+    assert.lengthOf(addPaymentMethodEvents, 1);
+    assert.equal(addPaymentMethodEvents[0].detail.id, 'bank-new');
     assert.lengthOf(successEvents, 1);
     assert.equal(successEvents[0].detail.id, 'bank-new');
+    assert.deepEqual(eventOrder, ['onAddPaymentMethod', 'onSelect']);
     assert.lengthOf(errorEvents, 0);
   });
 
@@ -4958,7 +5273,13 @@ suite('commerce-hub-connect flow', () => {
   });
 
   test('Connect your bank required-info Verify uploads selected documents, finalizes verification, and attaches verified sources', async () => {
-    const {el, requests, successEvents} = await completePayByBankFlow({
+    const {
+      el,
+      requests,
+      successEvents,
+      verifyPaymentMethodEvents,
+      eventOrder,
+    } = await completePayByBankFlow({
       finalizedStatus: 'NOT_VERIFIED',
       verificationStatus: 'REQUIRE_INFO',
       verificationDocs: [
@@ -4996,8 +5317,14 @@ suite('commerce-hub-connect flow', () => {
       'VERIFIED'
     );
     assert.equal(el.interactionResponse?.selectedSource?.id, 'bank-verified');
+    assert.lengthOf(verifyPaymentMethodEvents, 1);
+    assert.equal(verifyPaymentMethodEvents[0].detail.id, 'bank-verified');
     assert.lengthOf(successEvents, 1);
     assert.equal(successEvents[0].detail.id, 'bank-verified');
+    assert.deepEqual(eventOrder.slice(-2), [
+      'onVerifyPaymentMethod',
+      'onSelect',
+    ]);
   });
 
   test('Pay by Bank required-info Verify submits required information before optional information', async () => {

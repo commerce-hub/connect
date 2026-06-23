@@ -22,7 +22,7 @@ widget.interactionResponse = await fetch('/api/commercehub/interaction', {
   body: JSON.stringify({orderId: 'order-123'}),
 }).then((response) => response.json());
 
-widget.addEventListener('onSuccess', async (event) => {
+widget.addEventListener('onSelect', async (event) => {
   const paymentSource = event.detail;
   const completedPaymentSource = await fetch(
     `/api/commercehub/interaction/${encodeURIComponent(
@@ -39,6 +39,12 @@ widget.addEventListener('onSuccess', async (event) => {
       completedPaymentSourceId: completedPaymentSource.id,
     }),
   });
+});
+
+widget.addEventListener('onAddPaymentMethod', (event) => {
+  widget.dispatchEvent(
+    new CustomEvent('payment-method-added', {detail: event.detail})
+  );
 });
 
 host?.replaceChildren(widget);

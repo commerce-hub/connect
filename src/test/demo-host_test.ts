@@ -90,7 +90,7 @@ suite('demo host page', () => {
     assert.include(html, "features: ['ADD_ACCOUNT', 'SELECT']");
     assert.include(html, "await import('./../commerce-hub-connect.js')");
     assert.include(html, "document.createElement('commerce-hub-connect')");
-    assert.include(html, "widget.addEventListener('onSuccess'");
+    assert.include(html, "widget.addEventListener('onSelect'");
     assert.include(html, 'widget.interactionResponse = interactionResponse');
   });
 
@@ -198,7 +198,7 @@ suite('demo host page', () => {
       '#alibaba-rewards-connect-widget'
     );
     rewardsWidget?.dispatchEvent(
-      new CustomEvent('onSuccess', {
+      new CustomEvent('onSelect', {
         detail: {
           displayName: 'Alibaba Rewards Account',
           accountName: 'Alibaba Rewards Plus',
@@ -460,7 +460,7 @@ suite('demo host page', () => {
     assert.include(html, "mode: 'PRE_AUTHENTICATED'");
     assert.include(html, "await import('./../commerce-hub-connect.js')");
     assert.include(html, "document.createElement('commerce-hub-connect')");
-    assert.include(html, "widget.addEventListener('onSuccess'");
+    assert.include(html, "widget.addEventListener('onSelect'");
     assert.include(html, 'widget.interactionResponse = interactionResponse');
     assert.notInclude(html, 'Developer Info');
     assert.notInclude(html, 'Legacy Individual Developer');
@@ -575,7 +575,7 @@ suite('demo host page', () => {
       '#clover-merchant-connect-widget'
     );
     widget?.dispatchEvent(
-      new CustomEvent('onSuccess', {
+      new CustomEvent('onSelect', {
         detail: {
           tenderType: 'BankAccount',
           id: 'bank-sdk-1',
@@ -777,6 +777,11 @@ suite('demo host page', () => {
     assert.include(html, 'body: JSON.stringify(interactionRequest)');
     assert.include(html, 'widget.designConfig = designConfig');
     assert.include(html, 'widget.baseURL = resolveWidgetBaseURL()');
+    assert.include(html, "widget.addEventListener('onListPaymentMethods'");
+    assert.include(html, "widget.addEventListener('onAddPaymentMethod'");
+    assert.include(html, "widget.addEventListener('onVerifyPaymentMethod'");
+    assert.include(html, "widget.addEventListener('onDeletePaymentMethod'");
+    assert.include(html, "widget.addEventListener('onTransfer'");
     assert.include(html, "createApiUrl('/merchant/interaction/create')");
     assert.include(html, '/merchant/interaction/${encodeURIComponent');
     assert.include(html, 'completeMerchantInteraction(');
@@ -1103,7 +1108,26 @@ suite('demo host page', () => {
     );
 
     connectWidget?.dispatchEvent(
-      new CustomEvent('onSuccess', {
+      new CustomEvent('onAddPaymentMethod', {
+        detail: {
+          tenderType: 'Card',
+          id: 'added-source-1',
+          name: 'Added source',
+          verificationInfo: {status: 'VERIFIED'},
+        },
+      })
+    );
+
+    await waitFor(
+      () =>
+        (
+          pageDocument.querySelector('#completion-output')?.textContent ?? ''
+        ).includes('"event": "onAddPaymentMethod"'),
+      'expected SDK operation event to appear in the event output'
+    );
+
+    connectWidget?.dispatchEvent(
+      new CustomEvent('onSelect', {
         detail: {
           tenderType: 'Card',
           id: 'selected-source-1',
@@ -1150,6 +1174,14 @@ suite('demo host page', () => {
     assert.include(
       pageDocument.querySelector('#interaction-input')?.textContent ?? '',
       '"interactionId": "demo-interaction-1"'
+    );
+    assert.include(
+      pageDocument.querySelector('#completion-output')?.textContent ?? '',
+      '"event": "onAddPaymentMethod"'
+    );
+    assert.include(
+      pageDocument.querySelector('#completion-output')?.textContent ?? '',
+      '"id": "added-source-1"'
     );
     assert.include(
       pageDocument.querySelector('#completion-output')?.textContent ?? '',

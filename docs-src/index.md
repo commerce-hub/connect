@@ -23,11 +23,15 @@ the host backend.
 ## Integration shape
 
 The host application creates or retrieves an interaction, passes the resulting
-`InteractionResponse` into the widget, and listens for `onSuccess` when the
+`InteractionResponse` into the widget, and listens for `onSelect` when the
 shopper finishes with a selected payment source. The host then completes the
 merchant interaction with
 `GET /merchant/interaction/{interactionId}/complete`; the widget does not call
 that endpoint internally.
+
+For SDK-managed operations before completion, the widget also emits success-only
+events: `onListPaymentMethods`, `onAddPaymentMethod`,
+`onVerifyPaymentMethod`, `onDeletePaymentMethod`, and `onTransfer`.
 
 The host response is bootstrap data. When a new
 `interactionResponse.interactionId` is assigned, the widget immediately calls
@@ -46,7 +50,7 @@ if (widget) {
     (response) => response.json()
   );
   widget.baseURL = 'QA';
-  widget.addEventListener('onSuccess', async (event) => {
+  widget.addEventListener('onSelect', async (event) => {
     const selectedPaymentSource = event.detail;
     const completedPaymentSource = await fetch(
       `/api/commercehub/interaction/${encodeURIComponent(

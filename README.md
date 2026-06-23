@@ -45,9 +45,11 @@ request. The SDK owns the browser widget once the host passes an
    `interactionResponse.oauth.access_token` is present.
 6. The shopper completes the required flow, such as OTP, saved source
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
-7. The SDK emits `onSuccess` with the selected `PaymentSource` in
+7. The SDK emits `onSelect` with the selected `PaymentSource` in
    `event.detail` after a verified source is attached or selected.
-8. Your host completes the merchant interaction with
+8. The SDK also emits success-only operation events for SDK-managed source
+   listing, creation, verification, deletion, and native account transfers.
+9. Your host completes the merchant interaction with
    `GET /merchant/interaction/{interactionId}/complete` and treats the
    merchant response as the completed source.
 
@@ -55,7 +57,7 @@ request. The SDK owns the browser widget once the host passes an
 import 'commerce-hub-connect-sdk';
 import type {
   InteractionResponse,
-  OnSuccessEvent,
+  OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
 const interactionResponse: InteractionResponse = await fetch(
@@ -67,8 +69,8 @@ const widget = document.querySelector('commerce-hub-connect');
 if (widget) {
   widget.interactionResponse = interactionResponse;
   widget.baseURL = 'QA';
-  widget.addEventListener('onSuccess', async (event: Event) => {
-    const {detail: paymentSource} = event as OnSuccessEvent;
+  widget.addEventListener('onSelect', async (event: Event) => {
+    const {detail: paymentSource} = event as OnSelectEvent;
 
     // Store or reference paymentSource in host-owned state as needed.
 
@@ -102,7 +104,7 @@ widget.baseURL = 'https://api.example.com';
 SDK-managed calls include OTP validation and resend, payment-source attach and
 delete, card and ACH source creation, sensitive value masking, source
 verification, required-info upload, Pay by Bank session handling, and native
-account balance lookup.
+account balance lookup and transfer initiation.
 
 The widget always sends `x-interaction-id` with
 `interactionResponse.interactionId`. When
@@ -118,6 +120,22 @@ preserved when the server response omits it.
 
 If `interactionResponse.interactionId` is missing, the widget keeps the current
 screen stable and does not call the CommerceHub API.
+
+## Events
+
+`onSelect` remains the completion boundary for host-owned order or checkout
+work. Its `event.detail` is the selected `PaymentSource`, and hosts should still
+complete the merchant interaction from that event.
+
+The SDK also emits success-only operation events with raw operation results:
+
+| Event | Detail |
+| --- | --- |
+| `onListPaymentMethods` | `PaymentSource[]` from a successful `GET /interaction` refresh. |
+| `onAddPaymentMethod` | Created or finalized `PaymentSource`. |
+| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`. |
+| `onDeletePaymentMethod` | Deleted payment source id. |
+| `onTransfer` | `NativeAccountTransaction` returned by native account transfer. |
 
 ## Design configuration
 

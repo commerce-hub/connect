@@ -1215,7 +1215,7 @@
 
           widget = document.createElement('commerce-hub-connect');
           widget.id = 'clover-merchant-connect-widget';
-          widget.addEventListener('onSuccess', handleBankChangeSuccess);
+          widget.addEventListener('onSelect', handleBankChangeSuccess);
           widget.interactionResponse = interactionResponse;
           widget.baseURL = commerceHubApiBaseUrl;
           widget.designConfig = {
