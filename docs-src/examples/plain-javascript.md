@@ -16,6 +16,14 @@ const host = document.querySelector('#commerce-hub-widget-host');
 const widget = document.createElement('commerce-hub-connect');
 
 widget.baseURL = 'QA';
+widget.designConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+  },
+};
 widget.interactionResponse = await fetch('/api/commercehub/interaction', {
   method: 'POST',
   headers: {'Content-Type': 'application/json'},
@@ -54,3 +62,8 @@ host?.replaceChildren(widget);
 ```html
 <div id="commerce-hub-widget-host"></div>
 ```
+
+Assign object-valued inputs such as `interactionResponse` and `designConfig` as
+DOM properties. Do not pass them as HTML attributes, because attributes can only
+carry strings. `onSelect` is the widget boundary; complete the merchant
+interaction and update checkout state in the host application.

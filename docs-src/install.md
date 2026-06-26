@@ -32,17 +32,26 @@ Use property assignment for complex values such as `interactionResponse` and
 ```ts
 {% raw %}
 import 'commerce-hub-connect-sdk';
-import type {InteractionResponse} from 'commerce-hub-connect-sdk';
+import type {DesignConfig, InteractionResponse} from 'commerce-hub-connect-sdk';
 
 const interactionResponse: InteractionResponse =
   await fetch('/api/commercehub/interaction').then((response) =>
     response.json()
   );
+const designConfig: DesignConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+  },
+};
 
 const widget = document.querySelector('commerce-hub-connect');
 
 if (widget) {
   widget.interactionResponse = interactionResponse;
+  widget.designConfig = designConfig;
   widget.baseURL = 'QA';
 }
 {% endraw %}
@@ -57,11 +66,13 @@ server-fetched interaction state, not from host-provided `paymentSources`.
 
 The SDK is framework-agnostic. In React, Vue, Svelte, Angular, or Lit, import
 the package once and pass complex values as DOM properties rather than HTML
-attributes.
+attributes. This applies to `interactionResponse` and `designConfig`; object
+values should not be serialized into markup.
 
-See the [Angular 22 example](../examples/angular/) and
-[React example](../examples/react/) for components that bind SDK properties and
-handle `onSelect`.
+See the [Lit example](../examples/lit/), [React example](../examples/react/),
+[Angular 22 example](../examples/angular/), and
+[plain JavaScript example](../examples/plain-javascript/) for components that
+bind SDK properties and keep merchant completion host-owned after `onSelect`.
 
 ```ts
 {% raw %}
