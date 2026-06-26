@@ -494,10 +494,10 @@
                 <span class="field-label">Request body</span>
                 <p class="helper-text">
                   The JSON preview updates from the form controls and is sent to
-                  <code>/merchant/interaction/create</code>. Named environments
-                  are routed through the local dev-server proxy. Remote
-                  environment create and complete requests are signed by the
-                  proxy and require
+                  <code>/merchant/interaction/create</code>. For remote
+                  environments, only host-owned merchant create and complete
+                  requests are routed through and signed by the local dev-server
+                  proxy. They require
                   <code>COMMERCE_HUB_DEV_API_KEY</code> and
                   <code>COMMERCE_HUB_DEV_API_SECRET</code>.
                 </p>
@@ -1195,7 +1195,7 @@ Select or attach a payment source to complete the active interaction.
           return requestFields.customRuntimeBaseURL.value.trim();
         }
 
-        return createCommerceHubProxyBaseURL(mode);
+        return mode;
       };
 
       const resolveMerchantBaseURL = () => {
