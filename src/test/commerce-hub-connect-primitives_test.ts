@@ -110,6 +110,52 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'px');
   });
 
+  test('renders documented public styling parts for stable surfaces', async () => {
+    const root = await renderHarness(
+      renderWidgetShell({
+        title: 'Pay with',
+        showClose: false,
+        content: html`
+          ${renderAlert({variant: 'warning', message: 'Review payment method'})}
+          ${renderPaymentMethodRow({
+            id: 'card-1',
+            label: 'Corporate card',
+            status: 'verified',
+            type: 'card',
+            brand: 'Visa',
+            last4: '4242',
+          })}
+          ${renderProviderFrame({
+            containerId: 'provider-container',
+            title: 'Connect your bank',
+            loadingLabel: 'Loading provider',
+          })}
+          ${renderButton({
+            label: 'Continue',
+            variant: 'primary',
+            action: 'continue',
+          })}
+        `,
+      })
+    );
+
+    const expectedParts = [
+      'shell',
+      'header',
+      'title',
+      'content',
+      'footer',
+      'alert',
+      'payment-method-row',
+      'provider-frame',
+      'primary-action',
+    ];
+
+    for (const part of expectedParts) {
+      assert.exists(root.querySelector(`[part~="${part}"]`), part);
+    }
+  });
+
   test('declares a hover affordance for clickable source action links', () => {
     assert.include(primitiveStyles.cssText, '.source-action-link:hover');
   });
