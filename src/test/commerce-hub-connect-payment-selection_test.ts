@@ -953,11 +953,16 @@ suite('commerce-hub-connect payment selection', () => {
       allowedTenderTypes: ['CARD'],
       paymentSources: [],
     });
+    const text = el.shadowRoot!.textContent ?? '';
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Add payment method'
     );
+    assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
+    assert.notInclude(text, 'James Anderson');
+    assert.notInclude(text, 'visa-1111');
+    assert.notInclude(text, 'amex-8000');
     assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
