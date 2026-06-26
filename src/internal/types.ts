@@ -178,14 +178,75 @@ export interface OtpScreenModel {
     InteractionFlowStatus,
     'OTP_VALIDATION_PENDING' | 'OTP_VALIDATION_FAILED'
   >;
-  email?: string;
-  form: OtpFormState;
+  value: string;
+  length: number;
+  destination?: string;
+  failedMessage?: string;
+  copy: OtpScreenCopy;
+  submitting?: boolean;
+  resending?: boolean;
+}
+
+export interface OtpScreenCopy {
+  title: string;
+  subtitle?: string;
+  failedMessage: string;
+  resendPrefix: string;
+  resendButton: string;
+  resendPendingButton: string;
+  verifyButton: string;
+  verifyingButton: string;
+  tryAgainButton: string;
+}
+
+export interface AllowedTenderOptions {
+  card: boolean;
+  bankAccount: boolean;
+  nativeAccount: boolean;
+}
+
+export interface PaymentMethodsScreenCopy {
+  title: string;
+  subtitle: string;
+  addBankAccountTitle: string;
+  addBankAccountSubtitle: string;
+  addCardTitle: string;
+  addCardSubtitle: string;
+  continueButton: string;
+  continuingButton: string;
+}
+
+export interface NoSavedPaymentMethodsScreenCopy {
+  title: string;
+  subtitle: string;
+  emptyTitle: string;
+  emptyMessage: string;
+  addBankAccountTitle: string;
+  addBankAccountSubtitle: string;
+  addCardTitle: string;
+  addCardSubtitle: string;
 }
 
 export interface PaymentMethodsScreenModel {
-  status: Extract<InteractionFlowStatus, 'PAYMENT_SOURCE_REQUESTED'>;
+  status: 'PAYMENT_SOURCE_REQUESTED';
   methods: PaymentMethod[];
-  attaching?: boolean;
+  allowedTenderOptions: AllowedTenderOptions;
+  canAddPaymentSources: boolean;
+  canSelectPaymentSources: boolean;
+  editing: boolean;
+  actionPending: boolean;
+  selectedPaymentSourceId?: string;
+  deleteConfirmationPaymentSourceId?: string;
+  copy: PaymentMethodsScreenCopy;
+  showTransferAction?: boolean;
+}
+
+export interface NoSavedPaymentMethodsScreenModel {
+  allowedTenderOptions: AllowedTenderOptions;
+  canAddPaymentSources: boolean;
+  deletePending?: boolean;
+  copy: NoSavedPaymentMethodsScreenCopy;
+  showTransferAction?: boolean;
 }
 
 export type ButtonVariant = 'primary' | 'secondary';
