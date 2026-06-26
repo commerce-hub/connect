@@ -45,6 +45,27 @@ class PrimitiveHarness extends HTMLElement {
 
 customElements.define('primitive-harness', PrimitiveHarness);
 
+const TEST_INTERACTION_FEATURES: NonNullable<
+  InteractionResponse['features']
+> = ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
+
+const createStyleInteractionResponse = (): InteractionResponse => ({
+  status: 'PAYMENT_SOURCE_REQUESTED',
+  features: [...TEST_INTERACTION_FEATURES],
+  paymentSources: [
+    {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Corporate card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {
+        network: 'Visa',
+        cardNumber: '4111111111114242',
+      },
+    },
+  ],
+});
+
 const renderHarness = async (template: TemplateResult) => {
   const el = (await fixture(
     testingHtml`<primitive-harness></primitive-harness>`
@@ -91,6 +112,7 @@ suite('commerce-hub-connect primitives', () => {
   test('renders payment method logos without chip chrome', async () => {
     const interactionResponse: InteractionResponse = {
       status: 'PAYMENT_SOURCE_REQUESTED',
+      features: [...TEST_INTERACTION_FEATURES],
       paymentSources: [
         {
           tenderType: 'Card',
@@ -130,7 +152,9 @@ suite('commerce-hub-connect primitives', () => {
 
   test('renders the widget shell with SDK v3 compact token defaults and footer treatment', async () => {
     const el = (await fixture(
-      testingHtml`<commerce-hub-connect></commerce-hub-connect>`
+      testingHtml`<commerce-hub-connect
+        .interactionResponse=${createStyleInteractionResponse()}
+      ></commerce-hub-connect>`
     )) as CommerceHubConnect;
 
     await el.updateComplete;
@@ -198,7 +222,9 @@ suite('commerce-hub-connect primitives', () => {
 
   test('does not apply box shadows to the SDK shell or buttons', async () => {
     const el = (await fixture(
-      testingHtml`<commerce-hub-connect></commerce-hub-connect>`
+      testingHtml`<commerce-hub-connect
+        .interactionResponse=${createStyleInteractionResponse()}
+      ></commerce-hub-connect>`
     )) as CommerceHubConnect;
 
     await el.updateComplete;
@@ -257,6 +283,7 @@ suite('commerce-hub-connect primitives', () => {
   test('applies partial designConfig color and typography without resizing controls', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
+        .interactionResponse=${createStyleInteractionResponse()}
         .designConfig=${{
           colors: {
             primary: '#0f766e',
@@ -313,6 +340,7 @@ suite('commerce-hub-connect primitives', () => {
 
   test('renders payment sources from an interaction response input', async () => {
     const interactionResponse: InteractionResponse = {
+      features: [...TEST_INTERACTION_FEATURES],
       selectedSource: {
         tenderType: 'Card',
         id: 'card-1',
@@ -480,6 +508,7 @@ suite('commerce-hub-connect primitives', () => {
   test('uses the bank name as the payment-method title when a bank source name is missing', async () => {
     const interactionResponse: InteractionResponse = {
       status: 'PAYMENT_SOURCE_REQUESTED',
+      features: [...TEST_INTERACTION_FEATURES],
       paymentSources: [
         {
           tenderType: 'BankAccount',
@@ -516,6 +545,7 @@ suite('commerce-hub-connect primitives', () => {
   test('uses the bank name as the payment-method title when a bank source name is blank', async () => {
     const interactionResponse: InteractionResponse = {
       status: 'PAYMENT_SOURCE_REQUESTED',
+      features: [...TEST_INTERACTION_FEATURES],
       paymentSources: [
         {
           tenderType: 'BankAccount',

@@ -3368,7 +3368,7 @@
      <details class="api-schema" id="schema-InteractionResponse">
        <summary class="api-schema__summary">
          <span class="api-schema__name">InteractionResponse</span>
-         <span class="api-schema__meta">object · 8 fields</span>
+         <span class="api-schema__meta">object · 9 fields</span>
        </summary>
        <div class="api-schema__body">
          <dl class="api-meta api-meta--stacked">
@@ -3428,7 +3428,7 @@
 
            <div class="api-meta__item">
              <dt class="api-meta__label">Details</dt>
-             <dd class="api-meta__value">OTP_VALIDATION_PENDING, OTP_VALIDATION_FAILED, OTP_VALIDATION_SUCCESS, PAYMENT_SOURCE_ATTACHED, COMPLETE</dd>
+             <dd class="api-meta__value">OTP_VALIDATION_PENDING, OTP_VALIDATION_FAILED, OTP_VALIDATION_SUCCESS, PAYMENT_SOURCE_ATTACHED</dd>
            </div>
 
        </dl>
@@ -3572,6 +3572,34 @@
            <div class="api-meta__item">
              <dt class="api-meta__label">Type</dt>
              <dd class="api-meta__value">array of <a href="#schema-Address">Address</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">features</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">ADD_ACCOUNT, SELECT, TRANSFER; unique items</dd>
            </div>
 
        </dl>
