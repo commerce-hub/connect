@@ -129,13 +129,13 @@ complete the merchant interaction from that event.
 
 The SDK also emits success-only operation events with raw operation results:
 
-| Event | Detail |
-| --- | --- |
-| `onListPaymentMethods` | `PaymentSource[]` from a successful `GET /interaction` refresh. |
-| `onAddPaymentMethod` | Created or finalized `PaymentSource`. |
-| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`. |
-| `onDeletePaymentMethod` | Deleted payment source id. |
-| `onTransfer` | `NativeAccountTransaction` returned by native account transfer. |
+| Event                   | Detail                                                          |
+| ----------------------- | --------------------------------------------------------------- |
+| `onListPaymentMethods`  | `PaymentSource[]` from a successful `GET /interaction` refresh. |
+| `onAddPaymentMethod`    | Created or finalized `PaymentSource`.                           |
+| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`.                            |
+| `onDeletePaymentMethod` | Deleted payment source id.                                      |
+| `onTransfer`            | `NativeAccountTransaction` returned by native account transfer. |
 
 ## Design configuration
 
@@ -167,6 +167,30 @@ widget.designConfig = {
   },
 };
 ```
+
+`designConfig` remains the supported first choice for merchant theming. For
+frameworks or host stylesheets that need additive hooks, the widget exposes
+stable shadow parts: `shell`, `header`, `title`, `content`, `footer`,
+`primary-action`, `alert`, `payment-method-row`, and `provider-frame`.
+
+Supported CSS custom properties are the stable `designConfig` tokens:
+`--chc-primary`, `--chc-text`, `--chc-copy`, `--chc-muted`,
+`--chc-placeholder`, `--chc-surface`, `--chc-widget-background`,
+`--chc-soft-surface`, `--chc-border`, `--chc-border-strong`,
+`--chc-payment-method-background`, `--chc-success`, `--chc-success-bg`,
+`--chc-success-border`, `--chc-danger`, `--chc-danger-bg`,
+`--chc-danger-border`, `--chc-warning`, `--chc-warning-bg`,
+`--chc-warning-border`, `--chc-disabled-text`, `--chc-disabled-surface`,
+`--chc-font-weight`, and `--chc-shell-padding`.
+
+```css
+commerce-hub-connect::part(primary-action) {
+  border-radius: 0.5rem;
+}
+```
+
+Avoid styling internal shadow-DOM classes directly; those class names are not a
+public API.
 
 ## Typed API clients
 

@@ -442,6 +442,41 @@ const DELETE_CONFIRMATION_TIMEOUT_MS = 5000;
  * payment sources are successfully refreshed from the interaction.
  * @fires onTransfer - Emitted with a `NativeAccountTransaction` detail after a
  * native account transfer is successfully initiated.
+ *
+ * @csspart shell - Top-level widget shell.
+ * @csspart header - Screen header row.
+ * @csspart title - Screen title.
+ * @csspart content - Screen content region.
+ * @csspart footer - Powered-by footer.
+ * @csspart primary-action - Primary CTA button.
+ * @csspart alert - Screen-level alert message.
+ * @csspart payment-method-row - Saved or selected payment-method row.
+ * @csspart provider-frame - Pay by Bank provider handoff frame.
+ *
+ * @cssproperty --chc-primary - Primary brand color.
+ * @cssproperty --chc-text - Primary text color.
+ * @cssproperty --chc-copy - Secondary copy color.
+ * @cssproperty --chc-muted - Muted text color.
+ * @cssproperty --chc-placeholder - Form placeholder text color.
+ * @cssproperty --chc-surface - Base surface color.
+ * @cssproperty --chc-widget-background - Widget shell background color.
+ * @cssproperty --chc-soft-surface - Subtle surface background color.
+ * @cssproperty --chc-border - Default border color.
+ * @cssproperty --chc-border-strong - Strong border color.
+ * @cssproperty --chc-payment-method-background - Payment method row background.
+ * @cssproperty --chc-success - Success foreground color.
+ * @cssproperty --chc-success-bg - Success background color.
+ * @cssproperty --chc-success-border - Success border color.
+ * @cssproperty --chc-danger - Danger foreground color.
+ * @cssproperty --chc-danger-bg - Danger background color.
+ * @cssproperty --chc-danger-border - Danger border color.
+ * @cssproperty --chc-warning - Warning foreground color.
+ * @cssproperty --chc-warning-bg - Warning background color.
+ * @cssproperty --chc-warning-border - Warning border color.
+ * @cssproperty --chc-disabled-text - Disabled control text color.
+ * @cssproperty --chc-disabled-surface - Disabled control surface color.
+ * @cssproperty --chc-font-weight - Inherited SDK font weight.
+ * @cssproperty --chc-shell-padding - Widget shell padding.
  */
 @customElement('commerce-hub-connect')
 export class CommerceHubConnect extends LitElement {
