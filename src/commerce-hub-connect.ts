@@ -7,6 +7,8 @@ import {
   resolveCommerceHubBaseURL,
   type CommerceHubBaseURLInput,
 } from './internal/api-client.js';
+import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
+import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
 import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
@@ -35,7 +37,14 @@ import {
 } from './internal/primitives.js';
 import type {
   FlowActionName,
+  InteractionFeature,
+  InteractionResponse,
+  InteractionStatus,
+  NativeAccountBalanceInfo,
+  NativeAccountBalanceMap,
+  NativePaymentSource,
   PaymentMethod,
+  PaymentSource,
   WidgetShellOptions,
 } from './internal/types.js';
 
@@ -53,51 +62,16 @@ export {
 } from './internal/api-client.js';
 export type {components, operations, paths} from './generated/openapi.js';
 export type {
+  InteractionFeature,
+  InteractionOAuth,
+  InteractionResponse,
+  PaymentSource,
+} from './internal/types.js';
+export type {
   components as MerchantComponents,
   operations as MerchantOperations,
   paths as MerchantPaths,
 } from './generated/merchant-openapi.js';
-
-/**
- * CommerceHub interaction payload used to render the current widget state.
- *
- * Host applications usually retrieve this value from a merchant-owned backend
- * endpoint, then assign it to `<commerce-hub-connect>.interactionResponse`.
- */
-type GeneratedInteractionResponse =
-  components['schemas']['InteractionResponse'];
-type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
-type InteractionStatus =
-  | GeneratedInteractionResponse['status']
-  | LegacyInteractionStatus;
-type GeneratedInteractionFeatures = NonNullable<
-  GeneratedInteractionResponse['features']
->;
-export type InteractionFeature = GeneratedInteractionFeatures[number];
-
-/**
- * Gateway-injected OAuth details returned with an interaction response.
- *
- * This field is intentionally modeled outside the generated OpenAPI types
- * because the gateway adds it after the upstream CommerceHub response is
- * produced.
- */
-export interface InteractionOAuth {
-  token_type?: string;
-  issued_at?: string;
-  client_id?: string;
-  access_token?: string;
-  expires_in?: string;
-  status?: string;
-}
-
-export type InteractionResponse = Omit<
-  GeneratedInteractionResponse,
-  'status'
-> & {
-  status?: InteractionStatus;
-  oauth?: InteractionOAuth;
-};
 
 /**
  * Error payload reserved for future public SDK error events.
@@ -107,13 +81,6 @@ export interface InteractionError {
   message: string;
   cause?: unknown;
 }
-
-/**
- * CommerceHub payment source selected or created by the shopper.
- */
-export type PaymentSource = NonNullable<
-  InteractionResponse['paymentSources']
->[number];
 
 /**
  * CommerceHub native account transfer response returned after a transfer is
@@ -230,10 +197,6 @@ type SdkEventName = keyof SdkEventDetailMap & string;
 
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
 type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
-type NativePaymentSource = Extract<
-  PaymentSource,
-  {tenderType: 'NativeAccount'}
->;
 type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
@@ -245,9 +208,6 @@ type BankAccountSourcePayload = Omit<BankPaymentSource, 'tenderType'> & {
 type Address = components['schemas']['Address'];
 type BillingAddressResponse = components['schemas']['StringHolder'];
 type VerificationResponse = components['schemas']['VerificationResponse'];
-type NativeAccountBalanceInfo =
-  components['schemas']['NativeAccountBalanceInfo'];
-type NativeAccountBalanceMap = Record<string, NativeAccountBalanceInfo>;
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
@@ -561,12 +521,6 @@ export class CommerceHubConnect extends LitElement {
   private billingAddressSelectorExpanded = false;
 
   @state()
-  private nativeAccountBalances: NativeAccountBalanceMap = {};
-
-  @state()
-  private nativeBalanceLoadingSourceIds: string[] = [];
-
-  @state()
   private paymentSourceView?: 'list' | 'selected';
 
   @state()
@@ -599,13 +553,8 @@ export class CommerceHubConnect extends LitElement {
 
   private pendingRequiredInfoDocKey?: string;
 
-  private interactionSnapshotInteractionId?: string;
-  private interactionRefreshInteractionId?: string;
-  private interactionRefreshPromise?: Promise<InteractionResponse>;
-  @state()
-  private interactionRefreshErrorMessage?: string;
-  private nativeBalanceFetchKey?: string;
-  private nativeBalanceQueuedFetchKey?: string;
+  private readonly interactionRefresh = new InteractionRefreshController(this);
+  private readonly nativeBalance = new NativeBalanceController(this);
   private minimumVerificationOverlayToken = 0;
 
   protected override willUpdate(changedProperties: PropertyValues<this>) {
@@ -624,14 +573,8 @@ export class CommerceHubConnect extends LitElement {
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
         this.paymentSourceEditMode = false;
-        this.interactionSnapshotInteractionId = undefined;
-        this.interactionRefreshInteractionId = undefined;
-        this.interactionRefreshPromise = undefined;
-        this.interactionRefreshErrorMessage = undefined;
-        this.nativeBalanceFetchKey = undefined;
-        this.nativeBalanceQueuedFetchKey = undefined;
-        this.nativeAccountBalances = {};
-        this.nativeBalanceLoadingSourceIds = [];
+        this.interactionRefresh.reset({requestUpdate: false});
+        this.nativeBalance.reset({requestUpdate: false});
         this.billingAddresses = [];
         this.resetTransferFlow();
         this.resetSavedSourceVerification();
@@ -862,8 +805,8 @@ export class CommerceHubConnect extends LitElement {
     const paymentMethods = paymentMethodsFromInteractionResponse(
       this.interactionResponse,
       {
-        nativeBalances: this.nativeAccountBalances,
-        nativeBalanceLoadingSourceIds: this.nativeBalanceLoadingSourceIds,
+        nativeBalances: this.nativeBalance.balances,
+        nativeBalanceLoadingSourceIds: this.nativeBalance.loadingSourceIds,
       }
     );
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
@@ -998,7 +941,7 @@ export class CommerceHubConnect extends LitElement {
           ${renderAlert({
             variant: 'danger',
             message:
-              this.interactionRefreshErrorMessage ??
+              this.interactionRefresh.errorMessage ??
               "We couldn't load payment methods. Try again.",
           })}
           <div class="primitive-footer">
@@ -1048,8 +991,9 @@ export class CommerceHubConnect extends LitElement {
           ${renderSelectedPaymentMethod(
             paymentSourceToPaymentMethod(selectedSource, {
               selected: true,
-              nativeBalances: this.nativeAccountBalances,
-              nativeBalanceLoadingSourceIds: this.nativeBalanceLoadingSourceIds,
+              nativeBalances: this.nativeBalance.balances,
+              nativeBalanceLoadingSourceIds:
+                this.nativeBalance.loadingSourceIds,
             })
           )}
         </div>
@@ -1069,34 +1013,13 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private shouldRenderPaymentSourceRefreshSkeleton(): boolean {
-    const interactionResponse = this.interactionResponse;
-    const interactionId = interactionResponse?.interactionId;
-
-    if (!interactionId) {
-      return false;
-    }
-
-    if (
-      this.interactionRefreshPromise &&
-      this.interactionRefreshInteractionId === interactionId
-    ) {
-      return true;
-    }
-
-    return (
-      !this.interactionRefreshErrorMessage &&
-      this.shouldRefreshPaymentSourcesFromInteraction()
+    return this.interactionRefresh.shouldRenderSkeleton(
+      this.interactionResponse
     );
   }
 
   private shouldRenderPaymentSourceRefreshError(): boolean {
-    const interactionId = this.interactionResponse?.interactionId;
-
-    return Boolean(
-      interactionId &&
-        this.interactionRefreshErrorMessage &&
-        this.interactionSnapshotInteractionId !== interactionId
-    );
+    return this.interactionRefresh.shouldRenderError(this.interactionResponse);
   }
 
   private renderSavedSourceVerificationOutcomeScreen(): TemplateResult {
@@ -4329,10 +4252,7 @@ export class CommerceHubConnect extends LitElement {
               );
 
             this.setInteractionResponseFromSdk(nextInteractionResponse);
-            this.emitSdkEvent(
-              ON_ADD_PAYMENT_METHOD_EVENT,
-              resolvedBankSource
-            );
+            this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, resolvedBankSource);
             this.resetBankFlow();
 
             if (resolvedBankSource.verificationInfo?.status === 'VERIFIED') {
@@ -4356,195 +4276,35 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async refreshPaymentSourcesFromInteraction() {
-    const interactionId = this.interactionResponse?.interactionId;
-
-    if (!interactionId || !this.shouldRefreshPaymentSourcesFromInteraction()) {
-      return;
-    }
-
-    try {
-      await this.fetchInteraction(interactionId);
-    } catch (cause) {
-      void cause;
-    }
+    await this.interactionRefresh.refreshFromInteraction(
+      this.interactionRefreshOptions()
+    );
   }
 
   private queueNativeAccountBalanceRefresh() {
-    const interactionId = this.interactionResponse?.interactionId;
-    const nativeSources = nativePaymentSourcesFromInteractionResponse(
-      this.interactionResponse
+    this.nativeBalance.queueRefresh(
+      () => this.interactionResponse,
+      (interactionId) => this.fetchNativeAccountBalances(interactionId)
     );
-
-    if (!interactionId || nativeSources.length === 0) {
-      const shouldClearBalanceState =
-        this.nativeBalanceFetchKey !== undefined ||
-        this.nativeBalanceQueuedFetchKey !== undefined ||
-        Object.keys(this.nativeAccountBalances).length > 0 ||
-        this.nativeBalanceLoadingSourceIds.length > 0;
-
-      this.nativeBalanceQueuedFetchKey = undefined;
-
-      if (!shouldClearBalanceState) {
-        return;
-      }
-
-      queueMicrotask(() => {
-        const currentNativeSources =
-          nativePaymentSourcesFromInteractionResponse(this.interactionResponse);
-
-        if (currentNativeSources.length === 0) {
-          this.nativeBalanceFetchKey = undefined;
-          this.nativeAccountBalances = {};
-          this.nativeBalanceLoadingSourceIds = [];
-        }
-      });
-      return;
-    }
-
-    const fetchKey = nativeBalanceFetchKey(interactionId, nativeSources);
-
-    if (
-      this.nativeBalanceFetchKey === fetchKey ||
-      this.nativeBalanceQueuedFetchKey === fetchKey
-    ) {
-      return;
-    }
-
-    this.nativeBalanceQueuedFetchKey = fetchKey;
-
-    queueMicrotask(() => {
-      if (this.nativeBalanceQueuedFetchKey !== fetchKey) {
-        return;
-      }
-
-      this.nativeBalanceQueuedFetchKey = undefined;
-
-      const currentInteractionId = this.interactionResponse?.interactionId;
-      const currentNativeSources = nativePaymentSourcesFromInteractionResponse(
-        this.interactionResponse
-      );
-
-      if (
-        !currentInteractionId ||
-        currentNativeSources.length === 0 ||
-        nativeBalanceFetchKey(currentInteractionId, currentNativeSources) !==
-          fetchKey
-      ) {
-        return;
-      }
-
-      void this.refreshNativeAccountBalances();
-    });
   }
 
-  private async refreshNativeAccountBalances() {
-    const interactionId = this.interactionResponse?.interactionId;
-    const nativeSources = nativePaymentSourcesFromInteractionResponse(
-      this.interactionResponse
+  private async fetchNativeAccountBalances(
+    interactionId: string
+  ): Promise<NativeAccountBalanceMap> {
+    const response = await this.createSdkClient(interactionId).GET(
+      '/interaction/source/native/balances'
     );
 
-    if (!interactionId || nativeSources.length === 0) {
-      this.nativeBalanceFetchKey = undefined;
-      this.nativeBalanceQueuedFetchKey = undefined;
-      this.nativeAccountBalances = {};
-      this.nativeBalanceLoadingSourceIds = [];
-      return;
-    }
-
-    const fetchKey = nativeBalanceFetchKey(interactionId, nativeSources);
-
-    if (this.nativeBalanceFetchKey === fetchKey) {
-      return;
-    }
-
-    this.nativeBalanceFetchKey = fetchKey;
-    this.nativeAccountBalances = {};
-    this.nativeBalanceLoadingSourceIds = nativeSources.map(paymentSourceId);
-
-    try {
-      const response = await this.createSdkClient(interactionId).GET(
-        '/interaction/source/native/balances'
-      );
-
-      if (this.nativeBalanceFetchKey !== fetchKey) {
-        return;
-      }
-
-      this.nativeAccountBalances = response.data ?? {};
-    } catch (cause) {
-      void cause;
-
-      if (this.nativeBalanceFetchKey === fetchKey) {
-        this.nativeAccountBalances = {};
-      }
-    } finally {
-      if (this.nativeBalanceFetchKey === fetchKey) {
-        this.nativeBalanceLoadingSourceIds = [];
-      }
-    }
-  }
-
-  private shouldRefreshPaymentSourcesFromInteraction(): boolean {
-    const interactionResponse = this.interactionResponse;
-    const interactionId = interactionResponse?.interactionId;
-
-    if (!interactionId) {
-      return false;
-    }
-
-    if (this.interactionSnapshotInteractionId === interactionId) {
-      return false;
-    }
-
-    return true;
+    return response.data ?? {};
   }
 
   private async fetchInteraction(
     interactionId: string
   ): Promise<InteractionResponse> {
-    if (
-      this.interactionRefreshInteractionId === interactionId &&
-      this.interactionRefreshPromise
-    ) {
-      return this.interactionRefreshPromise;
-    }
-
-    this.interactionRefreshInteractionId = interactionId;
-    this.interactionRefreshErrorMessage = undefined;
-    this.interactionRefreshPromise = this.createSdkClient(interactionId)
-      .GET('/interaction')
-      .then((response) => interactionResponseFromApi(response))
-      .then((interactionResponse) => {
-        const refreshedInteractionResponse = interactionResponseWithSelection(
-          this.interactionResponse ?? {interactionId},
-          interactionResponse,
-          this.selectedPaymentSourceId
-        );
-
-        this.interactionSnapshotInteractionId = interactionId;
-        this.setInteractionResponseFromSdk(refreshedInteractionResponse);
-        this.emitSdkEvent(
-          ON_LIST_PAYMENT_METHODS_EVENT,
-          refreshedInteractionResponse.paymentSources ?? []
-        );
-
-        return refreshedInteractionResponse;
-      })
-      .catch((cause) => {
-        if (this.interactionSnapshotInteractionId !== interactionId) {
-          this.interactionRefreshErrorMessage =
-            "We couldn't load payment methods. Try again.";
-        }
-
-        throw cause;
-      })
-      .finally(() => {
-        this.interactionRefreshPromise = undefined;
-        this.interactionRefreshInteractionId = undefined;
-        this.requestUpdate();
-      });
-
-    return this.interactionRefreshPromise;
+    return this.interactionRefresh.fetch(
+      interactionId,
+      this.interactionRefreshOptions()
+    );
   }
 
   private async retryInteractionRefresh() {
@@ -4559,6 +4319,22 @@ export class CommerceHubConnect extends LitElement {
     } catch (cause) {
       void cause;
     }
+  }
+
+  private interactionRefreshOptions() {
+    return {
+      getCurrentInteractionResponse: () => this.interactionResponse,
+      getSelectedPaymentSourceId: () => this.selectedPaymentSourceId,
+      requestInteraction: (interactionId: string) =>
+        this.createSdkClient(interactionId)
+          .GET('/interaction')
+          .then((response) => interactionResponseFromApi(response)),
+      mergeInteractionResponse: interactionResponseWithSelection,
+      setInteractionResponse: (interactionResponse: InteractionResponse) =>
+        this.setInteractionResponseFromSdk(interactionResponse),
+      emitListPaymentMethods: (paymentSources: PaymentSource[]) =>
+        this.emitSdkEvent(ON_LIST_PAYMENT_METHODS_EVENT, paymentSources),
+    };
   }
 
   private syncBillingAddressesFromInteractionResponse(
@@ -6173,11 +5949,6 @@ const paymentSourcePaymentMethodType = (
   return 'card';
 };
 
-const nativePaymentSourcesFromInteractionResponse = (
-  interactionResponse?: InteractionResponse
-): NativePaymentSource[] =>
-  (interactionResponse?.paymentSources ?? []).filter(isNativePaymentSource);
-
 const transferPaymentSourcesFromInteractionResponse = (
   interactionResponse?: InteractionResponse
 ): PaymentSource[] =>
@@ -6187,14 +5958,6 @@ const transferPaymentSourcesFromInteractionResponse = (
       source.verificationInfo?.status === 'VERIFIED' &&
       Boolean(paymentSourceId(source))
   );
-
-const nativeBalanceFetchKey = (
-  interactionId: string,
-  sources: NativePaymentSource[]
-): string =>
-  `${interactionId}:${sources
-    .map((source) => nativeAccountBalanceMatchKeys(source).join(','))
-    .join('|')}`;
 
 const nativeAccountBalanceForSource = (
   source: NativePaymentSource,
