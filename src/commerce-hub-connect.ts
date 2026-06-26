@@ -81,20 +81,25 @@ import {
 } from './internal/payment-method-icons.js';
 import {primitiveStyles} from './internal/styles.js';
 import {
+  defaultOtpSubtitle,
+  findOtpInput,
+  renderOtpScreen as renderOtpScreenContent,
+} from './internal/screens/otp-screen.js';
+import {
+  renderNoSavedPaymentMethodsScreen,
+  renderPaymentMethodsScreen as renderPaymentMethodsScreenContent,
+  renderPaymentMethodsSkeletonScreen,
+} from './internal/screens/payment-methods-screen.js';
+import {
   renderAlert,
   renderButton,
   renderDetailList,
   renderEmptyState,
   renderFormGrid,
   renderOutcomeShell,
-  renderOtpGroup,
-  renderOtpResend,
-  renderPaymentMethodRow,
-  renderPaymentMethodSkeletonRows,
   renderProviderFrame,
   renderSelectedPaymentMethod,
   renderSelectField,
-  renderSourceAction,
   renderTextField,
   renderTextLinkButton,
   renderUploadRow,
@@ -102,6 +107,7 @@ import {
   renderWidgetShell,
 } from './internal/primitives.js';
 import type {
+  AllowedTenderOptions,
   BankAccountDraft,
   BankAccountDraftErrors,
   BankAccountEncryptionState,
@@ -115,7 +121,10 @@ import type {
   NativeAccountBalanceInfo,
   NativeAccountBalanceMap,
   NativePaymentSource,
+  NoSavedPaymentMethodsScreenCopy,
+  OtpScreenCopy,
   PaymentMethod,
+  PaymentMethodsScreenCopy,
   PaymentSource,
   RequiredInfoFileNames,
   RequiredInfoFiles,
@@ -291,11 +300,6 @@ type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
 type TransferFlowScreen = 'form' | 'confirm';
-type AllowedTenderOptions = {
-  card: boolean;
-  bankAccount: boolean;
-  nativeAccount: boolean;
-};
 type PaymentSourceToPaymentMethodOptions = {
   selected?: boolean;
   nativeBalances?: NativeAccountBalanceMap;
@@ -756,10 +760,22 @@ export class CommerceHubConnect extends LitElement {
     status: 'OTP_VALIDATION_PENDING' | 'OTP_VALIDATION_FAILED'
   ): TemplateResult {
     const copy = resolveOtpCopy(this.designConfig);
-    const isFailed = status === 'OTP_VALIDATION_FAILED';
     const isSubmitting = this.pendingAction === 'verify-otp';
     const isResending = this.pendingAction === 'resend-otp';
     const destination = resolveOtpDestination(this.interactionResponse);
+    let overlay: TemplateResult | undefined;
+
+    if (isSubmitting) {
+      overlay = renderWidgetLoadingOverlay({
+        title: 'Verifying code',
+        helper: 'Verifying your code, please wait.',
+      });
+    } else if (isResending) {
+      overlay = renderWidgetLoadingOverlay({
+        title: 'Sending code',
+        helper: 'Sending a new code, please wait.',
+      });
+    }
 
     return this.renderWidgetShell({
       title: copy.title,
@@ -767,63 +783,17 @@ export class CommerceHubConnect extends LitElement {
       showClose: false,
       showDivider: false,
       busy: isSubmitting || isResending,
-      overlay: isSubmitting
-        ? renderWidgetLoadingOverlay({
-            title: 'Verifying code',
-            helper: 'Verifying your code, please wait.',
-          })
-        : isResending
-        ? renderWidgetLoadingOverlay({
-            title: 'Sending code',
-            helper: 'Sending a new code, please wait.',
-          })
-        : undefined,
-      content: html`
-        <div class="otp-flow">
-          ${isFailed
-            ? renderAlert({
-                variant: 'danger',
-                message: this.otpErrorMessage ?? copy.failedMessage,
-              })
-            : ''}
-          ${renderOtpGroup({
-            label: 'Verification code',
-            value: this.otpValue,
-            length: OTP_LENGTH,
-            disabled: isSubmitting,
-            error: isFailed,
-          })}
-          <div class="primitive-footer">
-            ${renderButton({
-              label: isSubmitting
-                ? copy.verifyingButton
-                : isFailed
-                ? copy.tryAgainButton
-                : copy.verifyButton,
-              icon: !isSubmitting && !isFailed ? 'check' : undefined,
-              variant: 'primary',
-              action: 'verify-otp',
-              loading: isSubmitting,
-              disabled: isSubmitting || this.otpValue.length < OTP_LENGTH,
-            })}
-          </div>
-          <div class="otp-support">
-            <p class="otp-support-copy otp-resend-prefix">
-              ${copy.resendPrefix}
-            </p>
-            <div class="otp-support-actions">
-              ${renderOtpResend({
-                label: isResending
-                  ? copy.resendPendingButton
-                  : copy.resendButton,
-                action: 'resend-otp',
-                loading: isResending,
-                disabled: isSubmitting || isResending,
-              })}
-            </div>
-          </div>
-        </div>
-      `,
+      overlay,
+      content: renderOtpScreenContent({
+        status,
+        value: this.otpValue,
+        length: OTP_LENGTH,
+        destination,
+        failedMessage: this.otpErrorMessage,
+        copy,
+        submitting: isSubmitting,
+        resending: isResending,
+      }),
     });
   }
 
@@ -847,9 +817,6 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse,
       'SELECT'
     );
-    const hasAddPaymentActions =
-      canAddPaymentSources &&
-      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
     const showTransferAction =
       allowedTenderOptions.bankAccount &&
       isAddSelectTransferFeatureEnabled(this.interactionResponse);
@@ -864,14 +831,7 @@ export class CommerceHubConnect extends LitElement {
       return this.renderWidgetShell({
         title: copy.title,
         showClose: false,
-        content: html`
-          <div class="payment-flow">
-            ${renderPaymentMethodSkeletonRows({
-              count: 3,
-              label: 'Loading payment methods',
-            })}
-          </div>
-        `,
+        content: renderPaymentMethodsSkeletonScreen(),
       });
     }
 
@@ -899,63 +859,20 @@ export class CommerceHubConnect extends LitElement {
       showClose: false,
       busy: isPaymentSourceActionPending,
       overlay: paymentSourceActionLoadingOverlay(this.pendingAction),
-      content: html`
-        <div class="payment-flow">
-          <div class="primitive-stack" aria-label="Payment methods">
-            ${paymentMethods.map((method) =>
-              renderPaymentMethodRow(
-                {
-                  ...method,
-                  disabled: method.disabled || isPaymentSourceActionPending,
-                },
-                {
-                  variant: isEditingPaymentSources ? 'edit' : 'default',
-                  deleteDisabled: isPaymentSourceActionPending,
-                  confirmingDelete:
-                    method.id === this.deleteConfirmationPaymentSourceId,
-                  selected: method.id === this.selectedPaymentSourceId,
-                  selectable: canSelectPaymentSources,
-                }
-              )
-            )}
-          </div>
-          ${isEditingPaymentSources
-            ? ''
-            : !hasAddPaymentActions
-            ? ''
-            : html`
-                <div class="payment-action-links">
-                  ${allowedTenderOptions.card
-                    ? renderSourceAction({
-                        label: copy.addCardTitle,
-                        action: 'add-card',
-                        icon: 'card',
-                        variant: 'link',
-                        disabled: isPaymentSourceActionPending,
-                      })
-                    : ''}
-                  ${allowedTenderOptions.bankAccount
-                    ? renderSourceAction({
-                        label: copy.addBankAccountTitle,
-                        action: 'add-bank-account',
-                        icon: 'bank',
-                        variant: 'link',
-                        disabled: isPaymentSourceActionPending,
-                      })
-                    : ''}
-                  ${showTransferAction
-                    ? renderSourceAction({
-                        label: 'Transfer funds',
-                        action: 'open-transfer',
-                        icon: 'transfer',
-                        variant: 'link',
-                        disabled: isPaymentSourceActionPending,
-                      })
-                    : ''}
-                </div>
-              `}
-        </div>
-      `,
+      content: renderPaymentMethodsScreenContent({
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        methods: paymentMethods,
+        allowedTenderOptions,
+        canAddPaymentSources,
+        canSelectPaymentSources,
+        editing: isEditingPaymentSources,
+        actionPending: isPaymentSourceActionPending,
+        selectedPaymentSourceId: this.selectedPaymentSourceId,
+        deleteConfirmationPaymentSourceId:
+          this.deleteConfirmationPaymentSourceId,
+        copy,
+        showTransferAction,
+      }),
     });
   }
 
@@ -1204,7 +1121,6 @@ export class CommerceHubConnect extends LitElement {
 
   private renderNoSavedPaymentMethods(): TemplateResult {
     const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
-    const showHelperCopy = Boolean(copy.emptyTitle || copy.emptyMessage);
     const isDeletePending = this.pendingAction === 'delete-payment-source';
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
@@ -1213,9 +1129,6 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse,
       'ADD_ACCOUNT'
     );
-    const hasAddPaymentActions =
-      canAddPaymentSources &&
-      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
     const showTransferAction =
       allowedTenderOptions.bankAccount &&
       isAddSelectTransferFeatureEnabled(this.interactionResponse);
@@ -1225,51 +1138,13 @@ export class CommerceHubConnect extends LitElement {
       subtitle: copy.subtitle,
       showClose: false,
       showDivider: false,
-      content: html`
-        <div class="payment-flow">
-          ${showHelperCopy
-            ? renderEmptyState({
-                title: copy.emptyTitle,
-                message: copy.emptyMessage,
-              })
-            : ''}
-          ${hasAddPaymentActions
-            ? html`
-                <div class="payment-action-links">
-                  ${allowedTenderOptions.card
-                    ? renderSourceAction({
-                        label: copy.addCardTitle,
-                        subtitle: copy.addCardSubtitle,
-                        action: 'add-card',
-                        icon: 'card',
-                        variant: 'link',
-                        disabled: isDeletePending,
-                      })
-                    : ''}
-                  ${allowedTenderOptions.bankAccount
-                    ? renderSourceAction({
-                        label: copy.addBankAccountTitle,
-                        subtitle: copy.addBankAccountSubtitle,
-                        action: 'add-bank-account',
-                        icon: 'bank',
-                        variant: 'link',
-                        disabled: isDeletePending,
-                      })
-                    : ''}
-                  ${showTransferAction
-                    ? renderSourceAction({
-                        label: 'Transfer funds',
-                        action: 'open-transfer',
-                        icon: 'transfer',
-                        variant: 'link',
-                        disabled: isDeletePending,
-                      })
-                    : ''}
-                </div>
-              `
-            : ''}
-        </div>
-      `,
+      content: renderNoSavedPaymentMethodsScreen({
+        allowedTenderOptions,
+        canAddPaymentSources,
+        deletePending: isDeletePending,
+        copy,
+        showTransferAction,
+      }),
     });
   }
 
@@ -4678,47 +4553,9 @@ export interface DesignConfigNoSavedPaymentMethodsCopy {
   addCardSubtitle?: string;
 }
 
-interface ResolvedOtpCopy {
-  title: string;
-  subtitle?: string;
-  failedMessage: string;
-  resendPrefix: string;
-  resendButton: string;
-  resendPendingButton: string;
-  verifyButton: string;
-  verifyingButton: string;
-  tryAgainButton: string;
-}
-
-interface ResolvedPaymentMethodsCopy {
-  title: string;
-  subtitle: string;
-  addBankAccountTitle: string;
-  addBankAccountSubtitle: string;
-  addCardTitle: string;
-  addCardSubtitle: string;
-  continueButton: string;
-  continuingButton: string;
-}
-
-interface ResolvedNoSavedPaymentMethodsCopy {
-  title: string;
-  subtitle: string;
-  emptyTitle: string;
-  emptyMessage: string;
-  addBankAccountTitle: string;
-  addBankAccountSubtitle: string;
-  addCardTitle: string;
-  addCardSubtitle: string;
-}
-
-const findOtpInput = (event: Event): HTMLInputElement | undefined =>
-  event
-    .composedPath()
-    .find(
-      (item): item is HTMLInputElement =>
-        item instanceof HTMLInputElement && item.classList.contains('otp-input')
-    );
+type ResolvedOtpCopy = OtpScreenCopy;
+type ResolvedPaymentMethodsCopy = PaymentMethodsScreenCopy;
+type ResolvedNoSavedPaymentMethodsCopy = NoSavedPaymentMethodsScreenCopy;
 
 const findRequiredInfoSsnInput = (event: Event): HTMLInputElement | undefined =>
   event
@@ -4807,9 +4644,6 @@ const verificationInfoFromVerificationResponse = (
 
   return verificationInfo;
 };
-
-const defaultOtpSubtitle = (destination?: string): string =>
-  `We sent a one-time code to ${destination ?? 'your contact method'}.`;
 
 const resolveOtpDestination = (
   interactionResponse?: InteractionResponse
