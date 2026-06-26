@@ -916,10 +916,7 @@ suite('demo host page', () => {
       HTMLElement & {baseURL?: string}
     >('commerce-hub-connect');
 
-    assert.equal(
-      connectWidget?.baseURL,
-      `${pageWindow.location.origin}/__commercehub/DEV`
-    );
+    assert.equal(connectWidget?.baseURL, 'DEV');
 
     iframe.remove();
   });
