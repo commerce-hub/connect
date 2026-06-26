@@ -70,7 +70,10 @@ type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
 type InteractionStatus =
   | GeneratedInteractionResponse['status']
   | LegacyInteractionStatus;
-export type InteractionFeature = 'ADD_ACCOUNT' | 'SELECT' | 'TRANSFER';
+type GeneratedInteractionFeatures = NonNullable<
+  GeneratedInteractionResponse['features']
+>;
+export type InteractionFeature = GeneratedInteractionFeatures[number];
 
 /**
  * Gateway-injected OAuth details returned with an interaction response.
@@ -94,7 +97,6 @@ export type InteractionResponse = Omit<
 > & {
   status?: InteractionStatus;
   oauth?: InteractionOAuth;
-  features?: InteractionFeature[];
 };
 
 /**
@@ -330,11 +332,6 @@ const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NEW_BILLING_ADDRESS_VALUE = '__new__';
 const PAYMENT_SELECTION_READY_STATUS = 'OTP_VALIDATION_SUCCESS' as const;
 const LEGACY_PAYMENT_SELECTION_READY_STATUS = 'PAYMENT_SOURCE_REQUESTED';
-const DEFAULT_INTERACTION_FEATURES = [
-  'ADD_ACCOUNT',
-  'SELECT',
-  'TRANSFER',
-] satisfies InteractionFeature[];
 const TRANSFER_CURRENCY = 'USD';
 const BILLING_COUNTRY_OPTIONS = [
   {value: '', label: 'Select country or region'},
@@ -835,8 +832,17 @@ export class CommerceHubConnect extends LitElement {
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
     );
+    const canAddPaymentSources = isInteractionFeatureEnabled(
+      this.interactionResponse,
+      'ADD_ACCOUNT'
+    );
+    const canSelectPaymentSources = isInteractionFeatureEnabled(
+      this.interactionResponse,
+      'SELECT'
+    );
     const hasAddPaymentActions =
-      allowedTenderOptions.card || allowedTenderOptions.bankAccount;
+      canAddPaymentSources &&
+      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
     const showTransferAction =
       allowedTenderOptions.bankAccount &&
       isAddSelectTransferFeatureEnabled(this.interactionResponse);
@@ -901,6 +907,7 @@ export class CommerceHubConnect extends LitElement {
                   confirmingDelete:
                     method.id === this.deleteConfirmationPaymentSourceId,
                   selected: method.id === this.selectedPaymentSourceId,
+                  selectable: canSelectPaymentSources,
                 }
               )
             )}
@@ -1215,8 +1222,13 @@ export class CommerceHubConnect extends LitElement {
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
     );
+    const canAddPaymentSources = isInteractionFeatureEnabled(
+      this.interactionResponse,
+      'ADD_ACCOUNT'
+    );
     const hasAddPaymentActions =
-      allowedTenderOptions.card || allowedTenderOptions.bankAccount;
+      canAddPaymentSources &&
+      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
     const showTransferAction =
       allowedTenderOptions.bankAccount &&
       isAddSelectTransferFeatureEnabled(this.interactionResponse);
@@ -4695,9 +4707,8 @@ export class CommerceHubConnect extends LitElement {
   private setInteractionResponseFromSdk(
     interactionResponse: InteractionResponse
   ) {
-    this.interactionResponse = interactionResponseWithDefaultFeatures(
-      this.interactionResponseWithPreservedGatewayOAuth(interactionResponse)
-    );
+    this.interactionResponse =
+      this.interactionResponseWithPreservedGatewayOAuth(interactionResponse);
   }
 
   private interactionResponseWithPreservedGatewayOAuth(
@@ -6236,34 +6247,36 @@ const isPaymentSelectionReadyStatus = (status?: InteractionStatus): boolean =>
   status === PAYMENT_SELECTION_READY_STATUS ||
   status === LEGACY_PAYMENT_SELECTION_READY_STATUS;
 
+const isInteractionFeatureEnabled = (
+  interactionResponse: InteractionResponse | undefined,
+  feature: InteractionFeature
+): boolean => Boolean(interactionResponse?.features?.includes(feature));
+
+const areInteractionFeaturesEnabled = (
+  interactionResponse: InteractionResponse | undefined,
+  features: InteractionFeature[]
+): boolean =>
+  features.every((feature) =>
+    isInteractionFeatureEnabled(interactionResponse, feature)
+  );
+
 const isTransferOnlyFeatureEnabled = (
   interactionResponse?: InteractionResponse
 ): boolean =>
   Boolean(
-    interactionResponse &&
-      interactionResponse.features?.includes('TRANSFER') &&
-      !interactionResponse.features.includes('ADD_ACCOUNT') &&
-      !interactionResponse.features.includes('SELECT')
+    isInteractionFeatureEnabled(interactionResponse, 'TRANSFER') &&
+      !isInteractionFeatureEnabled(interactionResponse, 'ADD_ACCOUNT') &&
+      !isInteractionFeatureEnabled(interactionResponse, 'SELECT')
   );
 
 const isAddSelectTransferFeatureEnabled = (
   interactionResponse?: InteractionResponse
 ): boolean =>
-  Boolean(
-    interactionResponse?.features?.includes('ADD_ACCOUNT') &&
-      interactionResponse.features.includes('SELECT') &&
-      interactionResponse.features.includes('TRANSFER')
-  );
-
-const interactionResponseWithDefaultFeatures = (
-  interactionResponse: InteractionResponse
-): InteractionResponse =>
-  interactionResponse.features
-    ? interactionResponse
-    : {
-        ...interactionResponse,
-        features: [...DEFAULT_INTERACTION_FEATURES],
-      };
+  areInteractionFeaturesEnabled(interactionResponse, [
+    'ADD_ACCOUNT',
+    'SELECT',
+    'TRANSFER',
+  ]);
 
 const interactionResponseWithSelection = (
   current: InteractionResponse,

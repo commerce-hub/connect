@@ -531,11 +531,13 @@ export const renderPaymentMethodRow = (
     deleteDisabled = false,
     confirmingDelete = false,
     selected = false,
+    selectable = true,
   }: {
     variant?: 'default' | 'edit';
     deleteDisabled?: boolean;
     confirmingDelete?: boolean;
     selected?: boolean;
+    selectable?: boolean;
   } = {}
 ): TemplateResult => {
   const method: PaymentMethod = {
@@ -579,7 +581,7 @@ export const renderPaymentMethodRow = (
     `;
   }
 
-  if (isPaymentMethodRowClickable(method)) {
+  if (selectable && isPaymentMethodRowClickable(method)) {
     return html`
       <button
         class=${joinClassNames(
