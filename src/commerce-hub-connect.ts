@@ -200,6 +200,34 @@ export const ON_TRANSFER_EVENT = 'onTransfer';
  */
 export const ON_ERROR_EVENT = 'onError';
 
+/**
+ * Detail payloads for public SDK events emitted by `<commerce-hub-connect>`.
+ */
+interface SdkEventDetailMap {
+  [ON_SELECT_EVENT]: PaymentSource;
+  [ON_ADD_PAYMENT_METHOD_EVENT]: PaymentSource;
+  [ON_VERIFY_PAYMENT_METHOD_EVENT]: PaymentSource;
+  [ON_DELETE_PAYMENT_METHOD_EVENT]: string;
+  [ON_LIST_PAYMENT_METHODS_EVENT]: PaymentSource[];
+  [ON_TRANSFER_EVENT]: NativeAccountTransaction;
+  [ON_ERROR_EVENT]: InteractionError;
+}
+
+/**
+ * Public SDK event names mapped to their typed `CustomEvent` instances.
+ */
+interface SdkEventMap {
+  [ON_SELECT_EVENT]: OnSelectEvent;
+  [ON_ADD_PAYMENT_METHOD_EVENT]: OnAddPaymentMethodEvent;
+  [ON_VERIFY_PAYMENT_METHOD_EVENT]: OnVerifyPaymentMethodEvent;
+  [ON_DELETE_PAYMENT_METHOD_EVENT]: OnDeletePaymentMethodEvent;
+  [ON_LIST_PAYMENT_METHODS_EVENT]: OnListPaymentMethodsEvent;
+  [ON_TRANSFER_EVENT]: OnTransferEvent;
+  [ON_ERROR_EVENT]: OnErrorEvent;
+}
+
+type SdkEventName = keyof SdkEventDetailMap & string;
+
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
 type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
 type NativePaymentSource = Extract<
@@ -669,8 +697,17 @@ export class CommerceHubConnect extends LitElement {
     destroyPaymentSdk();
   }
 
-  private emitSdkEvent<T>(name: string, detail: T) {
-    this.dispatchEvent(new CustomEvent<T>(name, {detail}));
+  private emitSdkEvent<Name extends SdkEventName>(
+    name: Name,
+    detail: SdkEventDetailMap[Name]
+  ) {
+    // Host-emitted public SDK events intentionally preserve the current
+    // non-bubbling, non-composed semantics. Future internal subcomponent
+    // events that need to reach this host across shadow DOM should use
+    // bubbles: true and composed: true instead of this public SDK helper.
+    this.dispatchEvent(
+      new CustomEvent<SdkEventDetailMap[Name]>(name, {detail})
+    );
   }
 
   private renderWidgetShell({
@@ -3606,9 +3643,7 @@ export class CommerceHubConnect extends LitElement {
       this.selectedPaymentSourceId = attachedSource.id;
       this.setInteractionResponseFromSdk(refreshedInteractionResponse);
       this.paymentSourceView = 'selected';
-      this.dispatchEvent(
-        new CustomEvent(ON_SELECT_EVENT, {detail: attachedSource})
-      );
+      this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
     } catch (cause) {
       void cause;
     } finally {
@@ -7105,15 +7140,7 @@ declare global {
     };
   }
 
-  interface HTMLElementEventMap {
-    [ON_SELECT_EVENT]: OnSelectEvent;
-    [ON_ADD_PAYMENT_METHOD_EVENT]: OnAddPaymentMethodEvent;
-    [ON_VERIFY_PAYMENT_METHOD_EVENT]: OnVerifyPaymentMethodEvent;
-    [ON_DELETE_PAYMENT_METHOD_EVENT]: OnDeletePaymentMethodEvent;
-    [ON_LIST_PAYMENT_METHODS_EVENT]: OnListPaymentMethodsEvent;
-    [ON_TRANSFER_EVENT]: OnTransferEvent;
-    [ON_ERROR_EVENT]: OnErrorEvent;
-  }
+  interface HTMLElementEventMap extends SdkEventMap {}
 
   interface HTMLElementTagNameMap {
     'commerce-hub-connect': CommerceHubConnect;
