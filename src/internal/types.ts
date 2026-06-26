@@ -97,6 +97,82 @@ export interface OtpFormState {
   errorMessage?: string;
 }
 
+export type CardDraft = {
+  name: string;
+  fullName: string;
+  cardNumber: string;
+  expirationDate: string;
+  cvv: string;
+  billingAddressValue: string;
+  country: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+
+export type BankAccountDraft = {
+  name: string;
+  routingNumber: string;
+  accountNumber: string;
+  accountNumberReEntered: string;
+};
+
+export type SensitiveCardField = 'cardNumber' | 'cvv';
+
+export type SensitiveBankAccountField =
+  | 'routingNumber'
+  | 'accountNumber'
+  | 'accountNumberReEntered';
+
+export type CardEncryptionStatus =
+  | 'idle'
+  | 'dirty'
+  | 'encrypting'
+  | 'encrypted'
+  | 'failed';
+
+export type CardFieldEncryptionState = {
+  status: CardEncryptionStatus;
+  normalizedValue: string;
+  encryptedValue?: string;
+};
+
+export type CardEncryptionState = Record<
+  SensitiveCardField,
+  CardFieldEncryptionState
+>;
+
+export type BankAccountEncryptionState = Record<
+  SensitiveBankAccountField,
+  CardFieldEncryptionState
+>;
+
+export type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
+
+export type BankAccountDraftErrors = Partial<
+  Record<keyof BankAccountDraft, string>
+>;
+
+export type TransferDraft = {
+  fromSourceId: string;
+  toSourceId: string;
+  amount: string;
+};
+
+export type TransferDraftErrors = Partial<Record<keyof TransferDraft, string>>;
+
+export type TransferSource = {
+  id?: string;
+};
+
+export type RequiredInfoValues = Record<string, string>;
+
+export type RequiredInfoFiles = Record<string, File>;
+
+export type RequiredInfoFileNames = Record<string, string>;
+
 export interface OtpScreenModel {
   status: Extract<
     InteractionFlowStatus,

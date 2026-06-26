@@ -10,6 +10,72 @@ import {
 import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
 import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
 import {
+  bankAccountFieldLastFour,
+  bankAccountInputType,
+  buildBankAccountEncryptionErrorMessage,
+  createBankAccountDraft,
+  createBankAccountEncryptionState,
+  isBankAccountDraftReady,
+  isEncryptedBankAccountDisplayValue,
+  isSensitiveBankAccountField,
+  maskSensitiveDisplayValue,
+  normalizeBankAccountDraftForDisplay,
+  normalizeBankAccountDraftForValidation,
+  normalizeBankAccountNumber,
+  omitBankAccountDraftError,
+  resolveBankAccountPayloadFieldValue,
+  resolveBankAccountSourceName,
+  updateBankAccountDraftFieldState,
+  validateBankAccountDraft,
+} from './internal/forms/bank-account-form-state.js';
+import {
+  NEW_BILLING_ADDRESS_VALUE,
+  billingAddressFromCardDraft,
+  buildCardEncryptionErrorMessage,
+  createCardDraft,
+  createCardEncryptionFieldState,
+  createCardEncryptionState,
+  detectCardNetwork,
+  formatCardDraftFieldValue,
+  isCardDraftReady,
+  isSensitiveCardField,
+  normalizeCardDraft,
+  normalizeCardNumber,
+  normalizeSensitiveCardFieldValue,
+  omitCardDraftError,
+  parseExpirationDate,
+  reconcileCardDraftBillingAddress,
+  resolveDirtyCardEncryptionState,
+  resolveEncryptedCardFieldValue,
+  validateCardDraft,
+  validateCardEncryptionReadiness,
+  validateSensitiveCardField,
+} from './internal/forms/card-form-state.js';
+import {
+  OTP_LENGTH,
+  normalizeOtpValue,
+  sanitizeOtpValue,
+  writeOtpDigits,
+} from './internal/forms/otp-form-state.js';
+import {
+  REQUIRED_INFO_SSN_SEGMENT_LENGTHS,
+  hasRequiredInfoFile,
+  hasRequiredInfoTextValue,
+  normalizeRequiredInfoSsn,
+  requiredInfoSsnSegmentMaxLength,
+  requiredInfoSsnSegments,
+  storeRequiredInfoFile,
+  storeRequiredInfoValue,
+} from './internal/forms/required-info-form-state.js';
+import {
+  TRANSFER_CURRENCY,
+  createTransferDraft,
+  formatTransferAmountForReview,
+  isTransferDraftReady,
+  normalizeTransferDraft,
+  validateTransferDraft,
+} from './internal/forms/transfer-form-state.js';
+import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from './internal/payment-method-icons.js';
@@ -36,6 +102,12 @@ import {
   renderWidgetShell,
 } from './internal/primitives.js';
 import type {
+  BankAccountDraft,
+  BankAccountDraftErrors,
+  BankAccountEncryptionState,
+  CardDraft,
+  CardDraftErrors,
+  CardEncryptionState,
   FlowActionName,
   InteractionFeature,
   InteractionResponse,
@@ -45,6 +117,13 @@ import type {
   NativePaymentSource,
   PaymentMethod,
   PaymentSource,
+  RequiredInfoFileNames,
+  RequiredInfoFiles,
+  RequiredInfoValues,
+  SensitiveBankAccountField,
+  SensitiveCardField,
+  TransferDraft,
+  TransferDraftErrors,
   WidgetShellOptions,
 } from './internal/types.js';
 
@@ -211,55 +290,6 @@ type VerificationResponse = components['schemas']['VerificationResponse'];
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
-type CardDraft = {
-  name: string;
-  fullName: string;
-  cardNumber: string;
-  expirationDate: string;
-  cvv: string;
-  billingAddressValue: string;
-  country: string;
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  state: string;
-  zip: string;
-};
-type BankAccountDraft = {
-  name: string;
-  routingNumber: string;
-  accountNumber: string;
-  accountNumberReEntered: string;
-};
-type SensitiveCardField = 'cardNumber' | 'cvv';
-type SensitiveBankAccountField =
-  | 'routingNumber'
-  | 'accountNumber'
-  | 'accountNumberReEntered';
-type CardEncryptionStatus =
-  | 'idle'
-  | 'dirty'
-  | 'encrypting'
-  | 'encrypted'
-  | 'failed';
-type CardFieldEncryptionState = {
-  status: CardEncryptionStatus;
-  normalizedValue: string;
-  encryptedValue?: string;
-};
-type CardEncryptionState = Record<SensitiveCardField, CardFieldEncryptionState>;
-type BankAccountEncryptionState = Record<
-  SensitiveBankAccountField,
-  CardFieldEncryptionState
->;
-type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
-type BankAccountDraftErrors = Partial<Record<keyof BankAccountDraft, string>>;
-type TransferDraft = {
-  fromSourceId: string;
-  toSourceId: string;
-  amount: string;
-};
-type TransferDraftErrors = Partial<Record<keyof TransferDraft, string>>;
 type TransferFlowScreen = 'form' | 'confirm';
 type AllowedTenderOptions = {
   card: boolean;
@@ -314,13 +344,10 @@ type PaymentSdkAppearanceBranding = Partial<{
   borderRadius: string;
 }>;
 
-const OTP_LENGTH = 6;
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
-const NEW_BILLING_ADDRESS_VALUE = '__new__';
 const PAYMENT_SELECTION_READY_STATUS = 'OTP_VALIDATION_SUCCESS' as const;
 const LEGACY_PAYMENT_SELECTION_READY_STATUS = 'PAYMENT_SOURCE_REQUESTED';
-const TRANSFER_CURRENCY = 'USD';
 const BILLING_COUNTRY_OPTIONS = [
   {value: '', label: 'Select country or region'},
   {value: 'US', label: 'United States'},
@@ -541,15 +568,15 @@ export class CommerceHubConnect extends LitElement {
   private requiredInfoSource?: PaymentSource;
 
   @state()
-  private requiredInfoValues: Record<string, string> = {};
+  private requiredInfoValues: RequiredInfoValues = {};
 
   @state()
-  private requiredInfoFileNames: Record<string, string> = {};
+  private requiredInfoFileNames: RequiredInfoFileNames = {};
 
   @state()
   private requiredInfoSubmitError?: string;
 
-  private requiredInfoFiles: Record<string, File> = {};
+  private requiredInfoFiles: RequiredInfoFiles = {};
 
   private pendingRequiredInfoDocKey?: string;
 
@@ -2478,7 +2505,9 @@ export class CommerceHubConnect extends LitElement {
 
     const inputs = this.getRequiredInfoSsnInputs(key);
     const inputIndex = inputs.indexOf(input);
-    const segmentLength = requiredInfoSsnInputMaxLength(input);
+    const segmentLength = requiredInfoSsnSegmentMaxLength(
+      Number(input.dataset.requiredInfoSsnSegment)
+    );
     const digits = normalizeRequiredInfoSsn(input.value);
 
     if (inputIndex < 0) {
@@ -2559,7 +2588,9 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      const length = requiredInfoSsnInputMaxLength(input);
+      const length = requiredInfoSsnSegmentMaxLength(
+        Number(input.dataset.requiredInfoSsnSegment)
+      );
       const value = digits.slice(cursor, cursor + length);
       input.value = value;
 
@@ -2588,10 +2619,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private syncOtpValueFromInputs(inputs = this.getOtpInputs()) {
-    this.otpValue = inputs
-      .map((item) => item.value)
-      .join('')
-      .slice(0, OTP_LENGTH);
+    this.otpValue = normalizeOtpValue(inputs.map((item) => item.value));
     this.otpErrorMessage = undefined;
   }
 
@@ -2600,25 +2628,17 @@ export class CommerceHubConnect extends LitElement {
     startIndex: number,
     value: string
   ): number {
-    const digits = sanitizeOtpValue(value);
-    let lastWrittenIndex = startIndex;
+    const result = writeOtpDigits({
+      values: inputs.map((input) => input.value),
+      startIndex,
+      value,
+    });
 
-    digits
-      .slice(0, Math.max(inputs.length - startIndex, 0))
-      .split('')
-      .forEach((digit, offset) => {
-        const targetIndex = startIndex + offset;
-        const targetInput = inputs[targetIndex];
+    result.values.forEach((nextValue, index) => {
+      inputs[index].value = nextValue;
+    });
 
-        if (!targetInput) {
-          return;
-        }
-
-        targetInput.value = digit;
-        lastWrittenIndex = targetIndex;
-      });
-
-    return lastWrittenIndex;
+    return result.lastWrittenIndex;
   }
 
   private focusOtpInput(
@@ -2696,60 +2716,17 @@ export class CommerceHubConnect extends LitElement {
     field: keyof BankAccountDraft,
     value: string
   ) {
-    if (
-      isSensitiveBankAccountField(field) &&
-      isEncryptedBankAccountDisplayValue(
-        value,
-        this.bankAccountEncryption[field]
-      )
-    ) {
-      const nextDraft = {
-        ...this.bankAccountDraft,
-        [field]: value,
-      };
+    const nextState = updateBankAccountDraftFieldState({
+      draft: this.bankAccountDraft,
+      errors: this.bankAccountDraftErrors,
+      encryption: this.bankAccountEncryption,
+      field,
+      value,
+    });
 
-      this.bankAccountDraft = nextDraft;
-      this.bankAccountDraftErrors = validateBankAccountDraft(
-        normalizeBankAccountDraftForValidation(
-          nextDraft,
-          this.bankAccountEncryption
-        )
-      );
-      this.bankAccountSubmitError = undefined;
-      return;
-    }
-
-    const formattedValue = formatBankAccountDraftFieldValue(field, value);
-    const nextDraft = {
-      ...this.bankAccountDraft,
-      [field]: formattedValue,
-    };
-    let nextEncryption = this.bankAccountEncryption;
-
-    if (isSensitiveBankAccountField(field)) {
-      if (
-        isEncryptedBankAccountDisplayValue(
-          formattedValue,
-          this.bankAccountEncryption[field]
-        )
-      ) {
-        return;
-      }
-
-      nextEncryption = {
-        ...this.bankAccountEncryption,
-        [field]: resolveDirtyCardEncryptionState(
-          this.bankAccountEncryption[field],
-          normalizeBankAccountNumber(formattedValue)
-        ),
-      };
-    }
-
-    this.bankAccountDraft = nextDraft;
-    this.bankAccountEncryption = nextEncryption;
-    this.bankAccountDraftErrors = validateBankAccountDraft(
-      normalizeBankAccountDraftForValidation(nextDraft, nextEncryption)
-    );
+    this.bankAccountDraft = nextState.draft;
+    this.bankAccountEncryption = nextState.encryption;
+    this.bankAccountDraftErrors = nextState.errors;
     this.bankAccountSubmitError = undefined;
   }
 
@@ -3845,10 +3822,11 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private storeRequiredInfoValue(key: string, value: string) {
-    this.requiredInfoValues = {
-      ...this.requiredInfoValues,
-      [key]: value,
-    };
+    this.requiredInfoValues = storeRequiredInfoValue(
+      this.requiredInfoValues,
+      key,
+      value
+    );
     this.requiredInfoSubmitError = undefined;
   }
 
@@ -3863,14 +3841,15 @@ export class CommerceHubConnect extends LitElement {
     const key =
       this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
 
-    this.requiredInfoFiles = {
-      ...this.requiredInfoFiles,
-      [key]: file,
-    };
-    this.requiredInfoFileNames = {
-      ...this.requiredInfoFileNames,
-      [key]: file.name,
-    };
+    const nextState = storeRequiredInfoFile({
+      files: this.requiredInfoFiles,
+      fileNames: this.requiredInfoFileNames,
+      key,
+      file,
+    });
+
+    this.requiredInfoFiles = nextState.files;
+    this.requiredInfoFileNames = nextState.fileNames;
     this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
   }
@@ -3886,10 +3865,10 @@ export class CommerceHubConnect extends LitElement {
       const key = requiredInfoDocKey(doc, index);
 
       if (isRequiredInfoTextDoc(doc)) {
-        return Boolean(this.requiredInfoValues[key]?.trim());
+        return hasRequiredInfoTextValue(this.requiredInfoValues, key);
       }
 
-      return Boolean(this.requiredInfoFiles[key]);
+      return hasRequiredInfoFile(this.requiredInfoFiles, key);
     });
   }
 
@@ -4022,10 +4001,10 @@ export class CommerceHubConnect extends LitElement {
     const key = requiredInfoDocKey(doc, index);
 
     if (isRequiredInfoTextDoc(doc)) {
-      return Boolean(this.requiredInfoValues[key]?.trim());
+      return hasRequiredInfoTextValue(this.requiredInfoValues, key);
     }
 
-    return Boolean(this.requiredInfoFiles[key]);
+    return hasRequiredInfoFile(this.requiredInfoFiles, key);
   }
 
   private async uploadRequiredInfoEntries(
@@ -4733,52 +4712,6 @@ interface ResolvedNoSavedPaymentMethodsCopy {
   addCardSubtitle: string;
 }
 
-const createCardDraft = (): CardDraft => ({
-  name: '',
-  fullName: '',
-  cardNumber: '',
-  expirationDate: '',
-  cvv: '',
-  billingAddressValue: NEW_BILLING_ADDRESS_VALUE,
-  country: '',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  state: '',
-  zip: '',
-});
-
-const createBankAccountDraft = (): BankAccountDraft => ({
-  name: '',
-  routingNumber: '',
-  accountNumber: '',
-  accountNumberReEntered: '',
-});
-
-const createTransferDraft = (): TransferDraft => ({
-  fromSourceId: '',
-  toSourceId: '',
-  amount: '',
-});
-
-const createCardEncryptionFieldState = (): CardFieldEncryptionState => ({
-  status: 'idle',
-  normalizedValue: '',
-});
-
-const createCardEncryptionState = (): CardEncryptionState => ({
-  cardNumber: createCardEncryptionFieldState(),
-  cvv: createCardEncryptionFieldState(),
-});
-
-const createBankAccountEncryptionState = (): BankAccountEncryptionState => ({
-  routingNumber: createCardEncryptionFieldState(),
-  accountNumber: createCardEncryptionFieldState(),
-  accountNumberReEntered: createCardEncryptionFieldState(),
-});
-
-const sanitizeOtpValue = (value: string): string => value.replace(/\D/g, '');
-
 const findOtpInput = (event: Event): HTMLInputElement | undefined =>
   event
     .composedPath()
@@ -4796,685 +4729,6 @@ const findRequiredInfoSsnInput = (event: Event): HTMLInputElement | undefined =>
         item.classList.contains('required-info-ssn-input')
     );
 
-const normalizeRequiredInfoSsn = (value: string): string =>
-  value.replace(/\D/g, '').slice(0, 9);
-
-const requiredInfoSsnSegments = (value: string): [string, string, string] => {
-  const digits = normalizeRequiredInfoSsn(value);
-
-  return [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5, 9)];
-};
-
-const requiredInfoSsnInputMaxLength = (input: HTMLInputElement): number => {
-  const segmentIndex = Number(input.dataset.requiredInfoSsnSegment);
-
-  return REQUIRED_INFO_SSN_SEGMENT_LENGTHS[segmentIndex] ?? 0;
-};
-
-const isSensitiveCardField = (field?: string): field is SensitiveCardField =>
-  field === 'cardNumber' || field === 'cvv';
-
-const isSensitiveBankAccountField = (
-  field?: string
-): field is SensitiveBankAccountField =>
-  field === 'routingNumber' ||
-  field === 'accountNumber' ||
-  field === 'accountNumberReEntered';
-
-const normalizeCardNumber = (value: string): string => value.replace(/\D/g, '');
-
-const formatCardDraftFieldValue = (
-  field: keyof CardDraft,
-  value: string
-): string => {
-  if (field === 'cardNumber') {
-    return formatCardNumberForDisplay(value);
-  }
-
-  if (field === 'expirationDate') {
-    return formatExpirationDateForDisplay(value);
-  }
-
-  if (field === 'cvv') {
-    return normalizeCvv(value).slice(0, 4);
-  }
-
-  return value;
-};
-
-const formatCardNumberForDisplay = (value: string): string => {
-  const digits = normalizeCardNumber(value).slice(0, 19);
-
-  return formatDigitsByGroups(digits, resolveCardNumberGroupPattern(digits));
-};
-
-const resolveCardNumberGroupPattern = (digits: string): number[] => {
-  if (/^3[47]/.test(digits)) {
-    return [4, 6, 5];
-  }
-
-  if (/^3(?:0[0-5]|[68])/.test(digits)) {
-    return [4, 6, 4];
-  }
-
-  return [4, 4, 4, 4, 3];
-};
-
-const formatDigitsByGroups = (digits: string, groups: number[]): string => {
-  const parts: string[] = [];
-  let offset = 0;
-
-  for (const size of groups) {
-    if (offset >= digits.length) {
-      break;
-    }
-
-    parts.push(digits.slice(offset, offset + size));
-    offset += size;
-  }
-
-  if (offset < digits.length) {
-    parts.push(digits.slice(offset));
-  }
-
-  return parts.join(' ');
-};
-
-const normalizeCvv = (value: string): string => value.replace(/\D/g, '');
-
-const formatExpirationDateForDisplay = (value: string): string => {
-  const digits = value.replace(/\D/g, '').slice(0, 6);
-
-  if (digits.length <= 2) {
-    return digits.length === 2 ? `${digits} / ` : digits;
-  }
-
-  return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
-};
-
-const normalizeSensitiveCardFieldValue = (
-  field: SensitiveCardField,
-  value: string
-): string =>
-  field === 'cardNumber' ? normalizeCardNumber(value) : normalizeCvv(value);
-
-const normalizeCardDraft = (draft: CardDraft): CardDraft => ({
-  name: draft.name.trim(),
-  fullName: draft.fullName.trim(),
-  cardNumber: draft.cardNumber.trim(),
-  expirationDate: draft.expirationDate.trim(),
-  cvv: draft.cvv.trim(),
-  billingAddressValue:
-    draft.billingAddressValue.trim() || NEW_BILLING_ADDRESS_VALUE,
-  country: draft.country.trim(),
-  addressLine1: draft.addressLine1.trim(),
-  addressLine2: draft.addressLine2.trim(),
-  city: draft.city.trim(),
-  state: draft.state.trim(),
-  zip: draft.zip.trim(),
-});
-
-const normalizeBankAccountNumber = (value: string): string =>
-  value.replace(/\D/g, '');
-
-const isEncryptedBankAccountDisplayValue = (
-  value: string,
-  encryptedField: CardFieldEncryptionState
-): boolean =>
-  encryptedField.status === 'encrypted' &&
-  Boolean(encryptedField.normalizedValue) &&
-  value === maskSensitiveDisplayValue(encryptedField.normalizedValue);
-
-const maskSensitiveDisplayValue = (value: string): string => {
-  if (value.length <= 4) {
-    return value;
-  }
-
-  return `${'•'.repeat(value.length - 4)}${lastFour(value)}`;
-};
-
-const bankAccountInputType = (
-  field: SensitiveBankAccountField,
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): 'password' | 'text' => {
-  if (field === 'routingNumber') {
-    return 'text';
-  }
-
-  return isEncryptedBankAccountDisplayValue(draft[field], encryption[field])
-    ? 'text'
-    : 'password';
-};
-
-const formatBankAccountDraftFieldValue = (
-  field: keyof BankAccountDraft,
-  value: string
-): string => {
-  if (field === 'routingNumber') {
-    return normalizeBankAccountNumber(value).slice(0, 9);
-  }
-
-  if (field === 'accountNumber' || field === 'accountNumberReEntered') {
-    return normalizeBankAccountNumber(value).slice(0, 17);
-  }
-
-  return value;
-};
-
-const normalizeBankAccountDraftForValidation = (
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): BankAccountDraft => ({
-  name: draft.name.trim(),
-  routingNumber: normalizeBankAccountDraftFieldForValidation(
-    'routingNumber',
-    draft,
-    encryption
-  ),
-  accountNumber: normalizeBankAccountDraftFieldForValidation(
-    'accountNumber',
-    draft,
-    encryption
-  ),
-  accountNumberReEntered: normalizeBankAccountDraftFieldForValidation(
-    'accountNumberReEntered',
-    draft,
-    encryption
-  ),
-});
-
-const normalizeBankAccountDraftFieldForValidation = (
-  field: SensitiveBankAccountField,
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): string => {
-  const value = draft[field];
-  const encryptedField = encryption[field];
-
-  if (isEncryptedBankAccountDisplayValue(value, encryptedField)) {
-    return encryptedField.normalizedValue;
-  }
-
-  return normalizeBankAccountNumber(value);
-};
-
-const normalizeBankAccountDraftForDisplay = (
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): BankAccountDraft => ({
-  name: draft.name,
-  routingNumber: normalizeBankAccountDraftFieldForDisplay(
-    'routingNumber',
-    draft,
-    encryption
-  ),
-  accountNumber: normalizeBankAccountDraftFieldForDisplay(
-    'accountNumber',
-    draft,
-    encryption
-  ),
-  accountNumberReEntered: normalizeBankAccountDraftFieldForDisplay(
-    'accountNumberReEntered',
-    draft,
-    encryption
-  ),
-});
-
-const normalizeBankAccountDraftFieldForDisplay = (
-  field: SensitiveBankAccountField,
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): string => {
-  const value = draft[field];
-
-  return isEncryptedBankAccountDisplayValue(value, encryption[field])
-    ? value
-    : normalizeBankAccountNumber(value);
-};
-
-const validateBankAccountDraft = (
-  draft: BankAccountDraft
-): BankAccountDraftErrors => {
-  const errors: BankAccountDraftErrors = {};
-  const routingNumber = normalizeBankAccountNumber(draft.routingNumber);
-  const accountNumber = normalizeBankAccountNumber(draft.accountNumber);
-  const accountNumberReEntered = normalizeBankAccountNumber(
-    draft.accountNumberReEntered
-  );
-
-  if (!routingNumber) {
-    errors.routingNumber = 'Enter a routing number.';
-  } else if (routingNumber.length !== 9) {
-    errors.routingNumber = 'Enter a 9-digit routing number.';
-  }
-
-  if (!accountNumber) {
-    errors.accountNumber = 'Enter an account number.';
-  }
-
-  if (!accountNumberReEntered) {
-    errors.accountNumberReEntered = 'Confirm the account number.';
-  } else if (accountNumber && accountNumberReEntered !== accountNumber) {
-    errors.accountNumberReEntered = 'Account numbers must match.';
-  }
-
-  return errors;
-};
-
-const isBankAccountDraftReady = (
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): boolean => {
-  const normalizedDraft = normalizeBankAccountDraftForValidation(
-    draft,
-    encryption
-  );
-
-  return (
-    Object.keys(validateBankAccountDraft(normalizedDraft)).length === 0 &&
-    (
-      ['routingNumber', 'accountNumber', 'accountNumberReEntered'] as const
-    ).every((field) => {
-      const encryptedField = encryption[field];
-      const normalizedValue = normalizedDraft[field];
-
-      return (
-        encryptedField.status === 'encrypted' &&
-        encryptedField.normalizedValue === normalizedValue &&
-        Boolean(encryptedField.encryptedValue)
-      );
-    })
-  );
-};
-
-const normalizeTransferDraft = (draft: TransferDraft): TransferDraft => ({
-  fromSourceId: draft.fromSourceId.trim(),
-  toSourceId: draft.toSourceId.trim(),
-  amount: draft.amount.trim(),
-});
-
-const validateTransferDraft = (
-  draft: TransferDraft,
-  sources: PaymentSource[]
-): TransferDraftErrors => {
-  const errors: TransferDraftErrors = {};
-  const sourceIds = new Set(sources.map(paymentSourceId));
-  const amount = Number(draft.amount);
-
-  if (!draft.fromSourceId) {
-    errors.fromSourceId = 'Select a source account.';
-  } else if (!sourceIds.has(draft.fromSourceId)) {
-    errors.fromSourceId = 'Select a verified bank or native account.';
-  }
-
-  if (!draft.toSourceId) {
-    errors.toSourceId = 'Select a destination account.';
-  } else if (!sourceIds.has(draft.toSourceId)) {
-    errors.toSourceId = 'Select a verified bank or native account.';
-  } else if (draft.toSourceId === draft.fromSourceId) {
-    errors.toSourceId = 'Select a different destination account.';
-  }
-
-  if (!draft.amount) {
-    errors.amount = 'Enter an amount.';
-  } else if (!Number.isFinite(amount) || amount <= 0) {
-    errors.amount = 'Enter an amount greater than zero.';
-  }
-
-  return errors;
-};
-
-const isTransferDraftReady = (
-  draft: TransferDraft,
-  sources: PaymentSource[]
-): boolean =>
-  Object.keys(validateTransferDraft(normalizeTransferDraft(draft), sources))
-    .length === 0;
-
-const formatTransferAmountForReview = (draft: TransferDraft): string =>
-  `${Number(draft.amount).toFixed(2)} ${TRANSFER_CURRENCY}`;
-
-const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
-  const errors: CardDraftErrors = {};
-
-  if (!draft.name) {
-    errors.name = 'Enter a card name.';
-  }
-
-  if (!draft.fullName) {
-    errors.fullName = 'Enter the full name.';
-  }
-
-  if (!isValidCardNumber(draft.cardNumber)) {
-    errors.cardNumber = 'Enter a valid card number.';
-  }
-
-  if (!parseExpirationDate(draft.expirationDate)) {
-    errors.expirationDate = 'Enter a valid expiration date.';
-  }
-
-  if (!isValidCvv(draft.cvv)) {
-    errors.cvv = 'Enter a valid CVC.';
-  }
-
-  if (!draft.billingAddressValue) {
-    errors.billingAddressValue = 'Select a billing address.';
-  }
-
-  if (draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE) {
-    if (!draft.country) {
-      errors.country = 'Select a country or region.';
-    }
-
-    if (!draft.addressLine1) {
-      errors.addressLine1 = 'Enter an address.';
-    }
-
-    if (!draft.city) {
-      errors.city = 'Enter a city.';
-    }
-
-    if (!draft.state) {
-      errors.state = 'Select a state.';
-    }
-
-    if (!/^\d{5}(?:-\d{4})?$/.test(draft.zip)) {
-      errors.zip = 'Enter a valid ZIP code.';
-    }
-  }
-
-  return errors;
-};
-
-const isCardDraftReady = (
-  draft: CardDraft,
-  encryption: CardEncryptionState
-): boolean =>
-  Object.keys(validateCardDraft(normalizeCardDraft(draft))).length === 0 &&
-  Object.keys(validateCardEncryptionReadiness(draft, encryption)).length === 0;
-
-const validateSensitiveCardField = (
-  field: SensitiveCardField,
-  value: string
-): string | undefined => {
-  if (field === 'cardNumber') {
-    return isValidCardNumber(value) ? undefined : 'Enter a valid card number.';
-  }
-
-  return isValidCvv(value) ? undefined : 'Enter a valid CVC.';
-};
-
-const buildCardEncryptionErrorMessage = (field: SensitiveCardField): string =>
-  field === 'cardNumber'
-    ? 'Unable to encrypt the card number. Try again.'
-    : 'Unable to encrypt the CVC. Try again.';
-
-const buildBankAccountEncryptionErrorMessage = (
-  field: SensitiveBankAccountField
-): string =>
-  field === 'routingNumber'
-    ? 'Unable to encrypt the routing number. Try again.'
-    : 'Unable to encrypt the account number. Try again.';
-
-const resolveDirtyCardEncryptionState = (
-  previous: CardFieldEncryptionState,
-  normalizedValue: string
-): CardFieldEncryptionState => {
-  if (!normalizedValue) {
-    return createCardEncryptionFieldState();
-  }
-
-  if (
-    previous.normalizedValue === normalizedValue &&
-    (previous.status === 'encrypting' || previous.status === 'encrypted')
-  ) {
-    return previous;
-  }
-
-  return {
-    status: 'dirty',
-    normalizedValue,
-  };
-};
-
-const omitCardDraftError = (
-  errors: CardDraftErrors,
-  field: keyof CardDraft
-): CardDraftErrors => {
-  const nextErrors = {...errors};
-
-  delete nextErrors[field];
-
-  return nextErrors;
-};
-
-const omitBankAccountDraftError = (
-  errors: BankAccountDraftErrors,
-  field: keyof BankAccountDraft
-): BankAccountDraftErrors => {
-  const nextErrors = {...errors};
-
-  delete nextErrors[field];
-
-  return nextErrors;
-};
-
-const validateCardEncryptionReadiness = (
-  draft: CardDraft,
-  encryption: CardEncryptionState
-): CardDraftErrors => {
-  const errors: CardDraftErrors = {};
-
-  for (const field of ['cardNumber', 'cvv'] as const) {
-    const normalizedValue = normalizeSensitiveCardFieldValue(
-      field,
-      draft[field]
-    );
-    const encryptedField = encryption[field];
-
-    if (!normalizedValue) {
-      continue;
-    }
-
-    const isEncrypted =
-      encryptedField.status === 'encrypted' &&
-      encryptedField.normalizedValue === normalizedValue &&
-      Boolean(encryptedField.encryptedValue);
-
-    if (!isEncrypted) {
-      errors[field] =
-        encryptedField.status === 'failed'
-          ? buildCardEncryptionErrorMessage(field)
-          : field === 'cardNumber'
-          ? 'Encrypt the card number before saving.'
-          : 'Encrypt the CVC before saving.';
-    }
-  }
-
-  return errors;
-};
-
-const resolveEncryptedCardFieldValue = (
-  field: SensitiveCardField,
-  value: string,
-  encryption: CardEncryptionState
-): string => {
-  const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
-  const encryptedField = encryption[field];
-
-  if (
-    encryptedField.status !== 'encrypted' ||
-    encryptedField.normalizedValue !== normalizedValue ||
-    !encryptedField.encryptedValue
-  ) {
-    throw new Error(
-      field === 'cardNumber'
-        ? 'Card number encryption must complete before saving.'
-        : 'CVC encryption must complete before saving.'
-    );
-  }
-
-  return encryptedField.encryptedValue;
-};
-
-const resolveBankAccountPayloadFieldValue = (
-  field: SensitiveBankAccountField,
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): string => {
-  const value = draft[field];
-  const normalizedValue = normalizeBankAccountNumber(value);
-  const encryptedField = encryption[field];
-  const matchesEncryptedValue =
-    isEncryptedBankAccountDisplayValue(value, encryptedField) ||
-    normalizedValue === encryptedField.normalizedValue;
-
-  if (
-    encryptedField.status === 'encrypted' &&
-    encryptedField.encryptedValue &&
-    matchesEncryptedValue
-  ) {
-    return encryptedField.encryptedValue;
-  }
-
-  if (!normalizedValue) {
-    return '';
-  }
-
-  throw new Error('ACH detail encryption must complete before saving.');
-};
-
-const bankAccountFieldLastFour = (
-  field: SensitiveBankAccountField,
-  encryption: BankAccountEncryptionState,
-  draft: BankAccountDraft
-): string => lastFour(encryption[field].normalizedValue || draft[field]);
-
-const resolveBankAccountSourceName = (
-  name: string,
-  displayAccountNumber: string
-): string => name.trim() || `Bank Account xxxxxx${displayAccountNumber}`;
-
-const isValidCardNumber = (value: string): boolean => {
-  const digits = normalizeCardNumber(value);
-
-  if (digits.length < 12 || digits.length > 19) {
-    return false;
-  }
-
-  let sum = 0;
-  let shouldDouble = false;
-
-  for (let index = digits.length - 1; index >= 0; index -= 1) {
-    let digit = Number(digits[index]);
-
-    if (shouldDouble) {
-      digit *= 2;
-
-      if (digit > 9) {
-        digit -= 9;
-      }
-    }
-
-    sum += digit;
-    shouldDouble = !shouldDouble;
-  }
-
-  return sum % 10 === 0;
-};
-
-const isValidCvv = (value: string): boolean =>
-  /^\d{3,4}$/.test(normalizeCvv(value));
-
-const parseExpirationDate = (
-  value: string
-): {month: string; year: string} | undefined => {
-  const digits = value.replace(/\D/g, '');
-  const month = digits.slice(0, 2);
-  const yearDigits = digits.slice(2);
-  const monthNumber = Number(month);
-
-  if (month.length !== 2 || monthNumber < 1 || monthNumber > 12) {
-    return undefined;
-  }
-
-  if (yearDigits.length === 2) {
-    return {month, year: `20${yearDigits}`};
-  }
-
-  if (yearDigits.length === 4) {
-    return {month, year: yearDigits};
-  }
-
-  return undefined;
-};
-
-const detectCardNetwork = (
-  value: string
-): NonNullable<CardPaymentSource['card']>['network'] | undefined => {
-  const digits = normalizeCardNumber(value);
-
-  if (/^4/.test(digits)) {
-    return 'Visa';
-  }
-
-  if (/^(5[1-5]|2[2-7])/.test(digits)) {
-    return 'Mastercard';
-  }
-
-  if (/^3[47]/.test(digits)) {
-    return 'AmericanExpress';
-  }
-
-  if (/^(6011|65|64[4-9])/.test(digits)) {
-    return 'Discover';
-  }
-
-  return undefined;
-};
-
-const reconcileCardDraftBillingAddress = (
-  draft: CardDraft,
-  billingAddresses: Address[]
-): CardDraft => {
-  const savedAddressIds = billingAddresses
-    .map((address) => address.id?.trim())
-    .filter((addressId): addressId is string => Boolean(addressId));
-
-  if (!savedAddressIds.length) {
-    return {
-      ...draft,
-      billingAddressValue: NEW_BILLING_ADDRESS_VALUE,
-    };
-  }
-
-  if (savedAddressIds.includes(draft.billingAddressValue)) {
-    return draft;
-  }
-
-  const hasNewBillingAddressInput = [
-    draft.country,
-    draft.addressLine1,
-    draft.addressLine2,
-    draft.city,
-    draft.state,
-    draft.zip,
-  ].some((value) => value.trim());
-
-  if (
-    draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE &&
-    hasNewBillingAddressInput
-  ) {
-    return draft;
-  }
-
-  return {
-    ...draft,
-    billingAddressValue: savedAddressIds[0],
-  };
-};
-
 const billingAddressLabel = (address: Address): string => {
   const stateZip = [address.stateOrProvince, address.postalCode]
     .filter(Boolean)
@@ -5483,27 +4737,6 @@ const billingAddressLabel = (address: Address): string => {
   const label = [address.street, cityStateZip].filter(Boolean).join(', ');
 
   return label || address.id || 'Saved billing address';
-};
-
-const billingAddressFromCardDraft = (draft: CardDraft): Address => ({
-  id: createLocalBillingAddressId(),
-  recipientNameOrAddress: draft.fullName,
-  country: draft.country,
-  street: draft.addressLine1,
-  houseNumberOrName: draft.addressLine2 || undefined,
-  city: draft.city,
-  stateOrProvince: draft.state,
-  postalCode: draft.zip,
-});
-
-let billingAddressIdCounter = 0;
-
-const createLocalBillingAddressId = (): string => {
-  billingAddressIdCounter += 1;
-
-  return `billing-address-${Date.now().toString(
-    36
-  )}-${billingAddressIdCounter.toString(36)}`;
 };
 
 const cardPaymentSourceFromPayload = (
@@ -6472,7 +5705,6 @@ type RequiredInfoDoc = NonNullable<
 >[number];
 type RequiredInfoTextInputType = 'text' | 'password';
 type RequiredInfoTextInputMode = 'text' | 'numeric';
-const REQUIRED_INFO_SSN_SEGMENT_LENGTHS = [3, 2, 4] as const;
 
 const requiredInfoDocs = (source?: PaymentSource): RequiredInfoDoc[] => {
   const docs = source?.verificationInfo?.docs ?? [];
