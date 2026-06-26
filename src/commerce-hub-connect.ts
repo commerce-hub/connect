@@ -70,7 +70,10 @@ type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
 type InteractionStatus =
   | GeneratedInteractionResponse['status']
   | LegacyInteractionStatus;
-export type InteractionFeature = 'ADD_ACCOUNT' | 'SELECT' | 'TRANSFER';
+type GeneratedInteractionFeatures = NonNullable<
+  GeneratedInteractionResponse['features']
+>;
+export type InteractionFeature = GeneratedInteractionFeatures[number];
 
 /**
  * Gateway-injected OAuth details returned with an interaction response.
@@ -94,7 +97,6 @@ export type InteractionResponse = Omit<
 > & {
   status?: InteractionStatus;
   oauth?: InteractionOAuth;
-  features?: InteractionFeature[];
 };
 
 /**
