@@ -95,16 +95,26 @@ Use property assignment for complex values such as `interactionResponse` and
 
 ```ts
 import 'commerce-hub-connect-sdk';
-import type {InteractionResponse} from 'commerce-hub-connect-sdk';
+import type {DesignConfig, InteractionResponse} from 'commerce-hub-connect-sdk';
 
 const interactionResponse: InteractionResponse = await fetch(
   '/api/commercehub/interaction'
 ).then((response) => response.json());
 
+const designConfig: DesignConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+  },
+};
+
 const widget = document.querySelector('commerce-hub-connect');
 
 if (widget) {
   widget.interactionResponse = interactionResponse;
+  widget.designConfig = designConfig;
   widget.baseURL = 'QA';
 }
 ```
@@ -122,6 +132,10 @@ widget.interactionResponse = interactionResponse;
 widget.designConfig = designConfig;
 ```
 
+Do not serialize object-valued SDK inputs into markup. HTML attributes can only
+carry strings, so `interactionResponse` and `designConfig` must be assigned as
+properties in plain JavaScript, Lit, React, Angular, or any other framework.
+
 ## Plain JavaScript Example
 
 ```ts
@@ -131,6 +145,14 @@ const host = document.querySelector('#commerce-hub-widget-host');
 const widget = document.createElement('commerce-hub-connect');
 
 widget.baseURL = 'QA';
+widget.designConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+  },
+};
 widget.interactionResponse = await fetch('/api/commercehub/interaction', {
   method: 'POST',
   headers: {'Content-Type': 'application/json'},
@@ -167,19 +189,31 @@ host?.replaceChildren(widget);
 
 ```ts
 import {html, LitElement} from 'lit';
+import {customElement, property} from 'lit/decorators.js';
 import 'commerce-hub-connect-sdk';
 import type {
+  CommerceHubBaseURLInput,
+  DesignConfig,
   InteractionResponse,
   OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
+@customElement('checkout-payment')
 class CheckoutPayment extends LitElement {
+  @property({attribute: false})
   interactionResponse?: InteractionResponse;
+
+  @property({attribute: false})
+  designConfig?: DesignConfig;
+
+  @property({attribute: 'base-url'})
+  baseURL: CommerceHubBaseURLInput = 'QA';
 
   render() {
     return html`<commerce-hub-connect
       .interactionResponse=${this.interactionResponse}
-      .baseURL=${'QA'}
+      .designConfig=${this.designConfig}
+      .baseURL=${this.baseURL}
       @onSelect=${this.handleSelect}
     ></commerce-hub-connect>`;
   }
@@ -203,6 +237,146 @@ class CheckoutPayment extends LitElement {
   }
 }
 ```
+
+## React Example
+
+```tsx
+import {useEffect, useRef} from 'react';
+import type {DetailedHTMLProps, HTMLAttributes} from 'react';
+import 'commerce-hub-connect-sdk';
+import type {
+  CommerceHubBaseURLInput,
+  CommerceHubConnect,
+  DesignConfig,
+  InteractionResponse,
+  OnSelectEvent,
+} from 'commerce-hub-connect-sdk';
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'commerce-hub-connect': DetailedHTMLProps<
+        HTMLAttributes<CommerceHubConnect>,
+        CommerceHubConnect
+      >;
+    }
+  }
+}
+
+const baseUrl: CommerceHubBaseURLInput = 'QA';
+
+interface CheckoutPaymentProps {
+  interactionResponse: InteractionResponse;
+  designConfig?: DesignConfig;
+  onPaymentSourceComplete?: (result: {
+    selectedPaymentSourceId: string;
+    completedPaymentSourceId?: string;
+  }) => void;
+}
+
+export function CheckoutPayment({
+  interactionResponse,
+  designConfig,
+  onPaymentSourceComplete,
+}: CheckoutPaymentProps) {
+  const widgetRef = useRef<CommerceHubConnect | null>(null);
+
+  useEffect(() => {
+    const widget = widgetRef.current;
+
+    if (!widget) {
+      return;
+    }
+
+    widget.baseURL = baseUrl;
+    widget.interactionResponse = interactionResponse;
+    widget.designConfig = designConfig;
+  }, [designConfig, interactionResponse]);
+
+  useEffect(() => {
+    const widget = widgetRef.current;
+
+    if (!widget) {
+      return;
+    }
+
+    const handleSelect = async (event: Event) => {
+      const {detail: paymentSource} = event as OnSelectEvent;
+      const completedPaymentSource = await fetch(
+        `/api/commercehub/interaction/${encodeURIComponent(
+          interactionResponse.interactionId ?? ''
+        )}/complete`,
+        {method: 'GET'}
+      ).then((response) => response.json());
+
+      onPaymentSourceComplete?.({
+        selectedPaymentSourceId: paymentSource.id,
+        completedPaymentSourceId: completedPaymentSource.id,
+      });
+    };
+
+    widget.addEventListener('onSelect', handleSelect);
+
+    return () => widget.removeEventListener('onSelect', handleSelect);
+  }, [interactionResponse, onPaymentSourceComplete]);
+
+  return <commerce-hub-connect ref={widgetRef}></commerce-hub-connect>;
+}
+```
+
+React hosts should keep property assignment through a ref and event
+subscription through `addEventListener`. Keep the merchant completion call
+host-owned after `onSelect`.
+
+## Angular Example
+
+```ts
+import {Component, CUSTOM_ELEMENTS_SCHEMA, input} from '@angular/core';
+import 'commerce-hub-connect-sdk';
+import type {
+  CommerceHubBaseURLInput,
+  DesignConfig,
+  InteractionResponse,
+  OnSelectEvent,
+} from 'commerce-hub-connect-sdk';
+
+@Component({
+  selector: 'app-checkout-payment',
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  template: `
+    <commerce-hub-connect
+      [baseURL]="baseUrl"
+      [interactionResponse]="interactionResponse()"
+      [designConfig]="designConfig()"
+      (onSelect)="handleSelect($event)"
+    ></commerce-hub-connect>
+  `,
+})
+export class CheckoutPaymentComponent {
+  readonly interactionResponse = input.required<InteractionResponse>();
+  readonly designConfig = input<DesignConfig>();
+  readonly baseUrl: CommerceHubBaseURLInput = 'QA';
+  selectedPaymentSourceId?: string;
+  completedPaymentSourceId?: string;
+
+  async handleSelect(event: Event) {
+    const {detail: paymentSource} = event as OnSelectEvent;
+    const completedPaymentSource = await fetch(
+      `/api/commercehub/interaction/${encodeURIComponent(
+        this.interactionResponse().interactionId ?? ''
+      )}/complete`,
+      {method: 'GET'}
+    ).then((response) => response.json());
+
+    this.selectedPaymentSourceId = paymentSource.id;
+    this.completedPaymentSourceId = completedPaymentSource.id;
+  }
+}
+```
+
+Angular hosts should keep `CUSTOM_ELEMENTS_SCHEMA` and use property bindings
+for object-valued SDK inputs. Keep the merchant completion call host-owned after
+`onSelect`.
 
 ## SDK-Managed Requests
 
@@ -275,13 +449,13 @@ completion response is a `PaymentSource`, not an `InteractionResponse`.
 The SDK also emits success-only operation events for host telemetry or local UI
 state. These events use raw operation results in `event.detail`:
 
-| Event | Detail |
-| --- | --- |
-| `onListPaymentMethods` | `PaymentSource[]` from a successful `GET /interaction` refresh. |
-| `onAddPaymentMethod` | Created or finalized `PaymentSource`. |
-| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`. |
-| `onDeletePaymentMethod` | Deleted payment source id. |
-| `onTransfer` | `NativeAccountTransaction` returned by native account transfer. |
+| Event                   | Detail                                                          |
+| ----------------------- | --------------------------------------------------------------- |
+| `onListPaymentMethods`  | `PaymentSource[]` from a successful `GET /interaction` refresh. |
+| `onAddPaymentMethod`    | Created or finalized `PaymentSource`.                           |
+| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`.                            |
+| `onDeletePaymentMethod` | Deleted payment source id.                                      |
+| `onTransfer`            | `NativeAccountTransaction` returned by native account transfer. |
 
 The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
@@ -362,14 +536,14 @@ if (widget) {
 
 ### Event
 
-| Event | Detail | Description |
-| --- | --- | --- |
-| `onSelect` | `PaymentSource` | Emitted after a verified payment source is attached or selected by the SDK-managed widget. |
-| `onListPaymentMethods` | `PaymentSource[]` | Emitted after payment sources are refreshed from `GET /interaction`. |
-| `onAddPaymentMethod` | `PaymentSource` | Emitted after the SDK creates or finalizes a payment source. |
-| `onVerifyPaymentMethod` | `PaymentSource` | Emitted after the SDK verifies or updates a payment source. |
-| `onDeletePaymentMethod` | `string` | Emitted with the deleted payment source id. |
-| `onTransfer` | `NativeAccountTransaction` | Emitted after a native account transfer is initiated. |
+| Event                   | Detail                     | Description                                                                                |
+| ----------------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
+| `onSelect`              | `PaymentSource`            | Emitted after a verified payment source is attached or selected by the SDK-managed widget. |
+| `onListPaymentMethods`  | `PaymentSource[]`          | Emitted after payment sources are refreshed from `GET /interaction`.                       |
+| `onAddPaymentMethod`    | `PaymentSource`            | Emitted after the SDK creates or finalizes a payment source.                               |
+| `onVerifyPaymentMethod` | `PaymentSource`            | Emitted after the SDK verifies or updates a payment source.                                |
+| `onDeletePaymentMethod` | `string`                   | Emitted with the deleted payment source id.                                                |
+| `onTransfer`            | `NativeAccountTransaction` | Emitted after a native account transfer is initiated.                                      |
 
 ## Exported Types and Helpers
 

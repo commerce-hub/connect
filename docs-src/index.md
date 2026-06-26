@@ -29,6 +29,11 @@ merchant interaction with
 `GET /merchant/interaction/{interactionId}/complete`; the widget does not call
 that endpoint internally.
 
+Assign `interactionResponse` and `designConfig` as DOM properties in every
+framework. Do not pass object-valued SDK inputs as HTML attributes; attributes
+can only carry strings. The `base-url` attribute is available only for the
+string `baseURL` value.
+
 For SDK-managed operations before completion, the widget also emits success-only
 events: `onListPaymentMethods`, `onAddPaymentMethod`,
 `onVerifyPaymentMethod`, `onDeletePaymentMethod`, and `onTransfer`.
@@ -49,6 +54,14 @@ if (widget) {
   widget.interactionResponse = await fetch('/api/commercehub/interaction').then(
     (response) => response.json()
   );
+  widget.designConfig = {
+    colors: {
+      primary: '#084acc',
+      text: '#101828',
+      border: '#cbd5e1',
+      widgetBackground: '#ffffff',
+    },
+  };
   widget.baseURL = 'QA';
   widget.addEventListener('onSelect', async (event) => {
     const selectedPaymentSource = event.detail;

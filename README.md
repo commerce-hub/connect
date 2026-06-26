@@ -56,6 +56,7 @@ request. The SDK owns the browser widget once the host passes an
 ```ts
 import 'commerce-hub-connect-sdk';
 import type {
+  DesignConfig,
   InteractionResponse,
   OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
@@ -64,10 +65,20 @@ const interactionResponse: InteractionResponse = await fetch(
   '/api/commercehub/interaction'
 ).then((response) => response.json());
 
+const designConfig: DesignConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+  },
+};
+
 const widget = document.querySelector('commerce-hub-connect');
 
 if (widget) {
   widget.interactionResponse = interactionResponse;
+  widget.designConfig = designConfig;
   widget.baseURL = 'QA';
   widget.addEventListener('onSelect', async (event: Event) => {
     const {detail: paymentSource} = event as OnSelectEvent;
@@ -85,6 +96,11 @@ if (widget) {
   });
 }
 ```
+
+Assign object-valued SDK inputs such as `.interactionResponse` and
+`.designConfig` as DOM properties. Do not pass them as HTML attributes, because
+attributes can only carry strings. The `base-url` attribute is available only
+for the string `.baseURL` value.
 
 ## SDK-managed requests
 
@@ -191,6 +207,67 @@ commerce-hub-connect::part(primary-action) {
 
 Avoid styling internal shadow-DOM classes directly; those class names are not a
 public API.
+
+## Framework integration
+
+`<commerce-hub-connect>` is the only public custom element. Lit hosts should use
+property bindings:
+
+```ts
+html`<commerce-hub-connect
+  .interactionResponse=${interactionResponse}
+  .designConfig=${designConfig}
+  .baseURL=${'QA'}
+  @onSelect=${handleSelect}
+></commerce-hub-connect>`;
+```
+
+React hosts should assign SDK properties through a ref and subscribe with
+`addEventListener`, because React attributes are string-oriented for custom
+elements:
+
+```tsx
+useEffect(() => {
+  const widget = widgetRef.current;
+
+  if (!widget) {
+    return;
+  }
+
+  widget.interactionResponse = interactionResponse;
+  widget.designConfig = designConfig;
+  widget.baseURL = 'QA';
+}, [designConfig, interactionResponse]);
+
+useEffect(() => {
+  const widget = widgetRef.current;
+
+  if (!widget) {
+    return;
+  }
+
+  const handleSelect = (event: Event) => {
+    const {detail: paymentSource} = event as OnSelectEvent;
+    // Complete the merchant interaction from the React host.
+  };
+
+  widget.addEventListener('onSelect', handleSelect);
+
+  return () => widget.removeEventListener('onSelect', handleSelect);
+}, []);
+```
+
+Angular hosts should allow the custom element with `CUSTOM_ELEMENTS_SCHEMA` and
+use property bindings for object values:
+
+```html
+<commerce-hub-connect
+  [interactionResponse]="interactionResponse"
+  [designConfig]="designConfig"
+  [baseURL]="baseUrl"
+  (onSelect)="handleSelect($event)"
+></commerce-hub-connect>
+```
 
 ## Typed API clients
 

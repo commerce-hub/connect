@@ -34,19 +34,31 @@ frontend handoff into this SDK starts once the host has an `InteractionResponse`
 ## 2. Mount the widget
 
 Import the SDK module and assign the interaction response as a DOM property.
+Assign any `designConfig` object the same way. Do not pass either object-valued
+property as an HTML attribute.
 
 ```ts
 {% raw %}
 import 'commerce-hub-connect-sdk';
+import type {DesignConfig} from 'commerce-hub-connect-sdk';
 
 const widget = document.createElement('commerce-hub-connect');
 widget.baseURL = 'QA';
+const designConfig: DesignConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+  },
+};
 const interactionResponse = await fetch('/api/commercehub/interaction', {
   method: 'POST',
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({orderId, amount}),
 }).then((response) => response.json());
 
+widget.designConfig = designConfig;
 widget.interactionResponse = interactionResponse;
 
 document.querySelector('#payment-host')?.replaceChildren(widget);
@@ -125,13 +137,13 @@ completion response is a `PaymentSource`, not an `InteractionResponse`.
 The SDK also emits success-only operation events for host telemetry or local UI
 state. These events use raw operation results in `event.detail`:
 
-| Event | Detail |
-| --- | --- |
-| `onListPaymentMethods` | `PaymentSource[]` from a successful `GET /interaction` refresh. |
-| `onAddPaymentMethod` | Created or finalized `PaymentSource`. |
-| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`. |
-| `onDeletePaymentMethod` | Deleted payment source id. |
-| `onTransfer` | `NativeAccountTransaction` returned by native account transfer. |
+| Event                   | Detail                                                          |
+| ----------------------- | --------------------------------------------------------------- |
+| `onListPaymentMethods`  | `PaymentSource[]` from a successful `GET /interaction` refresh. |
+| `onAddPaymentMethod`    | Created or finalized `PaymentSource`.                           |
+| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`.                            |
+| `onDeletePaymentMethod` | Deleted payment source id.                                      |
+| `onTransfer`            | `NativeAccountTransaction` returned by native account transfer. |
 
 The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error

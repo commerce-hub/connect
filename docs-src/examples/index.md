@@ -26,7 +26,31 @@ if (widget) {
   widget.interactionResponse = await fetch('/api/commercehub/interaction').then(
     (response) => response.json()
   );
+  widget.designConfig = {
+    colors: {
+      primary: '#084acc',
+      text: '#101828',
+      border: '#cbd5e1',
+      widgetBackground: '#ffffff',
+    },
+  };
   widget.baseURL = 'QA';
+  widget.addEventListener('onSelect', async (event) => {
+    const selectedPaymentSource = event.detail;
+    const completedPaymentSource = await fetch(
+      `/api/commercehub/interaction/${encodeURIComponent(
+        widget.interactionResponse.interactionId
+      )}/complete`,
+      {method: 'GET'}
+    ).then((response) => response.json());
+
+    // Store or reference selectedPaymentSource in host-owned state as needed.
+    // Continue the host checkout flow with completedPaymentSource.
+  });
 }
 {% endraw %}
 ```
+
+Assign object-valued inputs such as `interactionResponse` and `designConfig` as
+DOM properties. `base-url` is the string attribute form of `.baseURL`. Keep
+merchant completion host-owned after `onSelect`.
