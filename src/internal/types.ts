@@ -2,6 +2,55 @@ import type {TemplateResult} from 'lit';
 
 import type {components} from '../generated/openapi.js';
 
+type GeneratedInteractionResponse =
+  components['schemas']['InteractionResponse'];
+type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
+export type InteractionStatus =
+  | GeneratedInteractionResponse['status']
+  | LegacyInteractionStatus;
+type GeneratedInteractionFeatures = NonNullable<
+  GeneratedInteractionResponse['features']
+>;
+
+export type InteractionFeature = GeneratedInteractionFeatures[number];
+
+/**
+ * Gateway-injected OAuth details returned with an interaction response.
+ *
+ * This field is intentionally modeled outside the generated OpenAPI types
+ * because the gateway adds it after the upstream CommerceHub response is
+ * produced.
+ */
+export interface InteractionOAuth {
+  token_type?: string;
+  issued_at?: string;
+  client_id?: string;
+  access_token?: string;
+  expires_in?: string;
+  status?: string;
+}
+
+export type InteractionResponse = Omit<
+  GeneratedInteractionResponse,
+  'status'
+> & {
+  status?: InteractionStatus;
+  oauth?: InteractionOAuth;
+};
+
+export type PaymentSource = NonNullable<
+  InteractionResponse['paymentSources']
+>[number];
+
+export type NativePaymentSource = Extract<
+  PaymentSource,
+  {tenderType: 'NativeAccount'}
+>;
+
+export type NativeAccountBalanceInfo =
+  components['schemas']['NativeAccountBalanceInfo'];
+export type NativeAccountBalanceMap = Record<string, NativeAccountBalanceInfo>;
+
 export type InteractionFlowStatus = NonNullable<
   components['schemas']['InteractionResponse']['status']
 >;
