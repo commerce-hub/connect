@@ -407,25 +407,6 @@ const DEFAULT_PAY_BY_BANK_OPTIONS = {
 } satisfies Required<DesignConfigPayByBank>;
 const DELETE_CONFIRMATION_TIMEOUT_MS = 5000;
 
-const demoPaymentMethods: PaymentMethod[] = [
-  {
-    id: 'visa-1111',
-    label: 'James Anderson',
-    type: 'card',
-    brand: 'VISA',
-    last4: '1111',
-    status: 'verified',
-  },
-  {
-    id: 'amex-8000',
-    label: 'James Anderson',
-    type: 'card',
-    brand: 'AMEX',
-    last4: '8000',
-    status: 'not-verified',
-  },
-];
-
 /**
  * CommerceHub Connect Web SDK widget shell.
  *
@@ -5970,9 +5951,7 @@ const paymentMethodsFromInteractionResponse = (
       ];
     }
 
-    return isPaymentSelectionReadyStatus(interactionResponse?.status)
-      ? []
-      : demoPaymentMethods;
+    return [];
   }
 
   return paymentSources.map((source) =>
