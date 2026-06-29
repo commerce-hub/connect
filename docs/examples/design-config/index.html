@@ -33,22 +33,22 @@
       <nav class="collection">
         <ul>
           <li class=>
-            <a href="../">Render the widget and assign an InteractionResponse</a>
+            <a href="../angular/">Bind SDK properties from an Angular 22 component</a>
           </li>
           <li class=selected>
             <a href="">Customize merchant-safe colors, spacing, and copy</a>
           </li>
           <li class=>
+            <a href="../">Render the widget and assign an InteractionResponse</a>
+          </li>
+          <li class=>
             <a href="../plain-javascript/">Create and mount the widget imperatively</a>
           </li>
           <li class=>
-            <a href="../lit/">Bind SDK properties from a Lit host component</a>
-          </li>
-          <li class=>
-            <a href="../angular/">Bind SDK properties from an Angular 22 component</a>
-          </li>
-          <li class=>
             <a href="../react/">Bind SDK properties from a React component</a>
+          </li>
+          <li class=>
+            <a href="../lit/">Bind SDK properties from a Lit host component</a>
           </li>
         </ul>
       </nav>
@@ -57,6 +57,69 @@
 <pre class="language-ts"><code class="language-ts"><br><span class="token keyword">import</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><span class="token keyword">import</span> <span class="token keyword">type</span> <span class="token punctuation">{</span>DesignConfig<span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'commerce-hub-connect-sdk'</span><span class="token punctuation">;</span><br><br><span class="token keyword">const</span> designConfig<span class="token operator">:</span> DesignConfig <span class="token operator">=</span> <span class="token punctuation">{</span><br>  colors<span class="token operator">:</span> <span class="token punctuation">{</span><br>    primary<span class="token operator">:</span> <span class="token string">'#084acc'</span><span class="token punctuation">,</span><br>    text<span class="token operator">:</span> <span class="token string">'#101828'</span><span class="token punctuation">,</span><br>    copy<span class="token operator">:</span> <span class="token string">'#475467'</span><span class="token punctuation">,</span><br>    border<span class="token operator">:</span> <span class="token string">'#cbd5e1'</span><span class="token punctuation">,</span><br>    widgetBackground<span class="token operator">:</span> <span class="token string">'#ffffff'</span><span class="token punctuation">,</span><br>    paymentMethodBackground<span class="token operator">:</span> <span class="token string">'#f8fafc'</span><span class="token punctuation">,</span><br>  <span class="token punctuation">}</span><span class="token punctuation">,</span><br>  baseFontSize<span class="token operator">:</span> <span class="token string">'16px'</span><span class="token punctuation">,</span><br>  baseFontWeight<span class="token operator">:</span> <span class="token string">'400'</span><span class="token punctuation">,</span><br>  shellPadding<span class="token operator">:</span> <span class="token string">'1.75rem 1.5rem 1.5rem'</span><span class="token punctuation">,</span><br>  copy<span class="token operator">:</span> <span class="token punctuation">{</span><br>    otp<span class="token operator">:</span> <span class="token punctuation">{</span><br>      title<span class="token operator">:</span> <span class="token string">'Verify OTP'</span><span class="token punctuation">,</span><br>      verifyButton<span class="token operator">:</span> <span class="token string">'Verify'</span><span class="token punctuation">,</span><br>    <span class="token punctuation">}</span><span class="token punctuation">,</span><br>    paymentMethods<span class="token operator">:</span> <span class="token punctuation">{</span><br>      title<span class="token operator">:</span> <span class="token string">'Choose payment method'</span><span class="token punctuation">,</span><br>      continueButton<span class="token operator">:</span> <span class="token string">'Use selected method'</span><span class="token punctuation">,</span><br>    <span class="token punctuation">}</span><span class="token punctuation">,</span><br>    noSavedPaymentMethods<span class="token operator">:</span> <span class="token punctuation">{</span><br>      title<span class="token operator">:</span> <span class="token string">'Add payment method'</span><span class="token punctuation">,</span><br>      addCardTitle<span class="token operator">:</span> <span class="token string">'Add card'</span><span class="token punctuation">,</span><br>      addBankAccountTitle<span class="token operator">:</span> <span class="token string">'Add bank account'</span><span class="token punctuation">,</span><br>    <span class="token punctuation">}</span><span class="token punctuation">,</span><br>  <span class="token punctuation">}</span><span class="token punctuation">,</span><br><span class="token punctuation">}</span><span class="token punctuation">;</span><br><br><span class="token keyword">const</span> widget <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">querySelector</span><span class="token punctuation">(</span><span class="token string">'commerce-hub-connect'</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br><span class="token keyword">if</span> <span class="token punctuation">(</span>widget<span class="token punctuation">)</span> <span class="token punctuation">{</span><br>  widget<span class="token punctuation">.</span>designConfig <span class="token operator">=</span> designConfig<span class="token punctuation">;</span><br><span class="token punctuation">}</span><br></code></pre>
 <p>Every <code>designConfig</code> field is optional. Omitted values fall back to SDK
 defaults.</p>
+<p><code>designConfig</code> is the primary merchant-safe theming API. The widget also
+exposes a small additive styling surface for hosts that need framework-friendly
+CSS hooks without querying private shadow-DOM class names.</p>
+<p>Stable shadow parts:</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Surface</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shell</code></td>
+<td>Top-level widget shell.</td>
+</tr>
+<tr>
+<td><code>header</code></td>
+<td>Screen header row.</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>Screen title.</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>Screen content region.</td>
+</tr>
+<tr>
+<td><code>footer</code></td>
+<td>Powered-by footer.</td>
+</tr>
+<tr>
+<td><code>primary-action</code></td>
+<td>Primary CTA button.</td>
+</tr>
+<tr>
+<td><code>alert</code></td>
+<td>Screen-level alert message.</td>
+</tr>
+<tr>
+<td><code>payment-method-row</code></td>
+<td>Saved or selected payment-method row.</td>
+</tr>
+<tr>
+<td><code>provider-frame</code></td>
+<td>Pay by Bank provider handoff frame.</td>
+</tr>
+</tbody>
+</table>
+<pre class="language-css"><code class="language-css"><span class="token selector">commerce-hub-connect::part(primary-action)</span> <span class="token punctuation">{</span><br>  <span class="token property">border-radius</span><span class="token punctuation">:</span> 0.5rem<span class="token punctuation">;</span><br><span class="token punctuation">}</span></code></pre>
+<p>Supported CSS custom properties are the stable tokens populated by
+<code>designConfig</code>: <code>--chc-primary</code>, <code>--chc-text</code>, <code>--chc-copy</code>, <code>--chc-muted</code>,
+<code>--chc-placeholder</code>, <code>--chc-surface</code>, <code>--chc-widget-background</code>,
+<code>--chc-soft-surface</code>, <code>--chc-border</code>, <code>--chc-border-strong</code>,
+<code>--chc-payment-method-background</code>, <code>--chc-success</code>, <code>--chc-success-bg</code>,
+<code>--chc-success-border</code>, <code>--chc-danger</code>, <code>--chc-danger-bg</code>,
+<code>--chc-danger-border</code>, <code>--chc-warning</code>, <code>--chc-warning-bg</code>,
+<code>--chc-warning-border</code>, <code>--chc-disabled-text</code>, <code>--chc-disabled-surface</code>,
+<code>--chc-font-weight</code>, and <code>--chc-shell-padding</code>.</p>
+<p>Prefer <code>designConfig</code> when a matching field exists. Use <code>::part</code> or custom
+properties only as additive escape hatches; private classes and internal spans
+are not part of the public styling contract.</p>
 
       </div>
     </section>
