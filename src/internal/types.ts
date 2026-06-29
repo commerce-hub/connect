@@ -2,6 +2,55 @@ import type {TemplateResult} from 'lit';
 
 import type {components} from '../generated/openapi.js';
 
+type GeneratedInteractionResponse =
+  components['schemas']['InteractionResponse'];
+type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
+export type InteractionStatus =
+  | GeneratedInteractionResponse['status']
+  | LegacyInteractionStatus;
+type GeneratedInteractionFeatures = NonNullable<
+  GeneratedInteractionResponse['features']
+>;
+
+export type InteractionFeature = GeneratedInteractionFeatures[number];
+
+/**
+ * Gateway-injected OAuth details returned with an interaction response.
+ *
+ * This field is intentionally modeled outside the generated OpenAPI types
+ * because the gateway adds it after the upstream CommerceHub response is
+ * produced.
+ */
+export interface InteractionOAuth {
+  token_type?: string;
+  issued_at?: string;
+  client_id?: string;
+  access_token?: string;
+  expires_in?: string;
+  status?: string;
+}
+
+export type InteractionResponse = Omit<
+  GeneratedInteractionResponse,
+  'status'
+> & {
+  status?: InteractionStatus;
+  oauth?: InteractionOAuth;
+};
+
+export type PaymentSource = NonNullable<
+  InteractionResponse['paymentSources']
+>[number];
+
+export type NativePaymentSource = Extract<
+  PaymentSource,
+  {tenderType: 'NativeAccount'}
+>;
+
+export type NativeAccountBalanceInfo =
+  components['schemas']['NativeAccountBalanceInfo'];
+export type NativeAccountBalanceMap = Record<string, NativeAccountBalanceInfo>;
+
 export type InteractionFlowStatus = NonNullable<
   components['schemas']['InteractionResponse']['status']
 >;
@@ -48,19 +97,156 @@ export interface OtpFormState {
   errorMessage?: string;
 }
 
+export type CardDraft = {
+  name: string;
+  fullName: string;
+  cardNumber: string;
+  expirationDate: string;
+  cvv: string;
+  billingAddressValue: string;
+  country: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+
+export type BankAccountDraft = {
+  name: string;
+  routingNumber: string;
+  accountNumber: string;
+  accountNumberReEntered: string;
+};
+
+export type SensitiveCardField = 'cardNumber' | 'cvv';
+
+export type SensitiveBankAccountField =
+  | 'routingNumber'
+  | 'accountNumber'
+  | 'accountNumberReEntered';
+
+export type CardEncryptionStatus =
+  | 'idle'
+  | 'dirty'
+  | 'encrypting'
+  | 'encrypted'
+  | 'failed';
+
+export type CardFieldEncryptionState = {
+  status: CardEncryptionStatus;
+  normalizedValue: string;
+  encryptedValue?: string;
+};
+
+export type CardEncryptionState = Record<
+  SensitiveCardField,
+  CardFieldEncryptionState
+>;
+
+export type BankAccountEncryptionState = Record<
+  SensitiveBankAccountField,
+  CardFieldEncryptionState
+>;
+
+export type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
+
+export type BankAccountDraftErrors = Partial<
+  Record<keyof BankAccountDraft, string>
+>;
+
+export type TransferDraft = {
+  fromSourceId: string;
+  toSourceId: string;
+  amount: string;
+};
+
+export type TransferDraftErrors = Partial<Record<keyof TransferDraft, string>>;
+
+export type TransferSource = {
+  id?: string;
+};
+
+export type RequiredInfoValues = Record<string, string>;
+
+export type RequiredInfoFiles = Record<string, File>;
+
+export type RequiredInfoFileNames = Record<string, string>;
+
 export interface OtpScreenModel {
   status: Extract<
     InteractionFlowStatus,
     'OTP_VALIDATION_PENDING' | 'OTP_VALIDATION_FAILED'
   >;
-  email?: string;
-  form: OtpFormState;
+  value: string;
+  length: number;
+  destination?: string;
+  failedMessage?: string;
+  copy: OtpScreenCopy;
+  submitting?: boolean;
+  resending?: boolean;
+}
+
+export interface OtpScreenCopy {
+  title: string;
+  subtitle?: string;
+  failedMessage: string;
+  resendPrefix: string;
+  resendButton: string;
+  resendPendingButton: string;
+  verifyButton: string;
+  verifyingButton: string;
+  tryAgainButton: string;
+}
+
+export interface AllowedTenderOptions {
+  card: boolean;
+  bankAccount: boolean;
+  nativeAccount: boolean;
+}
+
+export interface PaymentMethodsScreenCopy {
+  title: string;
+  subtitle: string;
+  addBankAccountTitle: string;
+  addBankAccountSubtitle: string;
+  addCardTitle: string;
+  addCardSubtitle: string;
+  continueButton: string;
+  continuingButton: string;
+}
+
+export interface NoSavedPaymentMethodsScreenCopy {
+  title: string;
+  subtitle: string;
+  emptyTitle: string;
+  emptyMessage: string;
+  addBankAccountTitle: string;
+  addBankAccountSubtitle: string;
+  addCardTitle: string;
+  addCardSubtitle: string;
 }
 
 export interface PaymentMethodsScreenModel {
-  status: Extract<InteractionFlowStatus, 'PAYMENT_SOURCE_REQUESTED'>;
+  status: 'PAYMENT_SOURCE_REQUESTED';
   methods: PaymentMethod[];
-  attaching?: boolean;
+  allowedTenderOptions: AllowedTenderOptions;
+  canAddPaymentSources: boolean;
+  canSelectPaymentSources: boolean;
+  editing: boolean;
+  actionPending: boolean;
+  selectedPaymentSourceId?: string;
+  deleteConfirmationPaymentSourceId?: string;
+  copy: PaymentMethodsScreenCopy;
+  showTransferAction?: boolean;
+}
+
+export interface NoSavedPaymentMethodsScreenModel {
+  allowedTenderOptions: AllowedTenderOptions;
+  canAddPaymentSources: boolean;
+  deletePending?: boolean;
+  copy: NoSavedPaymentMethodsScreenCopy;
+  showTransferAction?: boolean;
 }
 
 export type ButtonVariant = 'primary' | 'secondary';

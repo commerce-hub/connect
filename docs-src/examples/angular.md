@@ -18,6 +18,7 @@ import {
 import 'commerce-hub-connect-sdk';
 import type {
   CommerceHubBaseURLInput,
+  DesignConfig,
   InteractionResponse,
   OnSelectEvent,
   OnTransferEvent,
@@ -30,6 +31,7 @@ import type {
     <commerce-hub-connect
       [baseURL]="baseUrl"
       [interactionResponse]="interactionResponse()"
+      [designConfig]="designConfig()"
       (onSelect)="handleSelect($event)"
       (onTransfer)="handleTransfer($event)"
     ></commerce-hub-connect>
@@ -37,13 +39,23 @@ import type {
 })
 export class CheckoutPaymentComponent {
   readonly interactionResponse = input.required<InteractionResponse>();
+  readonly designConfig = input<DesignConfig>();
   readonly baseUrl: CommerceHubBaseURLInput = 'QA';
   selectedPaymentSourceId?: string;
+  completedPaymentSourceId?: string;
   lastTransferId?: string;
 
-  handleSelect(event: Event) {
+  async handleSelect(event: Event) {
     const {detail: paymentSource} = event as OnSelectEvent;
+    const completedPaymentSource = await fetch(
+      `/api/commercehub/interaction/${encodeURIComponent(
+        this.interactionResponse().interactionId ?? ''
+      )}/complete`,
+      {method: 'GET'}
+    ).then((response) => response.json());
+
     this.selectedPaymentSourceId = paymentSource.id;
+    this.completedPaymentSourceId = completedPaymentSource.id;
   }
 
   handleTransfer(event: Event) {
@@ -57,5 +69,6 @@ export class CheckoutPaymentComponent {
 Angular 22 components are standalone by default, so this example does not set
 `standalone: true`. The component allows the custom element with
 `CUSTOM_ELEMENTS_SCHEMA` and binds object values such as `interactionResponse`
-through Angular property bindings rather than serializing them into HTML
-attributes.
+and `designConfig` through Angular property bindings rather than serializing
+them into HTML attributes. Keep `onSelect` as the widget boundary and complete
+the merchant interaction from the Angular host.

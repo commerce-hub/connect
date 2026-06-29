@@ -16,6 +16,7 @@ import 'commerce-hub-connect-sdk';
 import type {
   CommerceHubBaseURLInput,
   CommerceHubConnect,
+  DesignConfig,
   InteractionResponse,
   OnSelectEvent,
   OnTransferEvent,
@@ -36,13 +37,18 @@ const baseUrl: CommerceHubBaseURLInput = 'QA';
 
 interface CheckoutPaymentProps {
   interactionResponse: InteractionResponse;
-  onSelectedPaymentSourceChange?: (paymentSourceId: string) => void;
+  designConfig?: DesignConfig;
+  onPaymentSourceComplete?: (result: {
+    selectedPaymentSourceId: string;
+    completedPaymentSourceId?: string;
+  }) => void;
   onTransferComplete?: (transactionId: string) => void;
 }
 
 export function CheckoutPayment({
   interactionResponse,
-  onSelectedPaymentSourceChange,
+  designConfig,
+  onPaymentSourceComplete,
   onTransferComplete,
 }: CheckoutPaymentProps) {
   const widgetRef = useRef<CommerceHubConnect | null>(null);
@@ -56,7 +62,8 @@ export function CheckoutPayment({
 
     widget.baseURL = baseUrl;
     widget.interactionResponse = interactionResponse;
-  }, [interactionResponse]);
+    widget.designConfig = designConfig;
+  }, [designConfig, interactionResponse]);
 
   useEffect(() => {
     const widget = widgetRef.current;
@@ -65,11 +72,23 @@ export function CheckoutPayment({
       return;
     }
 
-    const handleSelect = (event: OnSelectEvent) => {
-      onSelectedPaymentSourceChange?.(event.detail.id);
+    const handleSelect = async (event: Event) => {
+      const {detail: paymentSource} = event as OnSelectEvent;
+      const completedPaymentSource = await fetch(
+        `/api/commercehub/interaction/${encodeURIComponent(
+          interactionResponse.interactionId ?? ''
+        )}/complete`,
+        {method: 'GET'}
+      ).then((response) => response.json());
+
+      onPaymentSourceComplete?.({
+        selectedPaymentSourceId: paymentSource.id,
+        completedPaymentSourceId: completedPaymentSource.id,
+      });
     };
-    const handleTransfer = (event: OnTransferEvent) => {
-      onTransferComplete?.(event.detail.id);
+    const handleTransfer = (event: Event) => {
+      const {detail: transaction} = event as OnTransferEvent;
+      onTransferComplete?.(transaction.id);
     };
 
     widget.addEventListener('onSelect', handleSelect);
@@ -79,14 +98,16 @@ export function CheckoutPayment({
       widget.removeEventListener('onSelect', handleSelect);
       widget.removeEventListener('onTransfer', handleTransfer);
     };
-  }, [onSelectedPaymentSourceChange, onTransferComplete]);
+  }, [interactionResponse, onPaymentSourceComplete, onTransferComplete]);
 
   return <commerce-hub-connect ref={widgetRef}></commerce-hub-connect>;
 }
 {% endraw %}
 ```
 
-Assign object values such as `interactionResponse` through the DOM element ref
-instead of serializing them as HTML attributes. Register SDK custom events with
-`addEventListener` so the same `onSelect` and `onTransfer` event contracts work
-across React versions.
+Assign object values such as `interactionResponse` and `designConfig` through
+the DOM element ref instead of serializing them as HTML attributes. Register SDK
+custom events with `addEventListener` so the same `onSelect` and `onTransfer`
+event contracts work across React versions. Keep the merchant completion call
+host-owned after `onSelect`; the widget does not complete the interaction for
+React.

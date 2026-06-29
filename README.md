@@ -56,6 +56,7 @@ request. The SDK owns the browser widget once the host passes an
 ```ts
 import 'commerce-hub-connect-sdk';
 import type {
+  DesignConfig,
   InteractionResponse,
   OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
@@ -64,10 +65,20 @@ const interactionResponse: InteractionResponse = await fetch(
   '/api/commercehub/interaction'
 ).then((response) => response.json());
 
+const designConfig: DesignConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+  },
+};
+
 const widget = document.querySelector('commerce-hub-connect');
 
 if (widget) {
   widget.interactionResponse = interactionResponse;
+  widget.designConfig = designConfig;
   widget.baseURL = 'QA';
   widget.addEventListener('onSelect', async (event: Event) => {
     const {detail: paymentSource} = event as OnSelectEvent;
@@ -85,6 +96,11 @@ if (widget) {
   });
 }
 ```
+
+Assign object-valued SDK inputs such as `.interactionResponse` and
+`.designConfig` as DOM properties. Do not pass them as HTML attributes, because
+attributes can only carry strings. The `base-url` attribute is available only
+for the string `.baseURL` value.
 
 ## SDK-managed requests
 
@@ -129,13 +145,13 @@ complete the merchant interaction from that event.
 
 The SDK also emits success-only operation events with raw operation results:
 
-| Event | Detail |
-| --- | --- |
-| `onListPaymentMethods` | `PaymentSource[]` from a successful `GET /interaction` refresh. |
-| `onAddPaymentMethod` | Created or finalized `PaymentSource`. |
-| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`. |
-| `onDeletePaymentMethod` | Deleted payment source id. |
-| `onTransfer` | `NativeAccountTransaction` returned by native account transfer. |
+| Event                   | Detail                                                          |
+| ----------------------- | --------------------------------------------------------------- |
+| `onListPaymentMethods`  | `PaymentSource[]` from a successful `GET /interaction` refresh. |
+| `onAddPaymentMethod`    | Created or finalized `PaymentSource`.                           |
+| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`.                            |
+| `onDeletePaymentMethod` | Deleted payment source id.                                      |
+| `onTransfer`            | `NativeAccountTransaction` returned by native account transfer. |
 
 ## Design configuration
 
@@ -166,6 +182,91 @@ widget.designConfig = {
     },
   },
 };
+```
+
+`designConfig` remains the supported first choice for merchant theming. For
+frameworks or host stylesheets that need additive hooks, the widget exposes
+stable shadow parts: `shell`, `header`, `title`, `content`, `footer`,
+`primary-action`, `alert`, `payment-method-row`, and `provider-frame`.
+
+Supported CSS custom properties are the stable `designConfig` tokens:
+`--chc-primary`, `--chc-text`, `--chc-copy`, `--chc-muted`,
+`--chc-placeholder`, `--chc-surface`, `--chc-widget-background`,
+`--chc-soft-surface`, `--chc-border`, `--chc-border-strong`,
+`--chc-payment-method-background`, `--chc-success`, `--chc-success-bg`,
+`--chc-success-border`, `--chc-danger`, `--chc-danger-bg`,
+`--chc-danger-border`, `--chc-warning`, `--chc-warning-bg`,
+`--chc-warning-border`, `--chc-disabled-text`, `--chc-disabled-surface`,
+`--chc-font-weight`, and `--chc-shell-padding`.
+
+```css
+commerce-hub-connect::part(primary-action) {
+  border-radius: 0.5rem;
+}
+```
+
+Avoid styling internal shadow-DOM classes directly; those class names are not a
+public API.
+
+## Framework integration
+
+`<commerce-hub-connect>` is the only public custom element. Lit hosts should use
+property bindings:
+
+```ts
+html`<commerce-hub-connect
+  .interactionResponse=${interactionResponse}
+  .designConfig=${designConfig}
+  .baseURL=${'QA'}
+  @onSelect=${handleSelect}
+></commerce-hub-connect>`;
+```
+
+React hosts should assign SDK properties through a ref and subscribe with
+`addEventListener`, because React attributes are string-oriented for custom
+elements:
+
+```tsx
+useEffect(() => {
+  const widget = widgetRef.current;
+
+  if (!widget) {
+    return;
+  }
+
+  widget.interactionResponse = interactionResponse;
+  widget.designConfig = designConfig;
+  widget.baseURL = 'QA';
+}, [designConfig, interactionResponse]);
+
+useEffect(() => {
+  const widget = widgetRef.current;
+
+  if (!widget) {
+    return;
+  }
+
+  const handleSelect = (event: Event) => {
+    const {detail: paymentSource} = event as OnSelectEvent;
+    // Complete the merchant interaction from the React host.
+  };
+
+  widget.addEventListener('onSelect', handleSelect);
+
+  return () => widget.removeEventListener('onSelect', handleSelect);
+}, []);
+```
+
+Angular hosts should allow the custom element with `CUSTOM_ELEMENTS_SCHEMA` and
+use property bindings for object values:
+
+```html
+<commerce-hub-connect
+  [interactionResponse]="interactionResponse"
+  [designConfig]="designConfig"
+  [baseURL]="baseUrl"
+  (onSelect)="handleSelect($event)"
+></commerce-hub-connect>
 ```
 
 ## Typed API clients

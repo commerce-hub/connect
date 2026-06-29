@@ -7,11 +7,89 @@ import {
   resolveCommerceHubBaseURL,
   type CommerceHubBaseURLInput,
 } from './internal/api-client.js';
+import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
+import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
+import {
+  bankAccountFieldLastFour,
+  bankAccountInputType,
+  buildBankAccountEncryptionErrorMessage,
+  createBankAccountDraft,
+  createBankAccountEncryptionState,
+  isBankAccountDraftReady,
+  isEncryptedBankAccountDisplayValue,
+  isSensitiveBankAccountField,
+  maskSensitiveDisplayValue,
+  normalizeBankAccountDraftForDisplay,
+  normalizeBankAccountDraftForValidation,
+  normalizeBankAccountNumber,
+  omitBankAccountDraftError,
+  resolveBankAccountPayloadFieldValue,
+  resolveBankAccountSourceName,
+  updateBankAccountDraftFieldState,
+  validateBankAccountDraft,
+} from './internal/forms/bank-account-form-state.js';
+import {
+  NEW_BILLING_ADDRESS_VALUE,
+  billingAddressFromCardDraft,
+  buildCardEncryptionErrorMessage,
+  createCardDraft,
+  createCardEncryptionFieldState,
+  createCardEncryptionState,
+  detectCardNetwork,
+  formatCardDraftFieldValue,
+  isCardDraftReady,
+  isSensitiveCardField,
+  normalizeCardDraft,
+  normalizeCardNumber,
+  normalizeSensitiveCardFieldValue,
+  omitCardDraftError,
+  parseExpirationDate,
+  reconcileCardDraftBillingAddress,
+  resolveDirtyCardEncryptionState,
+  resolveEncryptedCardFieldValue,
+  validateCardDraft,
+  validateCardEncryptionReadiness,
+  validateSensitiveCardField,
+} from './internal/forms/card-form-state.js';
+import {
+  OTP_LENGTH,
+  normalizeOtpValue,
+  sanitizeOtpValue,
+  writeOtpDigits,
+} from './internal/forms/otp-form-state.js';
+import {
+  REQUIRED_INFO_SSN_SEGMENT_LENGTHS,
+  hasRequiredInfoFile,
+  hasRequiredInfoTextValue,
+  normalizeRequiredInfoSsn,
+  requiredInfoSsnSegmentMaxLength,
+  requiredInfoSsnSegments,
+  storeRequiredInfoFile,
+  storeRequiredInfoValue,
+} from './internal/forms/required-info-form-state.js';
+import {
+  TRANSFER_CURRENCY,
+  createTransferDraft,
+  formatTransferAmountForReview,
+  isTransferDraftReady,
+  normalizeTransferDraft,
+  validateTransferDraft,
+} from './internal/forms/transfer-form-state.js';
 import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from './internal/payment-method-icons.js';
 import {primitiveStyles} from './internal/styles.js';
+import {
+  defaultOtpSubtitle,
+  findOtpInput,
+  renderOtpScreen as renderOtpScreenContent,
+} from './internal/screens/otp-screen.js';
+import {
+  renderNoSavedPaymentMethodsScreen,
+  renderPaymentMethodsScreen as renderPaymentMethodsScreenContent,
+  renderPaymentMethodsSkeletonScreen,
+} from './internal/screens/payment-methods-screen.js';
 import {
   renderAlert,
   renderButton,
@@ -19,14 +97,9 @@ import {
   renderEmptyState,
   renderFormGrid,
   renderOutcomeShell,
-  renderOtpGroup,
-  renderOtpResend,
-  renderPaymentMethodRow,
-  renderPaymentMethodSkeletonRows,
   renderProviderFrame,
   renderSelectedPaymentMethod,
   renderSelectField,
-  renderSourceAction,
   renderTextField,
   renderTextLinkButton,
   renderUploadRow,
@@ -34,8 +107,32 @@ import {
   renderWidgetShell,
 } from './internal/primitives.js';
 import type {
+  AllowedTenderOptions,
+  BankAccountDraft,
+  BankAccountDraftErrors,
+  BankAccountEncryptionState,
+  CardDraft,
+  CardDraftErrors,
+  CardEncryptionState,
   FlowActionName,
+  InteractionFeature,
+  InteractionResponse,
+  InteractionStatus,
+  NativeAccountBalanceInfo,
+  NativeAccountBalanceMap,
+  NativePaymentSource,
+  NoSavedPaymentMethodsScreenCopy,
+  OtpScreenCopy,
   PaymentMethod,
+  PaymentMethodsScreenCopy,
+  PaymentSource,
+  RequiredInfoFileNames,
+  RequiredInfoFiles,
+  RequiredInfoValues,
+  SensitiveBankAccountField,
+  SensitiveCardField,
+  TransferDraft,
+  TransferDraftErrors,
   WidgetShellOptions,
 } from './internal/types.js';
 
@@ -53,51 +150,16 @@ export {
 } from './internal/api-client.js';
 export type {components, operations, paths} from './generated/openapi.js';
 export type {
+  InteractionFeature,
+  InteractionOAuth,
+  InteractionResponse,
+  PaymentSource,
+} from './internal/types.js';
+export type {
   components as MerchantComponents,
   operations as MerchantOperations,
   paths as MerchantPaths,
 } from './generated/merchant-openapi.js';
-
-/**
- * CommerceHub interaction payload used to render the current widget state.
- *
- * Host applications usually retrieve this value from a merchant-owned backend
- * endpoint, then assign it to `<commerce-hub-connect>.interactionResponse`.
- */
-type GeneratedInteractionResponse =
-  components['schemas']['InteractionResponse'];
-type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
-type InteractionStatus =
-  | GeneratedInteractionResponse['status']
-  | LegacyInteractionStatus;
-type GeneratedInteractionFeatures = NonNullable<
-  GeneratedInteractionResponse['features']
->;
-export type InteractionFeature = GeneratedInteractionFeatures[number];
-
-/**
- * Gateway-injected OAuth details returned with an interaction response.
- *
- * This field is intentionally modeled outside the generated OpenAPI types
- * because the gateway adds it after the upstream CommerceHub response is
- * produced.
- */
-export interface InteractionOAuth {
-  token_type?: string;
-  issued_at?: string;
-  client_id?: string;
-  access_token?: string;
-  expires_in?: string;
-  status?: string;
-}
-
-export type InteractionResponse = Omit<
-  GeneratedInteractionResponse,
-  'status'
-> & {
-  status?: InteractionStatus;
-  oauth?: InteractionOAuth;
-};
 
 /**
  * Error payload reserved for future public SDK error events.
@@ -107,13 +169,6 @@ export interface InteractionError {
   message: string;
   cause?: unknown;
 }
-
-/**
- * CommerceHub payment source selected or created by the shopper.
- */
-export type PaymentSource = NonNullable<
-  InteractionResponse['paymentSources']
->[number];
 
 /**
  * CommerceHub native account transfer response returned after a transfer is
@@ -200,12 +255,36 @@ export const ON_TRANSFER_EVENT = 'onTransfer';
  */
 export const ON_ERROR_EVENT = 'onError';
 
+/**
+ * Detail payloads for public SDK events emitted by `<commerce-hub-connect>`.
+ */
+interface SdkEventDetailMap {
+  [ON_SELECT_EVENT]: PaymentSource;
+  [ON_ADD_PAYMENT_METHOD_EVENT]: PaymentSource;
+  [ON_VERIFY_PAYMENT_METHOD_EVENT]: PaymentSource;
+  [ON_DELETE_PAYMENT_METHOD_EVENT]: string;
+  [ON_LIST_PAYMENT_METHODS_EVENT]: PaymentSource[];
+  [ON_TRANSFER_EVENT]: NativeAccountTransaction;
+  [ON_ERROR_EVENT]: InteractionError;
+}
+
+/**
+ * Public SDK event names mapped to their typed `CustomEvent` instances.
+ */
+interface SdkEventMap {
+  [ON_SELECT_EVENT]: OnSelectEvent;
+  [ON_ADD_PAYMENT_METHOD_EVENT]: OnAddPaymentMethodEvent;
+  [ON_VERIFY_PAYMENT_METHOD_EVENT]: OnVerifyPaymentMethodEvent;
+  [ON_DELETE_PAYMENT_METHOD_EVENT]: OnDeletePaymentMethodEvent;
+  [ON_LIST_PAYMENT_METHODS_EVENT]: OnListPaymentMethodsEvent;
+  [ON_TRANSFER_EVENT]: OnTransferEvent;
+  [ON_ERROR_EVENT]: OnErrorEvent;
+}
+
+type SdkEventName = keyof SdkEventDetailMap & string;
+
 type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
 type CardPaymentSource = Extract<PaymentSource, {tenderType: 'Card'}>;
-type NativePaymentSource = Extract<
-  PaymentSource,
-  {tenderType: 'NativeAccount'}
->;
 type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
@@ -217,67 +296,10 @@ type BankAccountSourcePayload = Omit<BankPaymentSource, 'tenderType'> & {
 type Address = components['schemas']['Address'];
 type BillingAddressResponse = components['schemas']['StringHolder'];
 type VerificationResponse = components['schemas']['VerificationResponse'];
-type NativeAccountBalanceInfo =
-  components['schemas']['NativeAccountBalanceInfo'];
-type NativeAccountBalanceMap = Record<string, NativeAccountBalanceInfo>;
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
-type CardDraft = {
-  name: string;
-  fullName: string;
-  cardNumber: string;
-  expirationDate: string;
-  cvv: string;
-  billingAddressValue: string;
-  country: string;
-  addressLine1: string;
-  addressLine2: string;
-  city: string;
-  state: string;
-  zip: string;
-};
-type BankAccountDraft = {
-  name: string;
-  routingNumber: string;
-  accountNumber: string;
-  accountNumberReEntered: string;
-};
-type SensitiveCardField = 'cardNumber' | 'cvv';
-type SensitiveBankAccountField =
-  | 'routingNumber'
-  | 'accountNumber'
-  | 'accountNumberReEntered';
-type CardEncryptionStatus =
-  | 'idle'
-  | 'dirty'
-  | 'encrypting'
-  | 'encrypted'
-  | 'failed';
-type CardFieldEncryptionState = {
-  status: CardEncryptionStatus;
-  normalizedValue: string;
-  encryptedValue?: string;
-};
-type CardEncryptionState = Record<SensitiveCardField, CardFieldEncryptionState>;
-type BankAccountEncryptionState = Record<
-  SensitiveBankAccountField,
-  CardFieldEncryptionState
->;
-type CardDraftErrors = Partial<Record<keyof CardDraft, string>>;
-type BankAccountDraftErrors = Partial<Record<keyof BankAccountDraft, string>>;
-type TransferDraft = {
-  fromSourceId: string;
-  toSourceId: string;
-  amount: string;
-};
-type TransferDraftErrors = Partial<Record<keyof TransferDraft, string>>;
 type TransferFlowScreen = 'form' | 'confirm';
-type AllowedTenderOptions = {
-  card: boolean;
-  bankAccount: boolean;
-  nativeAccount: boolean;
-};
 type PaymentSourceToPaymentMethodOptions = {
   selected?: boolean;
   nativeBalances?: NativeAccountBalanceMap;
@@ -326,13 +348,10 @@ type PaymentSdkAppearanceBranding = Partial<{
   borderRadius: string;
 }>;
 
-const OTP_LENGTH = 6;
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
-const NEW_BILLING_ADDRESS_VALUE = '__new__';
 const PAYMENT_SELECTION_READY_STATUS = 'OTP_VALIDATION_SUCCESS' as const;
 const LEGACY_PAYMENT_SELECTION_READY_STATUS = 'PAYMENT_SOURCE_REQUESTED';
-const TRANSFER_CURRENCY = 'USD';
 const BILLING_COUNTRY_OPTIONS = [
   {value: '', label: 'Select country or region'},
   {value: 'US', label: 'United States'},
@@ -423,6 +442,41 @@ const DELETE_CONFIRMATION_TIMEOUT_MS = 5000;
  * payment sources are successfully refreshed from the interaction.
  * @fires onTransfer - Emitted with a `NativeAccountTransaction` detail after a
  * native account transfer is successfully initiated.
+ *
+ * @csspart shell - Top-level widget shell.
+ * @csspart header - Screen header row.
+ * @csspart title - Screen title.
+ * @csspart content - Screen content region.
+ * @csspart footer - Powered-by footer.
+ * @csspart primary-action - Primary CTA button.
+ * @csspart alert - Screen-level alert message.
+ * @csspart payment-method-row - Saved or selected payment-method row.
+ * @csspart provider-frame - Pay by Bank provider handoff frame.
+ *
+ * @cssproperty --chc-primary - Primary brand color.
+ * @cssproperty --chc-text - Primary text color.
+ * @cssproperty --chc-copy - Secondary copy color.
+ * @cssproperty --chc-muted - Muted text color.
+ * @cssproperty --chc-placeholder - Form placeholder text color.
+ * @cssproperty --chc-surface - Base surface color.
+ * @cssproperty --chc-widget-background - Widget shell background color.
+ * @cssproperty --chc-soft-surface - Subtle surface background color.
+ * @cssproperty --chc-border - Default border color.
+ * @cssproperty --chc-border-strong - Strong border color.
+ * @cssproperty --chc-payment-method-background - Payment method row background.
+ * @cssproperty --chc-success - Success foreground color.
+ * @cssproperty --chc-success-bg - Success background color.
+ * @cssproperty --chc-success-border - Success border color.
+ * @cssproperty --chc-danger - Danger foreground color.
+ * @cssproperty --chc-danger-bg - Danger background color.
+ * @cssproperty --chc-danger-border - Danger border color.
+ * @cssproperty --chc-warning - Warning foreground color.
+ * @cssproperty --chc-warning-bg - Warning background color.
+ * @cssproperty --chc-warning-border - Warning border color.
+ * @cssproperty --chc-disabled-text - Disabled control text color.
+ * @cssproperty --chc-disabled-surface - Disabled control surface color.
+ * @cssproperty --chc-font-weight - Inherited SDK font weight.
+ * @cssproperty --chc-shell-padding - Widget shell padding.
  */
 @customElement('commerce-hub-connect')
 export class CommerceHubConnect extends LitElement {
@@ -533,12 +587,6 @@ export class CommerceHubConnect extends LitElement {
   private billingAddressSelectorExpanded = false;
 
   @state()
-  private nativeAccountBalances: NativeAccountBalanceMap = {};
-
-  @state()
-  private nativeBalanceLoadingSourceIds: string[] = [];
-
-  @state()
   private paymentSourceView?: 'list' | 'selected';
 
   @state()
@@ -559,25 +607,20 @@ export class CommerceHubConnect extends LitElement {
   private requiredInfoSource?: PaymentSource;
 
   @state()
-  private requiredInfoValues: Record<string, string> = {};
+  private requiredInfoValues: RequiredInfoValues = {};
 
   @state()
-  private requiredInfoFileNames: Record<string, string> = {};
+  private requiredInfoFileNames: RequiredInfoFileNames = {};
 
   @state()
   private requiredInfoSubmitError?: string;
 
-  private requiredInfoFiles: Record<string, File> = {};
+  private requiredInfoFiles: RequiredInfoFiles = {};
 
   private pendingRequiredInfoDocKey?: string;
 
-  private interactionSnapshotInteractionId?: string;
-  private interactionRefreshInteractionId?: string;
-  private interactionRefreshPromise?: Promise<InteractionResponse>;
-  @state()
-  private interactionRefreshErrorMessage?: string;
-  private nativeBalanceFetchKey?: string;
-  private nativeBalanceQueuedFetchKey?: string;
+  private readonly interactionRefresh = new InteractionRefreshController(this);
+  private readonly nativeBalance = new NativeBalanceController(this);
   private minimumVerificationOverlayToken = 0;
 
   protected override willUpdate(changedProperties: PropertyValues<this>) {
@@ -596,14 +639,8 @@ export class CommerceHubConnect extends LitElement {
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
         this.paymentSourceEditMode = false;
-        this.interactionSnapshotInteractionId = undefined;
-        this.interactionRefreshInteractionId = undefined;
-        this.interactionRefreshPromise = undefined;
-        this.interactionRefreshErrorMessage = undefined;
-        this.nativeBalanceFetchKey = undefined;
-        this.nativeBalanceQueuedFetchKey = undefined;
-        this.nativeAccountBalances = {};
-        this.nativeBalanceLoadingSourceIds = [];
+        this.interactionRefresh.reset({requestUpdate: false});
+        this.nativeBalance.reset({requestUpdate: false});
         this.billingAddresses = [];
         this.resetTransferFlow();
         this.resetSavedSourceVerification();
@@ -669,8 +706,17 @@ export class CommerceHubConnect extends LitElement {
     destroyPaymentSdk();
   }
 
-  private emitSdkEvent<T>(name: string, detail: T) {
-    this.dispatchEvent(new CustomEvent<T>(name, {detail}));
+  private emitSdkEvent<Name extends SdkEventName>(
+    name: Name,
+    detail: SdkEventDetailMap[Name]
+  ) {
+    // Host-emitted public SDK events intentionally preserve the current
+    // non-bubbling, non-composed semantics. Future internal subcomponent
+    // events that need to reach this host across shadow DOM should use
+    // bubbles: true and composed: true instead of this public SDK helper.
+    this.dispatchEvent(
+      new CustomEvent<SdkEventDetailMap[Name]>(name, {detail})
+    );
   }
 
   private renderWidgetShell({
@@ -749,10 +795,22 @@ export class CommerceHubConnect extends LitElement {
     status: 'OTP_VALIDATION_PENDING' | 'OTP_VALIDATION_FAILED'
   ): TemplateResult {
     const copy = resolveOtpCopy(this.designConfig);
-    const isFailed = status === 'OTP_VALIDATION_FAILED';
     const isSubmitting = this.pendingAction === 'verify-otp';
     const isResending = this.pendingAction === 'resend-otp';
     const destination = resolveOtpDestination(this.interactionResponse);
+    let overlay: TemplateResult | undefined;
+
+    if (isSubmitting) {
+      overlay = renderWidgetLoadingOverlay({
+        title: 'Verifying code',
+        helper: 'Verifying your code, please wait.',
+      });
+    } else if (isResending) {
+      overlay = renderWidgetLoadingOverlay({
+        title: 'Sending code',
+        helper: 'Sending a new code, please wait.',
+      });
+    }
 
     return this.renderWidgetShell({
       title: copy.title,
@@ -760,63 +818,17 @@ export class CommerceHubConnect extends LitElement {
       showClose: false,
       showDivider: false,
       busy: isSubmitting || isResending,
-      overlay: isSubmitting
-        ? renderWidgetLoadingOverlay({
-            title: 'Verifying code',
-            helper: 'Verifying your code, please wait.',
-          })
-        : isResending
-        ? renderWidgetLoadingOverlay({
-            title: 'Sending code',
-            helper: 'Sending a new code, please wait.',
-          })
-        : undefined,
-      content: html`
-        <div class="otp-flow">
-          ${isFailed
-            ? renderAlert({
-                variant: 'danger',
-                message: this.otpErrorMessage ?? copy.failedMessage,
-              })
-            : ''}
-          ${renderOtpGroup({
-            label: 'Verification code',
-            value: this.otpValue,
-            length: OTP_LENGTH,
-            disabled: isSubmitting,
-            error: isFailed,
-          })}
-          <div class="primitive-footer">
-            ${renderButton({
-              label: isSubmitting
-                ? copy.verifyingButton
-                : isFailed
-                ? copy.tryAgainButton
-                : copy.verifyButton,
-              icon: !isSubmitting && !isFailed ? 'check' : undefined,
-              variant: 'primary',
-              action: 'verify-otp',
-              loading: isSubmitting,
-              disabled: isSubmitting || this.otpValue.length < OTP_LENGTH,
-            })}
-          </div>
-          <div class="otp-support">
-            <p class="otp-support-copy otp-resend-prefix">
-              ${copy.resendPrefix}
-            </p>
-            <div class="otp-support-actions">
-              ${renderOtpResend({
-                label: isResending
-                  ? copy.resendPendingButton
-                  : copy.resendButton,
-                action: 'resend-otp',
-                loading: isResending,
-                disabled: isSubmitting || isResending,
-              })}
-            </div>
-          </div>
-        </div>
-      `,
+      overlay,
+      content: renderOtpScreenContent({
+        status,
+        value: this.otpValue,
+        length: OTP_LENGTH,
+        destination,
+        failedMessage: this.otpErrorMessage,
+        copy,
+        submitting: isSubmitting,
+        resending: isResending,
+      }),
     });
   }
 
@@ -825,8 +837,8 @@ export class CommerceHubConnect extends LitElement {
     const paymentMethods = paymentMethodsFromInteractionResponse(
       this.interactionResponse,
       {
-        nativeBalances: this.nativeAccountBalances,
-        nativeBalanceLoadingSourceIds: this.nativeBalanceLoadingSourceIds,
+        nativeBalances: this.nativeBalance.balances,
+        nativeBalanceLoadingSourceIds: this.nativeBalance.loadingSourceIds,
       }
     );
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
@@ -840,9 +852,6 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse,
       'SELECT'
     );
-    const hasAddPaymentActions =
-      canAddPaymentSources &&
-      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
     const showTransferAction =
       allowedTenderOptions.bankAccount &&
       isAddSelectTransferFeatureEnabled(this.interactionResponse);
@@ -857,14 +866,7 @@ export class CommerceHubConnect extends LitElement {
       return this.renderWidgetShell({
         title: copy.title,
         showClose: false,
-        content: html`
-          <div class="payment-flow">
-            ${renderPaymentMethodSkeletonRows({
-              count: 3,
-              label: 'Loading payment methods',
-            })}
-          </div>
-        `,
+        content: renderPaymentMethodsSkeletonScreen(),
       });
     }
 
@@ -892,63 +894,20 @@ export class CommerceHubConnect extends LitElement {
       showClose: false,
       busy: isPaymentSourceActionPending,
       overlay: paymentSourceActionLoadingOverlay(this.pendingAction),
-      content: html`
-        <div class="payment-flow">
-          <div class="primitive-stack" aria-label="Payment methods">
-            ${paymentMethods.map((method) =>
-              renderPaymentMethodRow(
-                {
-                  ...method,
-                  disabled: method.disabled || isPaymentSourceActionPending,
-                },
-                {
-                  variant: isEditingPaymentSources ? 'edit' : 'default',
-                  deleteDisabled: isPaymentSourceActionPending,
-                  confirmingDelete:
-                    method.id === this.deleteConfirmationPaymentSourceId,
-                  selected: method.id === this.selectedPaymentSourceId,
-                  selectable: canSelectPaymentSources,
-                }
-              )
-            )}
-          </div>
-          ${isEditingPaymentSources
-            ? ''
-            : !hasAddPaymentActions
-            ? ''
-            : html`
-                <div class="payment-action-links">
-                  ${allowedTenderOptions.card
-                    ? renderSourceAction({
-                        label: copy.addCardTitle,
-                        action: 'add-card',
-                        icon: 'card',
-                        variant: 'link',
-                        disabled: isPaymentSourceActionPending,
-                      })
-                    : ''}
-                  ${allowedTenderOptions.bankAccount
-                    ? renderSourceAction({
-                        label: copy.addBankAccountTitle,
-                        action: 'add-bank-account',
-                        icon: 'bank',
-                        variant: 'link',
-                        disabled: isPaymentSourceActionPending,
-                      })
-                    : ''}
-                  ${showTransferAction
-                    ? renderSourceAction({
-                        label: 'Transfer funds',
-                        action: 'open-transfer',
-                        icon: 'transfer',
-                        variant: 'link',
-                        disabled: isPaymentSourceActionPending,
-                      })
-                    : ''}
-                </div>
-              `}
-        </div>
-      `,
+      content: renderPaymentMethodsScreenContent({
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        methods: paymentMethods,
+        allowedTenderOptions,
+        canAddPaymentSources,
+        canSelectPaymentSources,
+        editing: isEditingPaymentSources,
+        actionPending: isPaymentSourceActionPending,
+        selectedPaymentSourceId: this.selectedPaymentSourceId,
+        deleteConfirmationPaymentSourceId:
+          this.deleteConfirmationPaymentSourceId,
+        copy,
+        showTransferAction,
+      }),
     });
   }
 
@@ -961,7 +920,7 @@ export class CommerceHubConnect extends LitElement {
           ${renderAlert({
             variant: 'danger',
             message:
-              this.interactionRefreshErrorMessage ??
+              this.interactionRefresh.errorMessage ??
               "We couldn't load payment methods. Try again.",
           })}
           <div class="primitive-footer">
@@ -1011,8 +970,9 @@ export class CommerceHubConnect extends LitElement {
           ${renderSelectedPaymentMethod(
             paymentSourceToPaymentMethod(selectedSource, {
               selected: true,
-              nativeBalances: this.nativeAccountBalances,
-              nativeBalanceLoadingSourceIds: this.nativeBalanceLoadingSourceIds,
+              nativeBalances: this.nativeBalance.balances,
+              nativeBalanceLoadingSourceIds:
+                this.nativeBalance.loadingSourceIds,
             })
           )}
         </div>
@@ -1032,34 +992,13 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private shouldRenderPaymentSourceRefreshSkeleton(): boolean {
-    const interactionResponse = this.interactionResponse;
-    const interactionId = interactionResponse?.interactionId;
-
-    if (!interactionId) {
-      return false;
-    }
-
-    if (
-      this.interactionRefreshPromise &&
-      this.interactionRefreshInteractionId === interactionId
-    ) {
-      return true;
-    }
-
-    return (
-      !this.interactionRefreshErrorMessage &&
-      this.shouldRefreshPaymentSourcesFromInteraction()
+    return this.interactionRefresh.shouldRenderSkeleton(
+      this.interactionResponse
     );
   }
 
   private shouldRenderPaymentSourceRefreshError(): boolean {
-    const interactionId = this.interactionResponse?.interactionId;
-
-    return Boolean(
-      interactionId &&
-        this.interactionRefreshErrorMessage &&
-        this.interactionSnapshotInteractionId !== interactionId
-    );
+    return this.interactionRefresh.shouldRenderError(this.interactionResponse);
   }
 
   private renderSavedSourceVerificationOutcomeScreen(): TemplateResult {
@@ -1217,7 +1156,6 @@ export class CommerceHubConnect extends LitElement {
 
   private renderNoSavedPaymentMethods(): TemplateResult {
     const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
-    const showHelperCopy = Boolean(copy.emptyTitle || copy.emptyMessage);
     const isDeletePending = this.pendingAction === 'delete-payment-source';
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
@@ -1226,9 +1164,6 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse,
       'ADD_ACCOUNT'
     );
-    const hasAddPaymentActions =
-      canAddPaymentSources &&
-      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
     const showTransferAction =
       allowedTenderOptions.bankAccount &&
       isAddSelectTransferFeatureEnabled(this.interactionResponse);
@@ -1238,51 +1173,13 @@ export class CommerceHubConnect extends LitElement {
       subtitle: copy.subtitle,
       showClose: false,
       showDivider: false,
-      content: html`
-        <div class="payment-flow">
-          ${showHelperCopy
-            ? renderEmptyState({
-                title: copy.emptyTitle,
-                message: copy.emptyMessage,
-              })
-            : ''}
-          ${hasAddPaymentActions
-            ? html`
-                <div class="payment-action-links">
-                  ${allowedTenderOptions.card
-                    ? renderSourceAction({
-                        label: copy.addCardTitle,
-                        subtitle: copy.addCardSubtitle,
-                        action: 'add-card',
-                        icon: 'card',
-                        variant: 'link',
-                        disabled: isDeletePending,
-                      })
-                    : ''}
-                  ${allowedTenderOptions.bankAccount
-                    ? renderSourceAction({
-                        label: copy.addBankAccountTitle,
-                        subtitle: copy.addBankAccountSubtitle,
-                        action: 'add-bank-account',
-                        icon: 'bank',
-                        variant: 'link',
-                        disabled: isDeletePending,
-                      })
-                    : ''}
-                  ${showTransferAction
-                    ? renderSourceAction({
-                        label: 'Transfer funds',
-                        action: 'open-transfer',
-                        icon: 'transfer',
-                        variant: 'link',
-                        disabled: isDeletePending,
-                      })
-                    : ''}
-                </div>
-              `
-            : ''}
-        </div>
-      `,
+      content: renderNoSavedPaymentMethodsScreen({
+        allowedTenderOptions,
+        canAddPaymentSources,
+        deletePending: isDeletePending,
+        copy,
+        showTransferAction,
+      }),
     });
   }
 
@@ -2518,7 +2415,9 @@ export class CommerceHubConnect extends LitElement {
 
     const inputs = this.getRequiredInfoSsnInputs(key);
     const inputIndex = inputs.indexOf(input);
-    const segmentLength = requiredInfoSsnInputMaxLength(input);
+    const segmentLength = requiredInfoSsnSegmentMaxLength(
+      Number(input.dataset.requiredInfoSsnSegment)
+    );
     const digits = normalizeRequiredInfoSsn(input.value);
 
     if (inputIndex < 0) {
@@ -2599,7 +2498,9 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      const length = requiredInfoSsnInputMaxLength(input);
+      const length = requiredInfoSsnSegmentMaxLength(
+        Number(input.dataset.requiredInfoSsnSegment)
+      );
       const value = digits.slice(cursor, cursor + length);
       input.value = value;
 
@@ -2628,10 +2529,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private syncOtpValueFromInputs(inputs = this.getOtpInputs()) {
-    this.otpValue = inputs
-      .map((item) => item.value)
-      .join('')
-      .slice(0, OTP_LENGTH);
+    this.otpValue = normalizeOtpValue(inputs.map((item) => item.value));
     this.otpErrorMessage = undefined;
   }
 
@@ -2640,25 +2538,17 @@ export class CommerceHubConnect extends LitElement {
     startIndex: number,
     value: string
   ): number {
-    const digits = sanitizeOtpValue(value);
-    let lastWrittenIndex = startIndex;
+    const result = writeOtpDigits({
+      values: inputs.map((input) => input.value),
+      startIndex,
+      value,
+    });
 
-    digits
-      .slice(0, Math.max(inputs.length - startIndex, 0))
-      .split('')
-      .forEach((digit, offset) => {
-        const targetIndex = startIndex + offset;
-        const targetInput = inputs[targetIndex];
+    result.values.forEach((nextValue, index) => {
+      inputs[index].value = nextValue;
+    });
 
-        if (!targetInput) {
-          return;
-        }
-
-        targetInput.value = digit;
-        lastWrittenIndex = targetIndex;
-      });
-
-    return lastWrittenIndex;
+    return result.lastWrittenIndex;
   }
 
   private focusOtpInput(
@@ -2736,60 +2626,17 @@ export class CommerceHubConnect extends LitElement {
     field: keyof BankAccountDraft,
     value: string
   ) {
-    if (
-      isSensitiveBankAccountField(field) &&
-      isEncryptedBankAccountDisplayValue(
-        value,
-        this.bankAccountEncryption[field]
-      )
-    ) {
-      const nextDraft = {
-        ...this.bankAccountDraft,
-        [field]: value,
-      };
+    const nextState = updateBankAccountDraftFieldState({
+      draft: this.bankAccountDraft,
+      errors: this.bankAccountDraftErrors,
+      encryption: this.bankAccountEncryption,
+      field,
+      value,
+    });
 
-      this.bankAccountDraft = nextDraft;
-      this.bankAccountDraftErrors = validateBankAccountDraft(
-        normalizeBankAccountDraftForValidation(
-          nextDraft,
-          this.bankAccountEncryption
-        )
-      );
-      this.bankAccountSubmitError = undefined;
-      return;
-    }
-
-    const formattedValue = formatBankAccountDraftFieldValue(field, value);
-    const nextDraft = {
-      ...this.bankAccountDraft,
-      [field]: formattedValue,
-    };
-    let nextEncryption = this.bankAccountEncryption;
-
-    if (isSensitiveBankAccountField(field)) {
-      if (
-        isEncryptedBankAccountDisplayValue(
-          formattedValue,
-          this.bankAccountEncryption[field]
-        )
-      ) {
-        return;
-      }
-
-      nextEncryption = {
-        ...this.bankAccountEncryption,
-        [field]: resolveDirtyCardEncryptionState(
-          this.bankAccountEncryption[field],
-          normalizeBankAccountNumber(formattedValue)
-        ),
-      };
-    }
-
-    this.bankAccountDraft = nextDraft;
-    this.bankAccountEncryption = nextEncryption;
-    this.bankAccountDraftErrors = validateBankAccountDraft(
-      normalizeBankAccountDraftForValidation(nextDraft, nextEncryption)
-    );
+    this.bankAccountDraft = nextState.draft;
+    this.bankAccountEncryption = nextState.encryption;
+    this.bankAccountDraftErrors = nextState.errors;
     this.bankAccountSubmitError = undefined;
   }
 
@@ -3606,9 +3453,7 @@ export class CommerceHubConnect extends LitElement {
       this.selectedPaymentSourceId = attachedSource.id;
       this.setInteractionResponseFromSdk(refreshedInteractionResponse);
       this.paymentSourceView = 'selected';
-      this.dispatchEvent(
-        new CustomEvent(ON_SELECT_EVENT, {detail: attachedSource})
-      );
+      this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
     } catch (cause) {
       void cause;
     } finally {
@@ -3887,10 +3732,11 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private storeRequiredInfoValue(key: string, value: string) {
-    this.requiredInfoValues = {
-      ...this.requiredInfoValues,
-      [key]: value,
-    };
+    this.requiredInfoValues = storeRequiredInfoValue(
+      this.requiredInfoValues,
+      key,
+      value
+    );
     this.requiredInfoSubmitError = undefined;
   }
 
@@ -3905,14 +3751,15 @@ export class CommerceHubConnect extends LitElement {
     const key =
       this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
 
-    this.requiredInfoFiles = {
-      ...this.requiredInfoFiles,
-      [key]: file,
-    };
-    this.requiredInfoFileNames = {
-      ...this.requiredInfoFileNames,
-      [key]: file.name,
-    };
+    const nextState = storeRequiredInfoFile({
+      files: this.requiredInfoFiles,
+      fileNames: this.requiredInfoFileNames,
+      key,
+      file,
+    });
+
+    this.requiredInfoFiles = nextState.files;
+    this.requiredInfoFileNames = nextState.fileNames;
     this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
   }
@@ -3928,10 +3775,10 @@ export class CommerceHubConnect extends LitElement {
       const key = requiredInfoDocKey(doc, index);
 
       if (isRequiredInfoTextDoc(doc)) {
-        return Boolean(this.requiredInfoValues[key]?.trim());
+        return hasRequiredInfoTextValue(this.requiredInfoValues, key);
       }
 
-      return Boolean(this.requiredInfoFiles[key]);
+      return hasRequiredInfoFile(this.requiredInfoFiles, key);
     });
   }
 
@@ -4064,10 +3911,10 @@ export class CommerceHubConnect extends LitElement {
     const key = requiredInfoDocKey(doc, index);
 
     if (isRequiredInfoTextDoc(doc)) {
-      return Boolean(this.requiredInfoValues[key]?.trim());
+      return hasRequiredInfoTextValue(this.requiredInfoValues, key);
     }
 
-    return Boolean(this.requiredInfoFiles[key]);
+    return hasRequiredInfoFile(this.requiredInfoFiles, key);
   }
 
   private async uploadRequiredInfoEntries(
@@ -4294,10 +4141,7 @@ export class CommerceHubConnect extends LitElement {
               );
 
             this.setInteractionResponseFromSdk(nextInteractionResponse);
-            this.emitSdkEvent(
-              ON_ADD_PAYMENT_METHOD_EVENT,
-              resolvedBankSource
-            );
+            this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, resolvedBankSource);
             this.resetBankFlow();
 
             if (resolvedBankSource.verificationInfo?.status === 'VERIFIED') {
@@ -4321,195 +4165,35 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async refreshPaymentSourcesFromInteraction() {
-    const interactionId = this.interactionResponse?.interactionId;
-
-    if (!interactionId || !this.shouldRefreshPaymentSourcesFromInteraction()) {
-      return;
-    }
-
-    try {
-      await this.fetchInteraction(interactionId);
-    } catch (cause) {
-      void cause;
-    }
+    await this.interactionRefresh.refreshFromInteraction(
+      this.interactionRefreshOptions()
+    );
   }
 
   private queueNativeAccountBalanceRefresh() {
-    const interactionId = this.interactionResponse?.interactionId;
-    const nativeSources = nativePaymentSourcesFromInteractionResponse(
-      this.interactionResponse
+    this.nativeBalance.queueRefresh(
+      () => this.interactionResponse,
+      (interactionId) => this.fetchNativeAccountBalances(interactionId)
     );
-
-    if (!interactionId || nativeSources.length === 0) {
-      const shouldClearBalanceState =
-        this.nativeBalanceFetchKey !== undefined ||
-        this.nativeBalanceQueuedFetchKey !== undefined ||
-        Object.keys(this.nativeAccountBalances).length > 0 ||
-        this.nativeBalanceLoadingSourceIds.length > 0;
-
-      this.nativeBalanceQueuedFetchKey = undefined;
-
-      if (!shouldClearBalanceState) {
-        return;
-      }
-
-      queueMicrotask(() => {
-        const currentNativeSources =
-          nativePaymentSourcesFromInteractionResponse(this.interactionResponse);
-
-        if (currentNativeSources.length === 0) {
-          this.nativeBalanceFetchKey = undefined;
-          this.nativeAccountBalances = {};
-          this.nativeBalanceLoadingSourceIds = [];
-        }
-      });
-      return;
-    }
-
-    const fetchKey = nativeBalanceFetchKey(interactionId, nativeSources);
-
-    if (
-      this.nativeBalanceFetchKey === fetchKey ||
-      this.nativeBalanceQueuedFetchKey === fetchKey
-    ) {
-      return;
-    }
-
-    this.nativeBalanceQueuedFetchKey = fetchKey;
-
-    queueMicrotask(() => {
-      if (this.nativeBalanceQueuedFetchKey !== fetchKey) {
-        return;
-      }
-
-      this.nativeBalanceQueuedFetchKey = undefined;
-
-      const currentInteractionId = this.interactionResponse?.interactionId;
-      const currentNativeSources = nativePaymentSourcesFromInteractionResponse(
-        this.interactionResponse
-      );
-
-      if (
-        !currentInteractionId ||
-        currentNativeSources.length === 0 ||
-        nativeBalanceFetchKey(currentInteractionId, currentNativeSources) !==
-          fetchKey
-      ) {
-        return;
-      }
-
-      void this.refreshNativeAccountBalances();
-    });
   }
 
-  private async refreshNativeAccountBalances() {
-    const interactionId = this.interactionResponse?.interactionId;
-    const nativeSources = nativePaymentSourcesFromInteractionResponse(
-      this.interactionResponse
+  private async fetchNativeAccountBalances(
+    interactionId: string
+  ): Promise<NativeAccountBalanceMap> {
+    const response = await this.createSdkClient(interactionId).GET(
+      '/interaction/source/native/balances'
     );
 
-    if (!interactionId || nativeSources.length === 0) {
-      this.nativeBalanceFetchKey = undefined;
-      this.nativeBalanceQueuedFetchKey = undefined;
-      this.nativeAccountBalances = {};
-      this.nativeBalanceLoadingSourceIds = [];
-      return;
-    }
-
-    const fetchKey = nativeBalanceFetchKey(interactionId, nativeSources);
-
-    if (this.nativeBalanceFetchKey === fetchKey) {
-      return;
-    }
-
-    this.nativeBalanceFetchKey = fetchKey;
-    this.nativeAccountBalances = {};
-    this.nativeBalanceLoadingSourceIds = nativeSources.map(paymentSourceId);
-
-    try {
-      const response = await this.createSdkClient(interactionId).GET(
-        '/interaction/source/native/balances'
-      );
-
-      if (this.nativeBalanceFetchKey !== fetchKey) {
-        return;
-      }
-
-      this.nativeAccountBalances = response.data ?? {};
-    } catch (cause) {
-      void cause;
-
-      if (this.nativeBalanceFetchKey === fetchKey) {
-        this.nativeAccountBalances = {};
-      }
-    } finally {
-      if (this.nativeBalanceFetchKey === fetchKey) {
-        this.nativeBalanceLoadingSourceIds = [];
-      }
-    }
-  }
-
-  private shouldRefreshPaymentSourcesFromInteraction(): boolean {
-    const interactionResponse = this.interactionResponse;
-    const interactionId = interactionResponse?.interactionId;
-
-    if (!interactionId) {
-      return false;
-    }
-
-    if (this.interactionSnapshotInteractionId === interactionId) {
-      return false;
-    }
-
-    return true;
+    return response.data ?? {};
   }
 
   private async fetchInteraction(
     interactionId: string
   ): Promise<InteractionResponse> {
-    if (
-      this.interactionRefreshInteractionId === interactionId &&
-      this.interactionRefreshPromise
-    ) {
-      return this.interactionRefreshPromise;
-    }
-
-    this.interactionRefreshInteractionId = interactionId;
-    this.interactionRefreshErrorMessage = undefined;
-    this.interactionRefreshPromise = this.createSdkClient(interactionId)
-      .GET('/interaction')
-      .then((response) => interactionResponseFromApi(response))
-      .then((interactionResponse) => {
-        const refreshedInteractionResponse = interactionResponseWithSelection(
-          this.interactionResponse ?? {interactionId},
-          interactionResponse,
-          this.selectedPaymentSourceId
-        );
-
-        this.interactionSnapshotInteractionId = interactionId;
-        this.setInteractionResponseFromSdk(refreshedInteractionResponse);
-        this.emitSdkEvent(
-          ON_LIST_PAYMENT_METHODS_EVENT,
-          refreshedInteractionResponse.paymentSources ?? []
-        );
-
-        return refreshedInteractionResponse;
-      })
-      .catch((cause) => {
-        if (this.interactionSnapshotInteractionId !== interactionId) {
-          this.interactionRefreshErrorMessage =
-            "We couldn't load payment methods. Try again.";
-        }
-
-        throw cause;
-      })
-      .finally(() => {
-        this.interactionRefreshPromise = undefined;
-        this.interactionRefreshInteractionId = undefined;
-        this.requestUpdate();
-      });
-
-    return this.interactionRefreshPromise;
+    return this.interactionRefresh.fetch(
+      interactionId,
+      this.interactionRefreshOptions()
+    );
   }
 
   private async retryInteractionRefresh() {
@@ -4524,6 +4208,22 @@ export class CommerceHubConnect extends LitElement {
     } catch (cause) {
       void cause;
     }
+  }
+
+  private interactionRefreshOptions() {
+    return {
+      getCurrentInteractionResponse: () => this.interactionResponse,
+      getSelectedPaymentSourceId: () => this.selectedPaymentSourceId,
+      requestInteraction: (interactionId: string) =>
+        this.createSdkClient(interactionId)
+          .GET('/interaction')
+          .then((response) => interactionResponseFromApi(response)),
+      mergeInteractionResponse: interactionResponseWithSelection,
+      setInteractionResponse: (interactionResponse: InteractionResponse) =>
+        this.setInteractionResponseFromSdk(interactionResponse),
+      emitListPaymentMethods: (paymentSources: PaymentSource[]) =>
+        this.emitSdkEvent(ON_LIST_PAYMENT_METHODS_EVENT, paymentSources),
+    };
   }
 
   private syncBillingAddressesFromInteractionResponse(
@@ -4888,93 +4588,9 @@ export interface DesignConfigNoSavedPaymentMethodsCopy {
   addCardSubtitle?: string;
 }
 
-interface ResolvedOtpCopy {
-  title: string;
-  subtitle?: string;
-  failedMessage: string;
-  resendPrefix: string;
-  resendButton: string;
-  resendPendingButton: string;
-  verifyButton: string;
-  verifyingButton: string;
-  tryAgainButton: string;
-}
-
-interface ResolvedPaymentMethodsCopy {
-  title: string;
-  subtitle: string;
-  addBankAccountTitle: string;
-  addBankAccountSubtitle: string;
-  addCardTitle: string;
-  addCardSubtitle: string;
-  continueButton: string;
-  continuingButton: string;
-}
-
-interface ResolvedNoSavedPaymentMethodsCopy {
-  title: string;
-  subtitle: string;
-  emptyTitle: string;
-  emptyMessage: string;
-  addBankAccountTitle: string;
-  addBankAccountSubtitle: string;
-  addCardTitle: string;
-  addCardSubtitle: string;
-}
-
-const createCardDraft = (): CardDraft => ({
-  name: '',
-  fullName: '',
-  cardNumber: '',
-  expirationDate: '',
-  cvv: '',
-  billingAddressValue: NEW_BILLING_ADDRESS_VALUE,
-  country: '',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  state: '',
-  zip: '',
-});
-
-const createBankAccountDraft = (): BankAccountDraft => ({
-  name: '',
-  routingNumber: '',
-  accountNumber: '',
-  accountNumberReEntered: '',
-});
-
-const createTransferDraft = (): TransferDraft => ({
-  fromSourceId: '',
-  toSourceId: '',
-  amount: '',
-});
-
-const createCardEncryptionFieldState = (): CardFieldEncryptionState => ({
-  status: 'idle',
-  normalizedValue: '',
-});
-
-const createCardEncryptionState = (): CardEncryptionState => ({
-  cardNumber: createCardEncryptionFieldState(),
-  cvv: createCardEncryptionFieldState(),
-});
-
-const createBankAccountEncryptionState = (): BankAccountEncryptionState => ({
-  routingNumber: createCardEncryptionFieldState(),
-  accountNumber: createCardEncryptionFieldState(),
-  accountNumberReEntered: createCardEncryptionFieldState(),
-});
-
-const sanitizeOtpValue = (value: string): string => value.replace(/\D/g, '');
-
-const findOtpInput = (event: Event): HTMLInputElement | undefined =>
-  event
-    .composedPath()
-    .find(
-      (item): item is HTMLInputElement =>
-        item instanceof HTMLInputElement && item.classList.contains('otp-input')
-    );
+type ResolvedOtpCopy = OtpScreenCopy;
+type ResolvedPaymentMethodsCopy = PaymentMethodsScreenCopy;
+type ResolvedNoSavedPaymentMethodsCopy = NoSavedPaymentMethodsScreenCopy;
 
 const findRequiredInfoSsnInput = (event: Event): HTMLInputElement | undefined =>
   event
@@ -4985,685 +4601,6 @@ const findRequiredInfoSsnInput = (event: Event): HTMLInputElement | undefined =>
         item.classList.contains('required-info-ssn-input')
     );
 
-const normalizeRequiredInfoSsn = (value: string): string =>
-  value.replace(/\D/g, '').slice(0, 9);
-
-const requiredInfoSsnSegments = (value: string): [string, string, string] => {
-  const digits = normalizeRequiredInfoSsn(value);
-
-  return [digits.slice(0, 3), digits.slice(3, 5), digits.slice(5, 9)];
-};
-
-const requiredInfoSsnInputMaxLength = (input: HTMLInputElement): number => {
-  const segmentIndex = Number(input.dataset.requiredInfoSsnSegment);
-
-  return REQUIRED_INFO_SSN_SEGMENT_LENGTHS[segmentIndex] ?? 0;
-};
-
-const isSensitiveCardField = (field?: string): field is SensitiveCardField =>
-  field === 'cardNumber' || field === 'cvv';
-
-const isSensitiveBankAccountField = (
-  field?: string
-): field is SensitiveBankAccountField =>
-  field === 'routingNumber' ||
-  field === 'accountNumber' ||
-  field === 'accountNumberReEntered';
-
-const normalizeCardNumber = (value: string): string => value.replace(/\D/g, '');
-
-const formatCardDraftFieldValue = (
-  field: keyof CardDraft,
-  value: string
-): string => {
-  if (field === 'cardNumber') {
-    return formatCardNumberForDisplay(value);
-  }
-
-  if (field === 'expirationDate') {
-    return formatExpirationDateForDisplay(value);
-  }
-
-  if (field === 'cvv') {
-    return normalizeCvv(value).slice(0, 4);
-  }
-
-  return value;
-};
-
-const formatCardNumberForDisplay = (value: string): string => {
-  const digits = normalizeCardNumber(value).slice(0, 19);
-
-  return formatDigitsByGroups(digits, resolveCardNumberGroupPattern(digits));
-};
-
-const resolveCardNumberGroupPattern = (digits: string): number[] => {
-  if (/^3[47]/.test(digits)) {
-    return [4, 6, 5];
-  }
-
-  if (/^3(?:0[0-5]|[68])/.test(digits)) {
-    return [4, 6, 4];
-  }
-
-  return [4, 4, 4, 4, 3];
-};
-
-const formatDigitsByGroups = (digits: string, groups: number[]): string => {
-  const parts: string[] = [];
-  let offset = 0;
-
-  for (const size of groups) {
-    if (offset >= digits.length) {
-      break;
-    }
-
-    parts.push(digits.slice(offset, offset + size));
-    offset += size;
-  }
-
-  if (offset < digits.length) {
-    parts.push(digits.slice(offset));
-  }
-
-  return parts.join(' ');
-};
-
-const normalizeCvv = (value: string): string => value.replace(/\D/g, '');
-
-const formatExpirationDateForDisplay = (value: string): string => {
-  const digits = value.replace(/\D/g, '').slice(0, 6);
-
-  if (digits.length <= 2) {
-    return digits.length === 2 ? `${digits} / ` : digits;
-  }
-
-  return `${digits.slice(0, 2)} / ${digits.slice(2)}`;
-};
-
-const normalizeSensitiveCardFieldValue = (
-  field: SensitiveCardField,
-  value: string
-): string =>
-  field === 'cardNumber' ? normalizeCardNumber(value) : normalizeCvv(value);
-
-const normalizeCardDraft = (draft: CardDraft): CardDraft => ({
-  name: draft.name.trim(),
-  fullName: draft.fullName.trim(),
-  cardNumber: draft.cardNumber.trim(),
-  expirationDate: draft.expirationDate.trim(),
-  cvv: draft.cvv.trim(),
-  billingAddressValue:
-    draft.billingAddressValue.trim() || NEW_BILLING_ADDRESS_VALUE,
-  country: draft.country.trim(),
-  addressLine1: draft.addressLine1.trim(),
-  addressLine2: draft.addressLine2.trim(),
-  city: draft.city.trim(),
-  state: draft.state.trim(),
-  zip: draft.zip.trim(),
-});
-
-const normalizeBankAccountNumber = (value: string): string =>
-  value.replace(/\D/g, '');
-
-const isEncryptedBankAccountDisplayValue = (
-  value: string,
-  encryptedField: CardFieldEncryptionState
-): boolean =>
-  encryptedField.status === 'encrypted' &&
-  Boolean(encryptedField.normalizedValue) &&
-  value === maskSensitiveDisplayValue(encryptedField.normalizedValue);
-
-const maskSensitiveDisplayValue = (value: string): string => {
-  if (value.length <= 4) {
-    return value;
-  }
-
-  return `${'•'.repeat(value.length - 4)}${lastFour(value)}`;
-};
-
-const bankAccountInputType = (
-  field: SensitiveBankAccountField,
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): 'password' | 'text' => {
-  if (field === 'routingNumber') {
-    return 'text';
-  }
-
-  return isEncryptedBankAccountDisplayValue(draft[field], encryption[field])
-    ? 'text'
-    : 'password';
-};
-
-const formatBankAccountDraftFieldValue = (
-  field: keyof BankAccountDraft,
-  value: string
-): string => {
-  if (field === 'routingNumber') {
-    return normalizeBankAccountNumber(value).slice(0, 9);
-  }
-
-  if (field === 'accountNumber' || field === 'accountNumberReEntered') {
-    return normalizeBankAccountNumber(value).slice(0, 17);
-  }
-
-  return value;
-};
-
-const normalizeBankAccountDraftForValidation = (
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): BankAccountDraft => ({
-  name: draft.name.trim(),
-  routingNumber: normalizeBankAccountDraftFieldForValidation(
-    'routingNumber',
-    draft,
-    encryption
-  ),
-  accountNumber: normalizeBankAccountDraftFieldForValidation(
-    'accountNumber',
-    draft,
-    encryption
-  ),
-  accountNumberReEntered: normalizeBankAccountDraftFieldForValidation(
-    'accountNumberReEntered',
-    draft,
-    encryption
-  ),
-});
-
-const normalizeBankAccountDraftFieldForValidation = (
-  field: SensitiveBankAccountField,
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): string => {
-  const value = draft[field];
-  const encryptedField = encryption[field];
-
-  if (isEncryptedBankAccountDisplayValue(value, encryptedField)) {
-    return encryptedField.normalizedValue;
-  }
-
-  return normalizeBankAccountNumber(value);
-};
-
-const normalizeBankAccountDraftForDisplay = (
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): BankAccountDraft => ({
-  name: draft.name,
-  routingNumber: normalizeBankAccountDraftFieldForDisplay(
-    'routingNumber',
-    draft,
-    encryption
-  ),
-  accountNumber: normalizeBankAccountDraftFieldForDisplay(
-    'accountNumber',
-    draft,
-    encryption
-  ),
-  accountNumberReEntered: normalizeBankAccountDraftFieldForDisplay(
-    'accountNumberReEntered',
-    draft,
-    encryption
-  ),
-});
-
-const normalizeBankAccountDraftFieldForDisplay = (
-  field: SensitiveBankAccountField,
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): string => {
-  const value = draft[field];
-
-  return isEncryptedBankAccountDisplayValue(value, encryption[field])
-    ? value
-    : normalizeBankAccountNumber(value);
-};
-
-const validateBankAccountDraft = (
-  draft: BankAccountDraft
-): BankAccountDraftErrors => {
-  const errors: BankAccountDraftErrors = {};
-  const routingNumber = normalizeBankAccountNumber(draft.routingNumber);
-  const accountNumber = normalizeBankAccountNumber(draft.accountNumber);
-  const accountNumberReEntered = normalizeBankAccountNumber(
-    draft.accountNumberReEntered
-  );
-
-  if (!routingNumber) {
-    errors.routingNumber = 'Enter a routing number.';
-  } else if (routingNumber.length !== 9) {
-    errors.routingNumber = 'Enter a 9-digit routing number.';
-  }
-
-  if (!accountNumber) {
-    errors.accountNumber = 'Enter an account number.';
-  }
-
-  if (!accountNumberReEntered) {
-    errors.accountNumberReEntered = 'Confirm the account number.';
-  } else if (accountNumber && accountNumberReEntered !== accountNumber) {
-    errors.accountNumberReEntered = 'Account numbers must match.';
-  }
-
-  return errors;
-};
-
-const isBankAccountDraftReady = (
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): boolean => {
-  const normalizedDraft = normalizeBankAccountDraftForValidation(
-    draft,
-    encryption
-  );
-
-  return (
-    Object.keys(validateBankAccountDraft(normalizedDraft)).length === 0 &&
-    (
-      ['routingNumber', 'accountNumber', 'accountNumberReEntered'] as const
-    ).every((field) => {
-      const encryptedField = encryption[field];
-      const normalizedValue = normalizedDraft[field];
-
-      return (
-        encryptedField.status === 'encrypted' &&
-        encryptedField.normalizedValue === normalizedValue &&
-        Boolean(encryptedField.encryptedValue)
-      );
-    })
-  );
-};
-
-const normalizeTransferDraft = (draft: TransferDraft): TransferDraft => ({
-  fromSourceId: draft.fromSourceId.trim(),
-  toSourceId: draft.toSourceId.trim(),
-  amount: draft.amount.trim(),
-});
-
-const validateTransferDraft = (
-  draft: TransferDraft,
-  sources: PaymentSource[]
-): TransferDraftErrors => {
-  const errors: TransferDraftErrors = {};
-  const sourceIds = new Set(sources.map(paymentSourceId));
-  const amount = Number(draft.amount);
-
-  if (!draft.fromSourceId) {
-    errors.fromSourceId = 'Select a source account.';
-  } else if (!sourceIds.has(draft.fromSourceId)) {
-    errors.fromSourceId = 'Select a verified bank or native account.';
-  }
-
-  if (!draft.toSourceId) {
-    errors.toSourceId = 'Select a destination account.';
-  } else if (!sourceIds.has(draft.toSourceId)) {
-    errors.toSourceId = 'Select a verified bank or native account.';
-  } else if (draft.toSourceId === draft.fromSourceId) {
-    errors.toSourceId = 'Select a different destination account.';
-  }
-
-  if (!draft.amount) {
-    errors.amount = 'Enter an amount.';
-  } else if (!Number.isFinite(amount) || amount <= 0) {
-    errors.amount = 'Enter an amount greater than zero.';
-  }
-
-  return errors;
-};
-
-const isTransferDraftReady = (
-  draft: TransferDraft,
-  sources: PaymentSource[]
-): boolean =>
-  Object.keys(validateTransferDraft(normalizeTransferDraft(draft), sources))
-    .length === 0;
-
-const formatTransferAmountForReview = (draft: TransferDraft): string =>
-  `${Number(draft.amount).toFixed(2)} ${TRANSFER_CURRENCY}`;
-
-const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
-  const errors: CardDraftErrors = {};
-
-  if (!draft.name) {
-    errors.name = 'Enter a card name.';
-  }
-
-  if (!draft.fullName) {
-    errors.fullName = 'Enter the full name.';
-  }
-
-  if (!isValidCardNumber(draft.cardNumber)) {
-    errors.cardNumber = 'Enter a valid card number.';
-  }
-
-  if (!parseExpirationDate(draft.expirationDate)) {
-    errors.expirationDate = 'Enter a valid expiration date.';
-  }
-
-  if (!isValidCvv(draft.cvv)) {
-    errors.cvv = 'Enter a valid CVC.';
-  }
-
-  if (!draft.billingAddressValue) {
-    errors.billingAddressValue = 'Select a billing address.';
-  }
-
-  if (draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE) {
-    if (!draft.country) {
-      errors.country = 'Select a country or region.';
-    }
-
-    if (!draft.addressLine1) {
-      errors.addressLine1 = 'Enter an address.';
-    }
-
-    if (!draft.city) {
-      errors.city = 'Enter a city.';
-    }
-
-    if (!draft.state) {
-      errors.state = 'Select a state.';
-    }
-
-    if (!/^\d{5}(?:-\d{4})?$/.test(draft.zip)) {
-      errors.zip = 'Enter a valid ZIP code.';
-    }
-  }
-
-  return errors;
-};
-
-const isCardDraftReady = (
-  draft: CardDraft,
-  encryption: CardEncryptionState
-): boolean =>
-  Object.keys(validateCardDraft(normalizeCardDraft(draft))).length === 0 &&
-  Object.keys(validateCardEncryptionReadiness(draft, encryption)).length === 0;
-
-const validateSensitiveCardField = (
-  field: SensitiveCardField,
-  value: string
-): string | undefined => {
-  if (field === 'cardNumber') {
-    return isValidCardNumber(value) ? undefined : 'Enter a valid card number.';
-  }
-
-  return isValidCvv(value) ? undefined : 'Enter a valid CVC.';
-};
-
-const buildCardEncryptionErrorMessage = (field: SensitiveCardField): string =>
-  field === 'cardNumber'
-    ? 'Unable to encrypt the card number. Try again.'
-    : 'Unable to encrypt the CVC. Try again.';
-
-const buildBankAccountEncryptionErrorMessage = (
-  field: SensitiveBankAccountField
-): string =>
-  field === 'routingNumber'
-    ? 'Unable to encrypt the routing number. Try again.'
-    : 'Unable to encrypt the account number. Try again.';
-
-const resolveDirtyCardEncryptionState = (
-  previous: CardFieldEncryptionState,
-  normalizedValue: string
-): CardFieldEncryptionState => {
-  if (!normalizedValue) {
-    return createCardEncryptionFieldState();
-  }
-
-  if (
-    previous.normalizedValue === normalizedValue &&
-    (previous.status === 'encrypting' || previous.status === 'encrypted')
-  ) {
-    return previous;
-  }
-
-  return {
-    status: 'dirty',
-    normalizedValue,
-  };
-};
-
-const omitCardDraftError = (
-  errors: CardDraftErrors,
-  field: keyof CardDraft
-): CardDraftErrors => {
-  const nextErrors = {...errors};
-
-  delete nextErrors[field];
-
-  return nextErrors;
-};
-
-const omitBankAccountDraftError = (
-  errors: BankAccountDraftErrors,
-  field: keyof BankAccountDraft
-): BankAccountDraftErrors => {
-  const nextErrors = {...errors};
-
-  delete nextErrors[field];
-
-  return nextErrors;
-};
-
-const validateCardEncryptionReadiness = (
-  draft: CardDraft,
-  encryption: CardEncryptionState
-): CardDraftErrors => {
-  const errors: CardDraftErrors = {};
-
-  for (const field of ['cardNumber', 'cvv'] as const) {
-    const normalizedValue = normalizeSensitiveCardFieldValue(
-      field,
-      draft[field]
-    );
-    const encryptedField = encryption[field];
-
-    if (!normalizedValue) {
-      continue;
-    }
-
-    const isEncrypted =
-      encryptedField.status === 'encrypted' &&
-      encryptedField.normalizedValue === normalizedValue &&
-      Boolean(encryptedField.encryptedValue);
-
-    if (!isEncrypted) {
-      errors[field] =
-        encryptedField.status === 'failed'
-          ? buildCardEncryptionErrorMessage(field)
-          : field === 'cardNumber'
-          ? 'Encrypt the card number before saving.'
-          : 'Encrypt the CVC before saving.';
-    }
-  }
-
-  return errors;
-};
-
-const resolveEncryptedCardFieldValue = (
-  field: SensitiveCardField,
-  value: string,
-  encryption: CardEncryptionState
-): string => {
-  const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
-  const encryptedField = encryption[field];
-
-  if (
-    encryptedField.status !== 'encrypted' ||
-    encryptedField.normalizedValue !== normalizedValue ||
-    !encryptedField.encryptedValue
-  ) {
-    throw new Error(
-      field === 'cardNumber'
-        ? 'Card number encryption must complete before saving.'
-        : 'CVC encryption must complete before saving.'
-    );
-  }
-
-  return encryptedField.encryptedValue;
-};
-
-const resolveBankAccountPayloadFieldValue = (
-  field: SensitiveBankAccountField,
-  draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
-): string => {
-  const value = draft[field];
-  const normalizedValue = normalizeBankAccountNumber(value);
-  const encryptedField = encryption[field];
-  const matchesEncryptedValue =
-    isEncryptedBankAccountDisplayValue(value, encryptedField) ||
-    normalizedValue === encryptedField.normalizedValue;
-
-  if (
-    encryptedField.status === 'encrypted' &&
-    encryptedField.encryptedValue &&
-    matchesEncryptedValue
-  ) {
-    return encryptedField.encryptedValue;
-  }
-
-  if (!normalizedValue) {
-    return '';
-  }
-
-  throw new Error('ACH detail encryption must complete before saving.');
-};
-
-const bankAccountFieldLastFour = (
-  field: SensitiveBankAccountField,
-  encryption: BankAccountEncryptionState,
-  draft: BankAccountDraft
-): string => lastFour(encryption[field].normalizedValue || draft[field]);
-
-const resolveBankAccountSourceName = (
-  name: string,
-  displayAccountNumber: string
-): string => name.trim() || `Bank Account xxxxxx${displayAccountNumber}`;
-
-const isValidCardNumber = (value: string): boolean => {
-  const digits = normalizeCardNumber(value);
-
-  if (digits.length < 12 || digits.length > 19) {
-    return false;
-  }
-
-  let sum = 0;
-  let shouldDouble = false;
-
-  for (let index = digits.length - 1; index >= 0; index -= 1) {
-    let digit = Number(digits[index]);
-
-    if (shouldDouble) {
-      digit *= 2;
-
-      if (digit > 9) {
-        digit -= 9;
-      }
-    }
-
-    sum += digit;
-    shouldDouble = !shouldDouble;
-  }
-
-  return sum % 10 === 0;
-};
-
-const isValidCvv = (value: string): boolean =>
-  /^\d{3,4}$/.test(normalizeCvv(value));
-
-const parseExpirationDate = (
-  value: string
-): {month: string; year: string} | undefined => {
-  const digits = value.replace(/\D/g, '');
-  const month = digits.slice(0, 2);
-  const yearDigits = digits.slice(2);
-  const monthNumber = Number(month);
-
-  if (month.length !== 2 || monthNumber < 1 || monthNumber > 12) {
-    return undefined;
-  }
-
-  if (yearDigits.length === 2) {
-    return {month, year: `20${yearDigits}`};
-  }
-
-  if (yearDigits.length === 4) {
-    return {month, year: yearDigits};
-  }
-
-  return undefined;
-};
-
-const detectCardNetwork = (
-  value: string
-): NonNullable<CardPaymentSource['card']>['network'] | undefined => {
-  const digits = normalizeCardNumber(value);
-
-  if (/^4/.test(digits)) {
-    return 'Visa';
-  }
-
-  if (/^(5[1-5]|2[2-7])/.test(digits)) {
-    return 'Mastercard';
-  }
-
-  if (/^3[47]/.test(digits)) {
-    return 'AmericanExpress';
-  }
-
-  if (/^(6011|65|64[4-9])/.test(digits)) {
-    return 'Discover';
-  }
-
-  return undefined;
-};
-
-const reconcileCardDraftBillingAddress = (
-  draft: CardDraft,
-  billingAddresses: Address[]
-): CardDraft => {
-  const savedAddressIds = billingAddresses
-    .map((address) => address.id?.trim())
-    .filter((addressId): addressId is string => Boolean(addressId));
-
-  if (!savedAddressIds.length) {
-    return {
-      ...draft,
-      billingAddressValue: NEW_BILLING_ADDRESS_VALUE,
-    };
-  }
-
-  if (savedAddressIds.includes(draft.billingAddressValue)) {
-    return draft;
-  }
-
-  const hasNewBillingAddressInput = [
-    draft.country,
-    draft.addressLine1,
-    draft.addressLine2,
-    draft.city,
-    draft.state,
-    draft.zip,
-  ].some((value) => value.trim());
-
-  if (
-    draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE &&
-    hasNewBillingAddressInput
-  ) {
-    return draft;
-  }
-
-  return {
-    ...draft,
-    billingAddressValue: savedAddressIds[0],
-  };
-};
-
 const billingAddressLabel = (address: Address): string => {
   const stateZip = [address.stateOrProvince, address.postalCode]
     .filter(Boolean)
@@ -5672,27 +4609,6 @@ const billingAddressLabel = (address: Address): string => {
   const label = [address.street, cityStateZip].filter(Boolean).join(', ');
 
   return label || address.id || 'Saved billing address';
-};
-
-const billingAddressFromCardDraft = (draft: CardDraft): Address => ({
-  id: createLocalBillingAddressId(),
-  recipientNameOrAddress: draft.fullName,
-  country: draft.country,
-  street: draft.addressLine1,
-  houseNumberOrName: draft.addressLine2 || undefined,
-  city: draft.city,
-  stateOrProvince: draft.state,
-  postalCode: draft.zip,
-});
-
-let billingAddressIdCounter = 0;
-
-const createLocalBillingAddressId = (): string => {
-  billingAddressIdCounter += 1;
-
-  return `billing-address-${Date.now().toString(
-    36
-  )}-${billingAddressIdCounter.toString(36)}`;
 };
 
 const cardPaymentSourceFromPayload = (
@@ -5763,9 +4679,6 @@ const verificationInfoFromVerificationResponse = (
 
   return verificationInfo;
 };
-
-const defaultOtpSubtitle = (destination?: string): string =>
-  `We sent a one-time code to ${destination ?? 'your contact method'}.`;
 
 const resolveOtpDestination = (
   interactionResponse?: InteractionResponse
@@ -6138,11 +5051,6 @@ const paymentSourcePaymentMethodType = (
   return 'card';
 };
 
-const nativePaymentSourcesFromInteractionResponse = (
-  interactionResponse?: InteractionResponse
-): NativePaymentSource[] =>
-  (interactionResponse?.paymentSources ?? []).filter(isNativePaymentSource);
-
 const transferPaymentSourcesFromInteractionResponse = (
   interactionResponse?: InteractionResponse
 ): PaymentSource[] =>
@@ -6152,14 +5060,6 @@ const transferPaymentSourcesFromInteractionResponse = (
       source.verificationInfo?.status === 'VERIFIED' &&
       Boolean(paymentSourceId(source))
   );
-
-const nativeBalanceFetchKey = (
-  interactionId: string,
-  sources: NativePaymentSource[]
-): string =>
-  `${interactionId}:${sources
-    .map((source) => nativeAccountBalanceMatchKeys(source).join(','))
-    .join('|')}`;
 
 const nativeAccountBalanceForSource = (
   source: NativePaymentSource,
@@ -6674,7 +5574,6 @@ type RequiredInfoDoc = NonNullable<
 >[number];
 type RequiredInfoTextInputType = 'text' | 'password';
 type RequiredInfoTextInputMode = 'text' | 'numeric';
-const REQUIRED_INFO_SSN_SEGMENT_LENGTHS = [3, 2, 4] as const;
 
 const requiredInfoDocs = (source?: PaymentSource): RequiredInfoDoc[] => {
   const docs = source?.verificationInfo?.docs ?? [];
@@ -7105,15 +6004,7 @@ declare global {
     };
   }
 
-  interface HTMLElementEventMap {
-    [ON_SELECT_EVENT]: OnSelectEvent;
-    [ON_ADD_PAYMENT_METHOD_EVENT]: OnAddPaymentMethodEvent;
-    [ON_VERIFY_PAYMENT_METHOD_EVENT]: OnVerifyPaymentMethodEvent;
-    [ON_DELETE_PAYMENT_METHOD_EVENT]: OnDeletePaymentMethodEvent;
-    [ON_LIST_PAYMENT_METHODS_EVENT]: OnListPaymentMethodsEvent;
-    [ON_TRANSFER_EVENT]: OnTransferEvent;
-    [ON_ERROR_EVENT]: OnErrorEvent;
-  }
+  interface HTMLElementEventMap extends SdkEventMap {}
 
   interface HTMLElementTagNameMap {
     'commerce-hub-connect': CommerceHubConnect;
