@@ -11,20 +11,32 @@ description: Bind SDK properties from a Lit host component
 ```ts
 {% raw %}
 import {html, LitElement} from 'lit';
+import {customElement, property} from 'lit/decorators.js';
 import 'commerce-hub-connect-sdk';
 import type {
+  CommerceHubBaseURLInput,
+  DesignConfig,
   InteractionResponse,
   OnAddPaymentMethodEvent,
   OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
+@customElement('checkout-payment')
 class CheckoutPayment extends LitElement {
-  interactionResponse?: InteractionResponse;
+  @property({attribute: false})
+  interactionResponse!: InteractionResponse;
+
+  @property({attribute: false})
+  designConfig?: DesignConfig;
+
+  @property({attribute: 'base-url'})
+  baseURL: CommerceHubBaseURLInput = 'QA';
 
   render() {
     return html`<commerce-hub-connect
       .interactionResponse=${this.interactionResponse}
-      .baseURL=${'QA'}
+      .designConfig=${this.designConfig}
+      .baseURL=${this.baseURL}
       @onAddPaymentMethod=${this.handlePaymentMethodAdded}
       @onSelect=${this.handleSelect}
     ></commerce-hub-connect>`;
@@ -39,7 +51,7 @@ class CheckoutPayment extends LitElement {
   private async handleSelect(event: OnSelectEvent) {
     const completedPaymentSource = await fetch(
       `/api/commercehub/interaction/${encodeURIComponent(
-        this.interactionResponse?.interactionId ?? ''
+        this.interactionResponse.interactionId ?? ''
       )}/complete`,
       {method: 'GET'}
     ).then((response) => response.json());
@@ -56,3 +68,8 @@ class CheckoutPayment extends LitElement {
 }
 {% endraw %}
 ```
+
+Lit hosts should pass object-valued SDK inputs with property bindings such as
+`.interactionResponse=${...}` and `.designConfig=${...}`. Keep `onSelect` as
+the widget boundary: the event detail is the selected `PaymentSource`, and the
+host owns the merchant completion call and any checkout state updates.

@@ -53,14 +53,14 @@
 
            <div class="api-meta__item">
              <dt class="api-meta__label">Type</dt>
-             <dd class="api-meta__value"><code>InteractionResponse | undefined</code></dd>
+             <dd class="api-meta__value"><code>InteractionResponse</code></dd>
            </div>
 
        </dl>
 
 
        <div class="api-item__description">
-         <p>CommerceHub interaction payload that controls the visible widget state.</p><p>Assign this as a DOM property, not as an HTML attribute. SDK-managed API calls use <code>interactionResponse.interactionId</code> as the <code>x-interaction-id</code> header.</p>
+         <p>Required CommerceHub interaction payload that controls the visible widget state.</p><p>Assign this as a DOM property before shopper interaction, not as an HTML attribute. SDK-managed API calls use <code>interactionResponse.interactionId</code> as the <code>x-interaction-id</code> header.</p>
        </div>
 
 
@@ -132,7 +132,7 @@
 
 
        <div class="api-item__description">
-         <p>Emitted with the selected PaymentSource after a verified payment source is attached or selected.</p>
+         <p>Emitted with a <code>PaymentSource</code> detail after a verified payment source is attached or selected.</p>
        </div>
 
 
@@ -208,6 +208,459 @@
 
 
 
+     <section class="api-section">
+       <h3>Styling Surface</h3>
+       <p>
+         Use <code>designConfig</code> for merchant-safe theming first.
+         CSS shadow parts and custom properties are additive escape hatches for
+         host stylesheets; private shadow-DOM class names are not a public API.
+       </p>
+     </section>
+
+
+     <section class="api-section">
+       <h3>CSS Shadow Parts</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">shell</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Top-level widget shell.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">header</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Screen header row.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">title</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Screen title.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">content</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Screen content region.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">footer</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Powered-by footer.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">primary-action</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Primary CTA button.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">alert</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Screen-level alert message.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">payment-method-row</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Saved or selected payment-method row.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">provider-frame</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Pay by Bank provider handoff frame.</p>
+       </div>
+
+
+     </article>
+
+       </div>
+     </section>
+
+
+     <section class="api-section">
+       <h3>CSS Custom Properties</h3>
+       <div class="api-list">
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-primary</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Primary brand color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-text</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Primary text color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-copy</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Secondary copy color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-muted</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Muted text color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-placeholder</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Form placeholder text color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-surface</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Base surface color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-widget-background</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Widget shell background color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-soft-surface</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Subtle surface background color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-border</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Default border color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-border-strong</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Strong border color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-payment-method-background</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Payment method row background.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-success</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Success foreground color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-success-bg</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Success background color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-success-border</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Success border color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-danger</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Danger foreground color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-danger-bg</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Danger background color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-danger-border</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Danger border color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-warning</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Warning foreground color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-warning-bg</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Warning background color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-warning-border</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Warning border color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-disabled-text</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Disabled control text color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-disabled-surface</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Disabled control surface color.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-font-weight</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Inherited SDK font weight.</p>
+       </div>
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">--chc-shell-padding</code>
+       </div>
+
+
+       <div class="api-item__description">
+         <p>Widget shell padding.</p>
+       </div>
+
+
+     </article>
+
+       </div>
+     </section>
 
 
 
@@ -3368,7 +3821,7 @@
      <details class="api-schema" id="schema-InteractionResponse">
        <summary class="api-schema__summary">
          <span class="api-schema__name">InteractionResponse</span>
-         <span class="api-schema__meta">object · 8 fields</span>
+         <span class="api-schema__meta">object · 9 fields</span>
        </summary>
        <div class="api-schema__body">
          <dl class="api-meta api-meta--stacked">
@@ -3428,7 +3881,7 @@
 
            <div class="api-meta__item">
              <dt class="api-meta__label">Details</dt>
-             <dd class="api-meta__value">OTP_VALIDATION_PENDING, OTP_VALIDATION_FAILED, OTP_VALIDATION_SUCCESS, PAYMENT_SOURCE_ATTACHED, COMPLETE</dd>
+             <dd class="api-meta__value">OTP_VALIDATION_PENDING, OTP_VALIDATION_FAILED, OTP_VALIDATION_SUCCESS, PAYMENT_SOURCE_ATTACHED</dd>
            </div>
 
        </dl>
@@ -3572,6 +4025,34 @@
            <div class="api-meta__item">
              <dt class="api-meta__label">Type</dt>
              <dd class="api-meta__value">array of <a href="#schema-Address">Address</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">features</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">array of string</dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Details</dt>
+             <dd class="api-meta__value">ADD_ACCOUNT, SELECT, TRANSFER; unique items</dd>
            </div>
 
        </dl>

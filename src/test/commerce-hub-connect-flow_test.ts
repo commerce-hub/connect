@@ -43,19 +43,36 @@ const flushElement = async (el: CommerceHubConnect) => {
 };
 
 const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
+const TEST_INTERACTION_FEATURES: NonNullable<
+  InteractionResponse['features']
+> = ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
   designConfig?: unknown,
   baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL,
-  options: {initialInteractionResponse?: InteractionResponse | false} = {}
+  options: {
+    initialInteractionResponse?: InteractionResponse | false;
+    defaultFeatures?: boolean;
+  } = {}
 ) => {
   const shouldStubInitialInteraction =
     options.initialInteractionResponse !== false;
+  const interactionResponseForTest = interactionResponseWithTestFeatures(
+    interactionResponse,
+    options.defaultFeatures
+  );
 
   if (shouldStubInitialInteraction) {
     const fetchForTest = window.fetch;
     let servedInitialInteraction = false;
+    const initialInteractionResponse =
+      options.initialInteractionResponse === false
+        ? false
+        : interactionResponseWithTestFeatures(
+            options.initialInteractionResponse ?? interactionResponse,
+            options.defaultFeatures
+          );
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = input instanceof Request ? input : new Request(input);
@@ -68,9 +85,7 @@ const renderConnect = async (
         servedInitialInteraction = true;
 
         return new Response(
-          JSON.stringify(
-            options.initialInteractionResponse ?? interactionResponse
-          ),
+          JSON.stringify(initialInteractionResponse),
           {
             status: 200,
             headers: {'Content-Type': 'application/json'},
@@ -84,7 +99,7 @@ const renderConnect = async (
 
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
-      .interactionResponse=${interactionResponse}
+      .interactionResponse=${interactionResponseForTest}
       .designConfig=${designConfig}
       .baseURL=${baseURL}
     ></commerce-hub-connect>`
@@ -92,7 +107,7 @@ const renderConnect = async (
 
   await flushElement(el);
 
-  if (shouldStubInitialInteraction && interactionResponse.interactionId) {
+  if (shouldStubInitialInteraction && interactionResponseForTest.interactionId) {
     await waitFor(
       () => !el.shadowRoot!.querySelector('.payment-method-skeletons'),
       'initial interaction refresh did not settle'
@@ -101,6 +116,17 @@ const renderConnect = async (
 
   return el;
 };
+
+const interactionResponseWithTestFeatures = (
+  interactionResponse: InteractionResponse,
+  defaultFeatures = true
+): InteractionResponse =>
+  defaultFeatures || interactionResponse.features
+    ? {
+        ...interactionResponse,
+        features: interactionResponse.features ?? [...TEST_INTERACTION_FEATURES],
+      }
+    : interactionResponse;
 
 const setOtpValue = async (el: CommerceHubConnect, value: string) => {
   const inputs = [
@@ -732,6 +758,35 @@ suite('commerce-hub-connect flow', () => {
     document
       .querySelectorAll('script[data-commerce-hub-pay-by-bank-sdk="true"]')
       .forEach((script) => script.remove());
+  });
+
+  test('renders a configuration error when interaction response is missing', async () => {
+    let fetchCount = 0;
+    window.fetch = async () => {
+      fetchCount += 1;
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .baseURL=${TEST_COMMERCE_HUB_BASE_URL}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+    await flushElement(el);
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Configuration required'
+    );
+    assert.include(
+      el.shadowRoot!.querySelector('[part="alert"]')?.textContent?.trim(),
+      'CommerceHub Connect requires an interaction response before it can load payment methods.'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.source-action'));
+    assert.equal(fetchCount, 0);
   });
 
   test('initial successful interaction refresh emits listed payment sources', async () => {
@@ -3728,10 +3783,70 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('defaults missing interaction features and renders transfer after add bank account', async () => {
+  test('treats missing interaction features as no gated capabilities', async () => {
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-transfer',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [
+          {
+            tenderType: 'BankAccount',
+            id: 'bank-1',
+            name: 'Operating account',
+            verificationInfo: {status: 'VERIFIED'},
+            bankAccount: {
+              bankName: 'First Bank',
+              accountNumber: '1111111111111111',
+            },
+          },
+          {
+            tenderType: 'BankAccount',
+            id: 'bank-2',
+            name: 'Savings account',
+            verificationInfo: {status: 'VERIFIED'},
+            bankAccount: {
+              bankName: 'Second Bank',
+              accountNumber: '2222222222222222',
+            },
+          },
+        ],
+      },
+      undefined,
+      TEST_COMMERCE_HUB_BASE_URL,
+      {defaultFeatures: false}
+    );
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Pay with'
+    );
+    assert.equal(el.interactionResponse?.features, undefined);
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.payment-action-links [data-action]'
+        ),
+      ].map((button) => button.dataset.action),
+      []
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.payment-method-row'
+        ),
+      ].map((row) => row.dataset.action),
+      [undefined, undefined]
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="open-transfer"]')
+    );
+  });
+
+  test('renders add actions without saved method selection for ADD_ACCOUNT only', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-transfer',
       status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['ADD_ACCOUNT'],
       paymentSources: [
         {
           tenderType: 'BankAccount',
@@ -3756,40 +3871,75 @@ suite('commerce-hub-connect flow', () => {
       ],
     });
 
-    assert.equal(
-      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
-    );
-    assert.deepEqual(el.interactionResponse?.features, [
-      'ADD_ACCOUNT',
-      'SELECT',
-      'TRANSFER',
-    ]);
     assert.deepEqual(
       [
-        ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
           '.payment-action-links [data-action]'
         ),
       ].map((button) => button.dataset.action),
-      ['add-card', 'add-bank-account', 'open-transfer']
+      ['add-card', 'add-bank-account']
     );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector(
-          '[data-action="open-transfer"] .source-action-link-title'
-        )
-        ?.textContent?.trim(),
-      'Transfer funds'
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.payment-method-row'
+        ),
+      ].map((row) => row.dataset.action),
+      [undefined, undefined]
     );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="open-transfer"]')
+    );
+  });
 
-    await clickAction(el, 'open-transfer');
+  test('renders saved method selection without add actions for SELECT only', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'First Bank',
+            accountNumber: '1111111111111111',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-2',
+          name: 'Savings account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Second Bank',
+            accountNumber: '2222222222222222',
+          },
+        },
+      ],
+    });
 
-    assert.equal(
-      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Transfer funds'
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.payment-action-links [data-action]'
+        ),
+      ].map((button) => button.dataset.action),
+      []
     );
-    assert.exists(el.shadowRoot!.querySelector('#transfer-from-source'));
-    assert.exists(el.shadowRoot!.querySelector('#transfer-to-source'));
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.payment-method-row'
+        ),
+      ].map((row) => row.dataset.action),
+      ['attach-payment-source', 'attach-payment-source']
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="open-transfer"]')
+    );
   });
 
   test('respects explicit interaction features when transfer is omitted', async () => {
@@ -3825,7 +3975,81 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Pay with'
     );
-    assert.notExists(el.shadowRoot!.querySelector('[data-action="transfer"]'));
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.payment-action-links [data-action]'
+        ),
+      ].map((button) => button.dataset.action),
+      ['add-card', 'add-bank-account']
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.payment-method-row'
+        ),
+      ].map((row) => row.dataset.action),
+      ['attach-payment-source', 'attach-payment-source']
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="open-transfer"]')
+    );
+  });
+
+  test('renders transfer action after add bank account when all features are enabled', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-transfer',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'],
+      paymentSources: [
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'First Bank',
+            accountNumber: '1111111111111111',
+          },
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-2',
+          name: 'Savings account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Second Bank',
+            accountNumber: '2222222222222222',
+          },
+        },
+      ],
+    });
+
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+          '.payment-action-links [data-action]'
+        ),
+      ].map((button) => button.dataset.action),
+      ['add-card', 'add-bank-account', 'open-transfer']
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector(
+          '[data-action="open-transfer"] .source-action-link-title'
+        )
+        ?.textContent?.trim(),
+      'Transfer funds'
+    );
+
+    await clickAction(el, 'open-transfer');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Transfer funds'
+    );
+    assert.exists(el.shadowRoot!.querySelector('#transfer-from-source'));
+    assert.exists(el.shadowRoot!.querySelector('#transfer-to-source'));
   });
 
   test('confirmed transfer emits native account transaction response', async () => {

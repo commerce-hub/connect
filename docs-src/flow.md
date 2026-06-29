@@ -14,39 +14,37 @@ retrieves the initial interaction.
 Your backend should expose a merchant-owned endpoint that the frontend can call
 without exposing CommerceHub credentials in the browser.
 
-```ts
-{% raw %}
-app.post('/api/commercehub/interaction', async (request, response) => {
-  const interactionResponse = await createCommerceHubInteraction({
-    shopper: request.user,
-    amount: request.body.amount,
-    merchantReference: request.body.orderId,
-  });
-
-  response.json(interactionResponse);
-});
-{% endraw %}
-```
-
 The exact backend request is owned by the CommerceHub API integration. The
 frontend handoff into this SDK starts once the host has an `InteractionResponse`.
 
 ## 2. Mount the widget
 
 Import the SDK module and assign the interaction response as a DOM property.
+Assign any `designConfig` object the same way. Do not pass either object-valued
+property as an HTML attribute.
 
 ```ts
 {% raw %}
 import 'commerce-hub-connect-sdk';
+import type {DesignConfig} from 'commerce-hub-connect-sdk';
 
 const widget = document.createElement('commerce-hub-connect');
 widget.baseURL = 'QA';
+const designConfig: DesignConfig = {
+  colors: {
+    primary: '#084acc',
+    text: '#101828',
+    border: '#cbd5e1',
+    widgetBackground: '#ffffff',
+  },
+};
 const interactionResponse = await fetch('/api/commercehub/interaction', {
   method: 'POST',
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({orderId, amount}),
 }).then((response) => response.json());
 
+widget.designConfig = designConfig;
 widget.interactionResponse = interactionResponse;
 
 document.querySelector('#payment-host')?.replaceChildren(widget);
@@ -84,6 +82,9 @@ SDK-managed calls include:
 
 If `interactionResponse.interactionId` is missing, the widget does not call the
 CommerceHub API and keeps the current screen stable.
+
+If `interactionResponse` itself is missing, the widget renders a configuration
+error and blocks shopper payment actions until the host assigns it.
 
 ## 4. Handle completion
 
@@ -125,13 +126,13 @@ completion response is a `PaymentSource`, not an `InteractionResponse`.
 The SDK also emits success-only operation events for host telemetry or local UI
 state. These events use raw operation results in `event.detail`:
 
-| Event | Detail |
-| --- | --- |
-| `onListPaymentMethods` | `PaymentSource[]` from a successful `GET /interaction` refresh. |
-| `onAddPaymentMethod` | Created or finalized `PaymentSource`. |
-| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`. |
-| `onDeletePaymentMethod` | Deleted payment source id. |
-| `onTransfer` | `NativeAccountTransaction` returned by native account transfer. |
+| Event                   | Detail                                                          |
+| ----------------------- | --------------------------------------------------------------- |
+| `onListPaymentMethods`  | `PaymentSource[]` from a successful `GET /interaction` refresh. |
+| `onAddPaymentMethod`    | Created or finalized `PaymentSource`.                           |
+| `onVerifyPaymentMethod` | Verified or updated `PaymentSource`.                            |
+| `onDeletePaymentMethod` | Deleted payment source id.                                      |
+| `onTransfer`            | `NativeAccountTransaction` returned by native account transfer. |
 
 The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
@@ -157,15 +158,3 @@ preset resolves to the QA non-production CommerceHub origin.
 Keep CommerceHub credentials, merchant tokens, and customer-sensitive backend
 data out of browser code. The browser should receive only the interaction data
 needed by the widget.
-
-## 6. Regenerate OpenAPI types carefully
-
-Generated OpenAPI types live in `src/generated/openapi.ts` for runtime paths and
-`src/generated/merchant-openapi.ts` for merchant paths. Regenerate both with
-`npm run generate:client` after `swagger.json` or `merchant-swagger.json`
-changes.
-
-The public `InteractionResponse` type intentionally augments the generated
-OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.
-Do not hand-edit `src/generated/openapi.ts` to add that field; preserve the
-local augmentation in `src/commerce-hub-connect.ts` after client regeneration.

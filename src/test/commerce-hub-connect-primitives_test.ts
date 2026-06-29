@@ -28,6 +28,12 @@ import {
   renderVerificationDetails,
   renderWidgetShell,
 } from '../internal/primitives.js';
+import {renderOtpScreen} from '../internal/screens/otp-screen.js';
+import {
+  renderNoSavedPaymentMethodsScreen,
+  renderPaymentMethodsScreen,
+  renderPaymentMethodsSkeletonScreen,
+} from '../internal/screens/payment-methods-screen.js';
 import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
@@ -44,6 +50,26 @@ class PrimitiveHarness extends HTMLElement {
 }
 
 customElements.define('primitive-harness', PrimitiveHarness);
+
+const TEST_INTERACTION_FEATURES: NonNullable<InteractionResponse['features']> =
+  ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
+
+const createStyleInteractionResponse = (): InteractionResponse => ({
+  status: 'PAYMENT_SOURCE_REQUESTED',
+  features: [...TEST_INTERACTION_FEATURES],
+  paymentSources: [
+    {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Corporate card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {
+        network: 'Visa',
+        cardNumber: '4111111111114242',
+      },
+    },
+  ],
+});
 
 const renderHarness = async (template: TemplateResult) => {
   const el = (await fixture(
@@ -84,6 +110,52 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'px');
   });
 
+  test('renders documented public styling parts for stable surfaces', async () => {
+    const root = await renderHarness(
+      renderWidgetShell({
+        title: 'Pay with',
+        showClose: false,
+        content: html`
+          ${renderAlert({variant: 'warning', message: 'Review payment method'})}
+          ${renderPaymentMethodRow({
+            id: 'card-1',
+            label: 'Corporate card',
+            status: 'verified',
+            type: 'card',
+            brand: 'Visa',
+            last4: '4242',
+          })}
+          ${renderProviderFrame({
+            containerId: 'provider-container',
+            title: 'Connect your bank',
+            loadingLabel: 'Loading provider',
+          })}
+          ${renderButton({
+            label: 'Continue',
+            variant: 'primary',
+            action: 'continue',
+          })}
+        `,
+      })
+    );
+
+    const expectedParts = [
+      'shell',
+      'header',
+      'title',
+      'content',
+      'footer',
+      'alert',
+      'payment-method-row',
+      'provider-frame',
+      'primary-action',
+    ];
+
+    for (const part of expectedParts) {
+      assert.exists(root.querySelector(`[part~="${part}"]`), part);
+    }
+  });
+
   test('declares a hover affordance for clickable source action links', () => {
     assert.include(primitiveStyles.cssText, '.source-action-link:hover');
   });
@@ -91,6 +163,7 @@ suite('commerce-hub-connect primitives', () => {
   test('renders payment method logos without chip chrome', async () => {
     const interactionResponse: InteractionResponse = {
       status: 'PAYMENT_SOURCE_REQUESTED',
+      features: [...TEST_INTERACTION_FEATURES],
       paymentSources: [
         {
           tenderType: 'Card',
@@ -130,7 +203,9 @@ suite('commerce-hub-connect primitives', () => {
 
   test('renders the widget shell with SDK v3 compact token defaults and footer treatment', async () => {
     const el = (await fixture(
-      testingHtml`<commerce-hub-connect></commerce-hub-connect>`
+      testingHtml`<commerce-hub-connect
+        .interactionResponse=${createStyleInteractionResponse()}
+      ></commerce-hub-connect>`
     )) as CommerceHubConnect;
 
     await el.updateComplete;
@@ -198,7 +273,9 @@ suite('commerce-hub-connect primitives', () => {
 
   test('does not apply box shadows to the SDK shell or buttons', async () => {
     const el = (await fixture(
-      testingHtml`<commerce-hub-connect></commerce-hub-connect>`
+      testingHtml`<commerce-hub-connect
+        .interactionResponse=${createStyleInteractionResponse()}
+      ></commerce-hub-connect>`
     )) as CommerceHubConnect;
 
     await el.updateComplete;
@@ -257,6 +334,7 @@ suite('commerce-hub-connect primitives', () => {
   test('applies partial designConfig color and typography without resizing controls', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
+        .interactionResponse=${createStyleInteractionResponse()}
         .designConfig=${{
           colors: {
             primary: '#0f766e',
@@ -313,6 +391,7 @@ suite('commerce-hub-connect primitives', () => {
 
   test('renders payment sources from an interaction response input', async () => {
     const interactionResponse: InteractionResponse = {
+      features: [...TEST_INTERACTION_FEATURES],
       selectedSource: {
         tenderType: 'Card',
         id: 'card-1',
@@ -480,6 +559,7 @@ suite('commerce-hub-connect primitives', () => {
   test('uses the bank name as the payment-method title when a bank source name is missing', async () => {
     const interactionResponse: InteractionResponse = {
       status: 'PAYMENT_SOURCE_REQUESTED',
+      features: [...TEST_INTERACTION_FEATURES],
       paymentSources: [
         {
           tenderType: 'BankAccount',
@@ -516,6 +596,7 @@ suite('commerce-hub-connect primitives', () => {
   test('uses the bank name as the payment-method title when a bank source name is blank', async () => {
     const interactionResponse: InteractionResponse = {
       status: 'PAYMENT_SOURCE_REQUESTED',
+      features: [...TEST_INTERACTION_FEATURES],
       paymentSources: [
         {
           tenderType: 'BankAccount',
@@ -827,6 +908,146 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(status.textContent ?? '', 'Loading payment methods');
     assert.lengthOf(root.querySelectorAll('.payment-method-skeleton-row'), 3);
     assert.lengthOf(root.querySelectorAll('.payment-method-skeleton-icon'), 3);
+  });
+
+  test('renders the internal OTP screen module with failed, submit, and resend states', async () => {
+    const root = await renderHarness(html`
+      ${renderOtpScreen({
+        status: 'OTP_VALIDATION_FAILED',
+        value: '12345',
+        length: 6,
+        failedMessage: 'That code expired.',
+        copy: {
+          title: 'Enter verification code',
+          failedMessage: 'The code does not match. Try again.',
+          resendPrefix: "Didn't receive the code?",
+          resendButton: 'Resend code',
+          resendPendingButton: 'Sending code...',
+          verifyButton: 'Verify',
+          verifyingButton: 'Verifying...',
+          tryAgainButton: 'Try again',
+        },
+        resending: true,
+      })}
+    `);
+
+    assert.equal(
+      root.querySelector('[role="alert"]')?.textContent?.trim(),
+      'That code expired.'
+    );
+    assert.lengthOf(root.querySelectorAll('.otp-input'), 6);
+    assert.equal(
+      root.querySelector<HTMLButtonElement>('[data-action="verify-otp"]')
+        ?.disabled,
+      true
+    );
+    assert.equal(
+      root.querySelector('[data-action="resend-otp"]')?.textContent?.trim(),
+      'Sending code...'
+    );
+  });
+
+  test('renders internal payment-method screen modules for loading, list, edit, and empty states', async () => {
+    const method: PaymentMethod = {
+      id: 'card-1',
+      label: 'Corporate Visa',
+      accountLabel: '•••• 1111',
+      type: 'card',
+      brand: 'Visa',
+      last4: '1111',
+      status: 'verified',
+    };
+    const copy = {
+      title: 'Pay with',
+      subtitle: '',
+      addBankAccountTitle: 'Add bank account',
+      addBankAccountSubtitle: 'Connect a bank',
+      addCardTitle: 'Add credit or debit card',
+      addCardSubtitle: 'Use a card',
+      continueButton: 'Confirm',
+      continuingButton: 'Confirming...',
+    };
+    const root = await renderHarness(html`
+      ${renderPaymentMethodsSkeletonScreen()}
+      ${renderPaymentMethodsScreen({
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        methods: [method],
+        allowedTenderOptions: {
+          card: true,
+          bankAccount: true,
+          nativeAccount: false,
+        },
+        canAddPaymentSources: true,
+        canSelectPaymentSources: true,
+        editing: false,
+        actionPending: false,
+        selectedPaymentSourceId: 'card-1',
+        copy,
+        showTransferAction: true,
+      })}
+      ${renderPaymentMethodsScreen({
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        methods: [method],
+        allowedTenderOptions: {
+          card: true,
+          bankAccount: true,
+          nativeAccount: false,
+        },
+        canAddPaymentSources: true,
+        canSelectPaymentSources: true,
+        editing: true,
+        actionPending: false,
+        deleteConfirmationPaymentSourceId: 'card-1',
+        copy,
+      })}
+      ${renderNoSavedPaymentMethodsScreen({
+        allowedTenderOptions: {
+          card: true,
+          bankAccount: true,
+          nativeAccount: false,
+        },
+        canAddPaymentSources: true,
+        copy: {
+          title: 'Add payment method',
+          subtitle: '',
+          emptyTitle: 'No saved methods',
+          emptyMessage: 'Add a payment method to keep going.',
+          addBankAccountTitle: 'Connect bank',
+          addBankAccountSubtitle: 'Use your account',
+          addCardTitle: 'Add card',
+          addCardSubtitle: 'Use card details',
+        },
+        showTransferAction: true,
+      })}
+    `);
+
+    assert.exists(root.querySelector('.payment-method-skeletons'));
+    assert.exists(root.querySelector('.payment-method-row-selected'));
+    assert.deepEqual(
+      [
+        ...root.querySelectorAll<HTMLElement>(
+          '.payment-action-links .source-action-title'
+        ),
+      ].map((item) => item.textContent?.trim()),
+      [
+        'Add credit or debit card',
+        'Add bank account',
+        'Transfer funds',
+        'Add card',
+        'Connect bank',
+        'Transfer funds',
+      ]
+    );
+    assert.equal(
+      root
+        .querySelector('.payment-method-delete-confirmation')
+        ?.textContent?.trim(),
+      'Remove this payment method?'
+    );
+    assert.equal(
+      root.querySelector('.empty-state-message')?.textContent?.trim(),
+      'Add a payment method to keep going.'
+    );
   });
 
   test('declares SDK v3 motion tokens and reduced-motion spinner overrides', () => {

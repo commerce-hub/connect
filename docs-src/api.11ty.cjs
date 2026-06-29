@@ -125,6 +125,7 @@ const renderElementApi = (element) => {
          normalizeEvents(element.events).map(eventApiItem)
        )}
        ${renderApiSection('Slots', slots.map(slotApiItem))}
+       ${renderStylingSurfaceNote(cssParts, cssProperties)}
        ${renderApiSection('CSS Shadow Parts', cssParts.map(namedApiItem))}
        ${renderApiSection(
          'CSS Custom Properties',
@@ -209,6 +210,23 @@ const namedApiItem = (item) => ({
   name: item.name,
   description: item.description,
 });
+
+const renderStylingSurfaceNote = (cssParts, cssProperties) => {
+  if (cssParts.length === 0 && cssProperties.length === 0) {
+    return '';
+  }
+
+  return `
+     <section class="api-section">
+       <h3>Styling Surface</h3>
+       <p>
+         Use <code>designConfig</code> for merchant-safe theming first.
+         CSS shadow parts and custom properties are additive escape hatches for
+         host stylesheets; private shadow-DOM class names are not a public API.
+       </p>
+     </section>
+  `;
+};
 
 const renderApiSection = (name, items, className = 'api-section') => {
   const visibleItems = items.filter(Boolean);

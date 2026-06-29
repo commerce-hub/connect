@@ -263,6 +263,7 @@ export const renderButton = ({
       `button-${variant}`,
       loading && 'button-loading'
     )}
+    part=${ifDefined(variant === 'primary' ? 'primary-action' : undefined)}
     type=${type}
     data-action=${ifDefined(action)}
     aria-busy=${loading ? 'true' : 'false'}
@@ -470,7 +471,7 @@ export const renderAlert = ({
   variant,
   message,
 }: AlertOptions): TemplateResult => html`
-  <div class="alert alert-${variant}" role="alert">
+  <div class="alert alert-${variant}" part="alert" role="alert">
     <span class="alert-message">${message}</span>
   </div>
 `;
@@ -531,11 +532,13 @@ export const renderPaymentMethodRow = (
     deleteDisabled = false,
     confirmingDelete = false,
     selected = false,
+    selectable = true,
   }: {
     variant?: 'default' | 'edit';
     deleteDisabled?: boolean;
     confirmingDelete?: boolean;
     selected?: boolean;
+    selectable?: boolean;
   } = {}
 ): TemplateResult => {
   const method: PaymentMethod = {
@@ -563,6 +566,7 @@ export const renderPaymentMethodRow = (
           'payment-method-row-edit',
           confirmingDelete && 'payment-method-row-delete-confirming'
         )}
+        part="payment-method-row"
         aria-label=${label}
         data-payment-method-id=${id}
       >
@@ -579,7 +583,7 @@ export const renderPaymentMethodRow = (
     `;
   }
 
-  if (isPaymentMethodRowClickable(method)) {
+  if (selectable && isPaymentMethodRowClickable(method)) {
     return html`
       <button
         class=${joinClassNames(
@@ -587,6 +591,7 @@ export const renderPaymentMethodRow = (
           'payment-method-row-action',
           selected && 'payment-method-row-selected'
         )}
+        part="payment-method-row"
         type="button"
         aria-disabled=${disabled ? 'true' : 'false'}
         data-action=${status === 'verified'
@@ -606,6 +611,7 @@ export const renderPaymentMethodRow = (
   return html`
     <div
       class=${joinClassNames('payment-method-row', 'payment-method-row-static')}
+      part="payment-method-row"
       aria-label=${label}
       aria-disabled="true"
       data-payment-method-id=${id}
@@ -646,7 +652,11 @@ export const renderSelectedPaymentMethod = ({
   };
 
   return html`
-    <div class="selected-payment-method" aria-label=${label}>
+    <div
+      class="selected-payment-method"
+      part="payment-method-row"
+      aria-label=${label}
+    >
       ${renderPaymentMethodContent(
         method,
         renderPaymentMethodTrailingContent(method, false)
@@ -811,6 +821,7 @@ export const renderProviderFrame = ({
       'provider-frame',
       loading && 'provider-frame-loading'
     )}
+    part="provider-frame"
     aria-busy=${loading ? 'true' : 'false'}
   >
     ${title
@@ -904,7 +915,7 @@ export const renderTextLinkButton = ({
 `;
 
 export const renderPoweredByFooter = (): TemplateResult => html`
-  <footer class="powered-by-footer">
+  <footer class="powered-by-footer" part="footer">
     <span>Powered by</span>
     <strong class="powered-by-brand">Commerce Hub Connect</strong>
   </footer>
@@ -933,6 +944,7 @@ export const renderWidgetShell = ({
       width === 'wide' && 'widget-shell-wide',
       busy && 'widget-shell-busy'
     )}
+    part="shell"
     aria-label=${ariaLabel}
     aria-busy=${busy ? 'true' : 'false'}
   >
@@ -948,8 +960,8 @@ export const renderWidgetShell = ({
           </button>
         `
       : ''}
-    <div class="widget-header">
-      <h2 class="widget-title">${title}</h2>
+    <div class="widget-header" part="header">
+      <h2 class="widget-title" part="title">${title}</h2>
       ${headerAction
         ? html`<div class="widget-header-action">${headerAction}</div>`
         : ''}
@@ -958,7 +970,7 @@ export const renderWidgetShell = ({
     ${showDivider
       ? html`<div class="widget-divider" aria-hidden="true"></div>`
       : ''}
-    <div class="widget-content">${content}</div>
+    <div class="widget-content" part="content">${content}</div>
     ${overlay ? html`<div class="widget-loading-overlay">${overlay}</div>` : ''}
     ${showFooter ? renderPoweredByFooter() : ''}
   </section>

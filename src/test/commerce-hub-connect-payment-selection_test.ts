@@ -84,6 +84,9 @@ const flushElement = async (el: CommerceHubConnect) => {
 };
 
 const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
+const TEST_INTERACTION_FEATURES: NonNullable<
+  InteractionResponse['features']
+> = ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
@@ -92,10 +95,18 @@ const renderConnect = async (
 ) => {
   const shouldStubInitialInteraction =
     options.initialInteractionResponse !== false;
+  const interactionResponseForTest =
+    interactionResponseWithTestFeatures(interactionResponse);
 
   if (shouldStubInitialInteraction) {
     const fetchForTest = window.fetch;
     let servedInitialInteraction = false;
+    const initialInteractionResponse =
+      options.initialInteractionResponse === false
+        ? false
+        : interactionResponseWithTestFeatures(
+            options.initialInteractionResponse ?? interactionResponse
+          );
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = input instanceof Request ? input : new Request(input);
@@ -108,9 +119,7 @@ const renderConnect = async (
         servedInitialInteraction = true;
 
         return new Response(
-          JSON.stringify(
-            options.initialInteractionResponse ?? interactionResponse
-          ),
+          JSON.stringify(initialInteractionResponse),
           {
             status: 200,
             headers: {'Content-Type': 'application/json'},
@@ -124,7 +133,7 @@ const renderConnect = async (
 
   const el = (await fixture(
     testingHtml`<commerce-hub-connect
-      .interactionResponse=${interactionResponse}
+      .interactionResponse=${interactionResponseForTest}
       .baseURL=${baseURL}
     ></commerce-hub-connect>`
   )) as CommerceHubConnect;
@@ -140,6 +149,13 @@ const renderConnect = async (
 
   return el;
 };
+
+const interactionResponseWithTestFeatures = (
+  interactionResponse: InteractionResponse
+): InteractionResponse => ({
+  ...interactionResponse,
+  features: interactionResponse.features ?? [...TEST_INTERACTION_FEATURES],
+});
 
 const clickAction = async (el: CommerceHubConnect, action: string) => {
   el.shadowRoot!.querySelector<HTMLButtonElement>(
@@ -928,6 +944,7 @@ suite('commerce-hub-connect payment selection', () => {
     el.interactionResponse = {
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
+      features: [...TEST_INTERACTION_FEATURES],
       allowedTenderTypes: ['NATIVE_ACCOUNT'],
       paymentSources: [nativeSource],
     };
@@ -953,11 +970,16 @@ suite('commerce-hub-connect payment selection', () => {
       allowedTenderTypes: ['CARD'],
       paymentSources: [],
     });
+    const text = el.shadowRoot!.textContent ?? '';
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Add payment method'
     );
+    assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
+    assert.notInclude(text, 'James Anderson');
+    assert.notInclude(text, 'visa-1111');
+    assert.notInclude(text, 'amex-8000');
     assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')

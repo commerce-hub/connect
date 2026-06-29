@@ -532,6 +532,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/demo/time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["resource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile/dsc/cancel": {
         parameters: {
             query?: never;
@@ -791,13 +807,14 @@ export interface components {
         InteractionResponse: {
             interactionId?: string;
             /** @enum {string} */
-            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "OTP_VALIDATION_SUCCESS" | "PAYMENT_SOURCE_ATTACHED" | "COMPLETE";
+            status?: "OTP_VALIDATION_PENDING" | "OTP_VALIDATION_FAILED" | "OTP_VALIDATION_SUCCESS" | "PAYMENT_SOURCE_ATTACHED";
             email?: string;
             selectedSource?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
             allowedTenderTypes?: ("CARD" | "BANK_ACCOUNT" | "DYNAMIC_SESSION_CARD" | "NATIVE_ACCOUNT")[];
             paymentSources?: (components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"])[];
             phone?: components["schemas"]["PhoneDetails"];
             billerAddress?: components["schemas"]["Address"][];
+            features?: ("ADD_ACCOUNT" | "SELECT" | "TRANSFER")[];
         };
         TransferRequest: {
             fromSourceId?: string;
@@ -1658,6 +1675,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: components["schemas"]["NativeAccountBalanceInfo"];
                     };
+                };
+            };
+        };
+    };
+    resource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
                 };
             };
         };
