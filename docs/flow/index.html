@@ -67,6 +67,8 @@ preserved when the refreshed interaction response omits it.</p>
 </ul>
 <p>If <code>interactionResponse.interactionId</code> is missing, the widget does not call the
 CommerceHub API and keeps the current screen stable.</p>
+<p>If <code>interactionResponse</code> itself is missing, the widget renders a configuration
+error and blocks shopper payment actions until the host assigns it.</p>
 <h2>4. Handle completion</h2>
 <p>Listen for <code>onSelect</code> on the element. The event detail is the selected
 <code>PaymentSource</code>. Keep <code>onSelect</code> as the widget boundary, then have the host

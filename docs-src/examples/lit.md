@@ -24,7 +24,7 @@ import type {
 @customElement('checkout-payment')
 class CheckoutPayment extends LitElement {
   @property({attribute: false})
-  interactionResponse?: InteractionResponse;
+  interactionResponse!: InteractionResponse;
 
   @property({attribute: false})
   designConfig?: DesignConfig;
@@ -51,7 +51,7 @@ class CheckoutPayment extends LitElement {
   private async handleSelect(event: OnSelectEvent) {
     const completedPaymentSource = await fetch(
       `/api/commercehub/interaction/${encodeURIComponent(
-        this.interactionResponse?.interactionId ?? ''
+        this.interactionResponse.interactionId ?? ''
       )}/complete`,
       {method: 'GET'}
     ).then((response) => response.json());

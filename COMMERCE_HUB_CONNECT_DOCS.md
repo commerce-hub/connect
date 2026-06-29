@@ -201,7 +201,7 @@ import type {
 @customElement('checkout-payment')
 class CheckoutPayment extends LitElement {
   @property({attribute: false})
-  interactionResponse?: InteractionResponse;
+  interactionResponse!: InteractionResponse;
 
   @property({attribute: false})
   designConfig?: DesignConfig;
@@ -221,7 +221,7 @@ class CheckoutPayment extends LitElement {
   private async handleSelect(event: OnSelectEvent) {
     const completedPaymentSource = await fetch(
       `/api/commercehub/interaction/${encodeURIComponent(
-        this.interactionResponse?.interactionId ?? ''
+        this.interactionResponse.interactionId ?? ''
       )}/complete`,
       {method: 'GET'}
     ).then((response) => response.json());
@@ -411,6 +411,9 @@ The widget always sends `x-interaction-id` with
 If `interactionResponse.interactionId` is missing, the widget does not call the
 CommerceHub API and keeps the current screen stable.
 
+If `interactionResponse` itself is missing, the widget renders a configuration
+error and blocks shopper payment actions until the host assigns it.
+
 ## Handling Completion
 
 Listen for `onSelect` on the element. The event detail is the selected
@@ -524,7 +527,7 @@ if (widget) {
 
 | Property              | Type                               | Description                                                                                          |
 | --------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `interactionResponse` | `InteractionResponse` or undefined | CommerceHub interaction payload that controls the visible widget state. Assign as a DOM property.    |
+| `interactionResponse` | `InteractionResponse`              | Required CommerceHub interaction payload that controls the visible widget state. Assign as a DOM property. |
 | `designConfig`        | `DesignConfig` or undefined        | Optional colors, typography, spacing, copy, and Pay by Bank provider settings. Assign as a property. |
 | `baseURL`             | `CommerceHubBaseURLInput`          | CommerceHub API base URL preset or custom origin for SDK-managed requests.                           |
 
