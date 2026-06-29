@@ -14,20 +14,6 @@ retrieves the initial interaction.
 Your backend should expose a merchant-owned endpoint that the frontend can call
 without exposing CommerceHub credentials in the browser.
 
-```ts
-{% raw %}
-app.post('/api/commercehub/interaction', async (request, response) => {
-  const interactionResponse = await createCommerceHubInteraction({
-    shopper: request.user,
-    amount: request.body.amount,
-    merchantReference: request.body.orderId,
-  });
-
-  response.json(interactionResponse);
-});
-{% endraw %}
-```
-
 The exact backend request is owned by the CommerceHub API integration. The
 frontend handoff into this SDK starts once the host has an `InteractionResponse`.
 
@@ -172,15 +158,3 @@ preset resolves to the QA non-production CommerceHub origin.
 Keep CommerceHub credentials, merchant tokens, and customer-sensitive backend
 data out of browser code. The browser should receive only the interaction data
 needed by the widget.
-
-## 6. Regenerate OpenAPI types carefully
-
-Generated OpenAPI types live in `src/generated/openapi.ts` for runtime paths and
-`src/generated/merchant-openapi.ts` for merchant paths. Regenerate both with
-`npm run generate:client` after `swagger.json` or `merchant-swagger.json`
-changes.
-
-The public `InteractionResponse` type intentionally augments the generated
-OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.
-Do not hand-edit `src/generated/openapi.ts` to add that field; preserve the
-local augmentation in `src/commerce-hub-connect.ts` after client regeneration.

@@ -34,7 +34,6 @@ retrieves the initial interaction.</p>
 <h2>1. Create an interaction on your backend</h2>
 <p>Your backend should expose a merchant-owned endpoint that the frontend can call
 without exposing CommerceHub credentials in the browser.</p>
-<pre class="language-ts"><code class="language-ts"><br>app<span class="token punctuation">.</span><span class="token function">post</span><span class="token punctuation">(</span><span class="token string">'/api/commercehub/interaction'</span><span class="token punctuation">,</span> <span class="token keyword">async</span> <span class="token punctuation">(</span>request<span class="token punctuation">,</span> response<span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span><br>  <span class="token keyword">const</span> interactionResponse <span class="token operator">=</span> <span class="token keyword">await</span> <span class="token function">createCommerceHubInteraction</span><span class="token punctuation">(</span><span class="token punctuation">{</span><br>    shopper<span class="token operator">:</span> request<span class="token punctuation">.</span>user<span class="token punctuation">,</span><br>    amount<span class="token operator">:</span> request<span class="token punctuation">.</span>body<span class="token punctuation">.</span>amount<span class="token punctuation">,</span><br>    merchantReference<span class="token operator">:</span> request<span class="token punctuation">.</span>body<span class="token punctuation">.</span>orderId<span class="token punctuation">,</span><br>  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br><br>  response<span class="token punctuation">.</span><span class="token function">json</span><span class="token punctuation">(</span>interactionResponse<span class="token punctuation">)</span><span class="token punctuation">;</span><br><span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span><br></code></pre>
 <p>The exact backend request is owned by the CommerceHub API integration. The
 frontend handoff into this SDK starts once the host has an <code>InteractionResponse</code>.</p>
 <h2>2. Mount the widget</h2>
@@ -124,15 +123,6 @@ preset resolves to the QA non-production CommerceHub origin.</p>
 <p>Keep CommerceHub credentials, merchant tokens, and customer-sensitive backend
 data out of browser code. The browser should receive only the interaction data
 needed by the widget.</p>
-<h2>6. Regenerate OpenAPI types carefully</h2>
-<p>Generated OpenAPI types live in <code>src/generated/openapi.ts</code> for runtime paths and
-<code>src/generated/merchant-openapi.ts</code> for merchant paths. Regenerate both with
-<code>npm run generate:client</code> after <code>swagger.json</code> or <code>merchant-swagger.json</code>
-changes.</p>
-<p>The public <code>InteractionResponse</code> type intentionally augments the generated
-OpenAPI type with optional <code>oauth</code> data injected by the CommerceHub gateway.
-Do not hand-edit <code>src/generated/openapi.ts</code> to add that field; preserve the
-local augmentation in <code>src/commerce-hub-connect.ts</code> after client regeneration.</p>
 
       </main>
     </div>

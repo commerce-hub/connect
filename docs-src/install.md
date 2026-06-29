@@ -5,11 +5,8 @@ title: <commerce-hub-connect> | Install
 
 # Install
 
-The SDK is being prepared for the public NPM registry. The current package name
-is `commerce-hub-connect-sdk`.
-
 ```bash
-npm install commerce-hub-connect-sdk
+npm install https://github.com/commerce-hub/connect/releases/download/v0.7.0/commerce-hub-connect-sdk-0.7.0.tgz
 ```
 
 The package registers the `<commerce-hub-connect>` custom element when imported.
