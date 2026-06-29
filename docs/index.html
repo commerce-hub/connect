@@ -49,10 +49,10 @@ shopper finishes with a selected payment source. The host then completes the
 merchant interaction with
 <code>GET /merchant/interaction/{interactionId}/complete</code>; the widget does not call
 that endpoint internally.</p>
-<p>Assign <code>interactionResponse</code> and <code>designConfig</code> as DOM properties in every
-framework. Do not pass object-valued SDK inputs as HTML attributes; attributes
-can only carry strings. The <code>base-url</code> attribute is available only for the
-string <code>baseURL</code> value.</p>
+<p>Assign the required <code>interactionResponse</code> and optional <code>designConfig</code> as DOM
+properties in every framework. Do not pass object-valued SDK inputs as HTML
+attributes; attributes can only carry strings. The <code>base-url</code> attribute is
+available only for the string <code>baseURL</code> value.</p>
 <p>For SDK-managed operations before completion, the widget also emits success-only
 events: <code>onListPaymentMethods</code>, <code>onAddPaymentMethod</code>,
 <code>onVerifyPaymentMethod</code>, <code>onDeletePaymentMethod</code>, and <code>onTransfer</code>.</p>
@@ -69,6 +69,8 @@ billing addresses, and status fields are not authoritative widget state.</p>
 <code>interactionResponse.oauth.access_token</code> is present, they also send
 <code>Authorization: Bearer &lt;token&gt;</code>. If the interaction id is missing, the widget
 does not call the API and keeps the current screen stable.</p>
+<p>If <code>interactionResponse</code> itself is missing, the widget renders a configuration
+error and blocks shopper payment actions until the host assigns it.</p>
 <p>Gateway OAuth from the host response is preserved for SDK-managed calls when
 the refreshed <code>GET /interaction</code> response omits it.</p>
 <p>The widget uses the <code>PROD</code> preset by default. Set <code>.baseURL</code> to a different

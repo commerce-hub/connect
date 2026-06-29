@@ -760,6 +760,35 @@ suite('commerce-hub-connect flow', () => {
       .forEach((script) => script.remove());
   });
 
+  test('renders a configuration error when interaction response is missing', async () => {
+    let fetchCount = 0;
+    window.fetch = async () => {
+      fetchCount += 1;
+      return new Response('{}', {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .baseURL=${TEST_COMMERCE_HUB_BASE_URL}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+    await flushElement(el);
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Configuration required'
+    );
+    assert.include(
+      el.shadowRoot!.querySelector('[part="alert"]')?.textContent?.trim(),
+      'CommerceHub Connect requires an interaction response before it can load payment methods.'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.source-action'));
+    assert.equal(fetchCount, 0);
+  });
+
   test('initial successful interaction refresh emits listed payment sources', async () => {
     const listedSource: PaymentSource = {
       tenderType: 'Card',

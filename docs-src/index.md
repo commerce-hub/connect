@@ -29,10 +29,10 @@ merchant interaction with
 `GET /merchant/interaction/{interactionId}/complete`; the widget does not call
 that endpoint internally.
 
-Assign `interactionResponse` and `designConfig` as DOM properties in every
-framework. Do not pass object-valued SDK inputs as HTML attributes; attributes
-can only carry strings. The `base-url` attribute is available only for the
-string `baseURL` value.
+Assign the required `interactionResponse` and optional `designConfig` as DOM
+properties in every framework. Do not pass object-valued SDK inputs as HTML
+attributes; attributes can only carry strings. The `base-url` attribute is
+available only for the string `baseURL` value.
 
 For SDK-managed operations before completion, the widget also emits success-only
 events: `onListPaymentMethods`, `onAddPaymentMethod`,
@@ -90,6 +90,9 @@ SDK-managed CommerceHub calls always send
 `interactionResponse.oauth.access_token` is present, they also send
 `Authorization: Bearer <token>`. If the interaction id is missing, the widget
 does not call the API and keeps the current screen stable.
+
+If `interactionResponse` itself is missing, the widget renders a configuration
+error and blocks shopper payment actions until the host assigns it.
 
 Gateway OAuth from the host response is preserved for SDK-managed calls when
 the refreshed `GET /interaction` response omits it.

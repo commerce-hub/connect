@@ -137,6 +137,9 @@ preserved when the server response omits it.
 If `interactionResponse.interactionId` is missing, the widget keeps the current
 screen stable and does not call the CommerceHub API.
 
+If `interactionResponse` itself is missing, the widget renders a configuration
+error and blocks shopper payment actions until the host assigns it.
+
 ## Events
 
 `onSelect` remains the completion boundary for host-owned order or checkout

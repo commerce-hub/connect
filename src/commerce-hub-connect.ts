@@ -483,14 +483,15 @@ export class CommerceHubConnect extends LitElement {
   static override styles = primitiveStyles;
 
   /**
-   * CommerceHub interaction payload that controls the visible widget state.
+   * Required CommerceHub interaction payload that controls the visible widget
+   * state.
    *
-   * Assign this as a DOM property, not as an HTML attribute. SDK-managed API
-   * calls use `interactionResponse.interactionId` as the `x-interaction-id`
-   * header.
+   * Assign this as a DOM property before shopper interaction, not as an HTML
+   * attribute. SDK-managed API calls use
+   * `interactionResponse.interactionId` as the `x-interaction-id` header.
    */
   @property({attribute: false})
-  interactionResponse?: InteractionResponse;
+  interactionResponse!: InteractionResponse;
 
   /**
    * Optional merchant-safe colors, typography, spacing, copy, and Pay by Bank
@@ -747,6 +748,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderCurrentScreen(): TemplateResult {
+    if (!this.interactionResponse) {
+      return this.renderMissingInteractionResponseScreen();
+    }
+
     if (this.bankFlowScreen === 'provider') {
       return this.renderBankProviderScreen();
     }
@@ -789,6 +794,23 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return this.renderPaymentSourceScreen();
+  }
+
+  private renderMissingInteractionResponseScreen(): TemplateResult {
+    return this.renderWidgetShell({
+      title: 'Configuration required',
+      showClose: false,
+      showDivider: false,
+      content: html`
+        <div class="payment-flow">
+          ${renderAlert({
+            variant: 'danger',
+            message:
+              'CommerceHub Connect requires an interaction response before it can load payment methods.',
+          })}
+        </div>
+      `,
+    });
   }
 
   private renderOtpScreen(

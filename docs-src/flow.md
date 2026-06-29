@@ -97,6 +97,9 @@ SDK-managed calls include:
 If `interactionResponse.interactionId` is missing, the widget does not call the
 CommerceHub API and keeps the current screen stable.
 
+If `interactionResponse` itself is missing, the widget renders a configuration
+error and blocks shopper payment actions until the host assigns it.
+
 ## 4. Handle completion
 
 Listen for `onSelect` on the element. The event detail is the selected
