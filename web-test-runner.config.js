@@ -5,7 +5,15 @@
  */
 
 import {legacyPlugin} from '@web/dev-server-legacy';
+import {nodeResolve, rollupBundlePlugin} from '@web/dev-server-rollup';
 import {playwrightLauncher} from '@web/test-runner-playwright';
+import commonjs from '@rollup/plugin-commonjs';
+import json from '@rollup/plugin-json';
+import {readdirSync} from 'node:fs';
+
+const testEntrypoints = readdirSync('./test')
+  .filter((file) => file.endsWith('_test.js'))
+  .map((file) => `./test/${file}`);
 
 const mode = process.env.MODE || 'dev';
 if (!['dev', 'prod'].includes(mode)) {
@@ -99,6 +107,19 @@ export default {
     },
   },
   plugins: [
+    rollupBundlePlugin({
+      rollupConfig: {
+        input: ['./commerce-hub-connect.js', ...testEntrypoints],
+        plugins: [
+          nodeResolve({browser: true}),
+          commonjs({transformMixedEsModules: true}),
+          json(),
+        ],
+        output: {
+          format: 'es',
+        },
+      },
+    }),
     // Detect browsers without modules (e.g. IE11) and transform to SystemJS
     // (https://modern-web.dev/docs/dev-server/plugins/legacy/).
     legacyPlugin({

@@ -113,10 +113,10 @@ export type CardDraft = {
 };
 
 export type BankAccountDraft = {
-  name: string;
+  accountNickname: string;
   routingNumber: string;
   accountNumber: string;
-  accountNumberReEntered: string;
+  confirmAccountNumber: string;
 };
 
 export type SensitiveCardField = 'cardNumber' | 'cvv';
@@ -124,7 +124,7 @@ export type SensitiveCardField = 'cardNumber' | 'cvv';
 export type SensitiveBankAccountField =
   | 'routingNumber'
   | 'accountNumber'
-  | 'accountNumberReEntered';
+  | 'confirmAccountNumber';
 
 export type CardEncryptionStatus =
   | 'idle'

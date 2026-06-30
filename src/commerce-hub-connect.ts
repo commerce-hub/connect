@@ -1,5 +1,6 @@
 import {LitElement, html, type PropertyValues, type TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
+import {JsonFormsLit} from '@jsonforms/lit';
 
 import type {components} from './generated/openapi.js';
 import {
@@ -11,7 +12,6 @@ import {InteractionRefreshController} from './internal/controllers/interaction-r
 import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
 import {
   bankAccountFieldLastFour,
-  bankAccountInputType,
   buildBankAccountEncryptionErrorMessage,
   createBankAccountDraft,
   createBankAccountEncryptionState,
@@ -28,6 +28,12 @@ import {
   updateBankAccountDraftFieldState,
   validateBankAccountDraft,
 } from './internal/forms/bank-account-form-state.js';
+import {
+  bankAccountDraftErrorsToJsonFormsErrors,
+  bankAccountJsonFormsSchema,
+  bankAccountJsonFormsUiSchema,
+} from './internal/forms/bank-account-jsonforms.js';
+import {bankAccountJsonFormsRenderers} from './internal/forms/bank-account-jsonforms-renderers.js';
 import {
   NEW_BILLING_ADDRESS_VALUE,
   billingAddressFromCardDraft,
@@ -350,6 +356,15 @@ type PaymentSdkAppearanceBranding = Partial<{
 
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
+
+@customElement('commerce-hub-bank-account-jsonforms')
+class CommerceHubBankAccountJsonForms extends JsonFormsLit {
+  override createRenderRoot(): HTMLElement | DocumentFragment {
+    return this;
+  }
+}
+
+void CommerceHubBankAccountJsonForms;
 const PAYMENT_SELECTION_READY_STATUS = 'OTP_VALIDATION_SUCCESS' as const;
 const LEGACY_PAYMENT_SELECTION_READY_STATUS = 'PAYMENT_SOURCE_REQUESTED';
 const BILLING_COUNTRY_OPTIONS = [
@@ -1733,7 +1748,7 @@ export class CommerceHubConnect extends LitElement {
     const isEncrypting =
       this.bankAccountEncryption.routingNumber.status === 'encrypting' ||
       this.bankAccountEncryption.accountNumber.status === 'encrypting' ||
-      this.bankAccountEncryption.accountNumberReEntered.status === 'encrypting';
+      this.bankAccountEncryption.confirmAccountNumber.status === 'encrypting';
 
     return this.renderWidgetShell({
       title: 'Enter bank details',
@@ -1759,72 +1774,24 @@ export class CommerceHubConnect extends LitElement {
                 message: this.bankAccountSubmitError,
               })
             : ''}
-          ${renderFormGrid([
-            renderTextField({
-              id: 'ach-account-nickname',
-              name: 'name',
-              label: 'Account Nickname',
-              value: this.bankAccountDraft.name,
-              span: 'full',
-              variant: 'card-form',
-              autocomplete: 'off',
-              dataField: 'name',
-              dataFieldScope: 'bankAccount',
+          <commerce-hub-bank-account-jsonforms
+            class="bank-account-jsonforms"
+            .schema=${bankAccountJsonFormsSchema}
+            .uischema=${bankAccountJsonFormsUiSchema}
+            .data=${this.bankAccountDraft}
+            .renderers=${bankAccountJsonFormsRenderers}
+            .readonly=${isSaving}
+            .config=${{
+              draft: this.bankAccountDraft,
+              errors: this.bankAccountDraftErrors,
+              encryption: this.bankAccountEncryption,
               disabled: isSaving,
-            }),
-            renderTextField({
-              id: 'ach-routing-number',
-              name: 'routingNumber',
-              label: 'Routing number',
-              value: this.bankAccountDraft.routingNumber,
-              span: 'full',
-              variant: 'card-form',
-              autocomplete: 'off',
-              inputmode: 'numeric',
-              dataField: 'routingNumber',
-              dataFieldScope: 'bankAccount',
-              error: this.bankAccountDraftErrors.routingNumber,
-              disabled: isSaving,
-            }),
-            renderTextField({
-              id: 'ach-account-number',
-              name: 'accountNumber',
-              label: 'Account number',
-              value: this.bankAccountDraft.accountNumber,
-              type: bankAccountInputType(
-                'accountNumber',
-                this.bankAccountDraft,
-                this.bankAccountEncryption
-              ),
-              span: 'full',
-              variant: 'card-form',
-              autocomplete: 'off',
-              inputmode: 'numeric',
-              dataField: 'accountNumber',
-              dataFieldScope: 'bankAccount',
-              error: this.bankAccountDraftErrors.accountNumber,
-              disabled: isSaving,
-            }),
-            renderTextField({
-              id: 'ach-account-number-confirm',
-              name: 'accountNumberReEntered',
-              label: 'Confirm account number',
-              value: this.bankAccountDraft.accountNumberReEntered,
-              type: bankAccountInputType(
-                'accountNumberReEntered',
-                this.bankAccountDraft,
-                this.bankAccountEncryption
-              ),
-              span: 'full',
-              variant: 'card-form',
-              autocomplete: 'off',
-              inputmode: 'numeric',
-              dataField: 'accountNumberReEntered',
-              dataFieldScope: 'bankAccount',
-              error: this.bankAccountDraftErrors.accountNumberReEntered,
-              disabled: isSaving,
-            }),
-          ])}
+            }}
+            .additionalErrors=${bankAccountDraftErrorsToJsonFormsErrors(
+              this.bankAccountDraftErrors
+            )}
+            .validationMode=${'ValidateAndShow'}
+          ></commerce-hub-bank-account-jsonforms>
           <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
@@ -3142,7 +3109,7 @@ export class CommerceHubConnect extends LitElement {
       );
       const encryptedAccountNumberReEntered =
         resolveBankAccountPayloadFieldValue(
-          'accountNumberReEntered',
+          'confirmAccountNumber',
           this.bankAccountDraft,
           this.bankAccountEncryption
         );
@@ -3155,7 +3122,7 @@ export class CommerceHubConnect extends LitElement {
         id: '',
         tenderType: 'BANK_ACCOUNT',
         name: resolveBankAccountSourceName(
-          this.bankAccountDraft.name,
+          this.bankAccountDraft.accountNickname,
           displayAccountNumber
         ),
         bankAccount: {
@@ -3304,7 +3271,7 @@ export class CommerceHubConnect extends LitElement {
     for (const field of [
       'routingNumber',
       'accountNumber',
-      'accountNumberReEntered',
+      'confirmAccountNumber',
     ] as const) {
       const value = this.bankAccountDraft[field];
       const encryptedField = this.bankAccountEncryption[field];
@@ -6029,6 +5996,7 @@ declare global {
   interface HTMLElementEventMap extends SdkEventMap {}
 
   interface HTMLElementTagNameMap {
+    'commerce-hub-bank-account-jsonforms': CommerceHubBankAccountJsonForms;
     'commerce-hub-connect': CommerceHubConnect;
   }
 }

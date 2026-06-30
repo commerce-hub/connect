@@ -128,7 +128,7 @@ suite('form state models', () => {
   test('formats, validates, masks, and resolves manual ACH fields', () => {
     const draft = {
       ...createBankAccountDraft(),
-      name: ' Household checking ',
+      accountNickname: ' Household checking ',
       routingNumber: formatBankAccountDraftFieldValue(
         'routingNumber',
         '021000021xxx'
@@ -137,8 +137,8 @@ suite('form state models', () => {
         'accountNumber',
         '987654321012345678'
       ),
-      accountNumberReEntered: formatBankAccountDraftFieldValue(
-        'accountNumberReEntered',
+      confirmAccountNumber: formatBankAccountDraftFieldValue(
+        'confirmAccountNumber',
         '987654321012345678'
       ),
     };
@@ -158,19 +158,19 @@ suite('form state models', () => {
       normalizedValue: normalizedDraft.accountNumber,
       encryptedValue: 'enc-account',
     };
-    encryption.accountNumberReEntered = {
+    encryption.confirmAccountNumber = {
       status: 'encrypted',
-      normalizedValue: normalizedDraft.accountNumberReEntered,
+      normalizedValue: normalizedDraft.confirmAccountNumber,
       encryptedValue: 'enc-account-confirm',
     };
 
     assert.equal(draft.routingNumber, '021000021');
-    assert.equal(draft.accountNumber.length, 17);
+    assert.equal(draft.accountNumber, '987654321');
     assert.deepEqual(validateBankAccountDraft(normalizedDraft), {});
     assert.isTrue(isBankAccountDraftReady(draft, encryption));
     assert.equal(
       maskSensitiveDisplayValue(draft.accountNumber),
-      '•••••••••••••4567'
+      '•••••4321'
     );
     assert.equal(
       resolveBankAccountPayloadFieldValue(
@@ -183,6 +183,23 @@ suite('form state models', () => {
       ),
       'enc-account'
     );
+  });
+
+  test('requires ACH nickname and exactly nine digits for account fields', () => {
+    const draft = {
+      ...createBankAccountDraft(),
+      accountNickname: 'ab',
+      routingNumber: '02100002',
+      accountNumber: '12345678',
+      confirmAccountNumber: '123456789',
+    };
+
+    assert.deepEqual(validateBankAccountDraft(draft), {
+      accountNickname: 'Enter an account nickname of at least 3 characters.',
+      routingNumber: 'Enter a 9-digit routing number.',
+      accountNumber: 'Enter a 9-digit account number.',
+      confirmAccountNumber: 'Account numbers must match.',
+    });
   });
 
   test('updates ACH state immutably and marks changed sensitive fields dirty', () => {

@@ -2067,6 +2067,10 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Enter bank details'
     );
+    assert.exists(
+      el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
+    );
+    assert.exists(el.shadowRoot!.querySelector('#ach-account-nickname'));
     assert.exists(el.shadowRoot!.querySelector('#ach-routing-number'));
     assert.exists(el.shadowRoot!.querySelector('#ach-account-number'));
     assert.exists(el.shadowRoot!.querySelector('#ach-account-number-confirm'));
@@ -2327,7 +2331,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('manual ACH save uses a bank account fallback name when nickname is blank', async () => {
+  test('manual ACH requires an account nickname and does not save when it is blank', async () => {
     const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
@@ -2416,25 +2420,22 @@ suite('commerce-hub-connect flow', () => {
       'both bank account number mask requests were not sent'
     );
 
+    assert.include(
+      el.shadowRoot!.textContent,
+      'Enter an account nickname of at least 3 characters.'
+    );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
+    );
+
     await clickAction(el, 'save-ach-manual');
-    await waitForRequest(requests, '/interaction/source/ach');
 
-    const achRequest = requests.find(
-      (request) => new URL(request.url).pathname === '/interaction/source/ach'
-    )!;
-
-    assert.deepEqual(JSON.parse(achRequest.bodyText), {
-      id: '',
-      tenderType: 'BANK_ACCOUNT',
-      name: 'Bank Account xxxxxx1234',
-      bankAccount: {
-        routingNumber: 'enc-routing-1',
-        accountNumber: 'enc-account-1',
-        accountNumberReEntered: 'enc-account-1',
-        routingNumberEncrypted: 'enc-routing-1',
-        accountNumberEncrypted: 'enc-account-1',
-      },
-    });
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/ach'
+    );
   });
 
   test('manual ACH shows an account mismatch error and does not save', async () => {
@@ -2508,6 +2509,7 @@ suite('commerce-hub-connect flow', () => {
     await flushElement(el);
     await clickAction(el, 'add-ach-manually');
 
+    await setFieldValue(el, 'ach-account-nickname', 'Household checking');
     await setFieldValue(el, 'ach-routing-number', '021000021');
     await setFieldValue(el, 'ach-account-number', '123456789');
     await setFieldValue(el, 'ach-account-number-confirm', '987654321');
@@ -2546,7 +2548,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('manual ACH shows a routing number error until nine digits are entered', async () => {
+  test('manual ACH shows digit-count errors until all bank numbers are nine digits', async () => {
     const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
@@ -2610,13 +2612,18 @@ suite('commerce-hub-connect flow', () => {
     await flushElement(el);
     await clickAction(el, 'add-ach-manually');
 
+    await setFieldValue(el, 'ach-account-nickname', 'Household checking');
     await setFieldValue(el, 'ach-routing-number', '02100002');
-    await setFieldValue(el, 'ach-account-number', '123456789');
-    await setFieldValue(el, 'ach-account-number-confirm', '123456789');
+    await setFieldValue(el, 'ach-account-number', '12345678');
+    await setFieldValue(el, 'ach-account-number-confirm', '12345678');
 
     assert.include(
       el.shadowRoot!.textContent,
       'Enter a 9-digit routing number.'
+    );
+    assert.include(
+      el.shadowRoot!.textContent,
+      'Enter a 9-digit account number.'
     );
     assert.isTrue(
       el.shadowRoot!.querySelector<HTMLButtonElement>(
