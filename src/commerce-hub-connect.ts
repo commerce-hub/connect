@@ -2915,7 +2915,7 @@ export class CommerceHubConnect extends LitElement {
 
     const type = field === 'cardNumber' ? 'card' : 'cvv';
     const response = await this.requestCommerceHubJson<{value?: string}>(
-      `/interaction/source/mask/${type}`,
+      this.buildMaskEndpoint(type, 'card'),
       interactionId,
       {
         method: 'POST',
@@ -2945,7 +2945,7 @@ export class CommerceHubConnect extends LitElement {
 
     const type = field === 'routingNumber' ? 'rt' : 'bn';
     const response = await this.requestCommerceHubJson<{value?: string}>(
-      `/interaction/source/mask/${type}`,
+      this.buildMaskEndpoint(type, 'ACH'),
       interactionId,
       {
         method: 'POST',
@@ -2961,6 +2961,20 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return encryptedValue;
+  }
+
+  private buildMaskEndpoint(type: string, label: 'card' | 'ACH'): string {
+    const keyId = this.interactionResponse.keyId?.trim();
+
+    if (!keyId) {
+      throw new Error(
+        `The interaction response did not include a key id required to encrypt ${label} details.`
+      );
+    }
+
+    return `/interaction/source/mask/${encodeURIComponent(
+      type
+    )}/${encodeURIComponent(keyId)}`;
   }
 
   private async saveCard() {

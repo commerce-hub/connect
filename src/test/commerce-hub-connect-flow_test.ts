@@ -43,9 +43,8 @@ const flushElement = async (el: CommerceHubConnect) => {
 };
 
 const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
-const TEST_INTERACTION_FEATURES: NonNullable<
-  InteractionResponse['features']
-> = ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
+const TEST_INTERACTION_FEATURES: NonNullable<InteractionResponse['features']> =
+  ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
@@ -84,13 +83,10 @@ const renderConnect = async (
       ) {
         servedInitialInteraction = true;
 
-        return new Response(
-          JSON.stringify(initialInteractionResponse),
-          {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          }
-        );
+        return new Response(JSON.stringify(initialInteractionResponse), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       return fetchForTest(input, init);
@@ -107,7 +103,10 @@ const renderConnect = async (
 
   await flushElement(el);
 
-  if (shouldStubInitialInteraction && interactionResponseForTest.interactionId) {
+  if (
+    shouldStubInitialInteraction &&
+    interactionResponseForTest.interactionId
+  ) {
     await waitFor(
       () => !el.shadowRoot!.querySelector('.payment-method-skeletons'),
       'initial interaction refresh did not settle'
@@ -124,7 +123,10 @@ const interactionResponseWithTestFeatures = (
   defaultFeatures || interactionResponse.features
     ? {
         ...interactionResponse,
-        features: interactionResponse.features ?? [...TEST_INTERACTION_FEATURES],
+        features: interactionResponse.features ?? [
+          ...TEST_INTERACTION_FEATURES,
+        ],
+        keyId: interactionResponse.keyId ?? 'key-1',
       }
     : interactionResponse;
 
@@ -1913,14 +1915,14 @@ suite('commerce-hub-connect flow', () => {
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
 
-      if (request.url.endsWith('/interaction/source/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card/key-1')) {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/cvv')) {
+      if (request.url.endsWith('/interaction/source/mask/cvv/key-1')) {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -2135,14 +2137,14 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/interaction/source/mask/rt') {
+      if (pathname === '/interaction/source/mask/rt/key-1') {
         return new Response(JSON.stringify({value: 'enc-routing-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (pathname === '/interaction/source/mask/bn') {
+      if (pathname === '/interaction/source/mask/bn/key-1') {
         return new Response(
           JSON.stringify({
             value:
@@ -2210,12 +2212,13 @@ suite('commerce-hub-connect flow', () => {
     await blurField(el, 'ach-routing-number');
     await blurField(el, 'ach-account-number');
     await blurField(el, 'ach-account-number-confirm');
-    await waitForRequest(requests, '/interaction/source/mask/rt');
+    await waitForRequest(requests, '/interaction/source/mask/rt/key-1');
     await waitFor(
       () =>
         requests.filter(
           (request) =>
-            new URL(request.url).pathname === '/interaction/source/mask/bn'
+            new URL(request.url).pathname ===
+            '/interaction/source/mask/bn/key-1'
         ).length === 2,
       'both bank account number mask requests were not sent'
     );
@@ -2290,9 +2293,9 @@ suite('commerce-hub-connect flow', () => {
       ),
       [
         'GET /interaction/source/pbb/session',
-        'POST /interaction/source/mask/rt',
-        'POST /interaction/source/mask/bn',
-        'POST /interaction/source/mask/bn',
+        'POST /interaction/source/mask/rt/key-1',
+        'POST /interaction/source/mask/bn/key-1',
+        'POST /interaction/source/mask/bn/key-1',
         'POST /interaction/source/ach',
       ]
     );
@@ -2363,14 +2366,14 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/interaction/source/mask/rt') {
+      if (pathname === '/interaction/source/mask/rt/key-1') {
         return new Response(JSON.stringify({value: 'enc-routing-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (pathname === '/interaction/source/mask/bn') {
+      if (pathname === '/interaction/source/mask/bn/key-1') {
         return new Response(JSON.stringify({value: 'enc-account-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -2406,12 +2409,13 @@ suite('commerce-hub-connect flow', () => {
     await blurField(el, 'ach-routing-number');
     await blurField(el, 'ach-account-number');
     await blurField(el, 'ach-account-number-confirm');
-    await waitForRequest(requests, '/interaction/source/mask/rt');
+    await waitForRequest(requests, '/interaction/source/mask/rt/key-1');
     await waitFor(
       () =>
         requests.filter(
           (request) =>
-            new URL(request.url).pathname === '/interaction/source/mask/bn'
+            new URL(request.url).pathname ===
+            '/interaction/source/mask/bn/key-1'
         ).length === 2,
       'both bank account number mask requests were not sent'
     );
@@ -2473,14 +2477,14 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/interaction/source/mask/rt') {
+      if (pathname === '/interaction/source/mask/rt/key-1') {
         return new Response(JSON.stringify({value: 'enc-routing-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (pathname === '/interaction/source/mask/bn') {
+      if (pathname === '/interaction/source/mask/bn/key-1') {
         return new Response(JSON.stringify({value: 'enc-account-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -2522,12 +2526,13 @@ suite('commerce-hub-connect flow', () => {
     await blurField(el, 'ach-routing-number');
     await blurField(el, 'ach-account-number');
     await blurField(el, 'ach-account-number-confirm');
-    await waitForRequest(requests, '/interaction/source/mask/rt');
+    await waitForRequest(requests, '/interaction/source/mask/rt/key-1');
     await waitFor(
       () =>
         requests.filter(
           (request) =>
-            new URL(request.url).pathname === '/interaction/source/mask/bn'
+            new URL(request.url).pathname ===
+            '/interaction/source/mask/bn/key-1'
         ).length === 2,
       'both bank account number mask requests were not sent'
     );
@@ -2582,7 +2587,7 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/interaction/source/mask/bn') {
+      if (pathname === '/interaction/source/mask/bn/key-1') {
         return new Response(JSON.stringify({value: 'enc-account-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -2647,14 +2652,14 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction/source/mask/card') {
+      if (pathname === '/interaction/source/mask/card/key-1') {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (pathname === '/interaction/source/mask/cvv') {
+      if (pathname === '/interaction/source/mask/cvv/key-1') {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -2718,8 +2723,8 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       [
-        'POST /interaction/source/mask/card',
-        'POST /interaction/source/mask/cvv',
+        'POST /interaction/source/mask/card/key-1',
+        'POST /interaction/source/mask/cvv/key-1',
         'POST /interaction/billing-address',
         'POST /interaction/source/card',
       ]
@@ -2799,6 +2804,68 @@ suite('commerce-hub-connect flow', () => {
     assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
+  test('card encryption includes the interaction key id in mask requests', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname.startsWith('/interaction/source/mask/card/key-1')) {
+        return new Response(JSON.stringify({value: 'enc-card-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (pathname.startsWith('/interaction/source/mask/cvv/key-1')) {
+        return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      keyId: 'key-1',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-card');
+    await fillNewCardForm(el);
+    await blurField(el, 'card-number');
+    await blurField(el, 'card-cvv');
+    await waitForRequest(requests, '/interaction/source/mask/card/key-1');
+    await waitForRequest(requests, '/interaction/source/mask/cvv/key-1');
+
+    assert.deepEqual(
+      requests
+        .filter((request) =>
+          new URL(request.url).pathname.startsWith('/interaction/source/mask/')
+        )
+        .map((request) => new URL(request.url).pathname),
+      [
+        '/interaction/source/mask/card/key-1',
+        '/interaction/source/mask/cvv/key-1',
+      ]
+    );
+  });
+
   test('card save shows an under-review outcome when the created card is under review', async () => {
     const requests: CapturedRequest[] = [];
 
@@ -2814,14 +2881,14 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction/source/mask/card') {
+      if (pathname === '/interaction/source/mask/card/key-1') {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (pathname === '/interaction/source/mask/cvv') {
+      if (pathname === '/interaction/source/mask/cvv/key-1') {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -2908,14 +2975,14 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction/source/mask/card') {
+      if (pathname === '/interaction/source/mask/card/key-1') {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (pathname === '/interaction/source/mask/cvv') {
+      if (pathname === '/interaction/source/mask/cvv/key-1') {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -3031,14 +3098,14 @@ suite('commerce-hub-connect flow', () => {
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card/key-1')) {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/cvv')) {
+      if (request.url.endsWith('/interaction/source/mask/cvv/key-1')) {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -3084,9 +3151,9 @@ suite('commerce-hub-connect flow', () => {
     await setSelectValue(el, 'billing-state', 'NY');
     await setFieldValue(el, 'billing-zip', '10001');
     await blurField(el, 'card-number');
-    await waitForRequest(requests, '/interaction/source/mask/card');
+    await waitForRequest(requests, '/interaction/source/mask/card/key-1');
     await blurField(el, 'card-cvv');
-    await waitForRequest(requests, '/interaction/source/mask/cvv');
+    await waitForRequest(requests, '/interaction/source/mask/cvv/key-1');
     await clickAction(el, 'save-card');
     await waitFor(
       () =>
@@ -3137,14 +3204,14 @@ suite('commerce-hub-connect flow', () => {
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card/key-1')) {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/cvv')) {
+      if (request.url.endsWith('/interaction/source/mask/cvv/key-1')) {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -3218,20 +3285,16 @@ suite('commerce-hub-connect flow', () => {
       status: 'PAYMENT_SOURCE_REQUESTED',
       paymentSources: [],
     });
-    const {
-      successEvents,
-      addPaymentMethodEvents,
-      errorEvents,
-      eventOrder,
-    } = recordOutputEvents(el);
+    const {successEvents, addPaymentMethodEvents, errorEvents, eventOrder} =
+      recordOutputEvents(el);
 
     await clickAction(el, 'add-card');
     await fillNewCardForm(el);
 
     await blurField(el, 'card-number');
-    await waitForRequest(requests, '/interaction/source/mask/card');
+    await waitForRequest(requests, '/interaction/source/mask/card/key-1');
     await blurField(el, 'card-cvv');
-    await waitForRequest(requests, '/interaction/source/mask/cvv');
+    await waitForRequest(requests, '/interaction/source/mask/cvv/key-1');
     await clickAction(el, 'save-card');
     await waitFor(
       () =>
@@ -3246,8 +3309,8 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       [
-        'POST /interaction/source/mask/card',
-        'POST /interaction/source/mask/cvv',
+        'POST /interaction/source/mask/card/key-1',
+        'POST /interaction/source/mask/cvv/key-1',
         'POST /interaction/billing-address',
         'POST /interaction/source/card',
         'POST /interaction/source/card-created-1/attach',
@@ -3395,14 +3458,14 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (request.url.endsWith('/interaction/source/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card/key-1')) {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/cvv')) {
+      if (request.url.endsWith('/interaction/source/mask/cvv/key-1')) {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -3482,9 +3545,9 @@ suite('commerce-hub-connect flow', () => {
     assert.exists(el.shadowRoot!.querySelector('.billing-address-summary'));
     assert.notExists(el.shadowRoot!.querySelector('#billing-address'));
     await blurField(el, 'card-number');
-    await waitForRequest(requests, '/interaction/source/mask/card');
+    await waitForRequest(requests, '/interaction/source/mask/card/key-1');
     await blurField(el, 'card-cvv');
-    await waitForRequest(requests, '/interaction/source/mask/cvv');
+    await waitForRequest(requests, '/interaction/source/mask/cvv/key-1');
     await clickAction(el, 'save-card');
     await waitFor(
       () =>
@@ -3537,14 +3600,14 @@ suite('commerce-hub-connect flow', () => {
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card/key-1')) {
         return new Response(JSON.stringify({value: 'enc-card-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/cvv')) {
+      if (request.url.endsWith('/interaction/source/mask/cvv/key-1')) {
         return new Response(JSON.stringify({value: 'enc-cvv-1'}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},
@@ -3586,9 +3649,9 @@ suite('commerce-hub-connect flow', () => {
     await clickAction(el, 'add-card');
     await fillNewCardForm(el);
     await blurField(el, 'card-number');
-    await waitForRequest(requests, '/interaction/source/mask/card');
+    await waitForRequest(requests, '/interaction/source/mask/card/key-1');
     await blurField(el, 'card-cvv');
-    await waitForRequest(requests, '/interaction/source/mask/cvv');
+    await waitForRequest(requests, '/interaction/source/mask/cvv/key-1');
     await clickAction(el, 'save-card');
     await waitFor(
       () =>
@@ -3632,7 +3695,7 @@ suite('commerce-hub-connect flow', () => {
         });
       }
 
-      if (request.url.endsWith('/interaction/source/mask/card')) {
+      if (request.url.endsWith('/interaction/source/mask/card/key-1')) {
         return new Response(JSON.stringify({message: 'Mask failed'}), {
           status: 500,
           headers: {'Content-Type': 'application/json'},
@@ -3675,8 +3738,8 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       [
-        'POST /interaction/source/mask/card',
-        'POST /interaction/source/mask/cvv',
+        'POST /interaction/source/mask/card/key-1',
+        'POST /interaction/source/mask/cvv/key-1',
       ]
     );
   });
@@ -3831,9 +3894,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(
       [
-        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
-          '.payment-method-row'
-        ),
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>('.payment-method-row'),
       ].map((row) => row.dataset.action),
       [undefined, undefined]
     );
@@ -3881,9 +3942,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(
       [
-        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
-          '.payment-method-row'
-        ),
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>('.payment-method-row'),
       ].map((row) => row.dataset.action),
       [undefined, undefined]
     );
@@ -3931,9 +3990,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(
       [
-        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
-          '.payment-method-row'
-        ),
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>('.payment-method-row'),
       ].map((row) => row.dataset.action),
       ['attach-payment-source', 'attach-payment-source']
     );
@@ -3985,9 +4042,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(
       [
-        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
-          '.payment-method-row'
-        ),
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>('.payment-method-row'),
       ].map((row) => row.dataset.action),
       ['attach-payment-source', 'attach-payment-source']
     );
@@ -5497,22 +5552,17 @@ suite('commerce-hub-connect flow', () => {
   });
 
   test('Connect your bank required-info Verify uploads selected documents, finalizes verification, and attaches verified sources', async () => {
-    const {
-      el,
-      requests,
-      successEvents,
-      verifyPaymentMethodEvents,
-      eventOrder,
-    } = await completePayByBankFlow({
-      finalizedStatus: 'NOT_VERIFIED',
-      verificationStatus: 'REQUIRE_INFO',
-      verificationDocs: [
-        {docType: 'BANK_STATEMENT', mandatory: true},
-        {docType: 'DRIVER_LICENSE_PHOTO', mandatory: false},
-      ],
-      requiredInfoStep2Status: 'VERIFIED',
-      requiredInfoStep2SourceId: 'bank-verified',
-    });
+    const {el, requests, successEvents, verifyPaymentMethodEvents, eventOrder} =
+      await completePayByBankFlow({
+        finalizedStatus: 'NOT_VERIFIED',
+        verificationStatus: 'REQUIRE_INFO',
+        verificationDocs: [
+          {docType: 'BANK_STATEMENT', mandatory: true},
+          {docType: 'DRIVER_LICENSE_PHOTO', mandatory: false},
+        ],
+        requiredInfoStep2Status: 'VERIFIED',
+        requiredInfoStep2SourceId: 'bank-verified',
+      });
 
     await selectRequiredInfoFile(el, 'may-bank-statement.pdf');
     await clickAction(el, 'submit-required-info');

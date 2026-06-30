@@ -166,6 +166,7 @@ export interface components {
             x402?: components["schemas"]["X402SetupInfo"];
             mpp?: components["schemas"]["MPPSetupInfo"];
             disabled?: boolean;
+            description?: string;
         };
         X402SetupInfo: unknown;
         Challenge: {
@@ -324,7 +325,7 @@ export interface components {
         };
         DynamicSessionCard: {
             clientId?: string;
-            partyId?: string;
+            email?: string;
             id?: string;
             source?: components["schemas"]["BankAccount"] | components["schemas"]["Card"] | components["schemas"]["DSCDisplayCard"] | components["schemas"]["NativeAccount"];
             asset?: components["schemas"]["Asset"];
