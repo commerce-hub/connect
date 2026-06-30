@@ -292,7 +292,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/source/mask/{type}": {
+    "/interaction/source/mask/{type}/{keyId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -815,6 +815,8 @@ export interface components {
             phone?: components["schemas"]["PhoneDetails"];
             billerAddress?: components["schemas"]["Address"][];
             features?: ("ADD_ACCOUNT" | "SELECT" | "TRANSFER")[];
+            keyId?: string;
+            publicKey?: string;
         };
         TransferRequest: {
             fromSourceId?: string;
@@ -1357,6 +1359,7 @@ export interface operations {
             header?: never;
             path: {
                 type: string;
+                keyId: string;
             };
             cookie?: never;
         };
