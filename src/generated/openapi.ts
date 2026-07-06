@@ -292,7 +292,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/interaction/source/mask/{type}/{keyId}": {
+    "/interaction/source/mask/{type}": {
         parameters: {
             query?: never;
             header?: never;
@@ -854,6 +854,11 @@ export interface components {
             realm?: string;
             description?: string;
         };
+        InteractionHolder: {
+            value?: string;
+            keyId?: string;
+            publickey?: string;
+        };
         SessionData: {
             publicKey?: string;
             tokenID?: string;
@@ -1359,7 +1364,6 @@ export interface operations {
             header?: never;
             path: {
                 type: string;
-                keyId: string;
             };
             cookie?: never;
         };
@@ -1595,7 +1599,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["StringHolder"];
+                    "*/*": components["schemas"]["InteractionHolder"];
                 };
             };
         };
