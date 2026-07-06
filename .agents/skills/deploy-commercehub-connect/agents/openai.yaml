@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy CommerceHub Connect"
+  short_description: "Release SDK docs and tarballs"
+  default_prompt: "Use $deploy-commercehub-connect to release the CommerceHub Connect SDK docs and tarball."

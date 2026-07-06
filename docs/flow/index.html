@@ -54,11 +54,19 @@ Host-provided <code>paymentSources</code> are not rendered as authoritative save
 <code>interactionResponse.oauth.access_token</code> is present, it also sends
 <code>Authorization: Bearer &lt;token&gt;</code>. Gateway OAuth from the host response is
 preserved when the refreshed interaction response omits it.</p>
+<p>For manual card and ACH source creation, the widget encrypts card, CVC, routing,
+and account-number values locally with <code>interactionResponse.publicKey</code> using
+RSA-OAEP SHA-512. It does not call <code>/interaction/source/mask/*</code>. The
+<code>POST /interaction/source/card</code> and <code>POST /interaction/source/ach</code> calls also
+send <code>Api-Key</code> from <code>interactionResponse.oauth.client_id</code>,
+<code>Auth-Token-Type</code> from <code>interactionResponse.oauth.token_type</code>, and <code>x-key-id</code>
+from <code>interactionResponse.keyId</code>. Missing <code>publicKey</code>, <code>keyId</code>,
+<code>oauth.access_token</code>, <code>oauth.client_id</code>, or <code>oauth.token_type</code> blocks manual
+card and ACH source creation with the existing inline encryption error.</p>
 <p>SDK-managed calls include:</p>
 <ul>
 <li>OTP validation and resend.</li>
 <li>Card and manual ACH source creation.</li>
-<li>Sensitive card and ACH value masking.</li>
 <li>Saved source attach, verification, and deletion.</li>
 <li>Required-info upload and verification.</li>
 <li>Pay by Bank session launch and finalization.</li>

@@ -14,7 +14,7 @@ the host backend.
 
 - OTP verification and resend for CommerceHub interactions.
 - Saved payment-source selection, attach, verification, and deletion.
-- Card entry with sensitive value masking before source creation.
+- Card entry with local sensitive-value encryption before source creation.
 - Manual ACH entry and Pay by Bank provider handoff.
 - Required-info collection for sources that need additional verification.
 - Native account balance lookup when native sources are present.
@@ -90,6 +90,16 @@ SDK-managed CommerceHub calls always send
 `interactionResponse.oauth.access_token` is present, they also send
 `Authorization: Bearer <token>`. If the interaction id is missing, the widget
 does not call the API and keeps the current screen stable.
+
+For manual card and ACH source creation, the widget encrypts sensitive values in
+the browser with `interactionResponse.publicKey` using RSA-OAEP SHA-512. It does
+not call `/interaction/source/mask/*`. The source-create calls also send
+`Api-Key` from `interactionResponse.oauth.client_id`, `Auth-Token-Type` from
+`interactionResponse.oauth.token_type`, and `x-key-id` from
+`interactionResponse.keyId`. If any of `publicKey`, `keyId`,
+`oauth.access_token`, `oauth.client_id`, or `oauth.token_type` is missing, the
+widget blocks manual card and ACH source creation and renders the existing
+inline encryption error.
 
 If `interactionResponse` itself is missing, the widget renders a configuration
 error and blocks shopper payment actions until the host assigns it.
