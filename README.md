@@ -118,9 +118,9 @@ widget.baseURL = 'https://api.example.com';
 ```
 
 SDK-managed calls include OTP validation and resend, payment-source attach and
-delete, card and ACH source creation, sensitive value masking, source
-verification, required-info upload, Pay by Bank session handling, and native
-account balance lookup and transfer initiation.
+delete, card and ACH source creation with local sensitive-value encryption,
+source verification, required-info upload, Pay by Bank session handling, and
+native account balance lookup and transfer initiation.
 
 The widget always sends `x-interaction-id` with
 `interactionResponse.interactionId`. When
@@ -133,6 +133,13 @@ host-provided `paymentSources`, `selectedSource`, billing addresses, or status
 fields are bootstrap data only; the SDK treats the server-fetched interaction as
 the authoritative widget state. Gateway OAuth from the host response is
 preserved when the server response omits it.
+
+For `POST /interaction/source/card` and `POST /interaction/source/ach`, the
+widget encrypts card, CVC, routing, and account-number values locally with
+`interactionResponse.publicKey` using RSA-OAEP SHA-512. These source-create
+calls also send `Api-Key` from `interactionResponse.oauth.client_id`,
+`Auth-Token-Type` from `interactionResponse.oauth.token_type`, and `x-key-id`
+from `interactionResponse.keyId`.
 
 If `interactionResponse.interactionId` is missing, the widget keeps the current
 screen stable and does not call the CommerceHub API.

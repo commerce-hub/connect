@@ -70,11 +70,20 @@ The widget always sends `interactionResponse.interactionId` as the
 `Authorization: Bearer <token>`. Gateway OAuth from the host response is
 preserved when the refreshed interaction response omits it.
 
+For manual card and ACH source creation, the widget encrypts card, CVC, routing,
+and account-number values locally with `interactionResponse.publicKey` using
+RSA-OAEP SHA-512. It does not call `/interaction/source/mask/*`. The
+`POST /interaction/source/card` and `POST /interaction/source/ach` calls also
+send `Api-Key` from `interactionResponse.oauth.client_id`,
+`Auth-Token-Type` from `interactionResponse.oauth.token_type`, and `x-key-id`
+from `interactionResponse.keyId`. Missing `publicKey`, `keyId`,
+`oauth.access_token`, `oauth.client_id`, or `oauth.token_type` blocks manual
+card and ACH source creation with the existing inline encryption error.
+
 SDK-managed calls include:
 
 - OTP validation and resend.
 - Card and manual ACH source creation.
-- Sensitive card and ACH value masking.
 - Saved source attach, verification, and deletion.
 - Required-info upload and verification.
 - Pay by Bank session launch and finalization.

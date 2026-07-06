@@ -79,6 +79,7 @@ import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from './internal/payment-method-icons.js';
+import {encryptSourceValue} from './internal/source-encryption.js';
 import {primitiveStyles} from './internal/styles.js';
 import {
   defaultOtpSubtitle,
@@ -308,6 +309,13 @@ type PaymentSourceToPaymentMethodOptions = {
 type VerificationOverlayAction =
   | 'verify-payment-source'
   | 'submit-required-info';
+type SourceCreateContext = {
+  publicKey: string;
+  keyId: string;
+  clientId: string;
+  tokenType: string;
+  accessToken: string;
+};
 
 type PaymentSdkEvent = {
   type?: 'success' | 'failure' | 'cancel' | 'error' | string;
@@ -2741,8 +2749,7 @@ export class CommerceHubConnect extends LitElement {
     };
 
     try {
-      const encryptedValue = await this.maskSensitiveCardValue(
-        field,
+      const encryptedValue = await this.encryptSensitiveSourceValue(
         normalizedValue
       );
 
@@ -2842,8 +2849,7 @@ export class CommerceHubConnect extends LitElement {
     };
 
     try {
-      const encryptedValue = await this.maskSensitiveBankAccountValue(
-        field,
+      const encryptedValue = await this.encryptSensitiveSourceValue(
         normalizedValue
       );
 
@@ -2903,68 +2909,10 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private async maskSensitiveCardValue(
-    field: SensitiveCardField,
-    value: string
-  ): Promise<string> {
-    const interactionId = this.requireInteractionId();
+  private async encryptSensitiveSourceValue(value: string): Promise<string> {
+    const sourceCreateContext = this.requireSourceCreateContext();
 
-    if (!interactionId) {
-      throw new Error('An interaction id is required to encrypt card details.');
-    }
-
-    const type = field === 'cardNumber' ? 'card' : 'cvv';
-    const response = await this.requestCommerceHubJson<{value?: string}>(
-      this.buildMaskEndpoint(type),
-      interactionId,
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({value}),
-        credentials: 'include',
-      }
-    );
-    const encryptedValue = response.value?.trim();
-
-    if (!encryptedValue) {
-      throw new Error('The card encryption response did not include a value.');
-    }
-
-    return encryptedValue;
-  }
-
-  private async maskSensitiveBankAccountValue(
-    field: SensitiveBankAccountField,
-    value: string
-  ): Promise<string> {
-    const interactionId = this.requireInteractionId();
-
-    if (!interactionId) {
-      throw new Error('An interaction id is required to encrypt ACH details.');
-    }
-
-    const type = field === 'routingNumber' ? 'rt' : 'bn';
-    const response = await this.requestCommerceHubJson<{value?: string}>(
-      this.buildMaskEndpoint(type),
-      interactionId,
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({value}),
-        credentials: 'include',
-      }
-    );
-    const encryptedValue = response.value?.trim();
-
-    if (!encryptedValue) {
-      throw new Error('The ACH encryption response did not include a value.');
-    }
-
-    return encryptedValue;
-  }
-
-  private buildMaskEndpoint(type: string): string {
-    return `/interaction/source/mask/${encodeURIComponent(type)}`;
+    return encryptSourceValue(value, sourceCreateContext.publicKey);
   }
 
   private async saveCard() {
@@ -2988,6 +2936,17 @@ export class CommerceHubConnect extends LitElement {
       this.cardDraft = normalizedDraft;
       this.cardDraftErrors = errors;
       this.cardSubmitError = undefined;
+      return;
+    }
+
+    let sourceCreateContext: SourceCreateContext;
+
+    try {
+      sourceCreateContext = this.requireSourceCreateContext();
+    } catch (cause) {
+      this.cardDraft = normalizedDraft;
+      this.cardDraftErrors = {};
+      this.cardSubmitError = apiErrorMessage(cause);
       return;
     }
 
@@ -3042,7 +3001,11 @@ export class CommerceHubConnect extends LitElement {
           interactionId,
           {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: this.createSourceCreateHeaders(
+              interactionId,
+              sourceCreateContext,
+              {'Content-Type': 'application/json'}
+            ),
             body: JSON.stringify(cardSource),
             credentials: 'include',
           }
@@ -3106,6 +3069,20 @@ export class CommerceHubConnect extends LitElement {
       );
       this.bankAccountDraftErrors = errors;
       this.bankAccountSubmitError = undefined;
+      return;
+    }
+
+    let sourceCreateContext: SourceCreateContext;
+
+    try {
+      sourceCreateContext = this.requireSourceCreateContext();
+    } catch (cause) {
+      this.bankAccountDraft = normalizeBankAccountDraftForDisplay(
+        this.bankAccountDraft,
+        this.bankAccountEncryption
+      );
+      this.bankAccountDraftErrors = {};
+      this.bankAccountSubmitError = apiErrorMessage(cause);
       return;
     }
 
@@ -3176,7 +3153,11 @@ export class CommerceHubConnect extends LitElement {
           interactionId,
           {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: this.createSourceCreateHeaders(
+              interactionId,
+              sourceCreateContext,
+              {'Content-Type': 'application/json'}
+            ),
             body: JSON.stringify(bankAccountSource),
             credentials: 'include',
           }
@@ -4428,6 +4409,43 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return headers;
+  }
+
+  private createSourceCreateHeaders(
+    interactionId: string,
+    sourceCreateContext: SourceCreateContext,
+    init?: HeadersInit
+  ): Headers {
+    const headers = this.createInteractionHeaders(interactionId, init);
+
+    headers.set('Api-Key', sourceCreateContext.clientId);
+    headers.set('Auth-Token-Type', sourceCreateContext.tokenType);
+    headers.set('x-key-id', sourceCreateContext.keyId);
+
+    return headers;
+  }
+
+  private requireSourceCreateContext(): SourceCreateContext {
+    const publicKey = this.interactionResponse?.publicKey?.trim();
+    const keyId = this.interactionResponse?.keyId?.trim();
+    const oauth = this.interactionResponse?.oauth;
+    const clientId = oauth?.client_id?.trim();
+    const tokenType = oauth?.token_type?.trim();
+    const accessToken = oauth?.access_token?.trim();
+
+    if (!publicKey || !keyId || !clientId || !tokenType || !accessToken) {
+      throw new Error(
+        'Payment source encryption is not configured. Try again later.'
+      );
+    }
+
+    return {
+      publicKey,
+      keyId,
+      clientId,
+      tokenType,
+      accessToken,
+    };
   }
 
   private setInteractionResponseFromSdk(
