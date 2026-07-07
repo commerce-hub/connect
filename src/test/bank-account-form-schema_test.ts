@@ -19,6 +19,17 @@ const collectControlScopes = (uischema: UISchemaElement): string[] => {
   return layout.elements?.map((element) => element.scope ?? '') ?? [];
 };
 
+const loadFormJson = async (): Promise<Record<string, unknown>> => {
+  const response = await fetch('/form.json');
+
+  assert.isTrue(
+    response.ok,
+    'form.json should be served from the repository root'
+  );
+
+  return response.json() as Promise<Record<string, unknown>>;
+};
+
 suite('bank account form schema', () => {
   test('exports the JSON schema itself without form wrappers', () => {
     const schema = bankAccountJsonFormsSchema as Record<string, unknown>;
@@ -46,5 +57,11 @@ suite('bank account form schema', () => {
     ] as Record<string, unknown> | undefined;
 
     assert.equal(confirmAccountNumber?.['x-equalsField'], 'accountNumber');
+  });
+
+  test('serves form.json from the bank account schema source', async () => {
+    const formJson = await loadFormJson();
+
+    assert.deepEqual(formJson, bankAccountJsonFormsSchema as unknown);
   });
 });
