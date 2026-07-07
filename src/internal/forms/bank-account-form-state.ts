@@ -9,13 +9,71 @@ import {
   createCardEncryptionFieldState,
   resolveDirtyCardEncryptionState,
 } from './card-form-state.js';
-import {
-  bankAccountFormSchema,
-  getBankAccountEqualsField,
-  getBankAccountFieldErrorMessage,
-  getBankAccountFieldSchema,
-  type BankAccountFormField,
-} from './form.js';
+
+export type BankAccountFormField = keyof BankAccountDraft;
+
+export type BankAccountFormErrorKeyword =
+  | 'required'
+  | 'minLength'
+  | 'maxLength'
+  | 'pattern'
+  | 'equals';
+
+export type BankAccountFormFieldSchema = {
+  type: 'string';
+  title?: string;
+  description?: string;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  'x-equalsField'?: BankAccountFormField;
+  'x-errorMessages'?: Partial<Record<BankAccountFormErrorKeyword, string>>;
+};
+
+export type BankAccountFormSchema = {
+  type: 'object';
+  properties: Partial<Record<BankAccountFormField, BankAccountFormFieldSchema>>;
+  required?: BankAccountFormField[];
+};
+
+const bankAccountFormFields: readonly BankAccountFormField[] = [
+  'accountNickname',
+  'routingNumber',
+  'accountNumber',
+  'confirmAccountNumber',
+];
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isBankAccountFormField = (
+  field: unknown
+): field is BankAccountFormField =>
+  typeof field === 'string' &&
+  (bankAccountFormFields as readonly string[]).includes(field);
+
+const isBankAccountFormFieldSchema = (
+  value: unknown
+): value is BankAccountFormFieldSchema =>
+  isRecord(value) && value.type === 'string';
+
+export const isBankAccountFormSchema = (
+  value: unknown
+): value is BankAccountFormSchema => {
+  if (!isRecord(value) || value.type !== 'object') {
+    return false;
+  }
+
+  const properties = value.properties;
+
+  if (!isRecord(properties)) {
+    return false;
+  }
+
+  return bankAccountFormFields.every((field) =>
+    isBankAccountFormFieldSchema(properties[field])
+  );
+};
 
 export const createBankAccountDraft = (): BankAccountDraft => ({
   accountNickname: '',
@@ -158,15 +216,21 @@ export const normalizeBankAccountDraftFieldForDisplay = (
 };
 
 export const validateBankAccountDraft = (
-  draft: BankAccountDraft
+  draft: BankAccountDraft,
+  schema: BankAccountFormSchema
 ): BankAccountDraftErrors => {
   const errors: BankAccountDraftErrors = {};
 
-  for (const field of bankAccountFormSchema.required) {
+  for (const field of schema.required ?? []) {
+    if (!isBankAccountFormField(field)) {
+      continue;
+    }
+
     const value = normalizeBankAccountDraftValueForSchema(field, draft[field]);
 
     if (!value) {
       errors[field] = getBankAccountFieldErrorMessage(
+        schema,
         field,
         'required',
         'Enter a value.'
@@ -174,19 +238,27 @@ export const validateBankAccountDraft = (
       continue;
     }
 
-    const fieldError = validateBankAccountDraftFieldSchema(field, value);
+    const fieldError = validateBankAccountDraftFieldSchema(
+      field,
+      value,
+      schema
+    );
 
     if (fieldError) {
       errors[field] = fieldError;
     }
   }
 
-  for (const field of bankAccountFormSchema.required) {
+  for (const field of schema.required ?? []) {
+    if (!isBankAccountFormField(field)) {
+      continue;
+    }
+
     if (errors[field]) {
       continue;
     }
 
-    const equalsField = getBankAccountEqualsField(field);
+    const equalsField = getBankAccountEqualsField(schema, field);
 
     if (equalsField === undefined) {
       continue;
@@ -200,6 +272,7 @@ export const validateBankAccountDraft = (
 
     if (targetValue && value !== targetValue) {
       errors[field] = getBankAccountFieldErrorMessage(
+        schema,
         field,
         'equals',
         'Values must match.'
@@ -220,28 +293,41 @@ const normalizeBankAccountDraftValueForSchema = (
 
 const validateBankAccountDraftFieldSchema = (
   field: BankAccountFormField,
-  value: string
+  value: string,
+  schema: BankAccountFormSchema
 ): string | undefined => {
-  const schema = getBankAccountFieldSchema(field);
+  const fieldSchema = getBankAccountFieldSchema(schema, field);
 
-  if (schema.minLength !== undefined && value.length < schema.minLength) {
+  if (
+    fieldSchema.minLength !== undefined &&
+    value.length < fieldSchema.minLength
+  ) {
     return getBankAccountFieldErrorMessage(
+      schema,
       field,
       'minLength',
       buildBankAccountFieldLengthMessage(field)
     );
   }
 
-  if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+  if (
+    fieldSchema.maxLength !== undefined &&
+    value.length > fieldSchema.maxLength
+  ) {
     return getBankAccountFieldErrorMessage(
+      schema,
       field,
       'maxLength',
       buildBankAccountFieldLengthMessage(field)
     );
   }
 
-  if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
+  if (
+    fieldSchema.pattern !== undefined &&
+    !new RegExp(fieldSchema.pattern).test(value)
+  ) {
     return getBankAccountFieldErrorMessage(
+      schema,
       field,
       'pattern',
       buildBankAccountFieldLengthMessage(field)
@@ -260,15 +346,21 @@ const buildBankAccountFieldLengthMessage = (
 
 export const isBankAccountDraftReady = (
   draft: BankAccountDraft,
-  encryption: BankAccountEncryptionState
+  encryption: BankAccountEncryptionState,
+  schema?: BankAccountFormSchema
 ): boolean => {
+  if (schema === undefined) {
+    return false;
+  }
+
   const normalizedDraft = normalizeBankAccountDraftForValidation(
     draft,
     encryption
   );
 
   return (
-    Object.keys(validateBankAccountDraft(normalizedDraft)).length === 0 &&
+    Object.keys(validateBankAccountDraft(normalizedDraft, schema)).length ===
+      0 &&
     (['routingNumber', 'accountNumber', 'confirmAccountNumber'] as const).every(
       (field) => {
         const encryptedField = encryption[field];
@@ -306,12 +398,14 @@ export const updateBankAccountDraftFieldState = ({
   draft,
   errors,
   encryption,
+  schema,
   field,
   value,
 }: {
   draft: BankAccountDraft;
   errors: BankAccountDraftErrors;
   encryption: BankAccountEncryptionState;
+  schema: BankAccountFormSchema;
   field: keyof BankAccountDraft;
   value: string;
 }): {
@@ -331,7 +425,8 @@ export const updateBankAccountDraftFieldState = ({
     return {
       draft: nextDraft,
       errors: validateBankAccountDraft(
-        normalizeBankAccountDraftForValidation(nextDraft, encryption)
+        normalizeBankAccountDraftForValidation(nextDraft, encryption),
+        schema
       ),
       encryption,
     };
@@ -362,7 +457,8 @@ export const updateBankAccountDraftFieldState = ({
     draft: nextDraft,
     encryption: nextEncryption,
     errors: validateBankAccountDraft(
-      normalizeBankAccountDraftForValidation(nextDraft, nextEncryption)
+      normalizeBankAccountDraftForValidation(nextDraft, nextEncryption),
+      schema
     ),
   };
 };
@@ -407,3 +503,26 @@ export const resolveBankAccountSourceName = (
 
 const lastFour = (value?: string): string =>
   value?.replace(/\D/g, '').slice(-4) ?? '';
+
+const getBankAccountFieldSchema = (
+  schema: BankAccountFormSchema,
+  field: BankAccountFormField
+): BankAccountFormFieldSchema => schema.properties[field] ?? {type: 'string'};
+
+const getBankAccountFieldErrorMessage = (
+  schema: BankAccountFormSchema,
+  field: BankAccountFormField,
+  keyword: BankAccountFormErrorKeyword,
+  fallback: string
+): string =>
+  getBankAccountFieldSchema(schema, field)['x-errorMessages']?.[keyword] ??
+  fallback;
+
+const getBankAccountEqualsField = (
+  schema: BankAccountFormSchema,
+  field: BankAccountFormField
+): BankAccountFormField | undefined => {
+  const equalsField = getBankAccountFieldSchema(schema, field)['x-equalsField'];
+
+  return isBankAccountFormField(equalsField) ? equalsField : undefined;
+};

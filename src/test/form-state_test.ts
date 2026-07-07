@@ -10,6 +10,7 @@ import {
   resolveBankAccountPayloadFieldValue,
   updateBankAccountDraftFieldState,
   validateBankAccountDraft,
+  type BankAccountFormSchema,
 } from '../internal/forms/bank-account-form-state.js';
 import {
   NEW_BILLING_ADDRESS_VALUE,
@@ -46,6 +47,64 @@ import {
   normalizeTransferDraft,
   validateTransferDraft,
 } from '../internal/forms/transfer-form-state.js';
+
+const bankAccountFormSchema: BankAccountFormSchema = {
+  type: 'object',
+  properties: {
+    accountNickname: {
+      type: 'string',
+      minLength: 3,
+      'x-errorMessages': {
+        required: 'Enter an account nickname of at least 3 characters.',
+        minLength: 'Enter an account nickname of at least 3 characters.',
+      },
+    },
+    routingNumber: {
+      type: 'string',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-errorMessages': {
+        required: 'Enter a routing number.',
+        minLength: 'Enter a 9-digit routing number.',
+        maxLength: 'Enter a 9-digit routing number.',
+        pattern: 'Enter a 9-digit routing number.',
+      },
+    },
+    accountNumber: {
+      type: 'string',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-errorMessages': {
+        required: 'Enter an account number.',
+        minLength: 'Enter a 9-digit account number.',
+        maxLength: 'Enter a 9-digit account number.',
+        pattern: 'Enter a 9-digit account number.',
+      },
+    },
+    confirmAccountNumber: {
+      type: 'string',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-equalsField': 'accountNumber',
+      'x-errorMessages': {
+        required: 'Confirm the account number.',
+        minLength: 'Enter a 9-digit account number.',
+        maxLength: 'Enter a 9-digit account number.',
+        pattern: 'Enter a 9-digit account number.',
+        equals: 'Account numbers must match.',
+      },
+    },
+  },
+  required: [
+    'accountNickname',
+    'routingNumber',
+    'accountNumber',
+    'confirmAccountNumber',
+  ],
+};
 
 suite('form state models', () => {
   test('formats and validates card draft fields without mounting the widget', () => {
@@ -166,12 +225,14 @@ suite('form state models', () => {
 
     assert.equal(draft.routingNumber, '021000021');
     assert.equal(draft.accountNumber, '987654321');
-    assert.deepEqual(validateBankAccountDraft(normalizedDraft), {});
-    assert.isTrue(isBankAccountDraftReady(draft, encryption));
-    assert.equal(
-      maskSensitiveDisplayValue(draft.accountNumber),
-      '•••••4321'
+    assert.deepEqual(
+      validateBankAccountDraft(normalizedDraft, bankAccountFormSchema),
+      {}
     );
+    assert.isTrue(
+      isBankAccountDraftReady(draft, encryption, bankAccountFormSchema)
+    );
+    assert.equal(maskSensitiveDisplayValue(draft.accountNumber), '•••••4321');
     assert.equal(
       resolveBankAccountPayloadFieldValue(
         'accountNumber',
@@ -194,7 +255,7 @@ suite('form state models', () => {
       confirmAccountNumber: '123456789',
     };
 
-    assert.deepEqual(validateBankAccountDraft(draft), {
+    assert.deepEqual(validateBankAccountDraft(draft, bankAccountFormSchema), {
       accountNickname: 'Enter an account nickname of at least 3 characters.',
       routingNumber: 'Enter a 9-digit routing number.',
       accountNumber: 'Enter a 9-digit account number.',
@@ -209,6 +270,7 @@ suite('form state models', () => {
       draft,
       errors: {},
       encryption,
+      schema: bankAccountFormSchema,
       field: 'routingNumber',
       value: '021000021',
     });

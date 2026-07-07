@@ -43,6 +43,7 @@ const flushElement = async (el: CommerceHubConnect) => {
 };
 
 const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
+const TEST_BANK_ACCOUNT_FORM_URL = 'http://127.0.0.1:5500/form.json';
 const TEST_INTERACTION_FEATURES: NonNullable<InteractionResponse['features']> =
   ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
 const TEST_SOURCE_CREATE_OAUTH = {
@@ -87,6 +88,80 @@ jSPeQy3bUPQorUuDHVOHDAZgsFmh+nDlJcbltZuoCOb4qlzTftm2TQ88lgKE7bRQ
 VcY1vevnFZnWkRCSBEslF7bopfcNuEZ4RlSZz2iGXmJJkE3blfnnqehOI+frQFfs
 cjoCPxDIWQfSUQZ07JDG21s=
 -----END PRIVATE KEY-----`;
+const TEST_BANK_ACCOUNT_FORM_SCHEMA = {
+  type: 'object',
+  properties: {
+    accountNickname: {
+      type: 'string',
+      minLength: 3,
+      description: 'Please enter the account nickname',
+      title: 'Account Nickname',
+      'x-errorMessages': {
+        required: 'Enter an account nickname of at least 3 characters.',
+        minLength: 'Enter an account nickname of at least 3 characters.',
+      },
+    },
+    routingNumber: {
+      type: 'string',
+      description: 'Please enter the routing number',
+      title: 'Routing number',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-errorMessages': {
+        required: 'Enter a routing number.',
+        minLength: 'Enter a 9-digit routing number.',
+        maxLength: 'Enter a 9-digit routing number.',
+        pattern: 'Enter a 9-digit routing number.',
+      },
+    },
+    accountNumber: {
+      type: 'string',
+      description: 'Please enter the account number',
+      title: 'Account number',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-errorMessages': {
+        required: 'Enter an account number.',
+        minLength: 'Enter a 9-digit account number.',
+        maxLength: 'Enter a 9-digit account number.',
+        pattern: 'Enter a 9-digit account number.',
+      },
+    },
+    confirmAccountNumber: {
+      type: 'string',
+      description: 'Confirm the account number',
+      title: 'Confirm account number',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-equalsField': 'accountNumber',
+      'x-errorMessages': {
+        required: 'Confirm the account number.',
+        minLength: 'Enter a 9-digit account number.',
+        maxLength: 'Enter a 9-digit account number.',
+        pattern: 'Enter a 9-digit account number.',
+        equals: 'Account numbers must match.',
+      },
+    },
+  },
+  required: [
+    'accountNickname',
+    'routingNumber',
+    'accountNumber',
+    'confirmAccountNumber',
+  ],
+};
+
+const isBankAccountFormRequest = (request: Request): boolean =>
+  request.method === 'GET' && request.url === TEST_BANK_ACCOUNT_FORM_URL;
+
+const bankAccountFormResponse = (): Response =>
+  new Response(JSON.stringify(TEST_BANK_ACCOUNT_FORM_SCHEMA), {
+    status: 200,
+    headers: {'Content-Type': 'application/json'},
+  });
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
@@ -414,7 +489,10 @@ const waitForActionEnabled = async (el: CommerceHubConnect, action: string) => {
 
 const assertSourceCreateHeaders = (request: CapturedRequest) => {
   assert.equal(request.headers.get('x-interaction-id'), 'interaction-payment');
-  assert.equal(request.headers.get('Authorization'), 'Bearer test-access-token');
+  assert.equal(
+    request.headers.get('Authorization'),
+    'Bearer test-access-token'
+  );
   assert.equal(request.headers.get('Api-Key'), 'test-client-id');
   assert.equal(request.headers.get('Auth-Token-Type'), 'Bearer');
   assert.equal(request.headers.get('x-key-id'), 'key-1');
@@ -2134,6 +2212,7 @@ suite('commerce-hub-connect flow', () => {
   });
 
   test('Connect your bank shows Connect another way under the provider and opens manual bank account entry', async () => {
+    const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
     let initCount = 0;
 
@@ -2147,6 +2226,15 @@ suite('commerce-hub-connect flow', () => {
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
       const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
 
       if (pathname === '/interaction/source/pbb/session') {
         return new Response(
@@ -2158,6 +2246,10 @@ suite('commerce-hub-connect flow', () => {
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
+      }
+
+      if (isBankAccountFormRequest(request)) {
+        return bankAccountFormResponse();
       }
 
       return new Response(JSON.stringify({}), {
@@ -2194,6 +2286,7 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'add-ach-manually');
+    await waitForRequest(requests, '/form.json', 'GET');
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
@@ -2217,6 +2310,11 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(
       el.shadowRoot!.querySelector('#commerce-hub-pbb-provider')
     );
+    assert.equal(
+      requests.find((request) => new URL(request.url).pathname === '/form.json')
+        ?.url,
+      TEST_BANK_ACCOUNT_FORM_URL
+    );
 
     el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.widget-header-action button'
@@ -2233,6 +2331,93 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
     assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
+  });
+
+  test('manual bank account entry shows an error and blocks save when form json cannot load', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (isBankAccountFormRequest(request)) {
+        return new Response(JSON.stringify({message: 'Form unavailable'}), {
+          status: 503,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+    await clickAction(el, 'add-ach-manually');
+    await waitForRequest(requests, '/form.json', 'GET');
+    await flushElement(el);
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Enter bank details'
+    );
+    assert.include(
+      el.shadowRoot!.textContent,
+      'Unable to load the bank account form. Try again later.'
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
+    );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-ach-manual"]'
+      )?.disabled
+    );
+
+    await clickAction(el, 'save-ach-manual');
+
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/ach'
+    );
   });
 
   test('manual ACH save enables only after valid encrypted values, masks the screen values, and shows verification outcome', async () => {
@@ -2269,6 +2454,10 @@ suite('commerce-hub-connect flow', () => {
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
+      }
+
+      if (isBankAccountFormRequest(request)) {
+        return bankAccountFormResponse();
       }
 
       return new Response(
@@ -2401,6 +2590,7 @@ suite('commerce-hub-connect flow', () => {
       ),
       [
         'GET /interaction/source/pbb/session',
+        'GET /form.json',
         'POST /interaction/source/ach',
       ]
     );
@@ -2499,6 +2689,10 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
+      if (isBankAccountFormRequest(request)) {
+        return bankAccountFormResponse();
+      }
+
       return new Response(
         JSON.stringify({
           sourceId: 'bank-manual-1',
@@ -2582,6 +2776,10 @@ suite('commerce-hub-connect flow', () => {
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
+      }
+
+      if (isBankAccountFormRequest(request)) {
+        return bankAccountFormResponse();
       }
 
       return new Response(
@@ -2678,6 +2876,10 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
+      if (isBankAccountFormRequest(request)) {
+        return bankAccountFormResponse();
+      }
+
       if (pathname === '/interaction/source/mask/bn') {
         return new Response(JSON.stringify({value: 'enc-account-1'}), {
           status: 200,
@@ -2766,6 +2968,10 @@ suite('commerce-hub-connect flow', () => {
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
+      }
+
+      if (isBankAccountFormRequest(request)) {
+        return bankAccountFormResponse();
       }
 
       return new Response(JSON.stringify({}), {
@@ -2896,10 +3102,7 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      [
-        'POST /interaction/billing-address',
-        'POST /interaction/source/card',
-      ]
+      ['POST /interaction/billing-address', 'POST /interaction/source/card']
     );
     assertNoMaskRequests(requests);
     assert.deepEqual(
@@ -3495,26 +3698,32 @@ suite('commerce-hub-connect flow', () => {
     assertSourceCreateHeaders(sourceRequest);
     assert.notEqual(sourceBody.card.cardNumber, '4111111111111111');
     assert.notEqual(sourceBody.card.cvv, '123');
-    assert.equal(sourceBody.card.cardNumber, sourceBody.card.cardNumberEncrypted);
+    assert.equal(
+      sourceBody.card.cardNumber,
+      sourceBody.card.cardNumberEncrypted
+    );
     assert.equal(sourceBody.card.cvv, sourceBody.card.cvvEncrypted);
-    assert.deepInclude({
-      ...sourceBody.card,
-      cardNumber: await decryptSourceValue(sourceBody.card.cardNumber),
-      cardNumberEncrypted: await decryptSourceValue(
-        sourceBody.card.cardNumberEncrypted
-      ),
-      cvv: await decryptSourceValue(sourceBody.card.cvv),
-      cvvEncrypted: await decryptSourceValue(sourceBody.card.cvvEncrypted),
-    }, {
-      nameOnCard: 'Ada Lovelace',
-      cardNumber: '4111111111111111',
-      cardNumberEncrypted: '4111111111111111',
-      cvv: '123',
-      cvvEncrypted: '123',
-      expirationMonth: '04',
-      expirationYear: '2030',
-      network: 'Visa',
-    });
+    assert.deepInclude(
+      {
+        ...sourceBody.card,
+        cardNumber: await decryptSourceValue(sourceBody.card.cardNumber),
+        cardNumberEncrypted: await decryptSourceValue(
+          sourceBody.card.cardNumberEncrypted
+        ),
+        cvv: await decryptSourceValue(sourceBody.card.cvv),
+        cvvEncrypted: await decryptSourceValue(sourceBody.card.cvvEncrypted),
+      },
+      {
+        nameOnCard: 'Ada Lovelace',
+        cardNumber: '4111111111111111',
+        cardNumberEncrypted: '4111111111111111',
+        cvv: '123',
+        cvvEncrypted: '123',
+        expirationMonth: '04',
+        expirationYear: '2030',
+        network: 'Visa',
+      }
+    );
     assert.equal(attachRequest.bodyText, '');
     assert.equal(
       attachRequest.headers.get('x-interaction-id'),

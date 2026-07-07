@@ -1,3 +1,8 @@
+import {
+  generateDefaultUISchema,
+  type JsonSchema,
+  type UISchemaElement,
+} from '@jsonforms/core';
 import {LitElement, html, type PropertyValues, type TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 
@@ -14,6 +19,7 @@ import {
   buildBankAccountEncryptionErrorMessage,
   createBankAccountDraft,
   createBankAccountEncryptionState,
+  isBankAccountFormSchema,
   isBankAccountDraftReady,
   isEncryptedBankAccountDisplayValue,
   isSensitiveBankAccountField,
@@ -26,12 +32,9 @@ import {
   resolveBankAccountSourceName,
   updateBankAccountDraftFieldState,
   validateBankAccountDraft,
+  type BankAccountFormSchema,
 } from './internal/forms/bank-account-form-state.js';
-import {
-  bankAccountDraftErrorsToJsonFormsErrors,
-  bankAccountJsonFormsSchema,
-  bankAccountJsonFormsUiSchema,
-} from './internal/forms/bank-account-jsonforms.js';
+import {bankAccountDraftErrorsToJsonFormsErrors} from './internal/forms/bank-account-jsonforms.js';
 import {bankAccountJsonFormsRenderers} from './internal/forms/bank-account-jsonforms-renderers.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
@@ -364,6 +367,9 @@ type PaymentSdkAppearanceBranding = Partial<{
 
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
+const BANK_ACCOUNT_FORM_URL = 'http://127.0.0.1:5500/form.json';
+const BANK_ACCOUNT_FORM_LOAD_ERROR =
+  'Unable to load the bank account form. Try again later.';
 
 @customElement('commerce-hub-bank-account-jsonforms')
 class CommerceHubBankAccountJsonForms extends JsonFormsLit {
@@ -569,6 +575,18 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private bankAccountSubmitError?: string;
+
+  @state()
+  private bankAccountFormSchema?: BankAccountFormSchema;
+
+  @state()
+  private bankAccountFormUiSchema?: UISchemaElement;
+
+  @state()
+  private bankAccountFormLoading = false;
+
+  @state()
+  private bankAccountFormLoadError?: string;
 
   @state()
   private transferDraft: TransferDraft = createTransferDraft();
@@ -1757,6 +1775,11 @@ export class CommerceHubConnect extends LitElement {
       this.bankAccountEncryption.routingNumber.status === 'encrypting' ||
       this.bankAccountEncryption.accountNumber.status === 'encrypting' ||
       this.bankAccountEncryption.confirmAccountNumber.status === 'encrypting';
+    const bankAccountFormSchema = this.bankAccountFormSchema;
+    const bankAccountFormUiSchema = this.bankAccountFormUiSchema;
+    const bankAccountFormReady =
+      bankAccountFormSchema !== undefined &&
+      bankAccountFormUiSchema !== undefined;
 
     return this.renderWidgetShell({
       title: 'Enter bank details',
@@ -1782,24 +1805,40 @@ export class CommerceHubConnect extends LitElement {
                 message: this.bankAccountSubmitError,
               })
             : ''}
-          <commerce-hub-bank-account-jsonforms
-            class="bank-account-jsonforms"
-            .schema=${bankAccountJsonFormsSchema}
-            .uischema=${bankAccountJsonFormsUiSchema}
-            .data=${this.bankAccountDraft}
-            .renderers=${bankAccountJsonFormsRenderers}
-            .readonly=${isSaving}
-            .config=${{
-              draft: this.bankAccountDraft,
-              errors: this.bankAccountDraftErrors,
-              encryption: this.bankAccountEncryption,
-              disabled: isSaving,
-            }}
-            .additionalErrors=${bankAccountDraftErrorsToJsonFormsErrors(
-              this.bankAccountDraftErrors
-            )}
-            .validationMode=${'ValidateAndShow'}
-          ></commerce-hub-bank-account-jsonforms>
+          ${this.bankAccountFormLoadError
+            ? renderAlert({
+                variant: 'danger',
+                message: this.bankAccountFormLoadError,
+              })
+            : ''}
+          ${this.bankAccountFormLoading
+            ? renderWidgetLoadingOverlay({
+                title: 'Loading bank account form',
+                helper: 'Preparing secure bank details, please wait.',
+              })
+            : ''}
+          ${bankAccountFormReady
+            ? html`
+                <commerce-hub-bank-account-jsonforms
+                  class="bank-account-jsonforms"
+                  .schema=${bankAccountFormSchema as JsonSchema}
+                  .uischema=${bankAccountFormUiSchema}
+                  .data=${this.bankAccountDraft}
+                  .renderers=${bankAccountJsonFormsRenderers}
+                  .readonly=${isSaving}
+                  .config=${{
+                    draft: this.bankAccountDraft,
+                    errors: this.bankAccountDraftErrors,
+                    encryption: this.bankAccountEncryption,
+                    disabled: isSaving,
+                  }}
+                  .additionalErrors=${bankAccountDraftErrorsToJsonFormsErrors(
+                    this.bankAccountDraftErrors
+                  )}
+                  .validationMode=${'ValidateAndShow'}
+                ></commerce-hub-bank-account-jsonforms>
+              `
+            : ''}
           <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
@@ -1809,9 +1848,11 @@ export class CommerceHubConnect extends LitElement {
                 disabled:
                   isSaving ||
                   isEncrypting ||
+                  this.bankAccountFormLoading ||
                   !isBankAccountDraftReady(
                     this.bankAccountDraft,
-                    this.bankAccountEncryption
+                    this.bankAccountEncryption,
+                    bankAccountFormSchema
                   ),
               })}
             </div>
@@ -2601,6 +2642,7 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountDraftErrors = {};
     this.bankAccountEncryption = createBankAccountEncryptionState();
     this.bankAccountSubmitError = undefined;
+    void this.loadBankAccountFormSchema();
   }
 
   private updateTransferDraftField(field: keyof TransferDraft, value: string) {
@@ -2623,10 +2665,17 @@ export class CommerceHubConnect extends LitElement {
     field: keyof BankAccountDraft,
     value: string
   ) {
+    const schema = this.bankAccountFormSchema;
+
+    if (schema === undefined) {
+      return;
+    }
+
     const nextState = updateBankAccountDraftFieldState({
       draft: this.bankAccountDraft,
       errors: this.bankAccountDraftErrors,
       encryption: this.bankAccountEncryption,
+      schema,
       field,
       value,
     });
@@ -2764,6 +2813,12 @@ export class CommerceHubConnect extends LitElement {
     field: SensitiveBankAccountField,
     value: string
   ): Promise<void> {
+    const schema = this.bankAccountFormSchema;
+
+    if (schema === undefined) {
+      return;
+    }
+
     const currentFieldState = this.bankAccountEncryption[field];
 
     if (isEncryptedBankAccountDisplayValue(value, currentFieldState)) {
@@ -2790,7 +2845,8 @@ export class CommerceHubConnect extends LitElement {
         normalizeBankAccountDraftForValidation(
           this.bankAccountDraft,
           nextEncryption
-        )
+        ),
+        schema
       );
       return;
     }
@@ -2843,7 +2899,8 @@ export class CommerceHubConnect extends LitElement {
       this.bankAccountDraft = nextDraft;
       this.bankAccountEncryption = nextEncryption;
       this.bankAccountDraftErrors = validateBankAccountDraft(
-        normalizeBankAccountDraftForValidation(nextDraft, nextEncryption)
+        normalizeBankAccountDraftForValidation(nextDraft, nextEncryption),
+        schema
       );
     } catch (cause) {
       void cause;
@@ -2869,7 +2926,8 @@ export class CommerceHubConnect extends LitElement {
           normalizeBankAccountDraftForValidation(
             this.bankAccountDraft,
             nextEncryption
-          )
+          ),
+          schema
         ),
         [field]: buildBankAccountEncryptionErrorMessage(field),
       };
@@ -3023,11 +3081,19 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    const schema = this.bankAccountFormSchema;
+
+    if (schema === undefined) {
+      this.bankAccountSubmitError =
+        this.bankAccountFormLoadError ?? BANK_ACCOUNT_FORM_LOAD_ERROR;
+      return;
+    }
+
     const normalizedDraft = normalizeBankAccountDraftForValidation(
       this.bankAccountDraft,
       this.bankAccountEncryption
     );
-    const errors = validateBankAccountDraft(normalizedDraft);
+    const errors = validateBankAccountDraft(normalizedDraft, schema);
 
     if (Object.keys(errors).length > 0) {
       this.bankAccountDraft = normalizeBankAccountDraftForDisplay(
@@ -3069,7 +3135,8 @@ export class CommerceHubConnect extends LitElement {
         this.bankAccountEncryption
       );
       const postEncryptionErrors = validateBankAccountDraft(
-        encryptedNormalizedDraft
+        encryptedNormalizedDraft,
+        schema
       );
 
       if (Object.keys(postEncryptionErrors).length > 0) {
@@ -3278,6 +3345,53 @@ export class CommerceHubConnect extends LitElement {
 
       if (!isAlreadyEncrypted) {
         await this.encryptBankAccountField(field, value);
+      }
+    }
+  }
+
+  private async loadBankAccountFormSchema(): Promise<void> {
+    const request = new Request(BANK_ACCOUNT_FORM_URL, {
+      method: 'GET',
+      headers: {Accept: 'application/json'},
+    });
+
+    this.bankAccountFormSchema = undefined;
+    this.bankAccountFormUiSchema = undefined;
+    this.bankAccountFormLoadError = undefined;
+    this.bankAccountFormLoading = true;
+
+    try {
+      const response = await fetch(request);
+      const formSchema = await response.json();
+
+      if (!response.ok || !isBankAccountFormSchema(formSchema)) {
+        throw new Error(BANK_ACCOUNT_FORM_LOAD_ERROR);
+      }
+
+      if (this.bankFlowScreen !== 'manual') {
+        return;
+      }
+
+      this.bankAccountFormSchema = formSchema;
+      this.bankAccountFormUiSchema = generateDefaultUISchema(
+        formSchema as JsonSchema,
+        'VerticalLayout'
+      );
+      this.bankAccountFormLoadError = undefined;
+    } catch (cause) {
+      void cause;
+
+      if (this.bankFlowScreen !== 'manual') {
+        return;
+      }
+
+      this.bankAccountFormSchema = undefined;
+      this.bankAccountFormUiSchema = undefined;
+      this.bankAccountFormLoadError = BANK_ACCOUNT_FORM_LOAD_ERROR;
+      this.bankAccountDraftErrors = {};
+    } finally {
+      if (this.bankFlowScreen === 'manual') {
+        this.bankAccountFormLoading = false;
       }
     }
   }
@@ -4295,6 +4409,10 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountDraftErrors = {};
     this.bankAccountEncryption = createBankAccountEncryptionState();
     this.bankAccountSubmitError = undefined;
+    this.bankAccountFormSchema = undefined;
+    this.bankAccountFormUiSchema = undefined;
+    this.bankAccountFormLoading = false;
+    this.bankAccountFormLoadError = undefined;
     this.removePayByBankProviderContainer();
   }
 
