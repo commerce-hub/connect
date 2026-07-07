@@ -35,13 +35,29 @@ const loadCreditCardSchema = async (): Promise<ValidateFunction> => {
     'credit-card-form.json should be served from the repository root'
   );
 
-  const form = await response.json();
+  const schema = await response.json();
   const ajv = new Ajv({allErrors: true});
 
-  return ajv.compile(form.schema);
+  return ajv.compile(schema);
 };
 
 suite('credit card JSONForms data schema', () => {
+  test('serves the JSON schema itself without form wrappers', async () => {
+    const response = await fetch('/credit-card-form.json');
+
+    assert.isTrue(
+      response.ok,
+      'credit-card-form.json should be served from the repository root'
+    );
+
+    const schema = await response.json();
+
+    assert.equal(schema.type, 'object');
+    assert.notProperty(schema, 'schema');
+    assert.notProperty(schema, 'uischema');
+    assert.notProperty(schema, 'validations');
+  });
+
   test('accepts a valid card draft with a saved billing address', async () => {
     const validate = await loadCreditCardSchema();
 
