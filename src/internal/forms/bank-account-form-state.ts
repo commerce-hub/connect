@@ -9,6 +9,13 @@ import {
   createCardEncryptionFieldState,
   resolveDirtyCardEncryptionState,
 } from './card-form-state.js';
+import {
+  bankAccountFormSchema,
+  getBankAccountEqualsField,
+  getBankAccountFieldErrorMessage,
+  getBankAccountFieldSchema,
+  type BankAccountFormField,
+} from './form.js';
 
 export const createBankAccountDraft = (): BankAccountDraft => ({
   accountNickname: '',
@@ -154,40 +161,102 @@ export const validateBankAccountDraft = (
   draft: BankAccountDraft
 ): BankAccountDraftErrors => {
   const errors: BankAccountDraftErrors = {};
-  const accountNickname = draft.accountNickname.trim();
-  const routingNumber = normalizeBankAccountNumber(draft.routingNumber);
-  const accountNumber = normalizeBankAccountNumber(draft.accountNumber);
-  const confirmAccountNumber = normalizeBankAccountNumber(
-    draft.confirmAccountNumber
-  );
 
-  if (accountNickname.length < 3) {
-    errors.accountNickname =
-      'Enter an account nickname of at least 3 characters.';
+  for (const field of bankAccountFormSchema.required) {
+    const value = normalizeBankAccountDraftValueForSchema(field, draft[field]);
+
+    if (!value) {
+      errors[field] = getBankAccountFieldErrorMessage(
+        field,
+        'required',
+        'Enter a value.'
+      );
+      continue;
+    }
+
+    const fieldError = validateBankAccountDraftFieldSchema(field, value);
+
+    if (fieldError) {
+      errors[field] = fieldError;
+    }
   }
 
-  if (!routingNumber) {
-    errors.routingNumber = 'Enter a routing number.';
-  } else if (routingNumber.length !== 9) {
-    errors.routingNumber = 'Enter a 9-digit routing number.';
-  }
+  for (const field of bankAccountFormSchema.required) {
+    if (errors[field]) {
+      continue;
+    }
 
-  if (!accountNumber) {
-    errors.accountNumber = 'Enter an account number.';
-  } else if (accountNumber.length !== 9) {
-    errors.accountNumber = 'Enter a 9-digit account number.';
-  }
+    const equalsField = getBankAccountEqualsField(field);
 
-  if (!confirmAccountNumber) {
-    errors.confirmAccountNumber = 'Confirm the account number.';
-  } else if (confirmAccountNumber.length !== 9) {
-    errors.confirmAccountNumber = 'Enter a 9-digit account number.';
-  } else if (accountNumber && confirmAccountNumber !== accountNumber) {
-    errors.confirmAccountNumber = 'Account numbers must match.';
+    if (equalsField === undefined) {
+      continue;
+    }
+
+    const value = normalizeBankAccountDraftValueForSchema(field, draft[field]);
+    const targetValue = normalizeBankAccountDraftValueForSchema(
+      equalsField,
+      draft[equalsField]
+    );
+
+    if (targetValue && value !== targetValue) {
+      errors[field] = getBankAccountFieldErrorMessage(
+        field,
+        'equals',
+        'Values must match.'
+      );
+    }
   }
 
   return errors;
 };
+
+const normalizeBankAccountDraftValueForSchema = (
+  field: BankAccountFormField,
+  value: string
+): string =>
+  field === 'accountNickname'
+    ? value.trim()
+    : normalizeBankAccountNumber(value);
+
+const validateBankAccountDraftFieldSchema = (
+  field: BankAccountFormField,
+  value: string
+): string | undefined => {
+  const schema = getBankAccountFieldSchema(field);
+
+  if (schema.minLength !== undefined && value.length < schema.minLength) {
+    return getBankAccountFieldErrorMessage(
+      field,
+      'minLength',
+      buildBankAccountFieldLengthMessage(field)
+    );
+  }
+
+  if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+    return getBankAccountFieldErrorMessage(
+      field,
+      'maxLength',
+      buildBankAccountFieldLengthMessage(field)
+    );
+  }
+
+  if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
+    return getBankAccountFieldErrorMessage(
+      field,
+      'pattern',
+      buildBankAccountFieldLengthMessage(field)
+    );
+  }
+
+  return undefined;
+};
+
+const buildBankAccountFieldLengthMessage = (
+  field: BankAccountFormField
+): string =>
+  field === 'routingNumber'
+    ? 'Enter a 9-digit routing number.'
+    : 'Enter a 9-digit account number.';
 
 export const isBankAccountDraftReady = (
   draft: BankAccountDraft,
@@ -200,18 +269,18 @@ export const isBankAccountDraftReady = (
 
   return (
     Object.keys(validateBankAccountDraft(normalizedDraft)).length === 0 &&
-    (
-      ['routingNumber', 'accountNumber', 'confirmAccountNumber'] as const
-    ).every((field) => {
-      const encryptedField = encryption[field];
-      const normalizedValue = normalizedDraft[field];
+    (['routingNumber', 'accountNumber', 'confirmAccountNumber'] as const).every(
+      (field) => {
+        const encryptedField = encryption[field];
+        const normalizedValue = normalizedDraft[field];
 
-      return (
-        encryptedField.status === 'encrypted' &&
-        encryptedField.normalizedValue === normalizedValue &&
-        Boolean(encryptedField.encryptedValue)
-      );
-    })
+        return (
+          encryptedField.status === 'encrypted' &&
+          encryptedField.normalizedValue === normalizedValue &&
+          Boolean(encryptedField.encryptedValue)
+        );
+      }
+    )
   );
 };
 

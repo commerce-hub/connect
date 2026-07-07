@@ -16,7 +16,10 @@ import {
   JsonFormsLabel,
   JsonFormsLayout,
 } from './base-renderers.js';
+import {JsonFormsDispatch} from './dispatch.js';
 import type {LitJsonFormsRendererRegistryEntry} from './store.js';
+
+void JsonFormsDispatch;
 
 const layoutStyles = {
   vertical: 'jsonforms-layout jsonforms-layout-vertical',
@@ -46,8 +49,8 @@ export class JsonFormsVerticalLayoutRenderer extends JsonFormsLayout {
               .uischema=${element}
               .schema=${props.schema}
               .path=${props.path ?? ''}
-              .enabled=${props.enabled}
-              .readonly=${props.readonly}
+              .enabled=${props.enabled ?? true}
+              .readonly=${props.readonly ?? false}
               .renderers=${props.renderers}
               .cells=${props.cells}
             ></jsonforms-lit-dispatch>

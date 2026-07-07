@@ -1,6 +1,5 @@
 import {LitElement, html, type PropertyValues, type TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import {JsonFormsLit} from '@jsonforms/lit';
 
 import type {components} from './generated/openapi.js';
 import {
@@ -34,6 +33,7 @@ import {
   bankAccountJsonFormsUiSchema,
 } from './internal/forms/bank-account-jsonforms.js';
 import {bankAccountJsonFormsRenderers} from './internal/forms/bank-account-jsonforms-renderers.js';
+import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
   NEW_BILLING_ADDRESS_VALUE,
   billingAddressFromCardDraft,

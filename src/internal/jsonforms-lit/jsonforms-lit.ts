@@ -16,7 +16,9 @@ import {
   type LitJsonFormsRendererRegistryEntry,
 } from './store.js';
 import {litRenderers} from './renderers.js';
-import './dispatch.js';
+import {JsonFormsDispatch} from './dispatch.js';
+
+void JsonFormsDispatch;
 
 @customElement('jsonforms-lit')
 export class JsonFormsLit extends LitElement {

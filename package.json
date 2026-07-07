@@ -1,7 +1,7 @@
 {
   "name": "commerce-hub-connect-sdk",
   "private": true,
-  "version": "0.8.1",
+  "version": "0.8.4",
   "description": "CommerceHub Connect Web SDK widget primitives",
   "main": "commerce-hub-connect.js",
   "module": "commerce-hub-connect.js",
@@ -45,8 +45,9 @@
     "analyze:watch": "cem analyze --litelement --globs \"src/**/*.ts\" --watch",
     "serve": "wds --watch",
     "serve:prod": "MODE=prod npm run serve",
-    "test": "npm run test:proxy-auth && npm run test:dev && npm run test:prod",
+    "test": "npm run test:proxy-auth && npm run test:package-surface && npm run test:dev && npm run test:prod",
     "test:e2e:add-bank-account": "node e2e-tests/add-bank-account-flow.mjs",
+    "test:package-surface": "node --test dev/package-surface_test.js",
     "test:proxy-auth": "node --test dev/commerce-hub-dev-auth_test.js",
     "test:dev": "wtr",
     "test:watch": "wtr --watch",
@@ -64,7 +65,6 @@
   "license": "BSD-3-Clause",
   "dependencies": {
     "@jsonforms/core": "^3.8.0",
-    "@jsonforms/lit": "file:packages/jsonforms-lit",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "lit": "^3.2.0",

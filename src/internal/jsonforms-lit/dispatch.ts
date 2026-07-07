@@ -1,7 +1,6 @@
 import {
   NOT_APPLICABLE,
   type JsonFormsCellRendererRegistryEntry,
-  type JsonFormsRendererRegistryEntry,
   type JsonFormsUISchemaRegistryEntry,
   type JsonSchema,
   type UISchemaElement,
@@ -10,7 +9,10 @@ import {
 import {LitElement, html, type PropertyValues} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import {html as staticHtml, unsafeStatic} from 'lit/static-html.js';
-import type {LitJsonFormsStore} from './store.js';
+import type {
+  LitJsonFormsRendererRegistryEntry,
+  LitJsonFormsStore,
+} from './store.js';
 
 @customElement('jsonforms-lit-dispatch')
 export class JsonFormsDispatch extends LitElement {
@@ -36,7 +38,7 @@ export class JsonFormsDispatch extends LitElement {
   visible = true;
 
   @property({attribute: false})
-  renderers?: JsonFormsRendererRegistryEntry[];
+  renderers?: LitJsonFormsRendererRegistryEntry[];
 
   @property({attribute: false})
   cells?: JsonFormsCellRendererRegistryEntry[];
@@ -163,5 +165,11 @@ export class JsonFormsDispatch extends LitElement {
         this.requestUpdate();
       });
     }
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'jsonforms-lit-dispatch': JsonFormsDispatch;
   }
 }

@@ -3,7 +3,7 @@ import {
   JsonFormsControl,
   litRenderers,
   type LitJsonFormsRendererRegistryEntry,
-} from '@jsonforms/lit';
+} from '../jsonforms-lit/index.js';
 import {html} from 'lit';
 import {customElement} from 'lit/decorators.js';
 import {ifDefined} from 'lit/directives/if-defined.js';
