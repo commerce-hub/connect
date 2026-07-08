@@ -1,168 +1,170 @@
 {
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "title": "Card Name",
-      "description": "Please enter the card name",
-      "minLength": 1
-    },
-    "cardNumber": {
-      "type": "string",
-      "title": "Card number",
-      "description": "Please enter the card number",
-      "pattern": "^\\d(?: ?\\d){11,18}$"
-    },
-    "expirationDate": {
-      "type": "string",
-      "title": "Expiration",
-      "description": "Please enter the expiration date",
-      "pattern": "^(0[1-9]|1[0-2])\\s*/\\s*(\\d{2}|\\d{4})$"
-    },
-    "cvv": {
-      "type": "string",
-      "title": "CVC",
-      "description": "Please enter the CVC",
-      "pattern": "^[0-9]{3,4}$"
-    },
-    "fullName": {
-      "type": "string",
-      "title": "Full name",
-      "description": "Please enter the full name",
-      "minLength": 1
-    },
-    "billingAddressValue": {
-      "type": "string",
-      "title": "Billing address",
-      "description": "Select a saved billing address or use __new__ to enter a new billing address",
-      "minLength": 1
-    },
-    "country": {
-      "type": "string",
-      "title": "Country or region",
-      "description": "Please select the country or region"
-    },
-    "addressLine1": {
-      "type": "string",
-      "title": "Address",
-      "description": "Please enter the street address"
-    },
-    "addressLine2": {
-      "type": "string",
-      "title": "Address line 2",
-      "description": "Please enter the apartment, suite, or unit"
-    },
-    "city": {
-      "type": "string",
-      "title": "City",
-      "description": "Please enter the city"
-    },
-    "state": {
-      "type": "string",
-      "title": "State",
-      "description": "Please select the state"
-    },
-    "zip": {
-      "type": "string",
-      "title": "ZIP code",
-      "description": "Please enter the ZIP code"
-    }
-  },
-  "required": [
-    "name",
-    "cardNumber",
-    "expirationDate",
-    "cvv",
-    "fullName",
-    "billingAddressValue"
-  ],
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "billingAddressValue": {
-            "const": "__new__"
-          }
-        },
-        "required": ["billingAddressValue"]
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "title": "Card Name",
+        "description": "Please enter the card name",
+        "minLength": 1
       },
-      "then": {
-        "properties": {
-          "country": {
-            "type": "string",
-            "enum": ["US"]
-          },
-          "addressLine1": {
-            "type": "string",
-            "minLength": 1
-          },
-          "city": {
-            "type": "string",
-            "minLength": 1
-          },
-          "state": {
-            "type": "string",
-            "enum": [
-              "AL",
-              "AK",
-              "AZ",
-              "AR",
-              "CA",
-              "CO",
-              "CT",
-              "DE",
-              "FL",
-              "GA",
-              "HI",
-              "ID",
-              "IL",
-              "IN",
-              "IA",
-              "KS",
-              "KY",
-              "LA",
-              "ME",
-              "MD",
-              "MA",
-              "MI",
-              "MN",
-              "MS",
-              "MO",
-              "MT",
-              "NE",
-              "NV",
-              "NH",
-              "NJ",
-              "NM",
-              "NY",
-              "NC",
-              "ND",
-              "OH",
-              "OK",
-              "OR",
-              "PA",
-              "RI",
-              "SC",
-              "SD",
-              "TN",
-              "TX",
-              "UT",
-              "VT",
-              "VA",
-              "WA",
-              "WV",
-              "WI",
-              "WY",
-              "DC"
-            ]
-          },
-          "zip": {
-            "type": "string",
-            "pattern": "^\\d{5}(?:-\\d{4})?$"
-          }
-        },
-        "required": ["country", "addressLine1", "city", "state", "zip"]
+      "cardNumber": {
+        "type": "string",
+        "title": "Card number",
+        "description": "Please enter the card number",
+        "pattern": "^\\d(?: ?\\d){11,18}$"
+      },
+      "expirationDate": {
+        "type": "string",
+        "title": "Expiration",
+        "description": "Please enter the expiration date",
+        "pattern": "^(0[1-9]|1[0-2])\\s*/\\s*(\\d{2}|\\d{4})$"
+      },
+      "cvv": {
+        "type": "string",
+        "title": "CVC",
+        "description": "Please enter the CVC",
+        "pattern": "^[0-9]{3,4}$"
+      },
+      "fullName": {
+        "type": "string",
+        "title": "Full name",
+        "description": "Please enter the full name",
+        "minLength": 1
+      },
+      "billingAddressValue": {
+        "type": "string",
+        "title": "Billing address",
+        "description": "Select a saved billing address or use __new__ to enter a new billing address",
+        "minLength": 1
+      },
+      "country": {
+        "type": "string",
+        "title": "Country or region",
+        "description": "Please select the country or region"
+      },
+      "addressLine1": {
+        "type": "string",
+        "title": "Address",
+        "description": "Please enter the street address"
+      },
+      "addressLine2": {
+        "type": "string",
+        "title": "Address line 2",
+        "description": "Please enter the apartment, suite, or unit"
+      },
+      "city": {
+        "type": "string",
+        "title": "City",
+        "description": "Please enter the city"
+      },
+      "state": {
+        "type": "string",
+        "title": "State",
+        "description": "Please select the state"
+      },
+      "zip": {
+        "type": "string",
+        "title": "ZIP code",
+        "description": "Please enter the ZIP code"
       }
-    }
-  ]
+    },
+    "required": [
+      "name",
+      "cardNumber",
+      "expirationDate",
+      "cvv",
+      "fullName",
+      "billingAddressValue"
+    ],
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "billingAddressValue": {
+              "const": "__new__"
+            }
+          },
+          "required": ["billingAddressValue"]
+        },
+        "then": {
+          "properties": {
+            "country": {
+              "type": "string",
+              "enum": ["US"]
+            },
+            "addressLine1": {
+              "type": "string",
+              "minLength": 1
+            },
+            "city": {
+              "type": "string",
+              "minLength": 1
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "AL",
+                "AK",
+                "AZ",
+                "AR",
+                "CA",
+                "CO",
+                "CT",
+                "DE",
+                "FL",
+                "GA",
+                "HI",
+                "ID",
+                "IL",
+                "IN",
+                "IA",
+                "KS",
+                "KY",
+                "LA",
+                "ME",
+                "MD",
+                "MA",
+                "MI",
+                "MN",
+                "MS",
+                "MO",
+                "MT",
+                "NE",
+                "NV",
+                "NH",
+                "NJ",
+                "NM",
+                "NY",
+                "NC",
+                "ND",
+                "OH",
+                "OK",
+                "OR",
+                "PA",
+                "RI",
+                "SC",
+                "SD",
+                "TN",
+                "TX",
+                "UT",
+                "VT",
+                "VA",
+                "WA",
+                "WV",
+                "WI",
+                "WY",
+                "DC"
+              ]
+            },
+            "zip": {
+              "type": "string",
+              "pattern": "^\\d{5}(?:-\\d{4})?$"
+            }
+          },
+          "required": ["country", "addressLine1", "city", "state", "zip"]
+        }
+      }
+    ]
+  }
 }

@@ -1,21 +1,5 @@
 import {assert} from '@open-wc/testing';
-import {type UISchemaElement} from '@jsonforms/core';
 import Ajv, {type ValidateFunction} from 'ajv';
-
-const cardFieldScopes = [
-  '#/properties/name',
-  '#/properties/cardNumber',
-  '#/properties/expirationDate',
-  '#/properties/cvv',
-  '#/properties/fullName',
-  '#/properties/billingAddressValue',
-  '#/properties/country',
-  '#/properties/addressLine1',
-  '#/properties/addressLine2',
-  '#/properties/city',
-  '#/properties/state',
-  '#/properties/zip',
-];
 
 const savedBillingAddressDraft = {
   name: 'Corporate card',
@@ -43,13 +27,7 @@ const newBillingAddressDraft = {
   zip: '53045',
 };
 
-const collectControlScopes = (uischema: UISchemaElement): string[] => {
-  const layout = uischema as {elements?: Array<{scope?: string}>};
-
-  return layout.elements?.map((element) => element.scope ?? '') ?? [];
-};
-
-const loadCreditCardSchemaJson = async (): Promise<Record<string, unknown>> => {
+const loadCreditCardSchema = async (): Promise<ValidateFunction> => {
   const response = await fetch('/credit-card-form.json');
 
   assert.isTrue(
@@ -57,44 +35,13 @@ const loadCreditCardSchemaJson = async (): Promise<Record<string, unknown>> => {
     'credit-card-form.json should be served from the repository root'
   );
 
-  return response.json() as Promise<Record<string, unknown>>;
-};
-
-const loadCreditCardUiSchemaJson = async (): Promise<UISchemaElement> => {
-  const response = await fetch('/credit-card-form-ui-schema.json');
-
-  assert.isTrue(
-    response.ok,
-    'credit-card-form-ui-schema.json should be served from the repository root'
-  );
-
-  return response.json() as Promise<UISchemaElement>;
-};
-
-const loadCreditCardSchema = async (): Promise<ValidateFunction> => {
-  const schema = await loadCreditCardSchemaJson();
+  const form = await response.json();
   const ajv = new Ajv({allErrors: true});
 
-  return ajv.compile(schema);
+  return ajv.compile(form.schema);
 };
 
 suite('credit card JSONForms data schema', () => {
-  test('serves the JSON schema itself without form wrappers', async () => {
-    const schema = await loadCreditCardSchemaJson();
-
-    assert.equal(schema.type, 'object');
-    assert.notProperty(schema, 'schema');
-    assert.notProperty(schema, 'uischema');
-    assert.notProperty(schema, 'validations');
-  });
-
-  test('serves the JSONForms vertical UI schema separately from the data schema', async () => {
-    const uischema = await loadCreditCardUiSchemaJson();
-
-    assert.equal(uischema.type, 'VerticalLayout');
-    assert.sameOrderedMembers(collectControlScopes(uischema), cardFieldScopes);
-  });
-
   test('accepts a valid card draft with a saved billing address', async () => {
     const validate = await loadCreditCardSchema();
 

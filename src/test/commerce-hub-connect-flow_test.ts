@@ -44,9 +44,6 @@ const flushElement = async (el: CommerceHubConnect) => {
 
 const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
 const TEST_BANK_ACCOUNT_FORM_URL = 'http://127.0.0.1:5500/form.json';
-const TEST_CREDIT_CARD_FORM_URL = 'http://127.0.0.1:5500/credit-card-form.json';
-const TEST_CREDIT_CARD_FORM_UI_SCHEMA_URL =
-  'http://127.0.0.1:5500/credit-card-form-ui-schema.json';
 const TEST_INTERACTION_FEATURES: NonNullable<InteractionResponse['features']> =
   ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
 const TEST_SOURCE_CREATE_OAUTH = {
@@ -157,92 +154,6 @@ const TEST_BANK_ACCOUNT_FORM_SCHEMA = {
   ],
 };
 
-const TEST_CREDIT_CARD_FORM_SCHEMA = {
-  type: 'object',
-  properties: {
-    name: {
-      type: 'string',
-      title: 'Card Name',
-      minLength: 1,
-    },
-    cardNumber: {
-      type: 'string',
-      title: 'Card number',
-      pattern: '^\\d(?: ?\\d){11,18}$',
-    },
-    expirationDate: {
-      type: 'string',
-      title: 'Expiration',
-      pattern: '^(0[1-9]|1[0-2])\\s*/\\s*(\\d{2}|\\d{4})$',
-    },
-    cvv: {
-      type: 'string',
-      title: 'CVC',
-      pattern: '^[0-9]{3,4}$',
-    },
-    fullName: {
-      type: 'string',
-      title: 'Full name',
-      minLength: 1,
-    },
-    billingAddressValue: {
-      type: 'string',
-      title: 'Billing address',
-      minLength: 1,
-    },
-    country: {
-      type: 'string',
-      title: 'Country or region',
-    },
-    addressLine1: {
-      type: 'string',
-      title: 'Address',
-    },
-    addressLine2: {
-      type: 'string',
-      title: 'Address line 2',
-    },
-    city: {
-      type: 'string',
-      title: 'City',
-    },
-    state: {
-      type: 'string',
-      title: 'State',
-    },
-    zip: {
-      type: 'string',
-      title: 'ZIP code',
-    },
-  },
-  required: [
-    'name',
-    'cardNumber',
-    'expirationDate',
-    'cvv',
-    'fullName',
-    'billingAddressValue',
-  ],
-};
-
-const TEST_CREDIT_CARD_FORM_UI_SCHEMA = {
-  type: 'VerticalLayout',
-  elements: [
-    {type: 'Control', scope: '#/properties/name'},
-    {type: 'Control', scope: '#/properties/cardNumber'},
-    {type: 'Control', scope: '#/properties/expirationDate'},
-    {type: 'Control', scope: '#/properties/cvv'},
-    {type: 'Control', scope: '#/properties/fullName'},
-    {type: 'Control', scope: '#/properties/billingAddressValue'},
-    {type: 'Control', scope: '#/properties/country'},
-    {type: 'Control', scope: '#/properties/addressLine1'},
-    {type: 'Control', scope: '#/properties/addressLine2'},
-    {type: 'Control', scope: '#/properties/city'},
-    {type: 'Control', scope: '#/properties/state'},
-    {type: 'Control', scope: '#/properties/zip'},
-  ],
-};
-
 const isBankAccountFormRequest = (request: Request): boolean =>
   request.method === 'GET' && request.url === TEST_BANK_ACCOUNT_FORM_URL;
 
@@ -251,39 +162,6 @@ const bankAccountFormResponse = (): Response =>
     status: 200,
     headers: {'Content-Type': 'application/json'},
   });
-
-const isCreditCardFormRequest = (request: Request): boolean =>
-  request.method === 'GET' && request.url === TEST_CREDIT_CARD_FORM_URL;
-
-const creditCardFormResponse = (): Response =>
-  new Response(JSON.stringify(TEST_CREDIT_CARD_FORM_SCHEMA), {
-    status: 200,
-    headers: {'Content-Type': 'application/json'},
-  });
-
-const isCreditCardFormUiSchemaRequest = (request: Request): boolean =>
-  request.method === 'GET' &&
-  request.url === TEST_CREDIT_CARD_FORM_UI_SCHEMA_URL;
-
-const creditCardFormUiSchemaResponse = (): Response =>
-  new Response(JSON.stringify(TEST_CREDIT_CARD_FORM_UI_SCHEMA), {
-    status: 200,
-    headers: {'Content-Type': 'application/json'},
-  });
-
-const creditCardFormFixtureResponse = (
-  request: Request
-): Response | undefined => {
-  if (isCreditCardFormRequest(request)) {
-    return creditCardFormResponse();
-  }
-
-  if (isCreditCardFormUiSchemaRequest(request)) {
-    return creditCardFormUiSchemaResponse();
-  }
-
-  return undefined;
-};
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
@@ -1589,11 +1467,6 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response(JSON.stringify({}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -1658,11 +1531,6 @@ suite('commerce-hub-connect flow', () => {
         bodyText: await request.clone().text(),
         credentials: request.credentials,
       });
-
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
 
       return new Response(JSON.stringify({}), {
         status: 200,
@@ -1979,11 +1847,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response(JSON.stringify({billingAddress: []}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -2003,8 +1866,6 @@ suite('commerce-hub-connect flow', () => {
     });
 
     await clickAction(el, 'add-card');
-    await waitForRequest(requests, '/credit-card-form.json', 'GET');
-    await waitForRequest(requests, '/credit-card-form-ui-schema.json', 'GET');
 
     assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),
@@ -2017,7 +1878,6 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
-    assert.exists(el.shadowRoot!.querySelector('commerce-hub-card-jsonforms'));
     assert.deepEqual(
       [
         ...el.shadowRoot!.querySelectorAll<HTMLLabelElement>('.field-label'),
@@ -2112,71 +1972,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('add card shows an error and blocks save when credit card form json cannot load', async () => {
-    const requests: CapturedRequest[] = [];
-
-    window.fetch = async (input: RequestInfo | URL) => {
-      const request = input instanceof Request ? input : new Request(input);
-      const bodyText = await request.clone().text();
-
-      requests.push({
-        url: request.url,
-        method: request.method,
-        headers: new Headers(request.headers),
-        bodyText,
-        credentials: request.credentials,
-      });
-
-      if (isCreditCardFormRequest(request)) {
-        return new Response(JSON.stringify({message: 'Form unavailable'}), {
-          status: 503,
-          headers: {'Content-Type': 'application/json'},
-        });
-      }
-
-      if (isCreditCardFormUiSchemaRequest(request)) {
-        return creditCardFormUiSchemaResponse();
-      }
-
-      return new Response(JSON.stringify({billingAddress: []}), {
-        status: 200,
-        headers: {'Content-Type': 'application/json'},
-      });
-    };
-
-    const el = await renderConnect({
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-      paymentSources: [],
-    });
-
-    await clickAction(el, 'add-card');
-    await waitForRequest(requests, '/credit-card-form.json', 'GET');
-    await waitForRequest(requests, '/credit-card-form-ui-schema.json', 'GET');
-    await flushElement(el);
-
-    assert.include(
-      el.shadowRoot!.textContent,
-      'Unable to load the credit card form. Try again later.'
-    );
-    assert.notExists(
-      el.shadowRoot!.querySelector('commerce-hub-card-jsonforms')
-    );
-    assert.isTrue(
-      el.shadowRoot!.querySelector<HTMLButtonElement>(
-        '[data-action="save-card"]'
-      )?.disabled
-    );
-
-    await clickAction(el, 'save-card');
-
-    assert.notInclude(
-      requests.map((request) => new URL(request.url).pathname),
-      '/interaction/source/card'
-    );
-  });
-
-  test('shows the saved billing address selector without new address fields when a saved address is selected', async () => {
+  test('shows a collapsed billing address summary when a saved address is selected', async () => {
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
 
@@ -2185,11 +1981,6 @@ suite('commerce-hub-connect flow', () => {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
-      }
-
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
       }
 
       return new Response('{}', {
@@ -2211,27 +2002,30 @@ suite('commerce-hub-connect flow', () => {
     });
 
     await clickAction(el, 'add-card');
-    await waitFor(() =>
-      Boolean(el.shadowRoot!.querySelector('#billing-address'))
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.billing-address-summary')
+          ?.textContent?.includes('1 Main St, New York, NY 10001') ?? false
     );
 
-    assert.deepEqual(
-      [
-        ...el.shadowRoot!.querySelectorAll<HTMLOptionElement>(
-          '#billing-address option'
-        ),
-      ].map((option) => option.textContent?.trim()),
-      ['1 Main St, New York, NY 10001', 'Add new billing address']
-    );
+    assert.notExists(el.shadowRoot!.querySelector('#billing-address'));
     assert.notExists(el.shadowRoot!.querySelector('#billing-country'));
-    assert.notExists(el.shadowRoot!.querySelector('#billing-address-line-1'));
-    assert.notExists(el.shadowRoot!.querySelector('.billing-address-summary'));
-    assert.notExists(
-      el.shadowRoot!.querySelector('[data-action="change-billing-address"]')
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.billing-address-summary-label')
+        ?.textContent?.trim(),
+      'Billing address'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('[data-action="change-billing-address"]')
+        ?.textContent?.trim(),
+      'Change'
     );
   });
 
-  test('billing address selector includes saved addresses and the new address sentinel', async () => {
+  test('billing address Change reveals saved address selector', async () => {
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
 
@@ -2240,11 +2034,6 @@ suite('commerce-hub-connect flow', () => {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
-      }
-
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
       }
 
       return new Response('{}', {
@@ -2267,8 +2056,9 @@ suite('commerce-hub-connect flow', () => {
 
     await clickAction(el, 'add-card');
     await waitFor(() =>
-      Boolean(el.shadowRoot!.querySelector('#billing-address'))
+      Boolean(el.shadowRoot!.querySelector('.billing-address-summary'))
     );
+    await clickAction(el, 'change-billing-address');
 
     assert.exists(el.shadowRoot!.querySelector('#billing-address'));
     assert.deepEqual(
@@ -2293,11 +2083,6 @@ suite('commerce-hub-connect flow', () => {
         });
       }
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response('{}', {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -2318,8 +2103,9 @@ suite('commerce-hub-connect flow', () => {
 
     await clickAction(el, 'add-card');
     await waitFor(() =>
-      Boolean(el.shadowRoot!.querySelector('#billing-address'))
+      Boolean(el.shadowRoot!.querySelector('.billing-address-summary'))
     );
+    await clickAction(el, 'change-billing-address');
     await setSelectValue(el, 'billing-address', '__new__');
 
     assert.exists(el.shadowRoot!.querySelector('#billing-address'));
@@ -2362,11 +2148,6 @@ suite('commerce-hub-connect flow', () => {
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
-      }
-
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
       }
 
       return new Response('{}', {
@@ -3285,11 +3066,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response(JSON.stringify({}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -3326,12 +3102,7 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      [
-        'GET /credit-card-form.json',
-        'GET /credit-card-form-ui-schema.json',
-        'POST /interaction/billing-address',
-        'POST /interaction/source/card',
-      ]
+      ['POST /interaction/billing-address', 'POST /interaction/source/card']
     );
     assertNoMaskRequests(requests);
     assert.deepEqual(
@@ -3423,11 +3194,6 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response(JSON.stringify({}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -3493,11 +3259,6 @@ suite('commerce-hub-connect flow', () => {
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
         );
-      }
-
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
       }
 
       return new Response(JSON.stringify({}), {
@@ -3595,11 +3356,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response(JSON.stringify({}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -3640,19 +3396,11 @@ suite('commerce-hub-connect flow', () => {
   });
 
   test('formats card number and expiration inputs for different card standards', async () => {
-    window.fetch = async (input: RequestInfo | URL) => {
-      const request = input instanceof Request ? input : new Request(input);
-
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
-      return new Response(JSON.stringify({billingAddress: []}), {
+    window.fetch = async () =>
+      new Response(JSON.stringify({billingAddress: []}), {
         status: 200,
         headers: {'Content-Type': 'application/json'},
       });
-    };
 
     const el = await renderConnect({
       interactionId: 'interaction-payment',
@@ -3727,11 +3475,6 @@ suite('commerce-hub-connect flow', () => {
           status: 500,
           headers: {'Content-Type': 'application/json'},
         });
-      }
-
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
       }
 
       return new Response('{}', {
@@ -3881,11 +3624,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response('{}', {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -3920,8 +3658,6 @@ suite('commerce-hub-connect flow', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       [
-        'GET /credit-card-form.json',
-        'GET /credit-card-form-ui-schema.json',
         'POST /interaction/billing-address',
         'POST /interaction/source/card',
         'POST /interaction/source/card-created-1/attach',
@@ -4120,11 +3856,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response('{}', {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -4155,9 +3886,16 @@ suite('commerce-hub-connect flow', () => {
       interactionRequestCount + 1
     );
     await waitFor(() =>
-      Boolean(el.shadowRoot!.querySelector('#billing-address'))
+      Boolean(el.shadowRoot!.querySelector('.billing-address-summary'))
     );
 
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.billing-address-summary-value')
+        ?.textContent?.trim(),
+      '1 Main St, New York, NY 10001'
+    );
+    await clickAction(el, 'change-billing-address');
     assert.deepEqual(
       [
         ...el.shadowRoot!.querySelectorAll<HTMLOptionElement>(
@@ -4175,9 +3913,8 @@ suite('commerce-hub-connect flow', () => {
     await setSelectValue(el, 'billing-address', '__new__');
     assert.exists(el.shadowRoot!.querySelector('#billing-country'));
     await setSelectValue(el, 'billing-address', 'billing-1');
-    assert.exists(el.shadowRoot!.querySelector('#billing-address'));
-    assert.notExists(el.shadowRoot!.querySelector('#billing-country'));
-    assert.notExists(el.shadowRoot!.querySelector('.billing-address-summary'));
+    assert.exists(el.shadowRoot!.querySelector('.billing-address-summary'));
+    assert.notExists(el.shadowRoot!.querySelector('#billing-address'));
     await blurField(el, 'card-number');
     await blurField(el, 'card-cvv');
     await waitForActionEnabled(el, 'save-card');
@@ -4268,11 +4005,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
-      }
-
       return new Response('{}', {
         status: 200,
         headers: {'Content-Type': 'application/json'},
@@ -4331,11 +4063,6 @@ suite('commerce-hub-connect flow', () => {
           status: 200,
           headers: {'Content-Type': 'application/json'},
         });
-      }
-
-      const cardFormResponse = creditCardFormFixtureResponse(request);
-      if (cardFormResponse) {
-        return cardFormResponse;
       }
 
       return new Response(JSON.stringify({}), {

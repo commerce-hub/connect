@@ -36,8 +36,6 @@ import {
 } from './internal/forms/bank-account-form-state.js';
 import {bankAccountDraftErrorsToJsonFormsErrors} from './internal/forms/bank-account-jsonforms.js';
 import {bankAccountJsonFormsRenderers} from './internal/forms/bank-account-jsonforms-renderers.js';
-import {cardDraftErrorsToJsonFormsErrors} from './internal/forms/card-jsonforms.js';
-import {cardJsonFormsRenderers} from './internal/forms/card-jsonforms-renderers.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
   NEW_BILLING_ADDRESS_VALUE,
@@ -49,8 +47,6 @@ import {
   detectCardNetwork,
   formatCardDraftFieldValue,
   isCardDraftReady,
-  isCardFormSchema,
-  isCardFormUiSchema,
   isSensitiveCardField,
   normalizeCardDraft,
   normalizeCardNumber,
@@ -63,7 +59,6 @@ import {
   validateCardDraft,
   validateCardEncryptionReadiness,
   validateSensitiveCardField,
-  type CardFormSchema,
 } from './internal/forms/card-form-state.js';
 import {
   OTP_LENGTH,
@@ -375,11 +370,6 @@ const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const BANK_ACCOUNT_FORM_URL = 'http://127.0.0.1:5500/form.json';
 const BANK_ACCOUNT_FORM_LOAD_ERROR =
   'Unable to load the bank account form. Try again later.';
-const CARD_FORM_URL = 'http://127.0.0.1:5500/credit-card-form.json';
-const CARD_FORM_UI_SCHEMA_URL =
-  'http://127.0.0.1:5500/credit-card-form-ui-schema.json';
-const CARD_FORM_LOAD_ERROR =
-  'Unable to load the credit card form. Try again later.';
 
 @customElement('commerce-hub-bank-account-jsonforms')
 class CommerceHubBankAccountJsonForms extends JsonFormsLit {
@@ -389,15 +379,6 @@ class CommerceHubBankAccountJsonForms extends JsonFormsLit {
 }
 
 void CommerceHubBankAccountJsonForms;
-
-@customElement('commerce-hub-card-jsonforms')
-class CommerceHubCardJsonForms extends JsonFormsLit {
-  override createRenderRoot(): HTMLElement | DocumentFragment {
-    return this;
-  }
-}
-
-void CommerceHubCardJsonForms;
 const PAYMENT_SELECTION_READY_STATUS = 'OTP_VALIDATION_SUCCESS' as const;
 const LEGACY_PAYMENT_SELECTION_READY_STATUS = 'PAYMENT_SOURCE_REQUESTED';
 const BILLING_COUNTRY_OPTIONS = [
@@ -642,19 +623,10 @@ export class CommerceHubConnect extends LitElement {
   private cardSubmitError?: string;
 
   @state()
-  private cardFormSchema?: CardFormSchema;
-
-  @state()
-  private cardFormUiSchema?: UISchemaElement;
-
-  @state()
-  private cardFormLoading = false;
-
-  @state()
-  private cardFormLoadError?: string;
-
-  @state()
   private billingAddresses: Address[] = [];
+
+  @state()
+  private billingAddressSelectorExpanded = false;
 
   @state()
   private paymentSourceView?: 'list' | 'selected';
@@ -1490,10 +1462,6 @@ export class CommerceHubConnect extends LitElement {
     const isEncrypting =
       this.cardEncryption.cardNumber.status === 'encrypting' ||
       this.cardEncryption.cvv.status === 'encrypting';
-    const cardFormSchema = this.cardFormSchema;
-    const cardFormUiSchema = this.cardFormUiSchema;
-    const cardFormReady =
-      cardFormSchema !== undefined && cardFormUiSchema !== undefined;
     const billingAddressOptions = [
       ...this.billingAddresses.map((address) => ({
         value: address.id ?? '',
@@ -1504,6 +1472,133 @@ export class CommerceHubConnect extends LitElement {
         label: 'Add new billing address',
       },
     ];
+    const selectedBillingAddress = this.billingAddresses.find(
+      (address) => address.id === this.cardDraft.billingAddressValue
+    );
+    const shouldRenderBillingAddressSummary =
+      Boolean(selectedBillingAddress) && !this.billingAddressSelectorExpanded;
+    const shouldRenderBillingAddressSelector =
+      !shouldRenderBillingAddressSummary;
+    const shouldRenderNewBillingAddressFields =
+      shouldRenderBillingAddressSelector &&
+      this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE;
+    const billingAddressFields: TemplateResult[] = [];
+
+    if (selectedBillingAddress && shouldRenderBillingAddressSummary) {
+      billingAddressFields.push(html`
+        <div class="billing-address-summary field field-full">
+          <div class="billing-address-summary-heading">
+            <span class="billing-address-summary-label field-label"
+              >Billing address</span
+            >
+            ${renderTextLinkButton({
+              label: 'Change',
+              action: 'change-billing-address',
+              disabled: isSaving,
+            })}
+          </div>
+          <p class="billing-address-summary-value">
+            ${billingAddressLabel(selectedBillingAddress)}
+          </p>
+        </div>
+      `);
+    } else {
+      billingAddressFields.push(
+        renderSelectField({
+          id: 'billing-address',
+          name: 'billingAddress',
+          label: 'Billing address',
+          value: this.cardDraft.billingAddressValue,
+          options: billingAddressOptions,
+          span: 'full',
+          variant: 'card-form',
+          dataField: 'billingAddressValue',
+          error: this.cardDraftErrors.billingAddressValue,
+          disabled: isSaving,
+        })
+      );
+    }
+
+    if (shouldRenderNewBillingAddressFields) {
+      billingAddressFields.push(
+        renderSelectField({
+          id: 'billing-country',
+          name: 'country',
+          label: 'Country or region',
+          value: this.cardDraft.country,
+          options: BILLING_COUNTRY_OPTIONS,
+          span: 'full',
+          variant: 'card-form',
+          dataField: 'country',
+          error: this.cardDraftErrors.country,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-address-line-1',
+          name: 'addressLine1',
+          label: 'Address',
+          value: this.cardDraft.addressLine1,
+          placeholder: 'Street address',
+          span: 'full',
+          variant: 'card-form',
+          autocomplete: 'address-line1',
+          dataField: 'addressLine1',
+          error: this.cardDraftErrors.addressLine1,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-address-line-2',
+          name: 'addressLine2',
+          label: 'Address line 2',
+          value: this.cardDraft.addressLine2,
+          placeholder: 'Apartment, suite, unit',
+          span: 'full',
+          variant: 'card-form',
+          autocomplete: 'address-line2',
+          dataField: 'addressLine2',
+          error: this.cardDraftErrors.addressLine2,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-city',
+          name: 'city',
+          label: 'City',
+          value: this.cardDraft.city,
+          span: 'full',
+          variant: 'card-form',
+          autocomplete: 'address-level2',
+          dataField: 'city',
+          error: this.cardDraftErrors.city,
+          disabled: isSaving,
+        }),
+        renderSelectField({
+          id: 'billing-state',
+          name: 'state',
+          label: 'State',
+          value: this.cardDraft.state,
+          options: BILLING_STATE_SELECT_OPTIONS,
+          span: 'full',
+          variant: 'card-form',
+          dataField: 'state',
+          error: this.cardDraftErrors.state,
+          disabled: isSaving,
+        }),
+        renderTextField({
+          id: 'billing-zip',
+          name: 'zip',
+          label: 'ZIP code',
+          value: this.cardDraft.zip,
+          placeholder: 'ZIP code',
+          span: 'full',
+          variant: 'card-form',
+          autocomplete: 'postal-code',
+          inputmode: 'numeric',
+          dataField: 'zip',
+          error: this.cardDraftErrors.zip,
+          disabled: isSaving,
+        })
+      );
+    }
 
     return this.renderWidgetShell({
       title: 'Add card',
@@ -1526,39 +1621,74 @@ export class CommerceHubConnect extends LitElement {
           ${this.cardSubmitError
             ? renderAlert({variant: 'danger', message: this.cardSubmitError})
             : ''}
-          ${this.cardFormLoadError
-            ? renderAlert({variant: 'danger', message: this.cardFormLoadError})
-            : ''}
-          ${this.cardFormLoading
-            ? renderWidgetLoadingOverlay({
-                title: 'Loading credit card form',
-                helper: 'Preparing secure card details, please wait.',
-              })
-            : ''}
-          ${cardFormReady
-            ? html`
-                <commerce-hub-card-jsonforms
-                  class="card-jsonforms"
-                  .schema=${cardFormSchema as JsonSchema}
-                  .uischema=${cardFormUiSchema}
-                  .data=${this.cardDraft}
-                  .renderers=${cardJsonFormsRenderers}
-                  .readonly=${isSaving}
-                  .config=${{
-                    draft: this.cardDraft,
-                    errors: this.cardDraftErrors,
-                    disabled: isSaving,
-                    billingAddressOptions,
-                    countryOptions: BILLING_COUNTRY_OPTIONS,
-                    stateOptions: BILLING_STATE_SELECT_OPTIONS,
-                  }}
-                  .additionalErrors=${cardDraftErrorsToJsonFormsErrors(
-                    this.cardDraftErrors
-                  )}
-                  .validationMode=${'ValidateAndShow'}
-                ></commerce-hub-card-jsonforms>
-              `
-            : ''}
+          ${renderFormGrid([
+            renderTextField({
+              id: 'card-label',
+              name: 'name',
+              label: 'Card Name',
+              value: this.cardDraft.name,
+              placeholder: 'Corporate card',
+              span: 'full',
+              variant: 'card-form',
+              dataField: 'name',
+              error: this.cardDraftErrors.name,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'card-number',
+              name: 'cardNumber',
+              label: 'Card number',
+              value: this.cardDraft.cardNumber,
+              placeholder: '1234 1234 1234 1234',
+              span: 'full',
+              variant: 'card-form',
+              autocomplete: 'cc-number',
+              inputmode: 'numeric',
+              dataField: 'cardNumber',
+              error: this.cardDraftErrors.cardNumber,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'expiration-date',
+              name: 'expirationDate',
+              label: 'Expiration',
+              value: this.cardDraft.expirationDate,
+              placeholder: 'MM / YY',
+              variant: 'card-form',
+              autocomplete: 'cc-exp',
+              inputmode: 'numeric',
+              dataField: 'expirationDate',
+              error: this.cardDraftErrors.expirationDate,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'card-cvv',
+              name: 'cvv',
+              label: 'CVC',
+              value: this.cardDraft.cvv,
+              placeholder: '3 or 4 digits',
+              variant: 'card-form',
+              autocomplete: 'cc-csc',
+              inputmode: 'numeric',
+              dataField: 'cvv',
+              error: this.cardDraftErrors.cvv,
+              disabled: isSaving,
+            }),
+            renderTextField({
+              id: 'name-on-card',
+              name: 'fullName',
+              label: 'Full name',
+              value: this.cardDraft.fullName,
+              placeholder: 'Name on card',
+              span: 'full',
+              variant: 'card-form',
+              autocomplete: 'cc-name',
+              dataField: 'fullName',
+              error: this.cardDraftErrors.fullName,
+              disabled: isSaving,
+            }),
+            ...billingAddressFields,
+          ])}
           <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
@@ -1568,8 +1698,6 @@ export class CommerceHubConnect extends LitElement {
                 disabled:
                   isSaving ||
                   isEncrypting ||
-                  this.cardFormLoading ||
-                  !cardFormReady ||
                   !isCardDraftReady(this.cardDraft, this.cardEncryption),
               })}
             </div>
@@ -1950,6 +2078,11 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceView = 'list';
       this.resetRequiredInfo();
       void this.showAddCardScreen();
+      return;
+    }
+
+    if (action === 'change-billing-address') {
+      this.billingAddressSelectorExpanded = true;
       return;
     }
 
@@ -2477,7 +2610,9 @@ export class CommerceHubConnect extends LitElement {
     this.resetBankFlow();
     this.cardFlowScreen = 'form';
     this.cardSubmitError = undefined;
-    void this.loadCardFormSchema();
+    this.billingAddressSelectorExpanded =
+      this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE ||
+      !this.billingAddresses.length;
 
     const interactionId = this.interactionResponse?.interactionId;
     const hasSavedSourceContext = Boolean(
@@ -2558,6 +2693,11 @@ export class CommerceHubConnect extends LitElement {
       ...this.cardDraft,
       [field]: formattedValue,
     };
+
+    if (field === 'billingAddressValue') {
+      this.billingAddressSelectorExpanded =
+        formattedValue === NEW_BILLING_ADDRESS_VALUE;
+    }
 
     this.cardSubmitError = undefined;
 
@@ -2805,15 +2945,6 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (
-      this.cardFormLoading ||
-      this.cardFormSchema === undefined ||
-      this.cardFormUiSchema === undefined
-    ) {
-      this.cardFormLoadError = CARD_FORM_LOAD_ERROR;
-      return;
-    }
-
     const interactionId = this.requireInteractionId();
 
     if (!interactionId) {
@@ -2922,10 +3053,6 @@ export class CommerceHubConnect extends LitElement {
       this.cardDraftErrors = {};
       this.cardEncryption = createCardEncryptionState();
       this.cardSubmitError = undefined;
-      this.cardFormSchema = undefined;
-      this.cardFormUiSchema = undefined;
-      this.cardFormLoading = false;
-      this.cardFormLoadError = undefined;
       this.setInteractionResponseFromSdk(nextInteractionResponse);
       this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
 
@@ -3265,65 +3392,6 @@ export class CommerceHubConnect extends LitElement {
     } finally {
       if (this.bankFlowScreen === 'manual') {
         this.bankAccountFormLoading = false;
-      }
-    }
-  }
-
-  private async loadCardFormSchema(): Promise<void> {
-    const request = new Request(CARD_FORM_URL, {
-      method: 'GET',
-      headers: {Accept: 'application/json'},
-    });
-    const uiSchemaRequest = new Request(CARD_FORM_UI_SCHEMA_URL, {
-      method: 'GET',
-      headers: {Accept: 'application/json'},
-    });
-
-    this.cardFormSchema = undefined;
-    this.cardFormUiSchema = undefined;
-    this.cardFormLoadError = undefined;
-    this.cardFormLoading = true;
-
-    try {
-      const [response, uiSchemaResponse] = await Promise.all([
-        fetch(request),
-        fetch(uiSchemaRequest),
-      ]);
-      const [formSchema, formUiSchema] = await Promise.all([
-        response.json(),
-        uiSchemaResponse.json(),
-      ]);
-
-      if (
-        !response.ok ||
-        !uiSchemaResponse.ok ||
-        !isCardFormSchema(formSchema) ||
-        !isCardFormUiSchema(formUiSchema)
-      ) {
-        throw new Error(CARD_FORM_LOAD_ERROR);
-      }
-
-      if (this.cardFlowScreen !== 'form') {
-        return;
-      }
-
-      this.cardFormSchema = formSchema;
-      this.cardFormUiSchema = formUiSchema;
-      this.cardFormLoadError = undefined;
-    } catch (cause) {
-      void cause;
-
-      if (this.cardFlowScreen !== 'form') {
-        return;
-      }
-
-      this.cardFormSchema = undefined;
-      this.cardFormUiSchema = undefined;
-      this.cardFormLoadError = CARD_FORM_LOAD_ERROR;
-      this.cardDraftErrors = {};
-    } finally {
-      if (this.cardFlowScreen === 'form') {
-        this.cardFormLoading = false;
       }
     }
   }
@@ -4260,6 +4328,8 @@ export class CommerceHubConnect extends LitElement {
       this.cardDraft,
       this.billingAddresses
     );
+    this.billingAddressSelectorExpanded =
+      this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE;
   }
 
   private async finalizePayByBankSession(
@@ -4352,10 +4422,7 @@ export class CommerceHubConnect extends LitElement {
     this.cardDraftErrors = {};
     this.cardEncryption = createCardEncryptionState();
     this.cardSubmitError = undefined;
-    this.cardFormSchema = undefined;
-    this.cardFormUiSchema = undefined;
-    this.cardFormLoading = false;
-    this.cardFormLoadError = undefined;
+    this.billingAddressSelectorExpanded = false;
   }
 
   private resetTransferFlow() {
@@ -6070,7 +6137,6 @@ declare global {
 
   interface HTMLElementTagNameMap {
     'commerce-hub-bank-account-jsonforms': CommerceHubBankAccountJsonForms;
-    'commerce-hub-card-jsonforms': CommerceHubCardJsonForms;
     'commerce-hub-connect': CommerceHubConnect;
   }
 }
