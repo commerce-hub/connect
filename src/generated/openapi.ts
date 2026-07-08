@@ -769,7 +769,7 @@ export interface components {
             merchantOrderId?: string;
             merchantInvoiceNumber?: string;
             /** @enum {string} */
-            type?: "CREDIT" | "DEBIT";
+            type?: "CREDIT" | "DEBIT" | "PAYOUT";
             /** Format: double */
             amount?: number;
             asset?: components["schemas"]["Asset"];

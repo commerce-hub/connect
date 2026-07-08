@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refresh CommerceHub Swagger"
+  short_description: "Refresh SDK OpenAPI specs from local services"
+  default_prompt: "Use $refresh-commercehub-swagger to update swagger.json or merchant-swagger.json from the local CommerceHub services."
