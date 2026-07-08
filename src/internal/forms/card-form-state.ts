@@ -1,3 +1,4 @@
+import type {UISchemaElement} from '@jsonforms/core';
 import type {components} from '../../generated/openapi.js';
 import type {
   CardDraft,
@@ -11,6 +12,66 @@ type Address = components['schemas']['Address'];
 type CardNetwork = components['schemas']['CardDetail']['network'];
 
 export const NEW_BILLING_ADDRESS_VALUE = '__new__';
+
+export type CardFormField = keyof CardDraft;
+
+export type CardFormFieldSchema = {
+  type: 'string';
+  title?: string;
+  description?: string;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  enum?: string[];
+};
+
+export type CardFormSchema = {
+  type: 'object';
+  properties: Partial<Record<CardFormField, CardFormFieldSchema>>;
+  required?: CardFormField[];
+};
+
+const cardFormFields: readonly CardFormField[] = [
+  'name',
+  'cardNumber',
+  'expirationDate',
+  'cvv',
+  'fullName',
+  'billingAddressValue',
+  'country',
+  'addressLine1',
+  'addressLine2',
+  'city',
+  'state',
+  'zip',
+];
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isCardFormFieldSchema = (value: unknown): value is CardFormFieldSchema =>
+  isRecord(value) && value.type === 'string';
+
+export const isCardFormSchema = (value: unknown): value is CardFormSchema => {
+  if (!isRecord(value) || value.type !== 'object') {
+    return false;
+  }
+
+  const properties = value.properties;
+
+  if (!isRecord(properties)) {
+    return false;
+  }
+
+  return cardFormFields.every((field) =>
+    isCardFormFieldSchema(properties[field])
+  );
+};
+
+export const isCardFormUiSchema = (value: unknown): value is UISchemaElement =>
+  isRecord(value) &&
+  value.type === 'VerticalLayout' &&
+  Array.isArray(value.elements);
 
 export const createCardDraft = (): CardDraft => ({
   name: '',
