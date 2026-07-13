@@ -1,6 +1,7 @@
 import {LitElement, html, type PropertyValues, type TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 
+import type {components as ConfigComponents} from './generated/config-openapi.js';
 import type {components} from './generated/openapi.js';
 import {
   createCommerceHubClient,
@@ -304,6 +305,8 @@ type BankAccountSourcePayload = Omit<BankPaymentSource, 'tenderType'> & {
 type Address = components['schemas']['Address'];
 type BillingAddressResponse = components['schemas']['StringHolder'];
 type VerificationResponse = components['schemas']['VerificationResponse'];
+type PartyConfigurationResponse =
+  ConfigComponents['schemas']['PartyConfigurationResponse'];
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
@@ -540,7 +543,12 @@ export class CommerceHubConnect extends LitElement {
   private otpErrorMessage?: string;
 
   @state()
-  private bankFlowScreen?: 'provider' | 'outcome' | 'manual';
+  private bankFlowScreen?:
+    | 'provider'
+    | 'outcome'
+    | 'manual-config-loading'
+    | 'manual-config-error'
+    | 'manual';
 
   @state()
   private bankLinkLoading = false;
@@ -561,6 +569,14 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private bankAccountSubmitError?: string;
+
+  @state()
+  private bankAccountConfigResponse?: PartyConfigurationResponse;
+
+  @state()
+  private bankAccountConfigError?: string;
+
+  private bankAccountConfigRequestToken = 0;
 
   @state()
   private transferDraft: TransferDraft = createTransferDraft();
@@ -773,6 +789,14 @@ export class CommerceHubConnect extends LitElement {
 
     if (this.bankFlowScreen === 'outcome') {
       return this.renderBankOutcomeScreen();
+    }
+
+    if (this.bankFlowScreen === 'manual-config-loading') {
+      return this.renderManualBankAccountConfigLoadingScreen();
+    }
+
+    if (this.bankFlowScreen === 'manual-config-error') {
+      return this.renderManualBankAccountConfigErrorScreen();
     }
 
     if (this.bankFlowScreen === 'manual') {
@@ -1743,7 +1767,58 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
+  private renderManualBankAccountConfigLoadingScreen(): TemplateResult {
+    return this.renderWidgetShell({
+      title: 'Enter bank details',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-bank-provider',
+        disabled: true,
+      }),
+      showClose: false,
+      showDivider: false,
+      busy: true,
+      overlay: renderWidgetLoadingOverlay({
+        title: 'Preparing bank details',
+        helper: 'Loading the bank account form for your country.',
+      }),
+      content: html`<div class="payment-flow card-form-screen"></div>`,
+    });
+  }
+
+  private renderManualBankAccountConfigErrorScreen(): TemplateResult {
+    return this.renderWidgetShell({
+      title: 'Enter bank details',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-bank-provider',
+      }),
+      showClose: false,
+      showDivider: false,
+      content: html`
+        <div class="payment-flow card-form-screen">
+          ${renderAlert({
+            variant: 'danger',
+            message:
+              this.bankAccountConfigError ??
+              'Unable to load bank account details. Try again.',
+          })}
+          <div class="primitive-footer card-form-primary">
+            ${renderButton({
+              label: 'Try again',
+              action: 'add-ach-manually',
+            })}
+          </div>
+        </div>
+      `,
+    });
+  }
+
   private renderManualBankAccountScreen(): TemplateResult {
+    if (!this.bankAccountConfigResponse) {
+      return this.renderManualBankAccountConfigErrorScreen();
+    }
+
     const isSaving = this.pendingAction === 'save-ach-manual';
     const isEncrypting =
       this.bankAccountEncryption.routingNumber.status === 'encrypting' ||
@@ -2054,7 +2129,7 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
-      this.showManualBankAccountScreen();
+      void this.showManualBankAccountScreen();
       return;
     }
 
@@ -2633,14 +2708,94 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private showManualBankAccountScreen() {
+  private async showManualBankAccountScreen() {
+    const interactionId = this.requireInteractionId();
+    const country = this.interactionResponse?.country?.trim();
+
     this.clearDeletePaymentSourceConfirmation();
     this.resetBankFlow();
+
+    const requestToken = ++this.bankAccountConfigRequestToken;
+    this.bankFlowScreen = 'manual-config-loading';
+
+    if (!interactionId) {
+      this.bankAccountConfigError =
+        'CommerceHub Connect requires an interaction response before bank details can load.';
+      this.bankFlowScreen = 'manual-config-error';
+      return;
+    }
+
+    if (!country) {
+      this.bankAccountConfigError =
+        'Bank account details are not available because the interaction response is missing a country.';
+      this.bankFlowScreen = 'manual-config-error';
+      return;
+    }
+
+    try {
+      const configResponse = await this.fetchManualBankAccountCountryConfig(
+        interactionId,
+        country
+      );
+
+      if (
+        !this.isCurrentManualBankAccountConfigRequest(
+          requestToken,
+          interactionId,
+          country
+        )
+      ) {
+        if (requestToken === this.bankAccountConfigRequestToken) {
+          this.resetBankFlow();
+        }
+
+        return;
+      }
+
+      this.bankAccountConfigResponse = configResponse;
+      this.initializeManualBankAccountScreen();
+    } catch (cause) {
+      if (
+        !this.isCurrentManualBankAccountConfigRequest(
+          requestToken,
+          interactionId,
+          country
+        )
+      ) {
+        if (requestToken === this.bankAccountConfigRequestToken) {
+          this.resetBankFlow();
+        }
+
+        return;
+      }
+
+      this.bankAccountConfigResponse = undefined;
+      this.bankAccountConfigError = apiErrorMessage(cause);
+      this.bankFlowScreen = 'manual-config-error';
+    }
+  }
+
+  private isCurrentManualBankAccountConfigRequest(
+    requestToken: number,
+    interactionId: string | undefined,
+    country: string | undefined
+  ): boolean {
+    return (
+      requestToken === this.bankAccountConfigRequestToken &&
+      Boolean(interactionId) &&
+      Boolean(country) &&
+      this.interactionResponse?.interactionId === interactionId &&
+      this.interactionResponse?.country?.trim() === country
+    );
+  }
+
+  private initializeManualBankAccountScreen() {
     this.bankFlowScreen = 'manual';
     this.bankAccountDraft = createBankAccountDraft();
     this.bankAccountDraftErrors = {};
     this.bankAccountEncryption = createBankAccountEncryptionState();
     this.bankAccountSubmitError = undefined;
+    this.bankAccountConfigError = undefined;
   }
 
   private updateTransferDraftField(field: keyof TransferDraft, value: string) {
@@ -4327,7 +4482,31 @@ export class CommerceHubConnect extends LitElement {
     return body as T;
   }
 
+  private async fetchManualBankAccountCountryConfig(
+    interactionId: string,
+    country: string
+  ): Promise<PartyConfigurationResponse> {
+    return this.requestCommerceHubJson<PartyConfigurationResponse>(
+      '/party/configuration-inquiry',
+      interactionId,
+      {
+        method: 'POST',
+        headers: {
+          'Client-Id': createRandomUuid(),
+          'Content-Type': 'application/json',
+          'User-Id': createRandomUuid(),
+        },
+        body: JSON.stringify({
+          configurationType: 'COUNTRY_ADDRESS',
+          country,
+        }),
+        credentials: 'include',
+      }
+    );
+  }
+
   private resetBankFlow() {
+    this.bankAccountConfigRequestToken += 1;
     this.bankFlowScreen = undefined;
     this.bankOutcomeSource = undefined;
     this.bankLinkLoading = false;
@@ -4335,6 +4514,8 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountDraftErrors = {};
     this.bankAccountEncryption = createBankAccountEncryptionState();
     this.bankAccountSubmitError = undefined;
+    this.bankAccountConfigResponse = undefined;
+    this.bankAccountConfigError = undefined;
     this.removePayByBankProviderContainer();
   }
 
@@ -5304,6 +5485,22 @@ const apiErrorMessage = (error: unknown): string => {
   }
 
   return 'CommerceHub API request failed.';
+};
+
+const createRandomUuid = (): string => {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  const bytes = new Uint8Array(16);
+  globalThis.crypto?.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0'));
+
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex
+    .slice(6, 8)
+    .join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
 };
 
 const findDatasetValue = (

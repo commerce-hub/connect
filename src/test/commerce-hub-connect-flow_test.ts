@@ -420,6 +420,37 @@ const assertSourceCreateHeaders = (request: CapturedRequest) => {
   assert.equal(request.headers.get('x-key-id'), 'key-1');
 };
 
+const assertPartyCountryAddressConfigRequest = (
+  request: CapturedRequest,
+  country = 'US'
+) => {
+  assert.equal(request.method, 'POST');
+  assert.equal(
+    request.url,
+    `${TEST_COMMERCE_HUB_BASE_URL}/party/configuration-inquiry`
+  );
+  assert.equal(request.headers.get('x-interaction-id'), 'interaction-payment');
+  assert.equal(
+    request.headers.get('Authorization'),
+    'Bearer test-access-token'
+  );
+  assert.equal(request.headers.get('Accept'), 'application/json');
+  assert.include(request.headers.get('Content-Type') ?? '', 'application/json');
+  assert.match(
+    request.headers.get('Client-Id') ?? '',
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
+  );
+  assert.match(
+    request.headers.get('User-Id') ?? '',
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
+  );
+  assert.equal(request.credentials, 'include');
+  assert.deepEqual(JSON.parse(request.bodyText), {
+    configurationType: 'COUNTRY_ADDRESS',
+    country,
+  });
+};
+
 const assertNoMaskRequests = (requests: CapturedRequest[]) => {
   assert.deepEqual(
     requests
@@ -2134,6 +2165,7 @@ suite('commerce-hub-connect flow', () => {
   });
 
   test('Connect your bank shows Connect another way under the provider and opens manual bank account entry', async () => {
+    const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
     let initCount = 0;
 
@@ -2147,6 +2179,15 @@ suite('commerce-hub-connect flow', () => {
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
       const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
 
       if (pathname === '/interaction/source/pbb/session') {
         return new Response(
@@ -2169,6 +2210,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'US',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
@@ -2194,6 +2236,12 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'add-ach-manually');
+    await waitForRequest(requests, '/party/configuration-inquiry');
+    const configRequest = requests.find(
+      (request) =>
+        new URL(request.url).pathname === '/party/configuration-inquiry'
+    )!;
+    assertPartyCountryAddressConfigRequest(configRequest);
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
@@ -2229,6 +2277,264 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
     assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
+  });
+
+  test('manual bank account entry blocks when the interaction country is missing', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+    await clickAction(el, 'add-ach-manually');
+
+    assert.include(el.shadowRoot!.textContent, 'missing a country');
+    assert.notExists(el.shadowRoot!.querySelector('#ach-routing-number'));
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/party/configuration-inquiry'
+    );
+  });
+
+  test('manual bank account entry blocks and retries when country config fails', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+    let failConfig = true;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/party/configuration-inquiry') {
+        if (failConfig) {
+          return new Response(
+            JSON.stringify({message: 'Country address config unavailable.'}),
+            {status: 500, headers: {'Content-Type': 'application/json'}}
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            configurationType: 'COUNTRY_ADDRESS',
+            countryAddressSchema: {type: 'object', properties: {}},
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'US',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+    await clickAction(el, 'add-ach-manually');
+    await waitForRequest(requests, '/party/configuration-inquiry');
+
+    const failedConfigRequest = requests.find(
+      (request) =>
+        new URL(request.url).pathname === '/party/configuration-inquiry'
+    )!;
+    assertPartyCountryAddressConfigRequest(failedConfigRequest);
+    assert.include(
+      el.shadowRoot!.textContent,
+      'Country address config unavailable.'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('#ach-routing-number'));
+
+    failConfig = false;
+    await clickAction(el, 'add-ach-manually');
+    await waitFor(
+      () => Boolean(el.shadowRoot!.querySelector('#ach-routing-number')),
+      'manual bank account form did not load after retry'
+    );
+    assert.lengthOf(
+      requests.filter(
+        (request) =>
+          new URL(request.url).pathname === '/party/configuration-inquiry'
+      ),
+      2
+    );
+  });
+
+  test('manual bank account country config ignores stale responses after interaction changes', async () => {
+    const requests: CapturedRequest[] = [];
+    const pendingConfig = deferredResponse();
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/party/configuration-inquiry') {
+        return pendingConfig.promise;
+      }
+
+      if (pathname === '/interaction') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment-next',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            country: 'US',
+            allowedTenderTypes: ['BANK_ACCOUNT'],
+            paymentSources: [],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'US',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await flushElement(el);
+    await clickAction(el, 'add-ach-manually');
+    await waitForRequest(requests, '/party/configuration-inquiry');
+
+    el.interactionResponse = {
+      ...el.interactionResponse,
+      interactionId: 'interaction-payment-next',
+      country: 'US',
+      paymentSources: [],
+      selectedSource: undefined,
+    };
+    await flushElement(el);
+
+    pendingConfig.resolve(
+      new Response(
+        JSON.stringify({
+          configurationType: 'COUNTRY_ADDRESS',
+          countryAddressSchema: {type: 'object', properties: {}},
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await flushElement(el);
+
+    assert.notExists(el.shadowRoot!.querySelector('#ach-routing-number'));
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add payment method'
+    );
   });
 
   test('manual ACH save enables only after valid encrypted values, masks the screen values, and shows verification outcome', async () => {
@@ -2279,6 +2585,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'US',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
@@ -2397,6 +2704,7 @@ suite('commerce-hub-connect flow', () => {
       ),
       [
         'GET /interaction/source/pbb/session',
+        'POST /party/configuration-inquiry',
         'POST /interaction/source/ach',
       ]
     );
@@ -2507,6 +2815,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'US',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
@@ -2621,6 +2930,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'US',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
@@ -2721,6 +3031,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'US',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
@@ -2797,6 +3108,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-payment',
         status: 'PAYMENT_SOURCE_REQUESTED',
+        country: 'US',
         allowedTenderTypes: ['BANK_ACCOUNT'],
         paymentSources: [],
       },
