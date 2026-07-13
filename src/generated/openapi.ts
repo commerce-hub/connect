@@ -676,6 +676,8 @@ export interface components {
             tenderType: "BankAccount";
         } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
             bankAccount?: components["schemas"]["BankAccountDetail"];
+            billingAddressId?: string;
+            productCode?: string;
         });
         BankAccountDetail: {
             bankName?: string;
@@ -685,12 +687,25 @@ export interface components {
             routingNumberEncrypted?: string;
             accountNumberEncrypted?: string;
             accountNumberReEntered?: string;
+            accountIdentificationNumberType?: string;
+            accountIdentificationNumber?: string;
+            sortCode?: string;
+            swiftCode?: string;
+            ifscCode?: string;
+            bankCode?: string;
+            branchCode?: string;
+            billerCode?: string;
+            institutionNumber?: string;
+            transitNumber?: string;
+            asset?: components["schemas"]["Asset"];
+            country?: string;
         };
         Card: {
             tenderType: "Card";
         } & (Omit<components["schemas"]["AbstractSource"], "tenderType"> & {
             billingAddressId?: string;
             card?: components["schemas"]["CardDetail"];
+            productCode?: string;
         });
         CardDetail: {
             cardNumber?: string;
@@ -745,6 +760,8 @@ export interface components {
             nickName?: string;
             country?: string;
             token?: string;
+            asset?: components["schemas"]["Asset"];
+            recipientId?: string;
         };
         VerificationInfo: {
             token?: string;
@@ -817,6 +834,7 @@ export interface components {
             features?: ("ADD_ACCOUNT" | "SELECT" | "TRANSFER")[];
             keyId?: string;
             publicKey?: string;
+            country?: string;
         };
         TransferRequest: {
             fromSourceId?: string;
