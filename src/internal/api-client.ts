@@ -1,10 +1,12 @@
 import createClient, {type Client, type Middleware} from 'openapi-fetch';
 
+import type {paths as configPaths} from '../generated/config-openapi.js';
 import type {paths} from '../generated/openapi.js';
 import type {paths as merchantPaths} from '../generated/merchant-openapi.js';
 
 export type CommerceHubClient = Client<paths>;
 export type CommerceHubMerchantClient = Client<merchantPaths>;
+export type CommerceHubConfigClient = Client<configPaths>;
 
 /** Default production origin used for SDK-managed CommerceHub requests. */
 export const DEFAULT_COMMERCE_HUB_BASE_URL =
@@ -63,6 +65,14 @@ export const createCommerceHubMerchantClient = (
   options: CommerceHubClientOptions
 ): CommerceHubMerchantClient =>
   createCommerceHubClientForPaths<merchantPaths>(options);
+
+/**
+ * Creates a typed CommerceHub Party Configuration API client.
+ */
+export const createCommerceHubConfigClient = (
+  options: CommerceHubClientOptions
+): CommerceHubConfigClient =>
+  createCommerceHubClientForPaths<configPaths>(options);
 
 const createCommerceHubClientForPaths = <ApiPaths extends {}>(
   options: CommerceHubClientOptions

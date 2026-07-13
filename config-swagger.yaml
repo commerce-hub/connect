@@ -1,0 +1,4990 @@
+openapi: 3.0.1
+info:
+  title: Party Boarding APIs
+  version: v 1.1
+  x-countryValidations:
+    description: >-
+      Several fields are subject to country-specific validation rules enforced at runtime
+      in addition to the base constraints documented here. These rules vary by the party's
+      registered country and cover allowed values, formats, and patterns. The following
+      fields are affected:
+    fields:
+      - field: party.business.registeredAddress.postalCode
+        description: >-
+          Required for most countries. Format is country-specific (e.g. 5-digit numeric
+          for USA; alphanumeric for GBR, CAN, AUS). Invalid formats produce FIELD_PATTERN_MISMATCH.
+      - field: party.business.registeredAddress.country
+        description: >-
+          Required completeness field for Business parties — produces FIELD_REQUIRED when
+          absent. ISO-3166-1 alpha-3 country code; invalid formats produce
+          FIELD_PATTERN_MISMATCH.
+      - field: party.business.registeredAddress.stateOrProvince
+        description: >-
+          Required for countries with defined administrative divisions. Accepted values
+          are country-specific enums (e.g. US state codes, Canadian provinces, Australian
+          states, Indian states). Invalid values produce FIELD_INVALID_ENUM.
+        countriesCovered: [USA, CAN, AUS, GBR, DEU, IND, BRA, FRA, IRL, ITA, MEX, NLD, JPN, CHE, MYS, NZL, THA, TWN, VNM, BGD, CHN]
+      - field: party.business.businessRegistrationNumberType
+        description: >-
+          Accepted values are country-specific (e.g. EIN for USA, BN/GST/HST for CAN,
+          VAT/UTR for GBR). Invalid values produce FIELD_INVALID_ENUM.
+      - field: party.business.businessLegalType.code
+        description: >-
+          Accepted values are country-specific legal entity type codes (e.g. SOLE_PROPRIETOR,
+          LLC, CORPORATION). Invalid values produce FIELD_INVALID_ENUM.
+      - field: party.taxProfile.taxIdType
+        description: >-
+          Accepted values are country-specific (e.g. SSN/EIN/ITIN for USA, BN/GST/HST for
+          CAN, VAT/UTR for GBR, ABN/TFN for AUS, PAN/GST/TAN for IND). Invalid values
+          produce FIELD_INVALID_ENUM.
+      - field: party.taxProfile.taxId
+        description: >-
+          Format and length are validated per country and taxIdType combination at runtime.
+      - field: party.business.phone.countryCode
+        description: >-
+          Must use the same country code standard as party.country (ISO-3166-1 alpha-3).
+          For Business phone validation, countryCode must exactly match party.country.
+          Mismatch produces FIELD_MISMATCH.
+      - field: party.owners.individual.phone.countryCode
+        description: >-
+          Owner phone countryCode supports any valid ISO-3166-1 alpha-3 value and is not
+          required to match party.country.
+      - field: party.business.phone.phoneNumber
+        description: >-
+          Must be a full E.164 number including the country dialing prefix (for example,
+          +14045551234). Invalid values produce FIELD_PATTERN_MISMATCH.
+      - field: party.owners.individual.phone.phoneNumber
+        description: >-
+          Must be a full E.164 number including the country dialing prefix. Invalid
+          values produce FIELD_PATTERN_MISMATCH.
+servers:
+  - url: https://connect-dev.fiservapis.com/unified/api/ffp/
+  - url: https://connect-qa.fiservapis.com/unified/api/ffp/
+  - url: https://connect-uat.fiservapis.com/unified/api/ffp/
+  - url: https://connect-cert.fiservapis.com/unified/api/ffp/
+  - url: https://connect.fiservapis.com/unified/api/ffp/
+    description: Generated server url
+paths:
+  /v1/party/onboard:
+    post:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Boarding'
+      summary: Submit party information.
+      description: >-
+        Use this API to facilitate processing parties boarding configuration.
+        CREATE, UPDATE, and REPLACE process party data persistence.
+        PROVISION only requires party.partyId and starts the Party Boarding Step Function.
+        KYB and KYC only require party.partyId and trigger a manual MRD KYB/KYC submission;
+        all other party fields are ignored. Both return transactionState=PENDING — the
+        terminal state arrives asynchronously via the listener service (DynamoDB stream →
+        Kafka → MRD postback). Callers should poll /v1/party/inquire for the terminal outcome.
+        Any other fields in party are ignored for PROVISION, KYB, and KYC.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartySaveRequest'
+            examples:
+              CREATE:
+                summary: Create a new party (minimum required fields)
+                value:
+                  transactionDetails:
+                    operationType: "CREATE"
+                  party:
+                    type: "BUSINESS"
+                    country: "USA"
+                    email: "party@example.com"
+                    platform:
+                      merchantPartyId: "merchant-001"
+              UPDATE:
+                summary: Update an existing party
+                value:
+                  transactionDetails:
+                    operationType: "UPDATE"
+                  party:
+                    partyId: "100000900000001"
+              UPDATE_VALID_BUSINESS_PHONE:
+                summary: Update with valid Business phone (countryCode matches party.country and E.164 phoneNumber)
+                value:
+                  transactionDetails:
+                    operationType: "UPDATE"
+                  party:
+                    partyId: "100000900000001"
+                    country: "USA"
+                    business:
+                      phone:
+                        countryCode: "USA"
+                        phoneNumber: "+14045551234"
+                        preference: "PRIMARY"
+                        type: "DAY"
+              UPDATE_INVALID_BUSINESS_PHONE_COUNTRY:
+                summary: Invalid update - Business phone countryCode differs from party.country
+                value:
+                  transactionDetails:
+                    operationType: "UPDATE"
+                  party:
+                    partyId: "100000900000001"
+                    country: "USA"
+                    business:
+                      phone:
+                        countryCode: "CAN"
+                        phoneNumber: "+14045551234"
+              UPDATE_INVALID_PHONE_E164:
+                summary: Invalid update - phoneNumber is not valid E.164
+                value:
+                  transactionDetails:
+                    operationType: "UPDATE"
+                  party:
+                    partyId: "100000900000001"
+                    country: "USA"
+                    business:
+                      phone:
+                        countryCode: "USA"
+                        phoneNumber: "404-555-1234"
+              REPLACE:
+                summary: Replace an existing party
+                value:
+                  transactionDetails:
+                    operationType: "REPLACE"
+                  party:
+                    partyId: "100000900000001"
+              PROVISION:
+                summary: Start party boarding workflow for an existing party
+                value:
+                  transactionDetails:
+                    operationType: "PROVISION"
+                  party:
+                    partyId: "10000090000000087"
+              KYB:
+                summary: Manually submit KYB for an existing party
+                value:
+                  transactionDetails:
+                    operationType: "KYB"
+                  party:
+                    partyId: "104604000032494"
+              KYC:
+                summary: Manually submit KYC for an existing party
+                value:
+                  transactionDetails:
+                    operationType: "KYC"
+                  party:
+                    partyId: "104604000032494"
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartySaveResponse'
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+              examples:
+                BUSINESS_PHONE_COUNTRY_MISMATCH:
+                  summary: Business phone countryCode does not match party.country
+                  value:
+                    error:
+                      - type: "BAD_REQUEST"
+                        code: "400"
+                        field: "party.business.phone.countryCode"
+                        message: "Field [party.business.phone.countryCode] must match party.country"
+                PHONE_E164_PATTERN_MISMATCH:
+                  summary: phoneNumber is not a valid full E.164 number
+                  value:
+                    error:
+                      - type: "BAD_REQUEST"
+                        code: "400"
+                        field: "party.business.phone.phoneNumber"
+                        message: "Field [party.business.phone.phoneNumber] does not match required pattern [E.164 phone number including country code prefix]"
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        408:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestTimeout'
+        415:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaType'
+        425:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooEarly'
+        429:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+        503:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceUnavailable'
+        504:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayTimeout'
+
+  /v1/party/inquire:
+    post:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Boarding'
+      summary: Get parties information.
+      description: Provides party information based on party id.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyInquiryRequest'
+            examples:
+              PARTY :
+                value:
+                  partyId: 10000090000000087
+                  inquiryType: PARTY
+              ERRORS:
+                value:
+                  partyId: 10000090000000087
+                  inquiryType: ERRORS
+        required: true
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyInquiryResponse'
+              examples:
+                PARTY:
+                  summary: Response with party record (inquiryType = PARTY or PARTY_REVISION)
+                  value:
+                    party:
+                      partyId: 10000090000000087
+                      revisionId: '378259295295259202020'
+                      type: BUSINESS
+                      country: US
+                      email: party@domain.com
+                      locale: en-US
+                      status:
+                        status: ACTIVE
+                        openDate: '2026-01-01T00:00:00Z'
+                      platform:
+                        clientId: acme
+                        merchantPartyId: test1234
+                      business:
+                        dbaName: ACME STORE #9871
+                        legalName: The ACME Company
+                        businessRegistrationNumber: '874980284894473'
+                        businessRegistrationNumberType: EIN
+                        mcc: '4457'
+                        email: customer@domain.com
+                        url: customerservice.com
+                        businessLegalType:
+                          code: SOLE_PROPRIETOR
+                          displayName: Sole Proprietor
+                        registeredAddress:
+                          street: 123 Main Street
+                          houseNumberOrName: Apt 213
+                          city: Sandy Springs
+                          stateOrProvince: GA
+                          postalCode: 30303-0001
+                        phone:
+                          countryCode: USA
+                          phoneNumber: '+14045551234'
+                          preference: PRIMARY
+                          type: DAY
+                      owners:
+                        - ownerId: '1234567890'
+                          relationship:
+                            type: OWNER
+                            ownershipPercentage: 100
+                          individual:
+                            firstName: Joe
+                            lastName: Smith
+                            email: customer@domain.com
+                            dateOfBirth: '1990-01-01'
+                            phone:
+                              - countryCode: USA
+                                phoneNumber: '+14045555678'
+                                preference: PRIMARY
+                                type: MOBILE
+                          address:
+                            street: 456 Elm Street
+                            city: Atlanta
+                            stateOrProvince: GA
+                            postalCode: 30301-0001
+                      taxProfile:
+                        taxFilingName: The ACME Company
+                        taxId: '123-45-7890'
+                        taxIdType: EIN
+                        issuingCountry: US
+                      compliance:
+                        termsAndConditionsVersion: v1
+                        consentTimestamp: '2026-01-01T12:00:00Z'
+                        consentBy: Joe Smith
+                        effectiveDate: '2026-01-01'
+
+                ERRORS:
+                  summary: Response with errors and pending boarding steps (inquiryType = ERRORS)
+                  value:
+                    errors:
+                      pendingBoardingSteps:
+                        - stepType: PHONE_VERIFICATION
+                          status: AWAITING_ACTION
+                          owner:
+                            ownerId: '1234567890'
+                          actions:
+                            - actionId: '1234567890'
+                              code: VERIFY_PHONE
+                        - stepType: KYB
+                          status: AWAITING_ACTION
+                          statusMessage: 'Please upload one document from each group. Each group contains multiple options—choose any one per group.'
+                          actions:
+                            - actionId: '0987654321'
+                              code: SUBMIT_KYB
+                            - actionId: '0987654322'
+                              code: UPLOAD_DOCUMENT
+                              document:
+                                - any:
+                                    - documentType: MRD-KYB-001
+                                      message: "Upload required document: Driver's License"
+                                      documentId: { front: '', back: '', Multipage: '' }
+                                    - documentType: MRD-KYB-002
+                                      message: 'Upload required document: Health Card'
+                                      documentId: { front: '', back: '', Multipage: '' }
+                          retryAttempt: 1
+                        - stepType: KYC
+                          status: AWAITING_ACTION
+                          statusMessage: 'Please upload one document from each group. Each group contains multiple options—choose any one per group.'
+                          owner:
+                            ownerId: '1234567890'
+
+                          actions:
+                            - actionId: '1122334455'
+                              code: SUBMIT_KYC
+                            - actionId: '1122334456'
+                              code: UPLOAD_DOCUMENT
+                              document:
+                                - any:
+                                    - documentType: MRD-KYC-000
+                                      message: 'Upload required document: Liveness'
+                                      documentId: { live: '' }
+                          retryAttempt: 1
+                      requiredFieldViolations:
+                        - code: '100'
+                          field: party.business.mcc
+                          message: Missing required field mcc.
+                        - code: '101'
+                          field: party.taxProfile.taxId
+                          message: Missing required field taxId.
+
+                PREFILL_SUGGESTIONS:
+                  summary: Response with address prefill suggestions (inquiryType = PREFILL)
+                  value:
+                    prefillSuggestions:
+                      - street: 123 Main Street
+                        houseNumberOrName: Suite 100
+                        city: Sandy Springs
+                        stateOrProvince: GA
+                        postalCode: 30303-0001
+                      - street: 123 Main St
+                        houseNumberOrName: Apt 213
+                        city: Sandy Springs
+                        stateOrProvince: GA
+                        postalCode: 30303-0002
+                      - street: 123 Main Street
+                        city: Atlanta
+                        stateOrProvince: GA
+                        postalCode: 30301-0001
+
+                PARTY_TENDERS:
+                  summary: Response with party tenders (inquiryType = PARTY_TENDERS)
+                  value:
+                    tenders:
+                      - tenderId: ppo_01JX9P3C0Y0M
+                        productId: ACH
+                        status: LINKED
+                        isDefault: true
+                        source:
+                          sourceType: BANK_ACCOUNT
+                          alias: Wells Fargo Checking
+                          maskedDetails:
+                            bankName: Wells Fargo
+                            accountLast4: '6789'
+                            routingLast4: '0210'
+                        paymentToken:
+                          tokenData: '1234123412340019'
+                          tokenSource: FISERV_SECURE_VAULT
+                          sourceType: BankAccount
+                        createdAt: '2026-04-06T09:25:10Z'
+                        updatedAt: '2026-04-06T09:25:10Z'
+                      - tenderId: ppo_02KY0Q4D1Z1N
+                        productId: PAYPAL
+                        status: LINKED
+                        isDefault: false
+                        source:
+                          sourceType: PAYPAL
+                          alias: My PayPal
+                          maskedDetails: { }
+                        paymentToken:
+                          tokenData: '9876987698760019'
+                          tokenSource: FISERV_SECURE_VAULT
+                          sourceType: Wallet
+                        createdAt: '2026-04-07T11:00:00Z'
+                        updatedAt: '2026-04-07T11:00:00Z'
+                      - tenderId: ppo_03LZ1R5E2A2O
+                        productId: CARD
+                        status: PENDING_VERIFICATION
+                        isDefault: false
+                        source:
+                          sourceType: CARD
+                          alias: My Visa
+                          maskedDetails:
+                            accountLast4: '1111'
+                        paymentToken:
+                          tokenData: '4111111100001111'
+                          tokenSource: FISERV_SECURE_VAULT
+                          sourceType: PaymentCard
+                        createdAt: '2026-04-08T14:30:00Z'
+                        updatedAt: '2026-04-08T14:30:00Z'
+
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        408:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestTimeout'
+        415:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaType'
+        425:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooEarly'
+        429:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+        503:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceUnavailable'
+        504:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayTimeout'
+
+  /v1/party/user-authenticate:
+    post:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Boarding'
+      summary: OTP generation and verification.
+      description: Use this API to facilitate processing parties boarding configuration.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyAuthenticationRequest'
+            examples:
+              OTP Generation Request:
+                summary : Fields that needs to be sent for OTP generation
+                value:
+                  operationType: "GENERATE"
+                  partyId: 1000010000000011
+                  phoneNumber: "+14153671502"
+                  mode: "sms"
+              OTP Validation Request:
+                summary: Fields that needs to be sent for OTP verification
+                value:
+                  operationType : "VALIDATE"
+                  partyId: 1000010000000011
+                  code: "988789"
+                  otpValidationId: "TRK_10001_001"
+              BOTCHECK:
+                summary: Fields that needs to be sent for Botcheck
+                value:
+                  operationType : "BOTCHECK"
+                  partyId: 1000010000000011
+                  code : "GUID-Generated-from-UI-Submitted-to-LexisNexis"
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyAuthenticationResponse'
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        408:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestTimeout'
+        415:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaType'
+        425:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooEarly'
+        429:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+        503:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceUnavailable'
+        504:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayTimeout'
+
+  /v1/party/document-upload:
+    post:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Boarding'
+      summary: Submit parties document details.
+      description: Use this API to facilitate to upload KYC / KYB documents.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/DocumentEvaluateRequest'
+                - $ref: '#/components/schemas/DocumentUploadShortCodeRequest'
+              discriminator:
+                propertyName: operationType
+                mapping :
+                  DOCUMENT_EVALUATION : '#/components/schemas/DocumentEvaluateRequest'
+                  KYC_SHORTCODE : '#/components/schemas/DocumentUploadShortCodeRequest'
+
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DocumentUploadResponse'
+                  - $ref: '#/components/schemas/DocumentEvaluateResponse'
+                  - $ref: '#/components/schemas/DocumentUploadShortCodeResponse'
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        408:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestTimeout'
+        415:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaType'
+        425:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooEarly'
+        429:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+        503:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceUnavailable'
+        504:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayTimeout'
+
+  /v1/party/tender:
+    post:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Boarding'
+      summary: Submit payment source information.
+      description: Use this API to facilitate processing parties boarding configuration.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyTenderRequest'
+        required: true
+      responses:
+        '201':
+          description: >-
+            Tender operation completed. The response will contain the details of the payment source that was created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyTenderResponse'
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        408:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestTimeout'
+        415:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaType'
+        425:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooEarly'
+        429:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+        503:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceUnavailable'
+        504:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayTimeout'
+
+  /v1/party/configuration-inquiry:
+    post:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Configuration'
+      summary: Retrieve party configuration data.
+      description: >-
+        Use this API to retrieve various party configuration data such as supported countries,
+        payout countries, party types, organization types, MCC codes, available payout products,
+        and country-specific address field schemas.
+        The configurationType field in the request body determines which configuration data is returned.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyConfigurationRequest'
+            examples:
+              Get Countries:
+                summary: Retrieve the list of supported countries for party onboarding
+                value:
+                  configurationType: "COUNTRIES"
+              Get Payout Countries:
+                summary: Retrieve the list of countries that Fiserv can transfer money to
+                value:
+                  configurationType: "PAYOUT_COUNTRIES"
+              Get Party Types:
+                summary: Retrieve the list of supported party types
+                value:
+                  configurationType: "PARTY_TYPES"
+              Get Organization Types:
+                summary: Retrieve organization types across all countries
+                value:
+                  configurationType: "ORGANIZATION_TYPES"
+              Get Organization Types By Country:
+                summary: Retrieve organization types filtered by a specific country
+                value:
+                  configurationType: "ORGANIZATION_TYPES"
+                  country: "US"
+              Get MCC Codes:
+                summary: Retrieve the list of Merchant Category Codes
+                value:
+                  configurationType: "MCC"
+              Get Available Tenders:
+                summary: Retrieve available tenders for a specific party
+                value:
+                  configurationType: "AVAILABLE_TENDERS"
+                  partyId: "10000090000000087"
+              Get Country Address Schema:
+                summary: Retrieve the address field schema for a specific country
+                value:
+                  configurationType: "COUNTRY_ADDRESS"
+                  country: "US"
+              Get Country Tender:
+                summary: Retrieve tender instrument schemas for a specific alpha-3 country code
+                value:
+                  configurationType: "COUNTRY_TENDER"
+                  country: "CAN"
+      responses:
+        '200':
+          description: Configuration data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyConfigurationResponse'
+              examples:
+                COUNTRIES:
+                  summary: Response for configurationType COUNTRIES
+                  value:
+                    configurationType: "COUNTRIES"
+                    countries:
+                      - code: "US"
+                        name: "United States of America"
+                        currency: "USD"
+                      - code: "GBR"
+                        name: "United Kingdom"
+                        currency: "GBP"
+                      - code: "CAN"
+                        name: "Canada"
+                        currency: "CAD"
+                PAYOUT_COUNTRIES:
+                  summary: Response for configurationType PAYOUT_COUNTRIES
+                  value:
+                    configurationType: "PAYOUT_COUNTRIES"
+                    countries:
+                      - code: "US"
+                        name: "United States of America"
+                        currency: "USD"
+                      - code: "GBR"
+                        name: "United Kingdom"
+                        currency: "GBP"
+                      - code: "MEX"
+                        name: "Mexico"
+                        currency: "MXN"
+                PARTY_TYPES:
+                  summary: Response for configurationType PARTY_TYPES
+                  value:
+                    configurationType: "PARTY_TYPES"
+                    partyTypes:
+                      - "INDIVIDUAL"
+                      - "BUSINESS"
+                ORGANIZATION_TYPES:
+                  summary: Response for configurationType ORGANIZATION_TYPES (all countries)
+                  value:
+                    configurationType: "ORGANIZATION_TYPES"
+                    organizationTypes:
+                      - country: "US"
+                        types:
+                          - key: "sole-proprietor"
+                            displayText: "Sole Proprietor"
+                          - key: "partnership"
+                            displayText: "Partnership"
+                          - key: "llc"
+                            displayText: "Limited Liability Company (LLC)"
+                          - key: "corporation"
+                            displayText: "Corporation"
+                      - country: "GBR"
+                        types:
+                          - key: "sole-trader"
+                            displayText: "Sole Trader"
+                          - key: "partnership"
+                            displayText: "Partnership"
+                          - key: "limited-company"
+                            displayText: "Limited Company (Ltd)"
+                          - key: "plc"
+                            displayText: "Public Limited Company (PLC)"
+                ORGANIZATION_TYPES_BY_COUNTRY:
+                  summary: Response for configurationType ORGANIZATION_TYPES filtered by country US
+                  value:
+                    configurationType: "ORGANIZATION_TYPES"
+                    organizationTypes:
+                      - country: "US"
+                        types:
+                          - key: "sole-proprietor"
+                            displayText: "Sole Proprietor"
+                          - key: "partnership"
+                            displayText: "Partnership"
+                          - key: "llc"
+                            displayText: "Limited Liability Company (LLC)"
+                          - key: "corporation"
+                            displayText: "Corporation"
+                MCC:
+                  summary: Response for configurationType MCC
+                  value:
+                    configurationType: "MCC"
+                    mccList:
+                      - mcc: "5411"
+                        description: "Grocery Stores, Supermarkets"
+                      - mcc: "5812"
+                        description: "Eating Places, Restaurants"
+                      - mcc: "5999"
+                        description: "Miscellaneous and Specialty Retail Stores"
+                AVAILABLE_TENDERS:
+                  summary: Response for configurationType AVAILABLE_TENDERS
+                  value:
+                    configurationType: "AVAILABLE_TENDERS"
+                    availableTenders:
+                      - productId: "ACH"
+                        displayName: "Bank Account (ACH)"
+                        description: "Direct bank transfer via ACH network"
+                        country: "US"
+                        fees:
+                          - feeId: "ACH_MONTHLY_FEE"
+                            amount: "2.0000"
+                            type: "FEE"
+                            currency: "USD"
+                          - feeId: "ACH_TXN_RATE"
+                            amount: "0.2500"
+                            type: "RATE"
+                            currency: "USD"
+                      - productId: "PAYPAL"
+                        displayName: "PayPal"
+                        description: "Payout via PayPal account"
+                        country: "US"
+                        fees:
+                          - feeId: "PAYPAL_TXN_RATE"
+                            amount: "1.5000"
+                            type: "RATE"
+                            currency: "USD"
+                      - productId: "VENMO"
+                        displayName: "Venmo"
+                        description: "Payout via Venmo account"
+                        country: "US"
+                        fees:
+                          - feeId: "VENMO_TXN_RATE"
+                            amount: "1.0000"
+                            type: "RATE"
+                            currency: "USD"
+                COUNTRY_ADDRESS:
+                  summary: Response for configurationType COUNTRY_ADDRESS (US address schema)
+                  value:
+                    configurationType: "COUNTRY_ADDRESS"
+                    countryAddressSchema:
+                      type: "object"
+                      properties:
+                        street:
+                          type: "string"
+                          title: "Street Address"
+                          description: "Street number and name"
+                          minLength: 1
+                          maxLength: 256
+                          errorMessages:
+                            minLength: "Street address is required"
+                            maxLength: "Street address must be 256 characters or fewer"
+                        city:
+                          type: "string"
+                          title: "City"
+                          description: "City or town"
+                          minLength: 1
+                          maxLength: 256
+                        stateOrProvince:
+                          type: "string"
+                          title: "State"
+                          description: "US state code"
+                          enumValues:
+                            - "AL"
+                            - "AK"
+                            - "AZ"
+                          enumLabels:
+                            AL: "Alabama"
+                            AK: "Alaska"
+                            AZ: "Arizona"
+                        postalCode:
+                          type: "string"
+                          title: "ZIP Code"
+                          description: "5-digit or ZIP+4 format"
+                          pattern: "^[0-9]{5}(-[0-9]{4})?$"
+                          errorMessages:
+                            pattern: "Must be a valid US ZIP code (e.g. 12345 or 12345-6789)"
+                      required:
+                        - street
+                        - city
+                        - stateOrProvince
+                        - postalCode
+                COUNTRY_TENDER:
+                  summary: Response for configurationType COUNTRY_TENDER
+                  value:
+                    configurationType: "COUNTRY_TENDER"
+                    instrumentSchemas:
+                      - bavSupportedCode: "CAD-Canadian-B"
+                        productId: "POLOCALBANK"
+                        countryCode: "CA"
+                        currencyCode: "CAD"
+                        currencyName: "Canadian Dollar"
+                        type: "object"
+                        properties:
+                          accountHolderName:
+                            type: "string"
+                            title: "Full name of the account holder"
+                            minLength: 3
+                            maxLength: 80
+                            pattern: '$re$^[0-9A-Za-zÀ-ÖØ-öø-ÿ-_()’*,.%#^@&/{}~<>+$"\[\]\\ ]+$re$'
+                            x-errorMessages:
+                              required: "Full name of the account holder is required"
+                              minLength: "Must be at least 3 characters"
+                              maxLength: "Cannot exceed 80 characters"
+                              pattern: "Enter a valid full name of the account holder"
+                          accountNumber:
+                            type: "string"
+                            title: "Account number"
+                            minLength: 7
+                            maxLength: 12
+                            pattern: '$re$\d{7,12}$re$'
+                            x-errorMessages:
+                              required: "Account number is required"
+                              minLength: "Must be at least 7 characters"
+                              maxLength: "Cannot exceed 12 characters"
+                              pattern: "Enter a valid account number"
+                          address.city:
+                            type: "string"
+                            title: "City"
+                            minLength: 1
+                            maxLength: 255
+                            pattern: '$re$^.{1,255}$re$'
+                            x-errorMessages:
+                              required: "City is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 255 characters"
+                              pattern: "Enter a valid city"
+                          address.country:
+                            type: "string"
+                            title: "Country"
+                            x-errorMessages:
+                              required: "Country is required"
+                          address.firstLine:
+                            type: "string"
+                            title: "Recipient address"
+                            minLength: 1
+                            maxLength: 255
+                            pattern: '$re$^.{1,255}$re$'
+                            x-errorMessages:
+                              required: "Recipient address is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 255 characters"
+                              pattern: "Enter a valid recipient address"
+                          address.postCode:
+                            type: "string"
+                            title: "Post code"
+                            minLength: 1
+                            maxLength: 32
+                            pattern: '$re$^.{1,32}$re$'
+                            x-errorMessages:
+                              required: "Post code is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 32 characters"
+                              pattern: "Enter a valid post code"
+                          institutionNumber:
+                            type: "string"
+                            title: "Institution number"
+                            minLength: 3
+                            maxLength: 3
+                            pattern: '$re$\d{3}$re$'
+                            x-errorMessages:
+                              required: "Institution number is required"
+                              minLength: "Must be at least 3 characters"
+                              maxLength: "Cannot exceed 3 characters"
+                              pattern: "Enter a valid institution number"
+                          transitNumber:
+                            type: "string"
+                            title: "Transit number"
+                            minLength: 5
+                            maxLength: 5
+                            pattern: '$re$\d{5}$re$'
+                            x-errorMessages:
+                              required: "Transit number is required"
+                              minLength: "Must be at least 5 characters"
+                              maxLength: "Cannot exceed 5 characters"
+                              pattern: "Enter a valid transit number"
+                        required:
+                          - "accountHolderName"
+                          - "accountNumber"
+                          - "address.city"
+                          - "address.country"
+                          - "address.firstLine"
+                          - "address.postCode"
+                          - "institutionNumber"
+                          - "transitNumber"
+                      - bavSupportedCode: "CAD-Canadian-P"
+                        productId: "POLOCALBANK"
+                        countryCode: "CA"
+                        currencyCode: "CAD"
+                        currencyName: "Canadian Dollar"
+                        type: "object"
+                        properties:
+                          accountHolderName:
+                            type: "string"
+                            title: "Full name of the account holder"
+                            minLength: 3
+                            maxLength: 80
+                            pattern: '$re$^[0-9A-Za-zÀ-ÖØ-öø-ÿ-_()’*,.%#^@&/{}~<>+$"\[\]\\ ]+$re$'
+                            x-errorMessages:
+                              required: "Full name of the account holder is required"
+                              minLength: "Must be at least 3 characters"
+                              maxLength: "Cannot exceed 80 characters"
+                              pattern: "Enter a valid full name of the account holder"
+                          accountNumber:
+                            type: "string"
+                            title: "Account number"
+                            minLength: 7
+                            maxLength: 12
+                            pattern: '$re$\d{7,12}$re$'
+                            x-errorMessages:
+                              required: "Account number is required"
+                              minLength: "Must be at least 7 characters"
+                              maxLength: "Cannot exceed 12 characters"
+                              pattern: "Enter a valid account number"
+                          address.city:
+                            type: "string"
+                            title: "City"
+                            minLength: 1
+                            maxLength: 255
+                            pattern: '$re$^.{1,255}$re$'
+                            x-errorMessages:
+                              required: "City is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 255 characters"
+                              pattern: "Enter a valid city"
+                          address.country:
+                            type: "string"
+                            title: "Country"
+                            x-errorMessages:
+                              required: "Country is required"
+                          address.firstLine:
+                            type: "string"
+                            title: "Recipient address"
+                            minLength: 1
+                            maxLength: 255
+                            pattern: '$re$^.{1,255}$re$'
+                            x-errorMessages:
+                              required: "Recipient address is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 255 characters"
+                              pattern: "Enter a valid recipient address"
+                          address.postCode:
+                            type: "string"
+                            title: "Post code"
+                            minLength: 1
+                            maxLength: 32
+                            pattern: '$re$^.{1,32}$re$'
+                            x-errorMessages:
+                              required: "Post code is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 32 characters"
+                              pattern: "Enter a valid post code"
+                          institutionNumber:
+                            type: "string"
+                            title: "Institution number"
+                            minLength: 3
+                            maxLength: 3
+                            pattern: '$re$\d{3}$re$'
+                            x-errorMessages:
+                              required: "Institution number is required"
+                              minLength: "Must be at least 3 characters"
+                              maxLength: "Cannot exceed 3 characters"
+                              pattern: "Enter a valid institution number"
+                          transitNumber:
+                            type: "string"
+                            title: "Transit number"
+                            minLength: 5
+                            maxLength: 5
+                            pattern: '$re$\d{5}$re$'
+                            x-errorMessages:
+                              required: "Transit number is required"
+                              minLength: "Must be at least 5 characters"
+                              maxLength: "Cannot exceed 5 characters"
+                              pattern: "Enter a valid transit number"
+                        required:
+                          - "accountHolderName"
+                          - "accountNumber"
+                          - "address.city"
+                          - "address.country"
+                          - "address.firstLine"
+                          - "address.postCode"
+                          - "institutionNumber"
+                          - "transitNumber"
+                      - bavSupportedCode: "CAD-Interac-B"
+                        productId: "POINTERAC"
+                        countryCode: "CA"
+                        currencyCode: "CAD"
+                        currencyName: "Canadian Dollar"
+                        type: "object"
+                        properties:
+                          accountHolderName:
+                            type: "string"
+                            title: "Full name of the account holder"
+                            minLength: 2
+                            maxLength: 140
+                            pattern: '$re$^[0-9A-Za-zÀ-ÖØ-öø-ÿ-_()’*,.%#^@&/{}~<>+$"\[\]\\ ]+$re$'
+                            x-errorMessages:
+                              required: "Full name of the account holder is required"
+                              minLength: "Must be at least 2 characters"
+                              maxLength: "Cannot exceed 140 characters"
+                              pattern: "Enter a valid full name of the account holder"
+                          address.city:
+                            type: "string"
+                            title: "City"
+                            minLength: 1
+                            maxLength: 255
+                            pattern: '$re$^.{1,255}$re$'
+                            x-errorMessages:
+                              required: "City is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 255 characters"
+                              pattern: "Enter a valid city"
+                          address.country:
+                            type: "string"
+                            title: "Country"
+                            x-errorMessages:
+                              required: "Country is required"
+                          address.firstLine:
+                            type: "string"
+                            title: "Recipient address"
+                            minLength: 1
+                            maxLength: 255
+                            pattern: '$re$^.{1,255}$re$'
+                            x-errorMessages:
+                              required: "Recipient address is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 255 characters"
+                              pattern: "Enter a valid recipient address"
+                          address.postCode:
+                            type: "string"
+                            title: "Post code"
+                            minLength: 1
+                            maxLength: 32
+                            pattern: '$re$^.{1,32}$re$'
+                            x-errorMessages:
+                              required: "Post code is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 32 characters"
+                              pattern: "Enter a valid post code"
+                          interacAccount:
+                            type: "string"
+                            title: "Interac registered email"
+                            minLength: 6
+                            maxLength: 50
+                            pattern: '$re$^([A-Za-z0-9_\-\+]([A-Za-z0-9_\-\+]*[A-Za-z0-9_])?(\.[A-Za-z0-9_\-\+]([A-Za-z0-9_\-\+]*[A-Za-z0-9_])?)*@[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?)*\.([A-Za-z]{2,63}))$re$'
+                            x-errorMessages:
+                              required: "Interac registered email is required"
+                              minLength: "Must be at least 6 characters"
+                              maxLength: "Cannot exceed 50 characters"
+                              pattern: "Enter a valid interac registered email"
+                        required:
+                          - "accountHolderName"
+                          - "address.city"
+                          - "address.country"
+                          - "address.firstLine"
+                          - "address.postCode"
+                          - "interacAccount"
+                      - bavSupportedCode: "CAD-Interac-P"
+                        productId: "POINTERAC"
+                        countryCode: "CA"
+                        currencyCode: "CAD"
+                        currencyName: "Canadian Dollar"
+                        type: "object"
+                        properties:
+                          accountHolderName:
+                            type: "string"
+                            title: "Full name of the account holder"
+                            minLength: 2
+                            maxLength: 140
+                            pattern: '$re$^[0-9A-Za-zÀ-ÖØ-öø-ÿ-_()’*,.%#^@&/{}~<>+$"\[\]\\ ]+$re$'
+                            x-errorMessages:
+                              required: "Full name of the account holder is required"
+                              minLength: "Must be at least 2 characters"
+                              maxLength: "Cannot exceed 140 characters"
+                              pattern: "Enter a valid full name of the account holder"
+                          address.city:
+                            type: "string"
+                            title: "City"
+                            minLength: 1
+                            maxLength: 255
+                            pattern: '$re$^.{1,255}$re$'
+                            x-errorMessages:
+                              required: "City is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 255 characters"
+                              pattern: "Enter a valid city"
+                          address.country:
+                            type: "string"
+                            title: "Country"
+                            x-errorMessages:
+                              required: "Country is required"
+                          address.firstLine:
+                            type: "string"
+                            title: "Recipient address"
+                            minLength: 1
+                            maxLength: 255
+                            pattern: '$re$^.{1,255}$re$'
+                            x-errorMessages:
+                              required: "Recipient address is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 255 characters"
+                              pattern: "Enter a valid recipient address"
+                          address.postCode:
+                            type: "string"
+                            title: "Post code"
+                            minLength: 1
+                            maxLength: 32
+                            pattern: '$re$^.{1,32}$re$'
+                            x-errorMessages:
+                              required: "Post code is required"
+                              minLength: "Must be at least 1 character"
+                              maxLength: "Cannot exceed 32 characters"
+                              pattern: "Enter a valid post code"
+                          interacAccount:
+                            type: "string"
+                            title: "Interac registered email"
+                            minLength: 6
+                            maxLength: 50
+                            pattern: '$re$^([A-Za-z0-9_\-\+]([A-Za-z0-9_\-\+]*[A-Za-z0-9_])?(\.[A-Za-z0-9_\-\+]([A-Za-z0-9_\-\+]*[A-Za-z0-9_])?)*@[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]*[A-Za-z0-9])?)*\.([A-Za-z]{2,63}))$re$'
+                            x-errorMessages:
+                              required: "Interac registered email is required"
+                              minLength: "Must be at least 6 characters"
+                              maxLength: "Cannot exceed 50 characters"
+                              pattern: "Enter a valid interac registered email"
+                        required:
+                          - "accountHolderName"
+                          - "address.city"
+                          - "address.country"
+                          - "address.firstLine"
+                          - "address.postCode"
+                          - "interacAccount"
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        408:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestTimeout'
+        415:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaType'
+        425:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooEarly'
+        429:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+        503:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceUnavailable'
+        504:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayTimeout'
+
+  /v1/party/configuration:
+    put:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Configuration'
+      summary: Replace party configuration data (full replace).
+      description: >-
+        Use this API to fully replace a configuration collection for the client.
+        All existing entries for the given configurationType are removed and replaced with the provided list.
+        The configurationType field in the request body determines which configuration data is replaced.
+        Supported configurationTypes: COUNTRIES, PAYOUT_COUNTRIES, PARTY_TYPES, ORGANIZATION_TYPES, MCC, AVAILABLE_TENDERS.
+        COUNTRY_ADDRESS is read-only and returns 400 for PUT requests.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyConfigurationRequest'
+            examples:
+              Replace Countries:
+                summary: Fully replace the supported countries list
+                value:
+                  configurationType: "COUNTRIES"
+                  countries:
+                    - code: "US"
+                      name: "United States of America"
+                      currency: "USD"
+                    - code: "GBR"
+                      name: "United Kingdom"
+                      currency: "GBP"
+              Replace Payout Countries:
+                summary: Fully replace the payout countries list
+                value:
+                  configurationType: "PAYOUT_COUNTRIES"
+                  payoutCountries:
+                    - code: "US"
+                      name: "United States of America"
+                      currency: "USD"
+              Replace Party Types:
+                summary: Fully replace the supported party types
+                value:
+                  configurationType: "PARTY_TYPES"
+                  partyTypes:
+                    - "INDIVIDUAL"
+                    - "BUSINESS"
+              Replace Organization Types:
+                summary: Fully replace organization types
+                value:
+                  configurationType: "ORGANIZATION_TYPES"
+                  organizationTypes:
+                    - country: "US"
+                      types:
+                        - key: "sole-proprietor"
+                          displayText: "Sole Proprietor"
+                        - key: "llc"
+                          displayText: "Limited Liability Company (LLC)"
+              Replace MCC List:
+                summary: Fully replace the MCC list
+                value:
+                  configurationType: "MCC"
+                  mccList:
+                    - mcc: "5411"
+                      description: "Grocery Stores, Supermarkets"
+                    - mcc: "5812"
+                      description: "Eating Places, Restaurants"
+      responses:
+        '200':
+          description: Configuration replaced and current state returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyConfigurationResponse'
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+    patch:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Configuration'
+      summary: Update party configuration data (partial update).
+      description: >-
+        Use this API to partially update a configuration collection for the client.
+        Only the entries provided in the request are added or updated; existing entries not included in the request are preserved.
+        The configurationType field in the request body determines which configuration data is updated.
+        Supported configurationTypes: COUNTRIES, PAYOUT_COUNTRIES, PARTY_TYPES, ORGANIZATION_TYPES, MCC, AVAILABLE_TENDERS.
+        COUNTRY_ADDRESS is read-only and returns 400 for PATCH requests.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyConfigurationRequest'
+            examples:
+              Add or Update Countries:
+                summary: Add or update entries in the supported countries list
+                value:
+                  configurationType: "COUNTRIES"
+                  countries:
+                    - code: "MEX"
+                      name: "Mexico"
+                      currency: "MXN"
+              Add or Update MCC:
+                summary: Add or update MCC codes without affecting unlisted codes
+                value:
+                  configurationType: "MCC"
+                  mccList:
+                    - mcc: "7941"
+                      description: "Athletic Fields, Sports Clubs"
+      responses:
+        '200':
+          description: Configuration updated and current state returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyConfigurationResponse'
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /v1/party/agreements:
+    post:
+      tags:
+        - Parties Boarding Endpoint Definition
+      x-group-name: 'Parties'
+      x-proxy-name: 'Agreements'
+      summary: Manage party agreements including disclosure, terms of service, and signature.
+      description: >-
+        Use this API to manage party agreements. The agreementType field determines the action performed:
+        DISCLOSURE - Retrieve the disclosure text for a party including important terms, conditions, and regulatory information.
+        TERMSOFSERVICE - Accept terms of service for acquiring or payouts and return the PDF document stream with documentId.
+        SIGNATURE - Add signature to a terms of service document with signer information including name and IP address.
+      parameters:
+        - name: Client-Id
+          in: header
+          description: Unique identifier for the client.
+          required: true
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          description: Unique identifier for the user.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyAgreementRequest'
+            examples:
+              Disclosure:
+                summary: Retrieve the disclosure text for a party
+                value:
+                  agreementType: "DISCLOSURE"
+                  partyId: "10000090000000087"
+                  country: "US"
+                  language: "en"
+              Terms of Service:
+                summary: Accept terms of service for acquiring or payouts
+                value:
+                  agreementType: "TERMSOFSERVICE"
+                  partyId: "10000090000000087"
+                  type: "acquiring"
+              Signature:
+                summary: Add signature to a terms of service document
+                value:
+                  agreementType: "SIGNATURE"
+                  partyId: "10000090000000087"
+                  documentId: "tos_acq_20260117_1234567890"
+                  signature:
+                    name: "John Doe"
+                    ipAddress: "192.168.1.1"
+      responses:
+        '200':
+          description: Agreement operation completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyAgreementResponse'
+              examples:
+                DISCLOSURE:
+                  summary: Response for agreementType DISCLOSURE
+                  value:
+                    agreementType: "DISCLOSURE"
+                    disclosure:
+                      disclosureText: |
+                        IMPORTANT DISCLOSURE INFORMATION
+
+                        This disclosure contains important information about your account, fees, and terms of service.
+                        Please read carefully and retain for your records.
+
+                        1. Processing Fees: Transaction fees apply based on your agreement.
+                        2. Payout Schedule: Funds are transferred according to your selected schedule.
+                        3. Liability: You are responsible for all transactions processed through your account.
+                        4. Compliance: You must comply with all applicable laws and regulations.
+                      version: "1.0"
+                      effectiveDate: "2026-01-01"
+                      lastUpdated: "2026-01-15T08:00:00Z"
+                TERMSOFSERVICE:
+                  summary: Response for agreementType TERMSOFSERVICE
+                  value:
+                    agreementType: "TERMSOFSERVICE"
+                    termsOfService:
+                      documentId: "tos_acq_20260117_1234567890"
+                      type: "acquiring"
+                      acceptedAt: "2026-01-17T10:30:00Z"
+                      documentContent: "JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmoKPDwvTGVuZ3Ro..."
+                SIGNATURE:
+                  summary: Response for agreementType SIGNATURE
+                  value:
+                    agreementType: "SIGNATURE"
+                    signedTermsOfService:
+                      documentId: "tos_acq_20260117_1234567890"
+                      type: "acquiring"
+                      acceptedAt: "2026-01-17T10:30:00Z"
+                      documentContent: "JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmoKPDwvTGVuZ3Ro..."
+                      signature:
+                        name: "John Doe"
+                        ipAddress: "192.168.1.1"
+                      signedAt: "2026-01-17T10:35:00Z"
+        400:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        401:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        404:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        408:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestTimeout'
+        415:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnsupportedMediaType'
+        425:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooEarly'
+        429:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        500:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+        503:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceUnavailable'
+        504:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayTimeout'
+
+
+
+
+  /v1/party/{partyId}:
+    get:
+      tags:
+        - Fiserv internal endpoints
+      x-group-name: 'Internal'
+      x-proxy-name: 'Boarding'
+      summary: Get party details
+      description: >
+        Retrieves full party details for the provided partyId.
+      parameters:
+        - name: Client-Id
+          in: header
+          required: true
+          description: Unique identifier for the client
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          required: true
+          description: Unique identifier for the user
+          schema:
+            type: string
+        - name: partyId
+          in: path
+          required: true
+          description: Unique identifier of the party
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Party record retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPartyResponse'
+              examples:
+                PARTY:
+                  summary: Party details response
+                  value:
+                    party:
+                      platform:
+                        clientId: "marriot"
+                        merchantPartyId: "marriot-party-7864"
+                      partyId: "101517000014457"
+                      status:
+                        status: "PENDING"
+                        statusComments: "Contract in progress"
+                        openDate: "2027-01-01T00:00:00Z"
+                      type: "BUSINESS"
+                      business:
+                        phone:
+                          countryCode: "USA"
+                          phoneNumber: "+14043335896"
+                          preference: "PRIMARY"
+                          type: "MOBILE"
+                        dbaName: "Marriot #33"
+                        legalName: "Marriott test Company"
+                        businessRegistrationNumber: "874980284"
+                        businessRegistrationNumberType: "EIN"
+                        registrationDate: "2020-01-01"
+                        mcc: "5813"
+                        email: "business@mr.com"
+                        url: "https://www.marriott.com"
+                        registeredAddress:
+                          street: "123 Main Street"
+                          houseNumberOrName: "Suite 100"
+                          city: "Sandy Springs"
+                          stateOrProvince: "GA"
+                          postalCode: "30303-0001"
+                        businessLegalType:
+                          code: "CORPORATION"
+                        dateOfIncorporation: "2026-01-01"
+                      country: "USA"
+                      email: "party.create1@marriott.com"
+                      locale: "en-US"
+                      compliance:
+                        termsAndConditionsVersion: "v1"
+                        consentTimestamp: "2026-04-21T12:00:00Z"
+                        consentBy: "SK Smith"
+                        effectiveDate: "2026-04-29"
+                      owners:
+                        - ownerId: "05103c2d-05c6-4a63-a7ad-af5ce71bf2c0"
+                          relationship:
+                            authorityTypes:
+                              - "AUTHORIZED_SIGNATORY"
+                              - "BENEFICIAL_OWNER"
+                            percentage: "100"
+                            title: "CEO"
+                          individual:
+                            firstName: "MK"
+                            lastName: "TEST"
+                            middleName: ""
+                            email: "MK@test.com"
+                            dateOfBirth: "1990-03-22"
+                            occupation: "CEO"
+                            phone:
+                              countryCode: "USA"
+                              phoneNumber: "+14045555678"
+                              preference: "PRIMARY"
+                              type: "MOBILE"
+                            identityDetails:
+                              - id: "SU~y/0ph+.!Z.j-"
+                                type: "DRIVERS_LICENSE"
+                                issuingCountry: "USA"
+                                expirationDate: "2030-01-01"
+                          address:
+                            street: "5826 Parcific ST"
+                            city: "ELkhorn"
+                            stateOrProvince: "NE"
+                            postalCode: "68022"
+                        - ownerId: "ecb39663-a22f-4733-9bcc-da321999a93d"
+                          relationship:
+                            authorityTypes:
+                              - "AUTHORIZED_SIGNATORY"
+                              - "BENEFICIAL_OWNER"
+                            percentage: "100"
+                            title: "CEO"
+                          individual:
+                            firstName: "MK"
+                            lastName: "TEST"
+                            middleName: ""
+                            email: "MK@test.com"
+                            dateOfBirth: "1990-03-22"
+                            occupation: "CEO"
+                            phone:
+                              countryCode: "USA"
+                              phoneNumber: "+14045555678"
+                              preference: "PRIMARY"
+                              type: "MOBILE"
+                            identityDetails:
+                              - id: "SU~y/0ph+.!Z.j-"
+                                type: "DRIVERS_LICENSE"
+                                issuingCountry: "USA"
+                                expirationDate: "2030-01-01"
+                          address:
+                            street: "5826 Parcific ST"
+                            city: "ELkhorn"
+                            stateOrProvince: "NE"
+                            postalCode: "68022"
+                      taxProfile:
+                        taxFilingName: "Marriott Company"
+                        taxId: "xFtF__#$(/:g#!I}"
+                        taxIdType: "SSN"
+                        issuingCountry: "USA"
+
+
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /v1/party/{partyId}/history:
+    get:
+      tags:
+        - Fiserv internal endpoints
+      x-group-name: 'Internal'
+      x-proxy-name: 'Boarding'
+      summary: Get party action history
+      description: Retrieves paginated action history for the provided partyId.
+      parameters:
+        - name: Client-Id
+          in: header
+          required: true
+          description: Unique identifier for the client
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          required: true
+          description: Unique identifier for the user
+          schema:
+            type: string
+        - name: partyId
+          in: path
+          required: true
+          description: Unique identifier of the party
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: Page number (default 1)
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of records per page (default 10)
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Party action history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyActionHistoryResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /v1/party?status=PENDING:
+    get:
+      tags:
+        - Party Boarding Endpoint Definition
+      x-group-name: 'Party'
+      x-proxy-name: 'Boarding'
+      summary: Retrieve pending parties
+      description: >
+        Retrieves a paginated list of pending parties (party status is PENDING).
+        Supports optional pagination via page and size query parameters.
+
+      parameters:
+        - name: Client-Id
+          in: header
+          required: true
+          description: Unique identifier for the client
+          schema:
+            type: string
+
+        - name: status
+          in: query
+          required: true
+          description: Party status filter (only PENDING is supported)
+          schema:
+            type: string
+            enum:
+              - PENDING
+            example: PENDING
+
+        - name: page
+          in: query
+          required: false
+          description: Page number (starting from 0)
+          schema:
+            type: integer
+            default: 0
+
+        - name: size
+          in: query
+          required: false
+          description: Number of records per page
+          schema:
+            type: integer
+            default: 10
+
+      responses:
+        '200':
+          description: Pending parties retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingPartyListResponse'
+
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+
+
+  /v1/party/status:
+    post:
+      tags:
+        - Fiserv internal endpoints
+      x-group-name: 'Internal'
+      x-proxy-name: 'Boarding'
+      summary: Update Party status
+      description: >
+        Updates the status of a party along with optional status comments.
+        This API is used to transition party status such as SUSPENDED, CLOSED.
+
+      parameters:
+        - name: Client-Id
+          in: header
+          required: true
+          description: Unique identifier for the client
+          schema:
+            type: string
+
+        - name: User-Id
+          in: header
+          required: true
+          description: Unique identifier for the user
+          schema:
+            type: string
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyStatusUpdateRequest'
+            examples:
+              APPROVE:
+                summary: CLOSE party
+                value:
+                  party:
+                    partyId: "101475000002065"
+                    status:
+                      status: "CLOSED"
+                      statusComments: "CLOSED due to violated terms of service"
+
+              REJECT:
+                summary: Reject party
+                value:
+                  party:
+                    partyId: "101475000002065"
+                    status:
+                      status: "DECLINED"
+                      statusComments: "Invalid business documentation"
+
+      responses:
+        '200':
+          description: Party status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyStatusUpdateResponse'
+              examples:
+                SUCCESS:
+                  summary: Successful status update response
+                  value:
+                    party:
+                      partyId: "101475000002065"
+                      type: "BUSINESS"
+                      status:
+                        status: "CLOSED"
+                        statusComments: "Contract is closed"
+                        openDate: "2025-01-01T00:00:00Z"
+                        closeDate: "2026-05-12T00:00:00Z"
+
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+  /v1/party/searchParties:
+    post:
+      tags:
+        - Fiserv internal endpoints
+      x-group-name: 'Internal'
+      x-proxy-name: 'Boarding'
+      summary: Search parties
+      description: Searches parties using filter criteria and pagination.
+      parameters:
+        - name: Client-Id
+          in: header
+          required: true
+          description: Unique identifier for the client
+          schema:
+            type: string
+        - name: User-Id
+          in: header
+          required: true
+          description: Unique identifier for the user
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchPartiesRequest'
+      responses:
+        '200':
+          description: Parties search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchPartiesResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BadRequest'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFound'
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TooManyRequest'
+
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
+
+#-------------------------------------
+# Components Models
+#-------------------------------------
+
+components:
+  schemas:
+    PartySaveRequest:
+      type: object
+      required:
+        - transactionDetails
+      properties:
+        transactionDetails:
+          $ref: '#/components/schemas/TransactionDetails'
+        party:
+          $ref: '#/components/schemas/Party'
+        merchantDetails:
+          $ref: '#/components/schemas/MerchantDetails'
+          description: 'Acquiring system merchant and terminal IDs. Request-only — accepted on the save request but not persisted on the party.'
+
+    PartySaveResponse:
+      type: object
+      properties:
+        party:
+          $ref: '#/components/schemas/Party'
+        pendingBoardingSteps:
+          type: array
+          description: 'List of steps or actions that are still required to be completed in order to complete a party boarding process.'
+          items:
+            $ref: '#/components/schemas/BoardingStep'
+        requiredFieldViolations:
+          type: array
+          description: 'Outcome of the party validation during a provision process.'
+          items:
+            $ref: '#/components/schemas/RequiredFieldViolation'
+
+    SessionSaveRequest:
+      type: object
+      properties:
+        party:
+          $ref: '#/components/schemas/Party'
+
+    SessionSaveResponse:
+      type: object
+      properties:
+        party:
+          $ref: '#/components/schemas/Party'
+        session:
+          $ref: '#/components/schemas/Session'
+        checkoutInteractions:
+          $ref: '#/components/schemas/CheckoutInteractionsV2'
+
+    CheckoutInteractionsV2:
+      type: object
+      properties:
+        sdkData:
+          type: string
+          description: 'Encoded data for initializing SDK for hosted fields or hosted component integrations'
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1MTYyMzkwMjJ9.l8DiLVKsNOorGpN_YUoATkPjF7lgqT9T5TbzyPF9DNg'
+    Session:
+      type: object
+      properties:
+        intent:
+          type: string
+          maxLength: 32
+          description: 'Transaction type to execute when session is completed.'
+        intentInitiator:
+          type: string
+          maxLength: 10
+          description: 'Identifies source system to complete the checkout. GATEWAY or MERCHANT'
+        sessionStatus:
+          type: string
+          description: 'Status of the session. CREATED, PAYER_ACTION_REQUIRED, CONFIRMED, CLOSED, AUTHORIZED, CAPTURED, REFUNDED, TOKENIZED, VERIFIED, CANCELED'
+        sessionId:
+          type: string
+          maxLength: 64
+          description: 'Unique identifier for the session.'
+
+    DocumentUploadShortCodeRequest:
+      type: object
+      required:
+        - documentTypes
+      properties:
+        operationType:
+          type: string
+          enum: [ KYC_SHORTCODE ]
+        documentTypes:
+          type: array
+          description: List of document types the party is expected to upload during the SDK session
+          minItems: 1
+          items:
+            type: string
+            enum:
+              - identity
+              - businessLicense
+              - taxDocument
+              - bankStatement
+              - other
+          example:
+            - identity
+            - businessLicense
+        referenceId:
+          type: string
+          description: Optional reference ID (e.g., a pending action referenceId) to associate with this SDK session
+          example: "ACT_100001"
+        expiresInSeconds:
+          type: integer
+          description: Validity period of the short code in seconds. Defaults to 300 (5 minutes) if not provided.
+          minimum: 60
+          maximum: 3600
+          default: 300
+          example: 300
+        redirectUrl:
+          type: string
+          format: uri
+          description: Optional URL the SDK should redirect to after the upload session is complete
+          example: "https://app.example.com/onboarding/continue"
+
+    DocumentEvaluateRequest:
+      type: object
+      required:
+        - operationType
+        - process
+        - partyId
+      description: >-
+        Doc-submit (final evaluation) request. The caller sends only operationType, process,
+        and partyId — the service reads the stored boarding step for the given process and
+        collects the document references itself.
+      example:
+        operationType: DOCUMENT_EVALUATION
+        process: KYC
+        partyId: "101628000004701"
+      properties:
+        operationType:
+          type: string
+          enum: [DOCUMENT_EVALUATION]
+          description: Fixed operation type identifying a document evaluation (doc-submit) request.
+          example: DOCUMENT_EVALUATION
+        process:
+          type: string
+          description: The evaluation process to trigger for the party's documents.
+          enum:
+            - KYC
+            - KYB
+          example: KYC
+        partyId:
+          type: string
+          description: >-
+            Party identifier. Required so the service can read the stored boarding step
+            for the given process and collect the document references to submit to MRD.
+          example: "101628000004701"
+
+    DocumentUploadRequest:
+      type: object
+      required:
+        - file
+        - documentType
+      properties:
+        file:
+          type: string
+          format: binary
+          description: The document file to upload
+        partyId:
+          type: string
+          description: The ID of the party for whom the evaluation was triggered
+          example: "SEL_123456"
+        documentType:
+          type: string
+          maxLength: 126
+          description: >-
+            MRD document code identifying the document being uploaded, e.g. MRD-KYB-007
+            (KYB business documents) or MRD-KYC-001 (KYC identity documents). MRD-KYC-000
+            is the liveness document (KYC only).
+          example: MRD-KYB-007
+        docContext:
+          type: string
+          enum:
+            - front
+            - back
+            - live
+            - multipage
+          description: >-
+            Document context — the page/slot of the document being uploaded:
+            front, back, multipage, or live (liveness; KYC only). Defaults to front when omitted.
+          example: front
+        documentName:
+          type: string
+          maxLength: 100
+          description: >-
+            Human-readable name of the document type/code being uploaded
+            (e.g. "Certificate of Registration or equivalent").
+          example: Certificate of Registration or equivalent
+
+    DocumentUploadResponse:
+      type: object
+      properties:
+        merchantDetails:
+          $ref: '#/components/schemas/Business'
+        party:
+          $ref: '#/components/schemas/Party'
+        documentDetails:
+          $ref: '#/components/schemas/DocumentDetails'
+        pendingBoardingSteps:
+          type: array
+          description: 'List of steps or actions that are still required to be completed in order to complete a party boarding process.'
+          items:
+            $ref: '#/components/schemas/BoardingStep'
+        requiredFieldViolations:
+          type: array
+          description: 'Outcome of the party validation during a provision process.'
+          items:
+            $ref: '#/components/schemas/RequiredFieldViolation'
+
+    DocumentEvaluateResponse:
+      type: object
+      properties:
+        partyId:
+          type: string
+          description: The ID of the party for whom the evaluation was triggered
+          example: "SEL_123456"
+        process:
+          type: string
+          description: The evaluation process that was triggered
+          enum:
+            - kyc
+            - kyb
+          example: kyc
+        status:
+          type: string
+          description: Current status of the evaluation
+          enum:
+            - PENDING
+            - AWAITING-INPUT
+            - COMPLETE
+            - DECLINED
+            - SUSPENDED
+          example: PENDING
+        message:
+          type: string
+          description: Human-readable message describing the evaluation result or current state
+          example: "KYC evaluation has been initiated successfully"
+
+    DocumentUploadShortCodeResponse:
+      type: object
+      required:
+        - shortCode
+        - expiresAt
+      properties:
+        shortCode:
+          type: string
+          description: Time-limited short code used to initialise the document upload SDK session
+          example: "SC_a1b2c3d4e5f6"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Timestamp when the short code expires
+          example: "2026-03-20T10:35:00Z"
+        sdkInitUrl:
+          type: string
+          format: uri
+          description: Fully-formed URL that can be used directly to launch the document upload SDK with the short code pre-embedded
+          example: "https://sdk.example.com/document-upload?shortCode=SC_a1b2c3d4e5f6"
+
+
+    PartyInquiryRequest:
+      type: object
+      required:
+        - inquiryType
+        - partyId
+      properties:
+        inquiryType:
+          description: |
+            PARTY : The Active party record
+            PARTY_REVISION : The current version of party being edited;
+            ERRORS : Returns the errors and actions
+            PREFILL : Returns the Business suggested values
+            TENDERS : Returns the products of the party
+          type: string
+          enum:
+            - PARTY
+            - ERRORS
+            - PARTY_REVISION
+            - PREFILL
+            - TENDERS
+        partyId:
+          type: string
+          pattern: '^[0-9]{15}$'
+          minLength: 15
+          maxLength: 15
+    PartyInquiryResponse:
+      type: object
+      properties:
+        oneOf:
+        - title: PartyInquiryResponseWithParty
+          properties:
+            party:
+              $ref: '#/components/schemas/Party'
+          required:
+            - party
+        - title: PartyInquiryResponseWithErrors
+          properties:
+            errors:
+              $ref: '#/components/schemas/PartyErrorResponse'
+          required:
+            - errors
+        - title: PartyInquiryResponseWithPrefillSuggestions
+          properties:
+            prefillSuggestions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Address'
+          required:
+            - prefillSuggestions
+        - title: PartyInquiryResponseWithPartyTenders
+          properties:
+            partyTenders:
+              type: array
+              items:
+                $ref: '#/components/schemas/PartyTender'
+          required:
+            - tenders
+
+    PartyErrorResponse:
+      type: object
+      properties:
+        pendingBoardingSteps:
+          type: array
+          description: 'List of steps or actions that are still required to be completed in order to complete a party boarding process.'
+          items:
+            $ref: '#/components/schemas/BoardingStep'
+        requiredFieldViolations:
+          type: array
+          description: 'Outcome of the party validation during a provision process.'
+          items:
+            $ref: '#/components/schemas/RequiredFieldViolation'
+
+    PartyAuthenticationRequest:
+      type: object
+      required:
+        - partyId
+        - operationType
+        - phoneNumber
+      properties:
+        partyId:
+          type: string
+          pattern: '^[0-9]{15}$'
+          minLength: 15
+          maxLength: 15
+          description: Party ID for whom the OTP is being validated
+        phoneNumber:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: 'Phone number to send OTP to including country code (E.164 format). Required for GENERATE operation; not required for VALIDATE and BOTCHECK.'
+          example: '+14153671502'
+        mode:
+          type: string
+          enum:
+            - sms
+            - voice
+          description: Mode of OTP delivery. Default is sms if not specified.
+          example: sms
+        operationType:
+          type: string
+          enum:
+            - GENERATE
+            - VALIDATE
+            - BOTCHECK
+          description: The mode of operation for the API
+        code:
+          type: string
+          description: The validation code provided by the user
+        otpValidationId:
+          type: string
+          description: OTP verification ID that needs to be sent back in the verification and party payload
+          example: 'TRK-20260206-ABC123XYZ'
+
+    PartyAuthenticationResponse:
+      type: object
+      properties:
+        authentication:
+          $ref: '#/components/schemas/MultiFactorAuthentication'
+
+    PartyTenderRequest:
+      type: object
+      properties:
+        partyId:
+          type: string
+          pattern: '^[0-9]{15}$'
+          minLength: 15
+          maxLength: 15
+          description: The party ID for which the payout product is to be added or updated
+        operationType:
+          type: string
+          enum:
+            - VERIFY
+            - CREATE
+            - UPDATE
+            - DELETE
+        revisionId:
+          type: string
+          description: 'Unique identifier representing the current revision of the party onboarding application.'
+          example: '378259295295259202020'
+        tender:
+          $ref: '#/components/schemas/PartyTender'
+
+    PartyTenderResponse:
+      type: object
+      description: >-
+        Tender response payload. `processorResponseDetails` is omitted for all
+        tender operation types (`CREATE`, `UPDATE`, `DELETE`, `VERIFY`).
+        For single-tender operations `tender` is populated; for batch CREATE
+        requests `tenders` is populated instead.
+      properties:
+        partyTender:
+          $ref: '#/components/schemas/PartyTender'
+        partyTenders:
+          type: array
+          description: Populated on batch CREATE requests — contains all saved payout products with their server-assigned tender IDs.
+          items:
+            $ref: '#/components/schemas/PartyTender'
+        verification:
+          $ref: '#/components/schemas/PartyTenderVerification'
+        revisionId:
+          type: string
+          description: 'Unique identifier representing the current revision of the party onboarding application.'
+          example: '378259295295259202020'
+        partyId:
+          type: string
+          description: The party ID for which the payout product was added or updated.
+
+    PartyTenderVerification:
+      type: object
+      description: The verification results for tender
+      properties:
+        status:
+          type: string
+          enum:
+            - BAV_IN_PROGRESS
+            - BAV_APPROVED
+            - BAV_DECLINED
+          description: The status of the account verification. If BAV_IN_PROGRESS then check the ERRORS api for list of documents to be provided.
+        submissionAttempt:
+          type: integer
+          description: keeps track of how many times the account has been submitted for verification
+    PartyTender:
+      type: object
+      description: |
+        Required fields vary by operationType:
+        - VERIFY: product, account
+        - CREATE: product, token (with tokenData, tokenSource, sourceType)
+        - UPDATE: tenderId only
+        - REPLACE: tenderId only
+        - DELETE: tenderId only
+        Country is supplied via the address.country field (ISO 3166-1 alpha-3).
+      properties:
+        tenderId:
+          type: string
+          format: uuid
+          description: The ID assigned for the product
+        product:
+          type: string
+          enum:
+            - POACH
+            - POSEPA
+            - POFPS
+            - PORTP
+            - POXBORDERACCT
+            - POVISADIRECT
+            - POMASTERCARDSEND
+            - POPREPAIDCARD
+            - POPAYPAL
+            - POVENMO
+            - POXBORDERWLLT
+          description: |
+            PRODUCT_CODE     | PRODUCT_DESCRIPTION                                       | CATEGORY
+            POACH            | Payout via ACH (Automated Clearing House)                 | ACCOUNT
+            POSEPA           | Payout via SEPA (Single Euro Payments Area)               | ACCOUNT
+            POFPS            | Payout via FPS (Faster Payments Service)                  | ACCOUNT
+            PORTP            | Payout via RTP (Real-Time Payments)                       | ACCOUNT
+            POXBORDERACCT    | Payout via Cross-Border Account Transfer                  | ACCOUNT
+            POVISADIRECT     | Payout via Visa Direct                                    | CARD
+            POMASTERCARDSEND | Payout via Mastercard Send                                | CARD
+            POPREPAIDCARD    | Payout via Prepaid Card                                   | CARD
+            POPAYPAL         | Payout via PayPal                                         | WALLET
+            POVENMO          | Payout via Venmo                                          | WALLET
+            POXBORDERWLLT    | Payout via Cross-Border Wallet Transfer                   | WALLET
+        maskedValue:
+          type: string
+          example: 98*************116
+          description: The masked text that needs to be displayed for the product
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          minLength: 3
+          maxLength: 3
+          example: USD
+          description: ISO 4217 alpha-3 currency code associated with this instrument (e.g. USD, EUR, GBP).
+        nickName:
+          type: string
+          example: My expense account
+          description: The custom name users can provide to identify the payment instrument
+        isDefault:
+          type: boolean
+          description: If the product is the default product
+        status:
+          readOnly: true
+          type: string
+          description: >-
+            Current lifecycle status of the payout product.
+            LINKED - Active and ready to receive payouts.
+            PENDING_VERIFICATION - Source has been submitted but awaits verification (e.g. micro-deposit confirmation).
+            SUSPENDED - Temporarily disabled; no payouts can be processed.
+            INACTIVE - Permanently deactivated.
+          enum:
+            - LINKED
+            - PENDING_VERIFICATION
+            - SUSPENDED
+            - INACTIVE
+          example: "LINKED"
+        token:
+          type: object
+          writeOnly: true
+          $ref : '#/components/schemas/PaymentToken'
+        account:
+          type: object
+          writeOnly: true
+          description: This object will be sent only when operation type is VERIFY
+          $ref : '#/components/schemas/PaymentAccount'
+        address:
+          type: object
+          description: Optional billing or instrument address. Country is supplied here as ISO 3166-1 alpha-3 (e.g. USA, GBR).
+          $ref: '#/components/schemas/Address'
+
+    PaymentAccount:
+      type: object
+      properties:
+        accountNumber:
+          type: string
+          description: This is base 64 encoded string, which is encrypted by Fiserv Protect - This is account number.
+        routingCode:
+          type: string
+          description: This is equivalent to ABA Number
+        countryCode:
+          type: string
+          description: ISO format 2-character Country code
+        ownerName:
+          type: string
+          description: Name of the Account holder - In Business, it has to be legal name
+
+
+    PaymentToken:
+      type: object
+      properties:
+        tokenData:
+          type: string
+          maxLength: 2048
+          description: 'Token created from the payment source.'
+          example: '1234123412340019'
+        tokenSource:
+          type: string
+          maxLength: 256
+          description: 'Source for the Token Service Provider (TSP).'
+          example: 'FISERV_SECURE_VAULT'
+        sourceType:
+          type: string
+          maxLength: 256
+          description: 'Payment source type for the token. PaymentCard is set as default if not provided.'
+          example: 'PaymentCard'
+
+    MultiFactorAuthentication:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - sent
+            - failed
+            - verified
+            - rejected
+          description: Status of operation
+          example: sent
+        expiresAt:
+          type: string
+          format: date-time
+          description: Timestamp when the OTP expires
+          example: '2026-01-17T10:40:00Z'
+        otpValidationId:
+          type: string
+          description: OTP verification ID that needs to be sent back in the verification and party payload
+          example: 'TRK-20260206-ABC123XYZ'
+
+    Source:
+      type: object
+      properties:
+        sourceType:
+          type: string
+          maxLength: 256
+          description: 'Payment <a href="../docs?path=docs/Resources/Guides/Payment-Sources/Source-Type.md">source type</a> for a transaction request.'
+          example: 'PaymentCard'
+        walletType:
+          type: string
+          maxLength: 256
+          description: 'Identifies the wallet type used for transaction.'
+          example: 'APPLE_PAY'
+        alias:
+          type: string
+          maxLength: 64
+          description: 'Alias name for the source.'
+          example: 'John''s credit card'
+        encryptionData:
+          $ref: '#/components/schemas/EncryptionData'
+        card:
+          $ref: '#/components/schemas/Card'
+
+    Card:
+      type: object
+      properties:
+        expirationMonth:
+          pattern: '^[0-9]{2}$'
+          type: string
+          description: '2-digit expiration month.'
+          example: '05'
+        expirationYear:
+          pattern: '^[0-9]{4}$'
+          type: string
+          description: '4-digit expiration year.'
+          example: '2035'
+        bin:
+          type: string
+          maxLength: 9
+          description: 'Bank Identification Number (BIN), the initial set of four to nine numbers of the Primary Account Number (PAN). The BIN identifies the issuer and Level 2/3 qualifications.'
+          example: '400555'
+        last4:
+          type: string
+          maxLength: 4
+          description: 'Contains the last four digits of the Primary Account Number (PAN).'
+          example: '0019'
+        scheme:
+          type: string
+          maxLength: 256
+          description: 'Card brand.'
+          example: 'VISA'
+
+
+    EncryptionData:
+      type: object
+      properties:
+        encryptionType:
+          type: string
+          maxLength: 256
+          description: '<a href="../docs?path=docs/Resources/Master-Data/Encryption-Data.md#encryption-type">Encryption type</a> to be passed.'
+          example: 'RSA'
+        encryptionTarget:
+          type: string
+          maxLength: 256
+          description: '<a href="../docs?path=docs/Resources/Master-Data/Encryption-Data.md#encryption-target">Encryption target</a> identifies the data based on how it is entered into the POS device or terminal, website, virtual terminal (VPOS), or mobile app or device.'
+          example: 'MANUAL'
+        keyId:
+          type: string
+          maxLength: 64
+          description: 'Needs to be passed if track data is encrypted.'
+          example: '88000000022'
+        encryptionBlock:
+          type: string
+          maxLength: 10000
+          description: 'This field contains the track data or card number provided in encrypted form.'
+          example: '=s3ZmiL1SSZC8QyBpj/Wn+VwpLDgp41IwstEHQS8u4EQJ7TY/0VGHEYpkbG3ORO+dGL6TzOSWuC1pCaJE3cZJ8sWONXp5pDuni1OP9v+eRyDSD25Bjzdfa3KJfmXLFXWa++wJ5CY+NdQKrjHWWKP+iAzIUEd5PmnrzVxMgXOz1wJ5YR245a2350oBbz74EZfaojPtX/DCgfEL6cCEyepttx94hIWDDiOLPuplp1KJhh7nJvUGIAhDhZwyKST68xsFswN53z/aduD128TXD4vkduK9QYgavE0y82lxwQILUGScwYnRYmb+Zu2el3ayNE8zdXCe4eWiN1vXxsKUI49WQA=='
+        encryptionBlockFields:
+          type: string
+          maxLength: 256
+          description: 'Encryption block field descriptors to facilitate decryption when using manual encryption. Each field should recorded the form field_name:byte_count e.g. card.expirationMonth:2'
+          example: 'card.cardData:16,card.nameOnCard:10,card.expirationMonth:2,card.expirationYear:4,card.securityCode:3'
+        deviceType:
+          type: string
+          maxLength: 256
+          description: '<a href="../docs?path=docs/Resources/Master-Data/Encryption-Data.md#device-type">Device type</a> to be sent for TDES and AES encrypted track data.'
+          example: 'INGENICO'
+        encryptedKey:
+          type: string
+          maxLength: 5000
+          description: 'Merchant or device defined encryption key required for decryption of encrypted <code>cardData</code>. Normally used in card not present integrations e.g. Mobile device.'
+          example: 'NdCmVw5'
+    BoardingStep:
+      type: object
+      properties:
+        stepType:
+          type: string
+          maxLength: 126
+          description: 'Unique identifier representing a specific step in the process or workflow.'
+          example: 'KYB'
+          enum:
+            - COMPLIANCE
+            - PHONE_VERIFICATION
+            - VERIFY_PHONE
+            - OWNER_PHONE_VERIFICATION
+            - BUSINESS_PHONE_VERIFICATION
+            - AGREEMENT
+            - KYB
+            - KYC
+        status:
+          type: string
+          maxLength: 64
+          description: |
+            Indicates the status of the current step.
+            INITIAL         : Step created but not yet activated.
+            PENDING         : Being evaluated by an upstream service; no user action.
+            AWAITING_ACTION : User must perform an action, refer to the actions object.
+            VERIFIED        : Step completed/approved.
+            REJECTED        : Step declined; terminal, no further user action.
+            ERROR           : Last operation failed; may be retried.
+            SKIPPED         : Step not required and bypassed.
+          example: 'PENDING'
+          enum:
+            - INITIAL
+            - PENDING
+            - AWAITING_ACTION
+            - VERIFIED
+            - REJECTED
+            - ERROR
+            - SKIPPED
+        statusMessage:
+          type: string
+          maxLength: 1024
+          description: 'Human-readable detail explaining the current status (e.g. upload instructions, rejection reason, or submit confirmation).'
+          example: 'Please upload one document from each group. Each group contains multiple options—choose any one per group.'
+        owner:
+          $ref: '#/components/schemas/Owner'
+          description: Reference to the owner for which the action is pending
+        actions:
+          type: array
+          description: 'List of actions that can or must be performed to progress or complete the associated step.'
+          items:
+            $ref: '#/components/schemas/BoardingStepAction'
+        retryAttempt:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: 'Number of kybDocSubmit/kycDocSubmit attempts sent to MRD. Starts at 1, max 5.'
+          example: 1
+    RequiredFieldViolation:
+      type: object
+      properties:
+        code:
+          description: 'Numeric violation group code (e.g. 1100 for FIELD_REQUIRED, 1200 for field length).'
+          type: integer
+          example: 1100
+        codeDesc:
+          description: 'Human-readable violation name matching the ViolationCode constant (e.g. FIELD_REQUIRED).'
+          type: string
+          example: 'FIELD_REQUIRED'
+        field:
+          description: 'The property or attribute associated with this code.'
+          type: string
+          example: 'source.sourceType'
+        message:
+          description: 'Information specific to a property or attribute.'
+          type: string
+          example: 'Missing type ID property.'
+        owner:
+          $ref: '#/components/schemas/Owner'
+    DocumentDetails:
+      type: object
+      properties:
+        documentFile:
+          type: string
+          format: binary
+          description: Binary document file to upload (PDF, JPG, PNG)
+        documentId:
+          type: string
+          description: 'Unique identifier for the uploaded document.'
+          example: doc_20260206_1234567890
+        referencePendingDocumentId:
+          type: string
+          description: 'Unique identifier assigned by a document provider for a pending document.'
+          example: 1234567890
+        documentName:
+          type: string
+          maxLength: 256
+          description: 'Original name of the file as provided by the uploader at the time of upload.'
+          example: 'drivers_license.pdf'
+        documentType:
+          type: string
+          maxLength: 126
+          description: 'Indicates the classification of the uploaded document based on its intended verification purpose.'
+          example: TAX_DOCUMENT
+        uploadedAt:
+          type: string
+          format: date-time
+          description: 'Indicates a timestamp when the document file was successfully uploaded.'
+          example: '2026-01-01T12:00:00Z'
+
+    BoardingStepAction:
+      type: object
+      properties:
+        actionId:
+          type: string
+          description: 'Unique identifier assigned for a pending action.'
+          example: 'ebb3f73e-ac08-40c9-9f52-685d30988152'
+        code:
+          type: string
+          maxLength: 64
+          description: >-
+            Machine readable code that uniquely identifies the action to be performed for a
+            workflow step. Known values include UPLOAD_DOCUMENT, VERIFY_PHONE,
+            SUBMIT_KYB (precondition for POST /v1/party/onboard with operationType=KYB) and
+            SUBMIT_KYC (precondition for POST /v1/party/onboard with operationType=KYC).
+          example: 'UPLOAD_DOCUMENT'
+        document:
+          type: array
+          description: >-
+            Nested KYB/KYC document-upload structure: a list of "any" groups, each holding
+            mutually-acceptable document options with per-docContext slots. Populated for
+            UPLOAD_DOCUMENT actions on KYB/KYC steps.
+          items:
+            $ref: '#/components/schemas/BoardingStepDocumentGroup'
+
+    BoardingStepDocumentGroup:
+      type: object
+      description: >-
+        One "any" group of selectable documents on an UPLOAD_DOCUMENT action. The group is
+        satisfied by uploading any one of its options (at least one option has a filled documentId slot).
+      properties:
+        any:
+          type: array
+          description: 'Mutually-acceptable document options; satisfy the group by uploading any one.'
+          items:
+            $ref: '#/components/schemas/BoardingStepDocumentOption'
+
+    BoardingStepDocumentOption:
+      type: object
+      description: 'One selectable document within a BoardingStepDocumentGroup "any" list.'
+      properties:
+        documentType:
+          type: string
+          maxLength: 126
+          description: 'MRD document code for this option.'
+          example: 'MRD-KYB-001'
+        message:
+          type: string
+          maxLength: 1024
+          description: 'Human-readable upload instruction for this document.'
+          example: "Upload required document: Driver's License"
+        documentId:
+          type: object
+          additionalProperties:
+            type: string
+          description: >-
+            Slot map of docContext → mrdRefDocId. A slot holds "" until the document is uploaded,
+            then holds the MRD-assigned mrdRefDocId. Normal docs carry front/back/Multipage;
+            liveness (MRD-KYC-000) carries a single live slot.
+          example:
+            front: 'MRDPAYFARE###...541__MRD-KYB-001_front_KYB'
+            back: ''
+            Multipage: ''
+
+    BadRequest:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+    RequestTimeout:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+
+    TooEarly:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+    TooManyRequest:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+    ServerError:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+    GatewayTimeout:
+      type: object
+      properties:
+        error:
+          type: array
+          description: 'Error information.'
+          items:
+            $ref: '#/components/schemas/Error'
+
+
+    TransactionProcessingDetails:
+      type: object
+      properties:
+        orderId:
+          type: string
+          maxLength: 40
+          description: 'Order identifier returned in the parameter orderId from a Charge transaction.'
+          example: 'R-3b83fca8-2f9c-4364-86ae-12c91f1fcf16'
+        transactionTimestamp:
+          type: string
+          format: date-time
+          description: 'Date and time the transaction occurred in YYYY-MM-DDThh:mm:ssZ format.'
+          example: '2016-04-16T16:06:05Z'
+        apiTraceId:
+          pattern: '^[a-f0-9]{32}$'
+          type: string
+          maxLength: 32
+          description: 'Request identifier in API that can be used to request logs from the support team.'
+          example: '1234567a1234567b1234567c1234567d'
+        clientRequestId:
+          type: string
+          maxLength: 1024
+          description: 'Echoes back the value in the request header for tracking.'
+          example: '30dd879c-ee2f-11db-8314-0800200c9a66'
+        transactionId:
+          type: string
+          maxLength: 40
+          description: 'Unique identifier for each transaction on the gateway. This value will be populated for the secondary transaction from the path.'
+          example: '838916029301'
+        apiKey:
+          type: string
+          maxLength: 64
+          description: 'APIKey from APIGEE as part of Authentication Credentials.'
+          example: 'Pv3bTlh4Gdz6**********Kbccz6sqTAFXMea4'
+
+    ProcessorResponseDetails:
+      type: object
+      properties:
+        approvalStatus:
+          type: string
+          description: 'Final status of the transaction.'
+          example: 'APPROVED'
+        processor:
+          type: string
+          maxLength: 256
+          description: 'Card processor.'
+          example: 'fiserv'
+        host:
+          type: string
+          maxLength: 256
+          description: 'Host values like CHASE, NASHVILLE.'
+          example: 'NASHVILLE'
+        responseCode:
+          type: string
+          description: 'Normalized transaction response code from the gateway (Commerce Hub Response).'
+          example: '00000'
+        responseMessage:
+          type: string
+          description: 'Normalized transaction message from the gateway (Commerce Hub Response).'
+          example: 'APPROVAL'
+        hostResponseCode:
+          type: string
+          description: 'Endpoint or issuer response code.'
+          example: '00'
+        hostResponseMessage:
+          type: string
+          description: 'Endpoint or issuer response message.'
+          example: 'APPROVAL'
+        localTimestamp:
+          type: string
+          format: date-time
+          description: 'Timestamp in ISO 8601 format YYYY-MM-DDThh:mm:ssZ'
+          example: '2016-04-16T16:06:05Z'
+        additionalInfo:
+          type: array
+          description: 'Generic object for the Name-Value pair types.'
+          items:
+            $ref: '#/components/schemas/NameValuePair'
+
+    NameValuePair:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+
+    ConsentInformation:
+      type: object
+      description: >-
+        Compliance consent record. All required fields below are needed for boarding
+        completion and block PROVISION if absent.
+      required:
+        - termsAndConditionsVersion
+        - consentTimestamp
+        - consentBy
+        - effectiveDate
+      properties:
+        termsAndConditionsVersion:
+          type: string
+          minLength: 1
+          maxLength: 12
+          description: 'Terms and Conditions transaction version.'
+          example: 'v1'
+        consentTimestamp:
+          type: string
+          format: date-time
+          pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+          minLength: 20
+          maxLength: 30
+          description: 'ISO 8601 date-time with timezone when consent was explicitly granted by an authorized entity.'
+          example: '2026-01-01T12:00:00Z'
+        consentBy:
+          type: string
+          maxLength: 256
+          description: 'The name of the individual or system entity that accepted consent.'
+          example: 'John Doe'
+        effectiveDate:
+          type: string
+          format: date
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+          minLength: 10
+          maxLength: 10
+          description: 'ISO 8601 date from which the referenced terms and conditions are considered legally effective.'
+          example: '2026-01-01'
+
+    Party:
+      type: object
+      description: >-
+        The party object. Fields marked required below are required for boarding completion
+        and will block PROVISION if absent — they are returned as requiredFieldViolations on
+        the CREATE response so callers can complete them incrementally.
+        Fields required for the API call itself (blocking HTTP 400) are defined per operationType:
+        CREATE requires party.type, party.country, party.email, party.platform.clientId, party.platform.merchantPartyId.
+        UPDATE/REPLACE/PROVISION require party.partyId.
+        business is required when party.type=Business.
+      required:
+        - country
+        - compliance
+        - taxProfile
+      properties:
+        platform:
+          $ref: '#/components/schemas/Platform'
+        partyId:
+          type: string
+          readOnly: true
+          pattern: '^[0-9]{15}$'
+          minLength: 15
+          maxLength: 15
+          description: 'The ID of a party. 15 digits long. 1st 6 digits represent the client. Next 8 digits represent the party and last digit is a check digit'
+          example: '100000900000001'
+        revisionId:
+          type: string
+          pattern: '^[0-9]{21}$'
+          minLength: 21
+          maxLength: 21
+          description: 'Unique identifier representing the current revision of the party onboarding application.'
+          example: '378259295295259202020'
+          readOnly: true
+        status:
+          type: object
+          readOnly: true
+          description: The status of the Party, and additional details related to the status
+          $ref: '#/components/schemas/PartyStatus'
+        partyRole:
+          type: string
+          description: 'Defines the persona of the party'
+          example: 'BUYER'
+          enum:
+            - BUYER
+            - SELLER
+            - MERCHANT
+        type:
+          type: string
+          maxLength: 16
+          description: 'Indicates the type of the Party.'
+          enum:
+            - INDIVIDUAL
+            - BUSINESS
+          example: 'BUSINESS'
+          readOnly: true
+        business:
+          type: object
+          $ref: '#/components/schemas/Business'
+        owners:
+          type: array
+          description: 'Party owner details.'
+          items:
+            $ref: '#/components/schemas/Owner'
+        country:
+          type: string
+          maxLength: 256
+          description: 'Country code in ISO 3166-1 alpha-2 format'
+          example: 'US'
+          readOnly: true
+        email:
+          type: string
+          format: email
+          pattern: "^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(\\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\\.[a-zA-Z]{2,}$"
+          minLength: 6
+          maxLength: 256
+          description: 'Party email address.'
+          example: 'party@domain.com'
+        locale:
+          type: string
+          pattern: '^[a-z]{2,3}(-[A-Z]{2,3})?$'
+          minLength: 2
+          maxLength: 8
+          description: 'Language/region code of user in IETF BCP47 format.'
+          example: 'en-US'
+        taxProfile:
+          $ref: '#/components/schemas/TaxProfile'
+          description: 'Tax profile for this party. Required for boarding completion and PROVISION — absence generates FIELD_REQUIRED violations in requiredFieldViolations.'
+          x-completeness-required: true
+        compliance:
+          $ref: '#/components/schemas/ConsentInformation'
+          description: 'Compliance consent record for this party. Required for boarding completion and PROVISION — absence generates FIELD_REQUIRED violations in requiredFieldViolations.'
+          x-completeness-required: true
+        finxact:
+          $ref: '#/components/schemas/FinxactData'
+          description: 'Finxact integration data. Populated after Finxact provisioning.'
+        merchantDetails:
+          $ref: '#/components/schemas/MerchantDetails'
+          description: 'Acquiring system merchant and terminal IDs.'
+
+    Platform:
+      type: object
+      description: >-
+        Platform and acquiring identifiers for the party.
+        clientId and merchantPartyId are required for the CREATE API call and will produce
+        an HTTP 400 if absent. merchantPartyId is also required in the required array below
+        as a completeness check. clientId is injected from the authenticated caller context
+        and is not sent by the client (readOnly).
+      required:
+        - merchantPartyId
+      properties:
+        clientId:
+          readOnly: true
+          type: string
+          description: The CLX client ID of a client
+          example: 'acme'
+        merchantPartyId:
+          type: string
+          description: An ID with which the platform identifies the party. Platform can send this ID or our party id in payout instructions
+          example: 'test1234'
+          readOnly: true
+        acquiringMerchantIds:
+          type: array
+          description: 'List of acquirer merchant IDs the party is tied to. Each ID must be a 15-digit numeric string.'
+          items:
+            type: string
+            pattern: '^[0-9]{15}$'
+            minLength: 15
+            maxLength: 15
+            description: 'List if acquirer merchant ID the party is tied to. Acquirer merchant ID — exactly 15 digits.'
+
+    PartyStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - PENDING
+            - ACTIVE
+            - CLOSED
+            - CLOSED_FRAUD
+            - DECLINED
+            - SUSPENDED
+        statusComments:
+          type: string
+          description: This field will have details on the current status
+          example: "Declined due to negative AI/ML checks"
+        openDate:
+          type: string
+          format: date-time
+          pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+          minLength: 20
+          maxLength: 30
+          description: "The date the party was able to accept payouts"
+        closeDate:
+          type: string
+          format: date-time
+          pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+          minLength: 20
+          maxLength: 30
+          description: "The date the party was closed"
+
+    UserAccountEvent:
+      type: object
+      properties:
+        eventName:
+          type: string
+          maxLength: 64
+          description: 'Account event name'
+          example: 'ACCOUNT_CREATED'
+        timestamp:
+          type: string
+          format: date-time
+          description: 'Date and time of the account event'
+          example: '2016-04-16T16:06:05Z'
+    Individual:
+      type: object
+      description: >-
+        Individual person details. firstName, lastName, and dateOfBirth are required for
+        boarding completion and block PROVISION if absent.
+      required:
+        - firstName
+        - lastName
+        - dateOfBirth
+      properties:
+        firstName:
+          type: string
+          maxLength: 256
+          description: 'Individual first name.'
+          example: 'Joe'
+        firstNameInitial:
+          type: string
+          description: 'Individual first name initial.'
+          example: 'P'
+        lastName:
+          type: string
+          maxLength: 256
+          description: 'Individual last name.'
+          example: 'Smith'
+        middleName:
+          type: string
+          maxLength: 256
+          description: 'Individual middle name.'
+          example: 'Ray'
+        email:
+          type: string
+          maxLength: 256
+          description: 'Individual email address.'
+          example: 'individual@domain.com'
+        dateOfBirth:
+          type: string
+          maxLength: 10
+          description: 'Individual date of birth in YYYY-MM-DD format.'
+          example: '1990-01-01'
+        occupation:
+          type: string
+          maxLength: 35
+          description: 'This field contains the occupation of the individual.'
+          example: 'DOCTOR'
+        phone:
+          $ref: '#/components/schemas/Phone'
+          description: 'Individual <a href="../docs?path=docs/Resources/Master-Data/Phone.md">phone</a> information.'
+        identityDetails:
+          type: array
+          description: 'Identity details.'
+          items:
+            $ref: '#/components/schemas/IdentityDetails'
+
+    TransactionDetails:
+      type: object
+      required:
+        - operationType
+      properties:
+        merchantTransactionId:
+          type: string
+          maxLength: 128
+          description: 'Merchant transaction ID (aka transaction reference ID).'
+          example: '1343678765'
+        merchantOrderId:
+          type: string
+          maxLength: 128
+          description: 'Merchant order ID (aka merchant reference number or purchase order (PO) number).'
+          example: '845366457890-TODO'
+        operationType:
+          type: string
+          maxLength: 50
+          description: 'Identifies the operation type based on the request.'
+          enum:
+            - CREATE
+            - UPDATE
+            - REPLACE
+            - PROVISION
+            - KYB
+            - KYC
+          example: 'CREATE'
+
+    Business:
+      type: object
+      description: >-
+        Business details. All required fields below are needed for boarding completion
+        and block PROVISION if absent. They are returned as requiredFieldViolations on CREATE
+        so callers can complete them incrementally. business itself is only required when party.type=Business.
+      required:
+        - dbaName
+        - legalName
+        - businessRegistrationNumber
+        - businessRegistrationNumberType
+        - businessLegalType
+        - phone
+        - registeredAddress
+        - mcc
+        - dateOfIncorporation
+      properties:
+        phone:
+          $ref: '#/components/schemas/Phone'
+        dbaName:
+          type: string
+          maxLength: 256
+          description: 'The first 3 characters of this field are the abbreviated Payment Facilitator name followed by an asterisk (*) or equal (=) followed by the sub merchant name.'
+          example: 'ACME STORE #9871'
+        legalName:
+          type: string
+          maxLength: 1024
+          description: 'The legal name under which the business is officially registered with government or regulatory authorities.'
+          example: 'The ACME Company'
+        businessRegistrationNumber:
+          type: string
+          maxLength: 50
+          pattern: '^[A-Za-z0-9- ]{1,50}$'
+          description: 'Government-issued identifier confirming the legal registration of the business entity. May contain letters, digits, hyphens, and spaces (1-50 characters).'
+          example: 'EIN-874980284'
+        businessRegistrationNumberType:
+          type: string
+          maxLength: 60
+          description: >-
+            Type of government-issued business registration or identification number provided
+            by the party. Accepted values are country-specific — validated at runtime against
+            an allowed list per country (e.g. EIN for USA, BN for CAN, CRN for GBR).
+          example: 'EIN'
+        registrationDate:
+          type: string
+          format: date
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+          minLength: 10
+          maxLength: 10
+          description: 'ISO 8601 date on which the business was officially registered as a legal entity with the appropriate government..'
+          example: '2015-06-15'
+        productsSold:
+          type: string
+          maxLength: 256
+        mcc:
+          type: string
+          pattern: '^[0-9]{4}$'
+          minLength: 4
+          maxLength: 4
+          description: 'Merchant Category Code (MCC). The MCC is an industry standard four-digit number used to classify a  business by the type of goods or services provided.'
+          example: '4457'
+        email:
+          type: string
+          format: email
+          pattern: "^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(\\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\\.[a-zA-Z]{2,}$"
+          minLength: 6
+          maxLength: 256
+          description: 'Business email information.'
+          example: 'customer@domain.com'
+        url:
+          type: string
+          format: uri
+          pattern: '^https?://[^\s]{1,}$'
+          minLength: 10
+          maxLength: 512
+          description: 'Business website URL. Must start with http:// or https://.'
+          example: 'https://customerservice.com'
+        registeredAddress:
+          type: object
+          description: 'List of merchant address details.'
+          $ref: '#/components/schemas/Address'
+        businessLegalType:
+          $ref: '#/components/schemas/BusinessLegalType'
+        dateOfIncorporation:
+          type: string
+          format: date
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+          minLength: 10
+          maxLength: 10
+          description: 'ISO 8601 date on which the business was incorporated.'
+          example: '2010-06-15'
+
+    Country:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 16
+          description: 'ISO-3166-1 alpha-2'
+          example: 'US'
+        displayName:
+          type: string
+          maxLength: 64
+          description: 'Human-readable country name for display purposes only.'
+          example: 'United States'
+        currencies:
+          type: array
+          description: 'List of supported ISO 4217 currency codes.'
+          items:
+            type: string
+          example: [ "USD", "GBP" ]
+
+
+    BusinessLegalType:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 64
+          description: 'Stable, canonical identifier representing a country-specific business legal type.'
+          example: 'SOLE_PROPRIETOR'
+        displayName:
+          type: string
+          maxLength: 80
+          readOnly: true
+          description: 'Human-readable label for the business legal type, intended solely for display in UI.'
+          example: 'Sole Proprietor.'
+    TaxProfile:
+      type: object
+      description: >-
+        Tax identification profile. All required fields below are needed for boarding
+        completion and block PROVISION if absent.
+      required:
+        - taxFilingName
+        - taxId
+        - taxIdType
+        - issuingCountry
+      properties:
+        taxFilingName:
+          type: string
+          description: 'The legal name of the individual or business as registered with the tax authority.'
+          example: 'My Company'
+        taxId:
+          type: string
+          maxLength: 50
+          pattern: '^[A-Za-z0-9- ]{1,50}$'
+          description: 'Tax identification number. May contain letters, digits, hyphens, and spaces (1-50 characters).'
+          example: '123-45-7890'
+        taxIdType:
+          type: string
+          maxLength: 20
+          description: 'Specifies the type of tax identification number provided, indicating the issuing authority.'
+          enum:
+            - SSN
+            - EIN
+            - TIN
+            - VAT
+            - ITIN
+          example: 'SSN'
+        issuingCountry:
+          type: string
+          maxLength: 3
+          pattern: '^[A-Z]{3}$'
+          description: 'ISO-3166-1 alpha-2'
+          example: 'US'
+
+    Address:
+      type: object
+      description: >-
+        Physical address. street and city are required for all countries and block PROVISION
+        if absent. stateOrProvince, postalCode and country are conditionally required and
+        format-validated per country at runtime — see PartyCountryValidations for
+        country-specific rules. For Business parties, country is a completeness requirement
+        and produces a FIELD_REQUIRED violation when absent.
+        All required fields here are completeness requirements (not API-call blocking).
+      required:
+        - street
+        - city
+      properties:
+        street:
+          type: string
+          maxLength: 256
+          description: 'Street address.'
+          example: '123 Main Street'
+        houseNumberOrName:
+          type: string
+          maxLength: 256
+          description: 'Secondary address information, e.g. house number or name.'
+          example: 'Apt 213'
+        recipientNameOrAddress:
+          type: string
+          maxLength: 256
+          description: 'Tertiary address information e.g. recipient name, company name or address.'
+          example: 'ATTN: Accounting Dept'
+        city:
+          type: string
+          maxLength: 256
+          description: 'City or locality.'
+          example: 'Sandy Springs'
+        stateOrProvince:
+          type: string
+          maxLength: 256
+          description: 'State or province.'
+          example: 'GA'
+        postalCode:
+          type: string
+          maxLength: 20
+          description: 'ZIP code or postal code.'
+          example: '30303-0001'
+        country:
+          type: string
+          maxLength: 3
+          pattern: '^[A-Z]{3}$'
+          description: 'ISO 3166-1 alpha-3 country code.'
+          example: 'USA'
+
+    Phone:
+      type: object
+      description: >-
+        Phone number details. countryCode and phoneNumber are required for boarding
+        completion and block PROVISION if absent. countryCode uses the same ISO-3166-1
+        alpha-3 standard as party.country. phoneNumber stores the full E.164 number,
+        including the country dialing prefix.
+      required:
+        - countryCode
+        - phoneNumber
+      properties:
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          minLength: 3
+          maxLength: 3
+          description: >-
+            ISO 3166-1 alpha-3 country code. For Business phone, must match party.country.
+            For Owner phone, any valid ISO alpha-3 value is allowed.
+          example: 'USA'
+        phoneNumber:
+          type: string
+          pattern: '^\+[1-9][0-9]{6,14}$'
+          minLength: 8
+          maxLength: 16
+          description: 'Contact phone number in full E.164 format including country code prefix (e.g. +14155550100).'
+          example: '+14155550100'
+        preference:
+          type: string
+          maxLength: 10
+          description: 'Indicates preference of contact.'
+          example: 'PRIMARY'
+        type:
+          type: string
+          maxLength: 16
+          description: 'Indicates the type of phone number.'
+          example: 'DAY'
+        extension:
+          type: string
+          maxLength: 10
+          description: 'Extension number.'
+          example: '1234'
+    Owner:
+      type: object
+      description: >-
+        Individual owner, officer, or beneficial owner associated with the party.
+        relationship, customer, and address are required for boarding completion and
+        block PROVISION if absent.
+      required:
+        - relationship
+        - customer
+        - address
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+          minLength: 36
+          maxLength: 36
+          description: 'UUID identifying this owner. System-generated on CREATE. For UPDATE/REPLACE the caller must supply the existing ownerId.'
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        relationship:
+          description: 'Describes the relation the owner has with the business'
+          $ref: '#/components/schemas/IndividualRelationship'
+        individual:
+          $ref: '#/components/schemas/Individual'
+        address:
+          $ref: '#/components/schemas/Address'
+
+    IndividualRelationship:
+      type: object
+      required:
+        - type
+      properties:
+        authorityTypes:
+          type: array
+          description: 'Specifies the roles an individual has in relation to the business entity.'
+          minItems: 1
+          items:
+            type: string
+            enum:
+              - BENEFICIAL_OWNER
+              - AUTHORIZED_SIGNATORY
+          example: [ "BENEFICIAL_OWNER", "AUTHORIZED_SIGNATORY" ]
+        percentage:
+          type: string
+          pattern: '^(100|[0-9]{1,2})$'
+          description: Ownership percentage, required if type is owner and should be between 1 and 100. Sum of all ownership percentages for a party should not exceed 100
+          example: '80'
+        title:
+          type: string
+          description: Title of the person in the organization
+          example: Director
+
+    FinxactData:
+      type: object
+      description: 'Finxact account integration data. Populated after Finxact provisioning workflow completes.'
+      properties:
+        accountNumber:
+          type: string
+          description: 'Finxact account number.'
+          example: 'FX-ACCT-0001234'
+        pendingPositionAccountNumber:
+          type: string
+          description: 'Account number for the pending position.'
+          example: 'FX-PENDING-0001234'
+        escrowPositionAccountNumber:
+          type: string
+          description: 'Account number for the escrow position.'
+          example: 'FX-ESCROW-0001234'
+        earningPositionAccountNumber:
+          type: string
+          description: 'Account number for the earning position.'
+          example: 'FX-EARNING-0001234'
+        accountSegmentCompany:
+          type: string
+          description: 'Company segment identifier within the Finxact account.'
+          example: 'FISERV_MP'
+        accountSegmentSponsorBank:
+          type: string
+          description: 'Sponsor bank segment identifier within the Finxact account.'
+          example: 'SPONSOR_BANK_001'
+
+    IdentityDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 64
+          description: 'This field contains the identification code of the entity sending/receiving the funds.'
+          example: '1234567677'
+        type:
+          type: string
+          maxLength: 64
+          description: 'This field contains the identification type code of the entity sending/receiving the funds.'
+          example: 'DRIVERS_LICENSE'
+          enum:
+            - DRIVERS_LICENSE
+            - PASSPORT
+            - NATIONAL_ID
+            - STATE_ID
+        issuingCountry:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          minLength: 2
+          maxLength: 256
+          description: 'ISO-3166-1 alpha-2'
+          example: 'US'
+        expirationDate:
+          type: string
+          format: date
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+          minLength: 10
+          maxLength: 10
+          description: 'When does the identification number expire in YYYY-MM-DD format.'
+          example: '2030-11-20'
+
+    PartyConfigurationRequest:
+      type: object
+      required:
+        - configurationType
+      properties:
+        configurationType:
+          type: string
+          description: >-
+            The type of configuration data to retrieve or update.
+            COUNTRIES - List of supported countries for party onboarding.
+            PAYOUT_COUNTRIES - List of countries that Fiserv can transfer money to.
+            PARTY_TYPES - List of supported party types.
+            ORGANIZATION_TYPES - Organization types available for party onboarding, optionally filtered by country.
+            MCC - List of Merchant Category Codes configured for the client.
+            AVAILABLE_TENDERS - Payout products available for a party based on their country.
+            COUNTRY_ADDRESS - Address field schema for a specific country (read-only via POST inquiry; requires country field).
+          enum:
+            - COUNTRIES
+            - PAYOUT_COUNTRIES
+            - PARTY_TYPES
+            - ORGANIZATION_TYPES
+            - MCC
+            - AVAILABLE_TENDERS
+            - COUNTRY_ADDRESS
+          example: "COUNTRIES"
+        partyId:
+          type: string
+          description: >-
+            The ID of the party. Required when configurationType is AVAILABLE_TENDERS.
+            The party's country is used to determine which payout products are available.
+          example: "10000090000000087"
+        country:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: >-
+            Filter by country code in ISO 3166-1 alpha-2 format. Applicable when configurationType is ORGANIZATION_TYPES.
+            If omitted, all organization types across all countries are returned.
+          example: "US"
+
+    PartyConfigurationResponse:
+      type: object
+      properties:
+        configurationType:
+          type: string
+          description: Echoes back the configurationType from the request.
+          enum:
+            - COUNTRIES
+            - PAYOUT_COUNTRIES
+            - PARTY_TYPES
+            - ORGANIZATION_TYPES
+            - MCC
+            - AVAILABLE_TENDERS
+            - COUNTRY_ADDRESS
+          example: "COUNTRIES"
+        countries:
+          type: array
+          description: >-
+            List of countries. Populated when configurationType is COUNTRIES or PAYOUT_COUNTRIES.
+          items:
+            $ref: '#/components/schemas/ConfigCountry'
+        partyTypes:
+          type: array
+          description: >-
+            List of supported party types. Populated when configurationType is PARTY_TYPES.
+          items:
+            type: string
+            enum:
+              - INDIVIDUAL
+              - BUSINESS
+          example:
+            - "INDIVIDUAL"
+            - "BUSINESS"
+        organizationTypes:
+          type: array
+          description: >-
+            Organization types grouped by country. Populated when configurationType is ORGANIZATION_TYPES.
+          items:
+            $ref: '#/components/schemas/ConfigOrganizationTypeGroup'
+        mccList:
+          type: array
+          description: >-
+            List of MCC codes configured for the client. Populated when configurationType is MCC.
+          items:
+            $ref: '#/components/schemas/ConfigMcc'
+        availableTenders:
+          type: array
+          description: >-
+            List of payout products available for the party's country. Populated when configurationType is AVAILABLE_TENDERS.
+          items:
+            $ref: '#/components/schemas/ConfigAvailableTenders'
+        countryAddressSchema:
+          $ref: '#/components/schemas/CountryAddressSchema'
+
+    ConfigCountry:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: Country code in ISO 3166-1 alpha-2 format.
+          example: "US"
+        name:
+          type: string
+          description: Human-readable name of the country.
+          example: "United States of America"
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: Default currency for the country in ISO 4217 format.
+          example: "USD"
+
+    ConfigOrganizationTypeGroup:
+      type: object
+      required:
+        - country
+        - types
+      properties:
+        country:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: Country code in ISO 3166-1 alpha-2 format that the organization types apply to.
+          example: "US"
+        types:
+          type: array
+          description: List of organization types available for this country.
+          items:
+            $ref: '#/components/schemas/ConfigOrganizationType'
+
+    ConfigOrganizationType:
+      type: object
+      required:
+        - key
+        - displayText
+      properties:
+        key:
+          type: string
+          description: Machine-readable key uniquely identifying the organization type.
+          example: "sole-proprietor"
+        displayText:
+          type: string
+          description: Human-readable label for the organization type, suitable for display in a UI.
+          example: "Sole Proprietor"
+
+    ConfigMcc:
+      type: object
+      required:
+        - mcc
+        - description
+      properties:
+        mcc:
+          type: string
+          description: >-
+            The Merchant Category Code (MCC), a four-digit number used to classify a business
+            by the type of goods or services it provides.
+          example: "5411"
+        description:
+          type: string
+          description: Human-readable description of the merchant category.
+          example: "Grocery Stores, Supermarkets"
+
+    ConfigAvailableTenders:
+      type: object
+      properties:
+        productId:
+          type: string
+          enum:
+            - ACH
+            - PAYPAL
+            - PREPAID
+            - ECHECK
+            - VISA_PLUS
+            - VENMO
+            - CARD
+          description: The type identifier of the available payout product.
+          example: "ACH"
+        displayName:
+          type: string
+          description: Human-readable name of the payout product.
+          example: "Bank Account (ACH)"
+        description:
+          type: string
+          description: Description of the payout product.
+          example: "Direct bank transfer via ACH network"
+        country:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: The country for which this payout product is available, in ISO 3166-1 alpha-2 format.
+          example: "US"
+        fees:
+          type: array
+          description: The fees applicable for this payout product in the party's country.
+          items:
+            $ref: '#/components/schemas/ConfigFee'
+
+    ConfigFee:
+      type: object
+      required:
+        - feeId
+        - amount
+        - type
+      properties:
+        feeId:
+          type: string
+          description: The ID which uniquely identifies a fee like Monthly Fee.
+        amount:
+          type: string
+          format: decimal
+          pattern: '^-?\d+(\.\d{4})$'
+          example: "1.4567"
+          description: The amount to be charged. For per-transaction charges this is a percentage.
+        type:
+          type: string
+          enum:
+            - FEE
+            - RATE
+          description: The type of fee. Use RATE for per-transaction charges.
+        currency:
+          type: string
+          description: The currency in which the fee is evaluated, as a 3-letter ISO 4217 currency code.
+          pattern: "^[A-Z]{3}$"
+          example: "USD"
+
+    CountryAddressSchema:
+      type: object
+      description: >-
+        A JSON Schema–shaped descriptor of the address form fields that a client must render
+        for a given country. Returned when configurationType is COUNTRY_ADDRESS.
+        The properties map is keyed by the address field name (e.g. street, city, stateOrProvince, postalCode).
+        The required array lists which field names are mandatory for the country.
+      properties:
+        type:
+          type: string
+          description: Always "object".
+          example: "object"
+        properties:
+          type: object
+          description: Map of address field name to its schema descriptor.
+          additionalProperties:
+            $ref: '#/components/schemas/CountryAddressSchemaProperty'
+        required:
+          type: array
+          description: List of field names that are required for this country's address.
+          items:
+            type: string
+          example:
+            - street
+            - city
+            - stateOrProvince
+            - postalCode
+
+    CountryAddressSchemaProperty:
+      type: object
+      description: Describes a single address field — its type, display label, constraints, and allowed values.
+      properties:
+        type:
+          type: string
+          description: JSON Schema type of the field (always "string" for address fields).
+          example: "string"
+        title:
+          type: string
+          description: Human-readable label to display for the field in a UI form.
+          example: "State"
+        description:
+          type: string
+          description: Optional hint or placeholder text for the field.
+          example: "US state code"
+        minLength:
+          type: integer
+          description: Minimum allowed length of the field value.
+          example: 1
+        maxLength:
+          type: integer
+          description: Maximum allowed length of the field value.
+          example: 256
+        pattern:
+          type: string
+          description: >-
+            Regular expression the field value must satisfy.
+            Null when the field has no pattern constraint.
+          example: "^[0-9]{5}(-[0-9]{4})?$"
+        enumValues:
+          type: array
+          description: >-
+            Allowed values for the field. Present when the field is a fixed-choice list
+            (e.g. stateOrProvince for US). Null when the field is free-text.
+          items:
+            type: string
+          example:
+            - "AL"
+            - "AK"
+            - "AZ"
+        enumLabels:
+          type: object
+          description: >-
+            Map of enum value to its human-readable display label.
+            Present alongside enumValues.
+          additionalProperties:
+            type: string
+          example:
+            AL: "Alabama"
+            AK: "Alaska"
+            AZ: "Arizona"
+        errorMessages:
+          type: object
+          description: >-
+            Map of constraint keyword (minLength, maxLength, pattern, required) to a
+            human-readable error message to display when that constraint is violated.
+          additionalProperties:
+            type: string
+          example:
+            pattern: "Must be a valid US ZIP code (e.g. 12345 or 12345-6789)"
+            minLength: "This field is required"
+
+    Error:
+      type: object
+      properties:
+        type:
+          description: 'The type of response either from the HOST, GATEWAY, NETWORK, or APIM.'
+          type: string
+          example: 'HOST'
+        code:
+          description: 'Error response code from the host, gateway or network.'
+          type: string
+        field:
+          description: 'The property or attribute associated with the error.'
+          type: string
+          example: 'source.sourceType'
+        message:
+          description: 'Information specific to a property or attribute.'
+          type: string
+          example: 'Missing type ID property.'
+        additionalInfo:
+          description: 'Additional info added by commerce hub in addition to error message returned by GATEWAY'
+          type: string
+          example: 'The Reauthorization request was not successful and the Cancel of referenced authorization transaction was not processed, per Auth_before_Cancel configuration'
+
+    PartyAgreementRequest:
+      type: object
+      required:
+        - agreementType
+        - partyId
+      properties:
+        agreementType:
+          type: string
+          description: >-
+            The type of agreement operation to perform.
+            DISCLOSURE - Retrieve the disclosure text for a party including important terms, conditions, and regulatory information.
+            TERMSOFSERVICE - Accept terms of service for acquiring or payouts and return the PDF document stream with documentId.
+            SIGNATURE - Add signature to a terms of service document with signer information including name and IP address.
+          enum:
+            - DISCLOSURE
+            - TERMSOFSERVICE
+            - SIGNATURE
+          example: "DISCLOSURE"
+        partyId:
+          type: string
+          description: The ID of the party.
+          example: "10000090000000087"
+        country:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: >-
+            ISO 3166-1 alpha-2 country code used to filter the disclosure content.
+            Required when agreementType is DISCLOSURE.
+          example: "US"
+        language:
+          type: string
+          description: >-
+            ISO 639-1 language code used to filter the disclosure content (e.g. en, es, fr).
+            Optional, applicable when agreementType is DISCLOSURE.
+          example: "en"
+        type:
+          type: string
+          enum:
+            - acquiring
+            - payouts
+          description: >-
+            Type of terms of service to accept.
+            Required when agreementType is TERMSOFSERVICE.
+          example: "acquiring"
+        documentId:
+          type: string
+          format: uuid
+          pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+          minLength: 36
+          maxLength: 36
+          description: >-
+            The ID of the terms of service document.
+            Required when agreementType is SIGNATURE.
+          example: "tos_acq_20260117_1234567890"
+        signature:
+          $ref: '#/components/schemas/AgreementSignature'
+
+    AgreementSignature:
+      type: object
+      description: >-
+        Signer information. Required when operationType is SIGNATURE.
+      required:
+        - name
+        - ipAddress
+      properties:
+        name:
+          type: string
+          description: Name of the person signing the document.
+          example: "John Doe"
+        ipAddress:
+          type: string
+          format: ipv4
+          description: IP address of the signer.
+          example: "192.168.1.1"
+
+    PartyAgreementResponse:
+      type: object
+      properties:
+        agreementType:
+          type: string
+          description: Echoes back the agreementType from the request.
+          enum:
+            - DISCLOSURE
+            - TERMSOFSERVICE
+            - SIGNATURE
+          example: "DISCLOSURE"
+        disclosure:
+          $ref: '#/components/schemas/AgreementDisclosure'
+        termsOfService:
+          $ref: '#/components/schemas/AgreementTermsOfService'
+        signedTermsOfService:
+          $ref: '#/components/schemas/AgreementSignedTermsOfService'
+
+    AgreementDisclosure:
+      type: object
+      description: >-
+        Disclosure information. Populated when operationType is DISCLOSURE.
+      properties:
+        disclosureText:
+          type: string
+          description: The full disclosure text content.
+          example: |
+            IMPORTANT DISCLOSURE INFORMATION
+
+            This disclosure contains important information about your account, fees, and terms of service.
+            Please read carefully and retain for your records.
+
+            1. Processing Fees: Transaction fees apply based on your agreement.
+            2. Payout Schedule: Funds are transferred according to your selected schedule.
+            3. Liability: You are responsible for all transactions processed through your account.
+            4. Compliance: You must comply with all applicable laws and regulations.
+        version:
+          type: string
+          description: Version number of the disclosure.
+          example: "1.0"
+        effectiveDate:
+          type: string
+          format: date
+          description: Date when this disclosure becomes effective.
+          example: "2026-01-01"
+        lastUpdated:
+          type: string
+          format: date
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+          minLength: 10
+          maxLength: 10
+          description: Date when the disclosure was last updated (ISO 8601 date).
+          example: "2026-01-15"
+
+    AgreementTermsOfService:
+      type: object
+      description: >-
+        Terms of service information. Populated when operationType is TERMSOFSERVICE.
+      required:
+        - documentId
+        - type
+        - acceptedAt
+      properties:
+        documentId:
+          type: string
+          description: Unique identifier for the terms of service document.
+          example: "tos_acq_20260117_1234567890"
+        type:
+          type: string
+          enum:
+            - acquiring
+            - payouts
+          description: Type of terms of service accepted.
+          example: "acquiring"
+        acceptedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the terms were accepted.
+          example: "2026-01-17T10:30:00Z"
+        documentContent:
+          type: string
+          format: byte
+          description: Base64-encoded PDF document stream.
+          example: "JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmoKPDwvTGVuZ3Ro..."
+
+    AgreementSignedTermsOfService:
+      type: object
+      description: >-
+        Signed terms of service information. Populated when operationType is SIGNATURE.
+      required:
+        - documentId
+        - type
+        - acceptedAt
+        - signature
+        - signedAt
+      properties:
+        documentId:
+          type: string
+          description: Unique identifier for the terms of service document.
+          example: "tos_acq_20260117_1234567890"
+        type:
+          type: string
+          enum:
+            - acquiring
+            - payouts
+          description: Type of terms of service accepted.
+          example: "acquiring"
+        acceptedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the terms were accepted.
+          example: "2026-01-17T10:30:00Z"
+        documentContent:
+          type: string
+          format: byte
+          description: Base64-encoded PDF document stream.
+          example: "JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmoKPDwvTGVuZ3Ro..."
+        signature:
+          $ref: '#/components/schemas/AgreementSignature'
+        signedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the document was signed.
+          example: "2026-01-17T10:35:00Z"
+
+    GetPartyResponse:
+      type: object
+      properties:
+        processorResponseDetails:
+          $ref: '#/components/schemas/ProcessorResponseDetails'
+        party:
+          $ref: '#/components/schemas/GetParty'
+        pendingBoardingSteps:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardingStep'
+
+    GetParty:
+      type: object
+      properties:
+        platform:
+          $ref: '#/components/schemas/Platform'
+        partyId:
+          type: string
+        revisionId:
+          type: string
+        status:
+          $ref: '#/components/schemas/PartyStatus'
+        type:
+          type: string
+        business:
+          $ref: '#/components/schemas/Business'
+        country:
+          type: string
+        email:
+          type: string
+        locale:
+          type: string
+        compliance:
+          $ref: '#/components/schemas/ConsentInformation'
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/Owner'
+        taxProfile:
+          $ref: '#/components/schemas/TaxProfile'
+        tenders:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartyTender'
+        finxact:
+          $ref: '#/components/schemas/Finxact'
+
+
+    MerchantDetails:
+      type: object
+      properties:
+        merchantId:
+          type: string
+        terminalId:
+          type: string
+
+
+    IdentityDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        issuingCountry:
+          type: string
+        expirationDate:
+          type: string
+          format: date
+
+    Finxact:
+      type: object
+      properties:
+        accountNumber:
+          type: string
+        company:
+          type: string
+        customer:
+          type: object
+          properties:
+            customerGroup:
+              type: string
+            customerId:
+              type: string
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinxactPosition'
+        sponsorBank:
+          type: string
+
+    FinxactPosition:
+      type: object
+      properties:
+        posnAcctNbr:
+          type: string
+        posnName:
+          type: string
+        posnNbr:
+          type: integer
+        prodName:
+          type: string
+
+
+    PendingPartyListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 10
+        totalCount:
+          type: integer
+          example: 100
+        parties:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingPartySummary'
+
+    PendingPartySummary:
+      type: object
+      properties:
+        partyId:
+          type: string
+        partyType:
+          type: string
+        partyRole:
+          type: string
+        partyStatus:
+          type: string
+        countryCode:
+          type: string
+        business:
+          $ref: '#/components/schemas/PendingPartyBusiness'
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingPartyOwner'
+        createdBy:
+          type: string
+        createdDate:
+          type: string
+        lastModifiedDate:
+          type: string
+
+    PendingPartyBusiness:
+      type: object
+      properties:
+        businessEmail:
+          type: string
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingPartyAddress'
+
+    PendingPartyAddress:
+      type: object
+      properties:
+        address1:
+          type: string
+        city:
+          type: string
+        stateOrProvince:
+          type: string
+        postalCode:
+          type: string
+        countryCode:
+          type: string
+        county:
+          type: string
+
+    PendingPartyOwner:
+      type: object
+      properties:
+        email:
+          type: string
+
+    SearchPartiesRequest:
+      type: object
+      properties:
+        platformId:
+          type: string
+        param:
+          $ref: '#/components/schemas/SearchPartyFilterBy'
+        limit:
+          type: integer
+        page:
+          type: integer
+
+    SearchPartyFilterBy:
+      type: object
+      properties:
+        partyEmail:
+          type: string
+        partyId:
+          type: string
+        partyRole:
+          type: string
+        partyStatus:
+          type: string
+        partyType:
+          type: string
+        partyName:
+          type: string
+        partyStreet:
+          type: string
+        partyCity:
+          type: string
+        partyCountry:
+          type: string
+        partyState:
+          type: string
+        partyPostalCode:
+          type: string
+        partyCounty:
+          type: string
+        logic:
+          $ref: '#/components/schemas/SearchLogic'
+
+    SearchLogic:
+      type: object
+      properties:
+        operator:
+          type: string
+
+    SearchPartiesResponse:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+        limit:
+          type: integer
+        page:
+          type: integer
+        parties:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchedParty'
+
+    SearchedParty:
+      type: object
+      properties:
+        partyId:
+          type: string
+        partyType:
+          type: string
+        partyRole:
+          type: string
+        status:
+          type: string
+        countryCode:
+          type: string
+        business:
+          $ref: '#/components/schemas/SearchedBusiness'
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchedOwner'
+        createdBy:
+          type: string
+        createdDate:
+          type: string
+        lastModifiedDate:
+          type: string
+
+    SearchedBusiness:
+      type: object
+      properties:
+        businessEmail:
+          type: string
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchedAddress'
+
+    SearchedAddress:
+      type: object
+      properties:
+        address1:
+          type: string
+        city:
+          type: string
+        stateOrProvince:
+          type: string
+        postalCode:
+          type: string
+        countryCode:
+          type: string
+        county:
+          type: string
+
+    SearchedOwner:
+      type: object
+      properties:
+        email:
+          type: string
+
+    PartyActionHistoryResponse:
+      type: object
+      properties:
+        partyId:
+          type: string
+        actionHistory:
+          $ref: '#/components/schemas/PartyActionHistory'
+
+    PartyActionHistory:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartyAction'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    PartyAction:
+      type: object
+      properties:
+        actionId:
+          type: string
+        actionCode:
+          type: string
+        correlationId:
+          type: string
+        performedBy:
+          type: string
+        actionTimestamp:
+          type: string
+        actionDetails:
+          type: object
+          additionalProperties: true
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        actionShortDescription:
+          type: string
+        actionLongDescription:
+          type: string
+        createdBy:
+          type: string
+        createdDate:
+          type: string
+        modifiedBy:
+          type: string
+        modifiedDate:
+          type: string
+
+
+
+
+    PartyStatusUpdateRequest:
+      type: object
+      required:
+        - party
+      properties:
+        party:
+          type: object
+          required:
+            - partyId
+            - status
+          properties:
+            partyId:
+              type: string
+              description: Unique identifier of the party
+              example: "101475000002065"
+            status:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  description: New status of the party
+                  enum:
+                    - PENDING
+                    - ACTIVE
+                    - CLOSED
+                    - CLOSED_FRAUD
+                    - DECLINED
+                    - SUSPENDED
+                  example: "CLOSED"
+                statusComments:
+                  type: string
+                  description: Additional comments related to status update
+                  example: "Contract in progress"
+
+    PartyStatusUpdateResponse:
+      type: object
+      properties:
+        party:
+          type: object
+          properties:
+            partyId:
+              type: string
+              description: Unique identifier of the party
+              example: "101475000002065"
+            type:
+              type: string
+              description: Party type
+              enum:
+                - BUSINESS
+                - INDIVIDUAL
+              example: "BUSINESS"
+            status:
+              type: object
+              properties:
+                status:
+                  type: string
+                  description: Updated status of the party
+                  enum:
+                    - PENDING
+                    - ACTIVE
+                    - CLOSED
+                    - CLOSED_FRAUD
+                    - DECLINED
+                    - SUSPENDED
+                  example: "CLOSED"
+                statusComments:
+                  type: string
+                  description: Additional comments related to status update
+                  example: "Contract in progress"
+                openDate:
+                  type: string
+                  format: date-time
+                  description: Date when the party account was opened
+                  example: "2027-01-01T00:00:00Z"
+                closeDate:
+                  type: string
+                  format: date-time
+                  description: Date when the party account was closed
+                  example: "2027-01-01T00:00:00Z"
+
+
