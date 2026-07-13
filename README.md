@@ -281,12 +281,14 @@ use property bindings for object values:
 
 ## Typed API clients
 
-The SDK exports typed `openapi-fetch` clients for both service contracts. Use
+The SDK exports typed `openapi-fetch` clients for service contracts. Use
 `createCommerceHubClient` for widget/runtime interaction-service paths and
-`createCommerceHubMerchantClient` for host-owned merchant-service paths.
+`createCommerceHubMerchantClient` for host-owned merchant-service paths. Use
+`createCommerceHubConfigClient` for party configuration inquiry paths.
 
 ```ts
 import {
+  createCommerceHubConfigClient,
   createCommerceHubClient,
   createCommerceHubMerchantClient,
 } from 'commerce-hub-connect-sdk';
@@ -299,20 +301,34 @@ const runtimeClient = createCommerceHubClient({
 });
 
 const merchantClient = createCommerceHubMerchantClient({baseURL: 'QA'});
+const configClient = createCommerceHubConfigClient({baseURL: 'QA'});
 
 const {data, error} = await runtimeClient.GET('/interaction');
 const completed = await merchantClient.GET(
   '/merchant/interaction/{interactionId}/complete',
   {params: {path: {interactionId: data?.interactionId ?? ''}}}
 );
+const countries = await configClient.POST('/party/configuration-inquiry', {
+  params: {
+    header: {
+      'Client-Id': 'client-1',
+      'User-Id': 'user-1',
+    },
+  },
+  body: {configurationType: 'COUNTRIES'},
+});
 ```
 
 Generated OpenAPI types live in `src/generated/openapi.ts` for runtime paths and
-`src/generated/merchant-openapi.ts` for merchant paths. Regenerate both with
-`npm run generate:client` after `swagger.json` or `merchant-swagger.json`
-changes. Runtime types are exported as `components`, `operations`, and `paths`;
-merchant types are exported as `MerchantComponents`, `MerchantOperations`, and
-`MerchantPaths`.
+`src/generated/merchant-openapi.ts` for merchant paths. Party configuration
+inquiry types live in `src/generated/config-openapi.ts`, generated from
+`config-swagger.yaml` with the public client path normalized to
+`/party/configuration-inquiry`. Regenerate all clients with
+`npm run generate:client` after `swagger.json`, `merchant-swagger.json`, or
+`config-swagger.yaml` changes. Runtime types are exported as `components`,
+`operations`, and `paths`; merchant types are exported as `MerchantComponents`,
+`MerchantOperations`, and `MerchantPaths`; config types are exported as
+`ConfigComponents`, `ConfigOperations`, and `ConfigPaths`.
 
 The public `InteractionResponse` type intentionally augments the generated
 OpenAPI type with optional `oauth` data injected by the CommerceHub gateway.

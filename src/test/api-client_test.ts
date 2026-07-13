@@ -3,11 +3,14 @@ import {assert} from '@open-wc/testing';
 import {
   COMMERCE_HUB_BASE_URLS,
   DEFAULT_COMMERCE_HUB_BASE_URL,
+  createCommerceHubConfigClient,
   createCommerceHubClient,
   createCommerceHubMerchantClient,
   resolveCommerceHubBaseURL,
 } from '../internal/api-client.js';
 import type {
+  ConfigComponents,
+  ConfigPaths,
   MerchantComponents,
   MerchantPaths,
 } from '../commerce-hub-connect.js';
@@ -146,6 +149,18 @@ suite('commerce-hub-connect api client', () => {
     assertMerchantPaths('/merchant/interaction/create');
   });
 
+  test('creates a config client from the generated party configuration contract', () => {
+    const assertConfigPath = (
+      _paths: keyof ConfigPaths & '/party/configuration-inquiry'
+    ) => undefined;
+    const assertConfigRequest = (
+      _request: ConfigComponents['schemas']['PartyConfigurationRequest']
+    ) => undefined;
+
+    assertConfigPath('/party/configuration-inquiry');
+    assertConfigRequest({configurationType: 'COUNTRIES'});
+  });
+
   test('gets merchant interaction completion by path parameter without a request body', async () => {
     let receivedRequest: Request | undefined;
     let receivedBody = '';
@@ -246,5 +261,48 @@ suite('commerce-hub-connect api client', () => {
       mode: 'PRE_AUTHENTICATED',
       features: ['ADD_ACCOUNT', 'SELECT'],
     });
+  });
+
+  test('posts party configuration inquiry through the CHC base URL', async () => {
+    let receivedRequest: Request | undefined;
+    let receivedBody: unknown;
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      receivedRequest = input instanceof Request ? input : new Request(input);
+      receivedBody = await receivedRequest.json();
+
+      return new Response(
+        JSON.stringify({
+          configurationType: 'COUNTRIES',
+          countries: [{code: 'USA', name: 'United States', currency: 'USD'}],
+        }),
+        {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        }
+      );
+    };
+
+    const client = createCommerceHubConfigClient({baseURL: 'DEV'});
+
+    const response = await client.POST('/party/configuration-inquiry', {
+      params: {
+        header: {
+          'Client-Id': 'client-1',
+          'User-Id': 'user-1',
+        },
+      },
+      body: {configurationType: 'COUNTRIES'},
+    });
+
+    assert.equal(
+      receivedRequest?.url,
+      'https://connect-dev.fiservapis.com/chc/party/configuration-inquiry'
+    );
+    assert.equal(receivedRequest?.method, 'POST');
+    assert.equal(receivedRequest?.headers.get('Client-Id'), 'client-1');
+    assert.equal(receivedRequest?.headers.get('User-Id'), 'user-1');
+    assert.deepEqual(receivedBody, {configurationType: 'COUNTRIES'});
+    assert.equal(response.data?.countries?.[0]?.code, 'USA');
   });
 });

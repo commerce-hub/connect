@@ -139,12 +139,14 @@ import type {
 
 export {
   COMMERCE_HUB_BASE_URLS,
+  createCommerceHubConfigClient,
   createCommerceHubClient,
   createCommerceHubMerchantClient,
   DEFAULT_COMMERCE_HUB_BASE_URL,
   resolveCommerceHubBaseURL,
   type CommerceHubBaseURLInput,
   type CommerceHubBaseURLPreset,
+  type CommerceHubConfigClient,
   type CommerceHubClient,
   type CommerceHubMerchantClient,
   type CommerceHubClientOptions,
@@ -161,6 +163,11 @@ export type {
   operations as MerchantOperations,
   paths as MerchantPaths,
 } from './generated/merchant-openapi.js';
+export type {
+  components as ConfigComponents,
+  operations as ConfigOperations,
+  paths as ConfigPaths,
+} from './generated/config-openapi.js';
 
 /**
  * Error payload reserved for future public SDK error events.
