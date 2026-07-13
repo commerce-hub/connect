@@ -446,7 +446,7 @@ const assertPartyCountryAddressConfigRequest = (
   );
   assert.equal(request.credentials, 'include');
   assert.deepEqual(JSON.parse(request.bodyText), {
-    configurationType: 'COUNTRY_ADDRESS',
+    configurationType: 'COUNTRY_TENDER',
     country,
   });
 };
@@ -2385,7 +2385,7 @@ suite('commerce-hub-connect flow', () => {
 
         return new Response(
           JSON.stringify({
-            configurationType: 'COUNTRY_ADDRESS',
+            configurationType: 'COUNTRY_TENDER',
             countryAddressSchema: {type: 'object', properties: {}},
           }),
           {status: 200, headers: {'Content-Type': 'application/json'}}
@@ -2522,7 +2522,7 @@ suite('commerce-hub-connect flow', () => {
     pendingConfig.resolve(
       new Response(
         JSON.stringify({
-          configurationType: 'COUNTRY_ADDRESS',
+          configurationType: 'COUNTRY_TENDER',
           countryAddressSchema: {type: 'object', properties: {}},
         }),
         {status: 200, headers: {'Content-Type': 'application/json'}}

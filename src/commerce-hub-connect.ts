@@ -2735,7 +2735,7 @@ export class CommerceHubConnect extends LitElement {
     try {
       const configResponse = await this.fetchManualBankAccountCountryConfig(
         interactionId,
-        country
+        'CAN'
       );
 
       if (
@@ -4497,7 +4497,7 @@ export class CommerceHubConnect extends LitElement {
           'User-Id': createRandomUuid(),
         },
         body: JSON.stringify({
-          configurationType: 'COUNTRY_ADDRESS',
+          configurationType: 'COUNTRY_TENDER',
           country,
         }),
         credentials: 'include',
