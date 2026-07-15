@@ -355,9 +355,8 @@ type PaymentSdkAppearanceBranding = Partial<{
 
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
-const MANUAL_BANK_ACCOUNT_COUNTRY = 'CAN';
 const NO_INSTRUMENT_SCHEMAS_ERROR =
-  'No instrument schemas are available for Canada. Try again.';
+  'No instrument schemas are available for this country. Try again.';
 
 @customElement('commerce-hub-bank-account-jsonforms')
 class CommerceHubBankAccountJsonForms extends JsonFormsLit {
@@ -2659,6 +2658,7 @@ export class CommerceHubConnect extends LitElement {
 
   private async showManualBankAccountScreen() {
     const interactionId = this.requireInteractionId();
+    const country = this.interactionResponse?.country?.trim();
 
     this.clearDeletePaymentSourceConfirmation();
     this.resetBankFlow();
@@ -2673,16 +2673,24 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (!country) {
+      this.bankAccountConfigError =
+        'Bank account details are not available because the interaction response is missing a country.';
+      this.bankFlowScreen = 'manual-config-error';
+      return;
+    }
+
     try {
       const configResponse = await this.fetchManualBankAccountCountryConfig(
         interactionId,
-        MANUAL_BANK_ACCOUNT_COUNTRY
+        country
       );
 
       if (
         !this.isCurrentManualBankAccountConfigRequest(
           requestToken,
-          interactionId
+          interactionId,
+          country
         )
       ) {
         if (requestToken === this.bankAccountConfigRequestToken) {
@@ -2717,7 +2725,8 @@ export class CommerceHubConnect extends LitElement {
       if (
         !this.isCurrentManualBankAccountConfigRequest(
           requestToken,
-          interactionId
+          interactionId,
+          country
         )
       ) {
         if (requestToken === this.bankAccountConfigRequestToken) {
@@ -2734,12 +2743,15 @@ export class CommerceHubConnect extends LitElement {
 
   private isCurrentManualBankAccountConfigRequest(
     requestToken: number,
-    interactionId: string | undefined
+    interactionId: string | undefined,
+    country: string | undefined
   ): boolean {
     return (
       requestToken === this.bankAccountConfigRequestToken &&
       Boolean(interactionId) &&
-      this.interactionResponse?.interactionId === interactionId
+      Boolean(country) &&
+      this.interactionResponse?.interactionId === interactionId &&
+      this.interactionResponse?.country?.trim() === country
     );
   }
 

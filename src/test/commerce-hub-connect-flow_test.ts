@@ -539,7 +539,7 @@ const assertSourceCreateHeaders = (request: CapturedRequest) => {
 
 const assertPartyCountryTenderConfigRequest = (
   request: CapturedRequest,
-  country = 'CAN'
+  country: string
 ) => {
   assert.equal(request.method, 'POST');
   assert.equal(
@@ -2328,6 +2328,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'GBR',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
@@ -2365,7 +2366,7 @@ suite('commerce-hub-connect flow', () => {
       (request) =>
         new URL(request.url).pathname === '/party/configuration-inquiry'
     )!;
-    assertPartyCountryTenderConfigRequest(configRequest);
+    assertPartyCountryTenderConfigRequest(configRequest, 'GBR');
 
     const radios = [
       ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
@@ -2756,7 +2757,7 @@ suite('commerce-hub-connect flow', () => {
       (request) =>
         new URL(request.url).pathname === '/party/configuration-inquiry'
     )!;
-    assertPartyCountryTenderConfigRequest(configRequest);
+    assertPartyCountryTenderConfigRequest(configRequest, 'USA');
     assert.exists(
       el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
     );
