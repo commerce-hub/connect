@@ -23,6 +23,12 @@ import {
   usableInstrumentSchemas,
   type ConfigInstrumentSchema,
 } from './internal/forms/instrument-schema.js';
+import {
+  createManualBankAccountRequest,
+  createManualBankBillingAddress,
+  encryptManualBankAccountRequest,
+  type ManualBankAccountRequest,
+} from './internal/forms/manual-bank-account-request.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
   NEW_BILLING_ADDRESS_VALUE,
@@ -570,6 +576,12 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private bankAccountFormData: Record<string, unknown> = {};
+
+  @state()
+  private bankAccountFormValid = false;
+
+  @state()
+  private bankAccountSubmitError?: string;
 
   private bankAccountFormI18n?: JsonFormsI18nState;
 
@@ -1874,6 +1886,8 @@ export class CommerceHubConnect extends LitElement {
       return this.renderManualBankAccountConfigErrorScreen();
     }
 
+    const isSaving = this.pendingAction === 'save-bank-account';
+
     return this.renderWidgetShell({
       title: 'Enter bank details',
       headerAction: renderTextLinkButton({
@@ -1893,9 +1907,25 @@ export class CommerceHubConnect extends LitElement {
             .uischema=${bankAccountFormUiSchema}
             .data=${this.bankAccountFormData}
             .i18n=${this.bankAccountFormI18n}
+            .readonly=${isSaving}
             .validationMode=${'ValidateAndShow'}
             @data-change=${this.handleBankAccountFormDataChange}
+            @errors-change=${this.handleBankAccountFormErrorsChange}
           ></commerce-hub-bank-account-jsonforms>
+          ${this.bankAccountSubmitError
+            ? renderAlert({
+                variant: 'danger',
+                message: this.bankAccountSubmitError,
+              })
+            : ''}
+          <div class="primitive-footer card-form-primary">
+            ${renderButton({
+              label: isSaving ? 'Saving bank account' : 'Save bank account',
+              action: 'save-bank-account',
+              loading: isSaving,
+              disabled: !this.bankAccountFormValid || isSaving,
+            })}
+          </div>
         </div>
       `,
     });
@@ -2076,6 +2106,11 @@ export class CommerceHubConnect extends LitElement {
 
     if (action === 'select-instrument-schema') {
       this.initializeManualBankAccountScreen();
+      return;
+    }
+
+    if (action === 'save-bank-account') {
+      void this.saveManualBankAccount();
       return;
     }
 
@@ -2368,7 +2403,7 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleBankAccountFormDataChange = (
-    event: CustomEvent<{data?: unknown}>
+    event: CustomEvent<{data?: unknown; errors?: unknown[]}>
   ) => {
     const data = event.detail.data;
 
@@ -2376,6 +2411,14 @@ export class CommerceHubConnect extends LitElement {
       typeof data === 'object' && data !== null && !Array.isArray(data)
         ? (data as Record<string, unknown>)
         : {};
+    this.bankAccountFormValid = (event.detail.errors?.length ?? 0) === 0;
+    this.bankAccountSubmitError = undefined;
+  };
+
+  private handleBankAccountFormErrorsChange = (
+    event: CustomEvent<{errors?: unknown[]}>
+  ) => {
+    this.bankAccountFormValid = (event.detail.errors?.length ?? 0) === 0;
   };
 
   private handlePaste = (event: Event) => {
@@ -2773,6 +2816,8 @@ export class CommerceHubConnect extends LitElement {
       createInstrumentSchemaUiSchema(selectedSchema);
     this.bankAccountFormData =
       createInstrumentSchemaInitialData(selectedSchema);
+    this.bankAccountFormValid = false;
+    this.bankAccountSubmitError = undefined;
     this.bankAccountFormI18n = {
       translateError: createInstrumentSchemaErrorTranslator(selectedSchema),
     };
@@ -2783,6 +2828,8 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountFormSchema = undefined;
     this.bankAccountFormUiSchema = undefined;
     this.bankAccountFormData = {};
+    this.bankAccountFormValid = false;
+    this.bankAccountSubmitError = undefined;
     this.bankAccountFormI18n = undefined;
   }
 
@@ -3056,6 +3103,113 @@ export class CommerceHubConnect extends LitElement {
     } catch (cause) {
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
+    } finally {
+      this.pendingAction = undefined;
+    }
+  }
+
+  private async saveManualBankAccount() {
+    if (
+      this.pendingAction === 'save-bank-account' ||
+      !this.bankAccountFormValid
+    ) {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+    const selectedSchema = this.bankAccountInstrumentSchemas.find(
+      (schema) =>
+        schema.bavSupportedCode === this.selectedBankAccountInstrumentSchemaCode
+    );
+
+    if (!interactionId || !selectedSchema) {
+      return;
+    }
+
+    let sourceCreateContext: SourceCreateContext;
+
+    try {
+      sourceCreateContext = this.requireSourceCreateContext();
+    } catch (cause) {
+      this.bankAccountSubmitError = apiErrorMessage(cause);
+      return;
+    }
+
+    this.pendingAction = 'save-bank-account';
+    this.bankAccountSubmitError = undefined;
+
+    try {
+      const billingAddress = createManualBankBillingAddress(
+        this.bankAccountFormData,
+        createRandomUuid()
+      );
+      const billingAddressResponse =
+        await this.requestCommerceHubJson<BillingAddressResponse>(
+          '/interaction/billing-address',
+          interactionId,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(billingAddress),
+            credentials: 'include',
+          }
+        );
+      const billingAddressId = billingAddressResponse.value?.trim();
+
+      if (!billingAddressId) {
+        throw new Error('The billing address response did not include an id.');
+      }
+
+      const bankSource = createManualBankAccountRequest(
+        this.bankAccountFormData,
+        selectedSchema,
+        billingAddressId,
+        createRandomUuid()
+      );
+      const encryptedBankSource = await encryptManualBankAccountRequest(
+        bankSource,
+        (value) => encryptSourceValue(value, sourceCreateContext.publicKey)
+      );
+      const verificationResponse =
+        await this.requestCommerceHubJson<VerificationResponse>(
+          '/interaction/source/ach',
+          interactionId,
+          {
+            method: 'POST',
+            headers: this.createSourceCreateHeaders(
+              interactionId,
+              sourceCreateContext,
+              {'Content-Type': 'application/json'}
+            ),
+            body: JSON.stringify(encryptedBankSource),
+            credentials: 'include',
+          }
+        );
+      const paymentSourceId = sourceIdFromVerificationResponse(
+        verificationResponse,
+        'The bank account creation response did not include a source id.'
+      );
+      const createdSource = this.sourceWithVerificationResponse(
+        bankPaymentSourceFromManualRequest(bankSource),
+        verificationResponse
+      ) as BankPaymentSource & {id: string};
+      const nextInteractionResponse = this.interactionResponseWithAddedSource(
+        interactionId,
+        createdSource
+      );
+
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
+      this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
+      this.resetBankFlow();
+
+      if (createdSource.verificationInfo?.status === 'VERIFIED') {
+        await this.attachPaymentSource(paymentSourceId);
+        return;
+      }
+
+      this.showAddedPaymentSourceStatus(createdSource);
+    } catch (cause) {
+      this.bankAccountSubmitError = apiErrorMessage(cause);
     } finally {
       this.pendingAction = undefined;
     }
@@ -4619,6 +4773,23 @@ const bankPaymentSourceFromVerificationResponse = (
   bankAccount: {},
 });
 
+const bankPaymentSourceFromManualRequest = (
+  request: ManualBankAccountRequest
+): BankPaymentSource => ({
+  id: request.id,
+  name: request.name,
+  tenderType: 'BankAccount',
+  billingAddressId: request.billingAddressId,
+  accountHolderType: request.accountHolderType,
+  bankAccount: {
+    bankName: request.bankAccount.bankName,
+    accountType: request.bankAccount.accountType,
+    accountNumber: lastFour(request.bankAccount.accountNumber),
+    asset: request.bankAccount.asset,
+    country: request.bankAccount.country,
+  },
+});
+
 const sourceIdFromVerificationResponse = (
   response: VerificationResponse,
   errorMessage: string
@@ -5209,7 +5380,8 @@ const apiErrorMessage = (error: unknown): string => {
     error &&
     typeof error === 'object' &&
     'message' in error &&
-    typeof error.message === 'string'
+    typeof error.message === 'string' &&
+    error.message.trim()
   ) {
     return error.message;
   }

@@ -2542,6 +2542,278 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('saves a valid manual Canadian bank account and sanitizes the emitted source', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([TEST_INSTRUMENT_SCHEMAS[0]]);
+      }
+
+      if (pathname === '/interaction/billing-address') {
+        return new Response(JSON.stringify({value: 'billing-bank-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (pathname === '/interaction/source/ach') {
+        return new Response(
+          JSON.stringify({
+            sourceId: 'bank-created-1',
+            status: 'UNDER_REVIEW',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CA',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+    const {addPaymentMethodEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await clickAction(el, 'add-ach-manually');
+    await waitFor(
+      () =>
+        Boolean(el.shadowRoot!.querySelector('input[name="accountNumber"]')),
+      'manual bank form did not render'
+    );
+
+    const saveButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="save-bank-account"]'
+    )!;
+    assert.isTrue(saveButton.disabled);
+
+    const setBankField = async (name: string, value: string) => {
+      const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+        `input[name="${name}"]`
+      )!;
+
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await flushElement(el);
+    };
+
+    await setBankField('accountHolderName', 'Bob Bobson');
+    await setBankField('accountNumber', '0000026');
+    await setBankField('address.city', 'Toronto');
+    await setBankField('institutionNumber', '002');
+    await setBankField('transitNumber', '12345');
+    await waitForActionEnabled(el, 'save-bank-account');
+    await clickAction(el, 'save-bank-account');
+    await waitForRequest(requests, '/interaction/source/ach');
+    await waitFor(
+      () => addPaymentMethodEvents.length === 1,
+      'manual bank source event was not emitted'
+    );
+
+    const addressRequest = requests.find(
+      (request) =>
+        new URL(request.url).pathname === '/interaction/billing-address'
+    )!;
+    const sourceRequest = requests.find(
+      (request) => new URL(request.url).pathname === '/interaction/source/ach'
+    )!;
+    const addressBody = JSON.parse(addressRequest.bodyText);
+    const sourceBody = JSON.parse(sourceRequest.bodyText);
+    const encryptedAccountNumber = sourceBody.bankAccount.accountNumber;
+    const encryptedAccountNumberReEntered =
+      sourceBody.bankAccount.accountNumberReEntered;
+    const encryptedRoutingNumber = sourceBody.bankAccount.routingNumber;
+
+    assert.match(addressBody.id, /^[0-9a-f-]{36}$/u);
+    assert.deepEqual(addressBody, {
+      id: addressBody.id,
+      recipientNameOrAddress: 'Bob Bobson',
+      street: '',
+      city: 'Toronto',
+      postalCode: '',
+      country: '',
+    });
+    assert.match(sourceBody.id, /^[0-9a-f-]{36}$/u);
+    assert.deepEqual(sourceBody, {
+      id: sourceBody.id,
+      name: 'Bob Bobson',
+      billingAddressId: 'billing-bank-1',
+      tenderType: 'BANK_ACCOUNT',
+      accountHolderType: 'BUSINESS',
+      bankAccount: {
+        routingNumber: encryptedRoutingNumber,
+        routingNumberEncrypted: encryptedRoutingNumber,
+        accountNumber: encryptedAccountNumber,
+        accountNumberEncrypted: encryptedAccountNumber,
+        accountNumberReEntered: encryptedAccountNumberReEntered,
+        asset: {type: 'CURRENCY', id: 'CAD'},
+        accountType: 'CHECKING',
+        institutionNumber: '12345',
+        transitNumber: '002',
+        accountIdentificationNumberType: 'CANADIAN',
+      },
+    });
+    assert.equal(await decryptSourceValue(encryptedAccountNumber), '0000026');
+    assert.equal(await decryptSourceValue(encryptedRoutingNumber), '1223');
+    assert.equal(
+      await decryptSourceValue(encryptedAccountNumberReEntered),
+      '0000026'
+    );
+    assert.notEqual(encryptedAccountNumber, encryptedAccountNumberReEntered);
+    assert.notInclude(sourceRequest.bodyText, '0000026');
+    assertSourceCreateHeaders(sourceRequest);
+    const emittedBankSource = addPaymentMethodEvents[0].detail as Extract<
+      PaymentSource,
+      {tenderType: 'BankAccount'}
+    >;
+
+    assert.equal(emittedBankSource.id, 'bank-created-1');
+    assert.equal(emittedBankSource.bankAccount?.accountNumber, '0026');
+    assert.notInclude(JSON.stringify(emittedBankSource), '0000026');
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank account pending review'
+    );
+  });
+
+  test('blocks manual bank account save when source encryption fails', async () => {
+    const requests: CapturedRequest[] = [];
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: 'public-key-1',
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([TEST_INSTRUMENT_SCHEMAS[0]]);
+      }
+
+      if (pathname === '/interaction/billing-address') {
+        return new Response(JSON.stringify({value: 'billing-bank-1'}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CA',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+      publicKey: 'invalid-public-key',
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await clickAction(el, 'add-ach-manually');
+    await waitFor(
+      () =>
+        Boolean(el.shadowRoot!.querySelector('input[name="accountNumber"]')),
+      'manual bank form did not render'
+    );
+
+    for (const [name, value] of [
+      ['accountHolderName', 'Bob Bobson'],
+      ['accountNumber', '0000026'],
+      ['address.city', 'Toronto'],
+      ['institutionNumber', '002'],
+      ['transitNumber', '12345'],
+    ] as const) {
+      const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+        `input[name="${name}"]`
+      )!;
+
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await flushElement(el);
+    }
+
+    await waitForActionEnabled(el, 'save-bank-account');
+    await clickAction(el, 'save-bank-account');
+    await waitFor(
+      () => Boolean(el.shadowRoot!.querySelector('.alert-danger')),
+      'encryption failure was not rendered'
+    );
+
+    assert.exists(el.shadowRoot!.querySelector('input[name="accountNumber"]'));
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/ach'
+    );
+  });
+
   test('manual schema selection blocks and retries failed, empty, and malformed responses', async () => {
     const requests: CapturedRequest[] = [];
     let configAttempt = 0;

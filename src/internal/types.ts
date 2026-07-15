@@ -75,6 +75,7 @@ export type FlowActionName =
   | 'add-bank-account'
   | 'add-ach-manually'
   | 'select-instrument-schema'
+  | 'save-bank-account'
   | 'back-to-instrument-schema-selection'
   | 'add-card'
   | 'change-billing-address'

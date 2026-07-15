@@ -1,0 +1,17 @@
+{
+    "id": "test1111",
+    "name": "test",
+    "billingAddressId": "{{billingAddressId}}",
+    "tenderType": "BANK_ACCOUNT",
+    "accountHolderType": "PERSONAL",
+    "bankAccount": {
+        "accountType": "CHECKING",
+        "accountNumber": "recipient@test.com",
+        "accountNumberReEntered": "recipient@test.com",
+        "accountIdentificationNumberType": "INTERAC",
+        "asset": {
+            "type": "CURRENCY",
+            "id": "CAD"
+        }
+    }
+}

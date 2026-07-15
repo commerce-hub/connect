@@ -1,0 +1,18 @@
+{
+    "id": "test1111",
+    "name": "Williams Enterprises LLC",
+    "billingAddressId": "{{billingAddressId}}",
+    "tenderType": "BANK_ACCOUNT",
+    "bankAccount": {
+        "bankName": "Chase",
+        "routingNumber": "051034492",
+        "accountNumber": "4924304850",
+        "accountNumberReEntered": "4924304850",
+        "accountType": "SAVINGS",
+        "country": "USA",
+        "asset": {
+            "type": "CURRENCY",
+            "id": "USD"
+        }
+    }
+}

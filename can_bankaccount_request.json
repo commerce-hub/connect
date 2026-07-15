@@ -1,0 +1,19 @@
+{
+    "id": "test1111",
+    "name": "Bob Bobson",
+    "billingAddressId": "{{billingAddressId}}",
+    "tenderType": "BANK_ACCOUNT",
+    "accountHolderType": "PERSONAL",
+    "bankAccount": {
+        "accountType": "CHECKING",
+        "institutionNumber": "12345",
+        "transitNumber": "002",
+        "accountNumber": "00026",
+        "accountNumberReEntered": "00026",
+        "accountIdentificationNumberType": "CANADIAN",
+        "asset": {
+            "type": "CURRENCY",
+            "id": "CAD"
+        }
+    }
+}
