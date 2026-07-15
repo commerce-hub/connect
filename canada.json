@@ -1,0 +1,421 @@
+{
+  "configurationType": "COUNTRY_TENDER",
+  "instrumentSchemas": [
+    {
+      "bavSupportedCode": "CAD-Canadian-B",
+      "productId": "POLOCALBANK",
+      "countryCode": "CA",
+      "currencyCode": "CAD",
+      "currencyName": "Canadian Dollar",
+      "type": "object",
+      "properties": {
+        "accountHolderName": {
+          "type": "string",
+          "title": "Full name of the account holder",
+          "minLength": 3,
+          "maxLength": 80,
+          "pattern": "$re$^[0-9A-Za-zÀ-ÖØ-öø-ÿ-_()’*,.%#^@&/{}~<>+$\"\\[\\]\\\\ ]+$re$",
+          "x-errorMessages": {
+            "required": "Full name of the account holder is required",
+            "minLength": "Must be at least 3 characters",
+            "maxLength": "Cannot exceed 80 characters",
+            "pattern": "Enter a valid full name of the account holder"
+          }
+        },
+        "accountNumber": {
+          "type": "string",
+          "title": "Account number",
+          "minLength": 7,
+          "maxLength": 12,
+          "pattern": "$re$\\d{7,12}$re$",
+          "x-errorMessages": {
+            "required": "Account number is required",
+            "minLength": "Must be at least 7 characters",
+            "maxLength": "Cannot exceed 12 characters",
+            "pattern": "Enter a valid account number"
+          }
+        },
+        "address.city": {
+          "type": "string",
+          "title": "City",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "$re$^.{1,255}$re$",
+          "x-errorMessages": {
+            "required": "City is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 255 characters",
+            "pattern": "Enter a valid city"
+          }
+        },
+        "address.country": {
+          "type": "string",
+          "title": "Country",
+          "x-errorMessages": {
+            "required": "Country is required"
+          }
+        },
+        "address.firstLine": {
+          "type": "string",
+          "title": "Recipient address",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "$re$^.{1,255}$re$",
+          "x-errorMessages": {
+            "required": "Recipient address is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 255 characters",
+            "pattern": "Enter a valid recipient address"
+          }
+        },
+        "address.postCode": {
+          "type": "string",
+          "title": "Post code",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "$re$^.{1,32}$re$",
+          "x-errorMessages": {
+            "required": "Post code is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 32 characters",
+            "pattern": "Enter a valid post code"
+          }
+        },
+        "institutionNumber": {
+          "type": "string",
+          "title": "Institution number",
+          "minLength": 3,
+          "maxLength": 3,
+          "pattern": "$re$\\d{3}$re$",
+          "x-errorMessages": {
+            "required": "Institution number is required",
+            "minLength": "Must be at least 3 characters",
+            "maxLength": "Cannot exceed 3 characters",
+            "pattern": "Enter a valid institution number"
+          }
+        },
+        "transitNumber": {
+          "type": "string",
+          "title": "Transit number",
+          "minLength": 5,
+          "maxLength": 5,
+          "pattern": "$re$\\d{5}$re$",
+          "x-errorMessages": {
+            "required": "Transit number is required",
+            "minLength": "Must be at least 5 characters",
+            "maxLength": "Cannot exceed 5 characters",
+            "pattern": "Enter a valid transit number"
+          }
+        }
+      },
+      "required": [
+        "accountHolderName",
+        "accountNumber",
+        "address.city",
+        "address.country",
+        "address.firstLine",
+        "address.postCode",
+        "institutionNumber",
+        "transitNumber"
+      ]
+    },
+    {
+      "bavSupportedCode": "CAD-Canadian-P",
+      "productId": "POLOCALBANK",
+      "countryCode": "CA",
+      "currencyCode": "CAD",
+      "currencyName": "Canadian Dollar",
+      "type": "object",
+      "properties": {
+        "accountHolderName": {
+          "type": "string",
+          "title": "Full name of the account holder",
+          "minLength": 3,
+          "maxLength": 80,
+          "pattern": "$re$^[0-9A-Za-zÀ-ÖØ-öø-ÿ-_()’*,.%#^@&/{}~<>+$\"\\[\\]\\\\ ]+$re$",
+          "x-errorMessages": {
+            "required": "Full name of the account holder is required",
+            "minLength": "Must be at least 3 characters",
+            "maxLength": "Cannot exceed 80 characters",
+            "pattern": "Enter a valid full name of the account holder"
+          }
+        },
+        "accountNumber": {
+          "type": "string",
+          "title": "Account number",
+          "minLength": 7,
+          "maxLength": 12,
+          "pattern": "$re$\\d{7,12}$re$",
+          "x-errorMessages": {
+            "required": "Account number is required",
+            "minLength": "Must be at least 7 characters",
+            "maxLength": "Cannot exceed 12 characters",
+            "pattern": "Enter a valid account number"
+          }
+        },
+        "address.city": {
+          "type": "string",
+          "title": "City",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "$re$^.{1,255}$re$",
+          "x-errorMessages": {
+            "required": "City is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 255 characters",
+            "pattern": "Enter a valid city"
+          }
+        },
+        "address.country": {
+          "type": "string",
+          "title": "Country",
+          "x-errorMessages": {
+            "required": "Country is required"
+          }
+        },
+        "address.firstLine": {
+          "type": "string",
+          "title": "Recipient address",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "$re$^.{1,255}$re$",
+          "x-errorMessages": {
+            "required": "Recipient address is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 255 characters",
+            "pattern": "Enter a valid recipient address"
+          }
+        },
+        "address.postCode": {
+          "type": "string",
+          "title": "Post code",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "$re$^.{1,32}$re$",
+          "x-errorMessages": {
+            "required": "Post code is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 32 characters",
+            "pattern": "Enter a valid post code"
+          }
+        },
+        "institutionNumber": {
+          "type": "string",
+          "title": "Institution number",
+          "minLength": 3,
+          "maxLength": 3,
+          "pattern": "$re$\\d{3}$re$",
+          "x-errorMessages": {
+            "required": "Institution number is required",
+            "minLength": "Must be at least 3 characters",
+            "maxLength": "Cannot exceed 3 characters",
+            "pattern": "Enter a valid institution number"
+          }
+        },
+        "transitNumber": {
+          "type": "string",
+          "title": "Transit number",
+          "minLength": 5,
+          "maxLength": 5,
+          "pattern": "$re$\\d{5}$re$",
+          "x-errorMessages": {
+            "required": "Transit number is required",
+            "minLength": "Must be at least 5 characters",
+            "maxLength": "Cannot exceed 5 characters",
+            "pattern": "Enter a valid transit number"
+          }
+        }
+      },
+      "required": [
+        "accountHolderName",
+        "accountNumber",
+        "address.city",
+        "address.country",
+        "address.firstLine",
+        "address.postCode",
+        "institutionNumber",
+        "transitNumber"
+      ]
+    },
+    {
+      "bavSupportedCode": "CAD-Interac-B",
+      "productId": "POINTERAC",
+      "countryCode": "CA",
+      "currencyCode": "CAD",
+      "currencyName": "Canadian Dollar",
+      "type": "object",
+      "properties": {
+        "accountHolderName": {
+          "type": "string",
+          "title": "Full name of the account holder",
+          "minLength": 2,
+          "maxLength": 140,
+          "pattern": "$re$^[0-9A-Za-zÀ-ÖØ-öø-ÿ-_()’*,.%#^@&/{}~<>+$\"\\[\\]\\\\ ]+$re$",
+          "x-errorMessages": {
+            "required": "Full name of the account holder is required",
+            "minLength": "Must be at least 2 characters",
+            "maxLength": "Cannot exceed 140 characters",
+            "pattern": "Enter a valid full name of the account holder"
+          }
+        },
+        "address.city": {
+          "type": "string",
+          "title": "City",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "$re$^.{1,255}$re$",
+          "x-errorMessages": {
+            "required": "City is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 255 characters",
+            "pattern": "Enter a valid city"
+          }
+        },
+        "address.country": {
+          "type": "string",
+          "title": "Country",
+          "x-errorMessages": {
+            "required": "Country is required"
+          }
+        },
+        "address.firstLine": {
+          "type": "string",
+          "title": "Recipient address",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "$re$^.{1,255}$re$",
+          "x-errorMessages": {
+            "required": "Recipient address is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 255 characters",
+            "pattern": "Enter a valid recipient address"
+          }
+        },
+        "address.postCode": {
+          "type": "string",
+          "title": "Post code",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "$re$^.{1,32}$re$",
+          "x-errorMessages": {
+            "required": "Post code is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 32 characters",
+            "pattern": "Enter a valid post code"
+          }
+        },
+        "interacAccount": {
+          "type": "string",
+          "title": "Interac registered email",
+          "minLength": 6,
+          "maxLength": 50,
+          "pattern": "$re$^([A-Za-z0-9_\\-\\+]([A-Za-z0-9_\\-\\+]*[A-Za-z0-9_])?(\\.[A-Za-z0-9_\\-\\+]([A-Za-z0-9_\\-\\+]*[A-Za-z0-9_])?)*@[A-Za-z0-9]([A-Za-z0-9\\-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9\\-]*[A-Za-z0-9])?)*\\.([A-Za-z]{2,63}))$re$",
+          "x-errorMessages": {
+            "required": "Interac registered email is required",
+            "minLength": "Must be at least 6 characters",
+            "maxLength": "Cannot exceed 50 characters",
+            "pattern": "Enter a valid interac registered email"
+          }
+        }
+      },
+      "required": [
+        "accountHolderName",
+        "address.city",
+        "address.country",
+        "address.firstLine",
+        "address.postCode",
+        "interacAccount"
+      ]
+    },
+    {
+      "bavSupportedCode": "CAD-Interac-P",
+      "productId": "POINTERAC",
+      "countryCode": "CA",
+      "currencyCode": "CAD",
+      "currencyName": "Canadian Dollar",
+      "type": "object",
+      "properties": {
+        "accountHolderName": {
+          "type": "string",
+          "title": "Full name of the account holder",
+          "minLength": 2,
+          "maxLength": 140,
+          "pattern": "$re$^[0-9A-Za-zÀ-ÖØ-öø-ÿ-_()’*,.%#^@&/{}~<>+$\"\\[\\]\\\\ ]+$re$",
+          "x-errorMessages": {
+            "required": "Full name of the account holder is required",
+            "minLength": "Must be at least 2 characters",
+            "maxLength": "Cannot exceed 140 characters",
+            "pattern": "Enter a valid full name of the account holder"
+          }
+        },
+        "address.city": {
+          "type": "string",
+          "title": "City",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "$re$^.{1,255}$re$",
+          "x-errorMessages": {
+            "required": "City is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 255 characters",
+            "pattern": "Enter a valid city"
+          }
+        },
+        "address.country": {
+          "type": "string",
+          "title": "Country",
+          "x-errorMessages": {
+            "required": "Country is required"
+          }
+        },
+        "address.firstLine": {
+          "type": "string",
+          "title": "Recipient address",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "$re$^.{1,255}$re$",
+          "x-errorMessages": {
+            "required": "Recipient address is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 255 characters",
+            "pattern": "Enter a valid recipient address"
+          }
+        },
+        "address.postCode": {
+          "type": "string",
+          "title": "Post code",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "$re$^.{1,32}$re$",
+          "x-errorMessages": {
+            "required": "Post code is required",
+            "minLength": "Must be at least 1 character",
+            "maxLength": "Cannot exceed 32 characters",
+            "pattern": "Enter a valid post code"
+          }
+        },
+        "interacAccount": {
+          "type": "string",
+          "title": "Interac registered email",
+          "minLength": 6,
+          "maxLength": 50,
+          "pattern": "$re$^([A-Za-z0-9_\\-\\+]([A-Za-z0-9_\\-\\+]*[A-Za-z0-9_])?(\\.[A-Za-z0-9_\\-\\+]([A-Za-z0-9_\\-\\+]*[A-Za-z0-9_])?)*@[A-Za-z0-9]([A-Za-z0-9\\-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9\\-]*[A-Za-z0-9])?)*\\.([A-Za-z]{2,63}))$re$",
+          "x-errorMessages": {
+            "required": "Interac registered email is required",
+            "minLength": "Must be at least 6 characters",
+            "maxLength": "Cannot exceed 50 characters",
+            "pattern": "Enter a valid interac registered email"
+          }
+        }
+      },
+      "required": [
+        "accountHolderName",
+        "address.city",
+        "address.country",
+        "address.firstLine",
+        "address.postCode",
+        "interacAccount"
+      ]
+    }
+  ]
+}

@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Retrieve party configuration data.
-         * @description Use this API to retrieve various party configuration data such as supported countries, payout countries, party types, organization types, MCC codes, available payout products, and country-specific address field schemas. The configurationType field in the request body determines which configuration data is returned.
+         * @description Use this API to retrieve various party configuration data such as supported countries, payout countries, party types, organization types, MCC codes, available payout products, country-specific address field schemas, and country-specific tender instrument schemas. The configurationType field in the request body determines which configuration data is returned.
          */
         post: {
             parameters: {
@@ -206,7 +206,7 @@ export interface components {
              * @example COUNTRIES
              * @enum {string}
              */
-            configurationType?: "COUNTRIES" | "PAYOUT_COUNTRIES" | "PARTY_TYPES" | "ORGANIZATION_TYPES" | "MCC" | "AVAILABLE_TENDERS" | "COUNTRY_ADDRESS";
+            configurationType?: "COUNTRIES" | "PAYOUT_COUNTRIES" | "PARTY_TYPES" | "ORGANIZATION_TYPES" | "MCC" | "AVAILABLE_TENDERS" | "COUNTRY_ADDRESS" | "COUNTRY_TENDER";
             /** @description List of countries. Populated when configurationType is COUNTRIES or PAYOUT_COUNTRIES. */
             countries?: components["schemas"]["ConfigCountry"][];
             /**
@@ -224,6 +224,98 @@ export interface components {
             /** @description List of payout products available for the party's country. Populated when configurationType is AVAILABLE_TENDERS. */
             availableTenders?: components["schemas"]["ConfigAvailableTenders"][];
             countryAddressSchema?: components["schemas"]["CountryAddressSchema"];
+            /** @description JSON Schema-shaped tender instrument definitions returned when configurationType is COUNTRY_TENDER. Response order is the order in which the instruments should be presented to the user. */
+            instrumentSchemas?: components["schemas"]["ConfigInstrumentSchema"][];
+        };
+        ConfigInstrumentSchema: {
+            /**
+             * @description Bank account validation instrument code used to identify this schema.
+             * @example CAD-Canadian-B
+             */
+            bavSupportedCode: string;
+            /**
+             * @description Product identifier associated with the tender instrument.
+             * @example POLOCALBANK
+             */
+            productId: string;
+            /**
+             * @description ISO 3166-1 alpha-2 country code associated with the instrument.
+             * @example CA
+             */
+            countryCode: string;
+            /**
+             * @description ISO 4217 currency code associated with the instrument.
+             * @example CAD
+             */
+            currencyCode: string;
+            /**
+             * @description Human-readable currency name.
+             * @example Canadian Dollar
+             */
+            currencyName: string;
+            /**
+             * @description JSON Schema type of the instrument data.
+             * @example object
+             * @enum {string}
+             */
+            type: "object";
+            /** @description Map of instrument field name to its string schema. Field names may use dotted paths, such as address.city, to describe nested submission data. */
+            properties: {
+                [key: string]: components["schemas"]["ConfigInstrumentSchemaProperty"];
+            };
+            /** @description Instrument field names that must be supplied. */
+            required: string[];
+        };
+        ConfigInstrumentSchemaProperty: {
+            /**
+             * @description JSON Schema type of the instrument field.
+             * @example string
+             * @enum {string}
+             */
+            type: "string";
+            /**
+             * @description Human-readable label for the instrument field.
+             * @example Account number
+             */
+            title: string;
+            /**
+             * @description Minimum permitted string length.
+             * @example 7
+             */
+            minLength?: number;
+            /**
+             * @description Maximum permitted string length.
+             * @example 12
+             */
+            maxLength?: number;
+            /**
+             * @description Regular expression the string must satisfy. Expressions wrapped in $re$ delimiters use service full-value matching semantics; clients should remove the delimiters and preserve full-value matching when adapting them to JSON Schema.
+             * @example $re$\d{7,12}$re$
+             */
+            pattern?: string;
+            "x-errorMessages": components["schemas"]["ConfigInstrumentSchemaErrorMessages"];
+        };
+        ConfigInstrumentSchemaErrorMessages: {
+            /**
+             * @description Message shown when the field is omitted.
+             * @example Account number is required
+             */
+            required: string;
+            /**
+             * @description Message shown when the field is shorter than minLength.
+             * @example Must be at least 7 characters
+             */
+            minLength?: string;
+            /**
+             * @description Message shown when the field is longer than maxLength.
+             * @example Cannot exceed 12 characters
+             */
+            maxLength?: string;
+            /**
+             * @description Message shown when the field does not match pattern.
+             * @example Enter a valid account number
+             */
+            pattern?: string;
         };
         /** @description A JSON Schema–shaped descriptor of the address form fields that a client must render for a given country. Returned when configurationType is COUNTRY_ADDRESS. The properties map is keyed by the address field name (e.g. street, city, stateOrProvince, postalCode). The required array lists which field names are mandatory for the country. */
         CountryAddressSchema: {
@@ -407,19 +499,19 @@ export interface components {
         };
         PartyConfigurationRequest: {
             /**
-             * @description The type of configuration data to retrieve or update. COUNTRIES - List of supported countries for party onboarding. PAYOUT_COUNTRIES - List of countries that Fiserv can transfer money to. PARTY_TYPES - List of supported party types. ORGANIZATION_TYPES - Organization types available for party onboarding, optionally filtered by country. MCC - List of Merchant Category Codes configured for the client. AVAILABLE_TENDERS - Payout products available for a party based on their country. COUNTRY_ADDRESS - Address field schema for a specific country (read-only via POST inquiry; requires country field).
+             * @description The type of configuration data to retrieve or update. COUNTRIES - List of supported countries for party onboarding. PAYOUT_COUNTRIES - List of countries that Fiserv can transfer money to. PARTY_TYPES - List of supported party types. ORGANIZATION_TYPES - Organization types available for party onboarding, optionally filtered by country. MCC - List of Merchant Category Codes configured for the client. AVAILABLE_TENDERS - Payout products available for a party based on their country. COUNTRY_ADDRESS - Address field schema for a specific country (read-only via POST inquiry; requires country field). COUNTRY_TENDER - Tender instrument schemas for a specific country (requires country field).
              * @example COUNTRIES
              * @enum {string}
              */
-            configurationType: "COUNTRIES" | "PAYOUT_COUNTRIES" | "PARTY_TYPES" | "ORGANIZATION_TYPES" | "MCC" | "AVAILABLE_TENDERS" | "COUNTRY_ADDRESS";
+            configurationType: "COUNTRIES" | "PAYOUT_COUNTRIES" | "PARTY_TYPES" | "ORGANIZATION_TYPES" | "MCC" | "AVAILABLE_TENDERS" | "COUNTRY_ADDRESS" | "COUNTRY_TENDER";
             /**
              * @description The ID of the party. Required when configurationType is AVAILABLE_TENDERS. The party's country is used to determine which payout products are available.
              * @example 10000090000000087
              */
             partyId?: string;
             /**
-             * @description Filter by country code in ISO 3166-1 alpha-2 format. Applicable when configurationType is ORGANIZATION_TYPES. If omitted, all organization types across all countries are returned.
-             * @example US
+             * @description ISO 3166-1 country code. COUNTRY_TENDER uses alpha-3 (for example, CAN). ORGANIZATION_TYPES and COUNTRY_ADDRESS may use alpha-2 (for example, US). Required when configurationType is COUNTRY_TENDER or COUNTRY_ADDRESS.
+             * @example CAN
              */
             country?: string;
         };

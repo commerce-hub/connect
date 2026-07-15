@@ -222,11 +222,7 @@ export const primitiveStyles = css`
     border-radius: min(1rem, calc(var(--chc-radius-card) * 1.5));
     border: 0.0625rem solid var(--chc-border);
     padding: 1rem;
-    background: color-mix(
-      in srgb,
-      var(--chc-primary) 6%,
-      var(--chc-surface)
-    );
+    background: color-mix(in srgb, var(--chc-primary) 6%, var(--chc-surface));
     color: var(--chc-text);
     overflow: hidden;
   }
@@ -285,11 +281,7 @@ export const primitiveStyles = css`
     justify-content: center;
     border: 0;
     border-radius: 0.5rem;
-    background: color-mix(
-      in srgb,
-      var(--chc-primary) 6%,
-      var(--chc-surface)
-    );
+    background: color-mix(in srgb, var(--chc-primary) 6%, var(--chc-surface));
     color: var(--chc-primary);
     box-shadow: none;
   }
@@ -697,6 +689,60 @@ export const primitiveStyles = css`
 
   .card-form-screen .form-grid {
     gap: 0.75rem 0.625rem;
+  }
+
+  .bank-account-jsonforms .jsonforms-layout-vertical {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .bank-account-jsonforms .jsonforms-control {
+    display: grid;
+    gap: 0.1875rem;
+  }
+
+  .bank-account-jsonforms .jsonforms-control label {
+    color: var(--chc-copy);
+    font-weight: inherit;
+  }
+
+  .bank-account-jsonforms .jsonforms-control input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--chc-input-height);
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    padding: 0.625rem 0.75rem;
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 82%,
+      var(--chc-surface)
+    );
+    color: var(--chc-text);
+    font-family: inherit;
+    font-size: inherit;
+    font-style: inherit;
+    font-weight: inherit;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard);
+  }
+
+  .bank-account-jsonforms .jsonforms-control input:focus {
+    border-color: var(--chc-primary);
+    outline: 0;
+    background: var(--chc-surface);
+    box-shadow: 0 0 0 0.25rem var(--chc-focus-ring);
+  }
+
+  .bank-account-jsonforms .jsonforms-description {
+    color: var(--chc-muted);
+    font-size: 0.875em;
+  }
+
+  .bank-account-jsonforms .jsonforms-error {
+    color: var(--chc-danger);
+    font-size: 0.875em;
   }
 
   .otp-group {
@@ -1611,6 +1657,51 @@ export const primitiveStyles = css`
   .bank-provider-manual-link {
     display: flex;
     justify-content: center;
+  }
+
+  .instrument-schema-selection {
+    display: grid;
+    gap: 0.875rem;
+  }
+
+  .instrument-schema-options {
+    display: grid;
+    gap: 0.625rem;
+    margin: 0;
+    border: 0;
+    padding: 0;
+  }
+
+  .instrument-schema-options legend {
+    margin-bottom: 0.25rem;
+    padding: 0;
+    color: var(--chc-muted);
+    font-size: 0.875em;
+  }
+
+  .instrument-schema-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3rem;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    padding: 0.75rem;
+    background: var(--chc-surface);
+    color: var(--chc-text);
+    cursor: pointer;
+  }
+
+  .instrument-schema-option:focus-within {
+    border-color: var(--chc-primary);
+    box-shadow: 0 0 0 0.125rem
+      color-mix(in srgb, var(--chc-primary) 20%, transparent);
+  }
+
+  .instrument-schema-option input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
   }
 
   .verification-outcome-flow {

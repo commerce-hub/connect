@@ -11,6 +11,7 @@ import {
 } from '@jsonforms/core';
 import {html} from 'lit';
 import {customElement} from 'lit/decorators.js';
+import {ifDefined} from 'lit/directives/if-defined.js';
 import {
   JsonFormsControl,
   JsonFormsLabel,
@@ -92,6 +93,15 @@ export class JsonFormsTextControlRenderer extends JsonFormsControl {
     if (props === undefined || props.visible === false) {
       return html``;
     }
+    const hasErrors = Array.isArray(props.errors)
+      ? props.errors.length > 0
+      : Boolean(props.errors);
+    const descriptionId = props.description
+      ? `${props.id}-description`
+      : undefined;
+    const errorId = hasErrors ? `${props.id}-error` : undefined;
+    const describedBy = [descriptionId, errorId].filter(Boolean).join(' ');
+
     return html`
       <div class="jsonforms-control">
         ${this.renderLabel(props.label, props.required)}
@@ -101,14 +111,17 @@ export class JsonFormsTextControlRenderer extends JsonFormsControl {
           type="text"
           .value=${props.data ?? ''}
           ?disabled=${!props.enabled || props.readonly}
+          ?required=${props.required}
+          aria-invalid=${hasErrors ? 'true' : 'false'}
+          aria-describedby=${ifDefined(describedBy || undefined)}
           @input=${(event: Event) =>
             props.handleChange(
               props.path,
               (event.currentTarget as HTMLInputElement).value
             )}
         />
-        ${this.renderDescription(props.description)}
-        ${this.renderErrors(props.errors)}
+        ${this.renderDescription(props.description, descriptionId)}
+        ${this.renderErrors(props.errors, errorId)}
       </div>
     `;
   }
@@ -119,15 +132,19 @@ export class JsonFormsTextControlRenderer extends JsonFormsControl {
     </label>`;
   }
 
-  protected renderDescription(description?: string) {
+  protected renderDescription(description?: string, id?: string) {
     return description
-      ? html`<div class="jsonforms-description">${description}</div>`
+      ? html`<div class="jsonforms-description" id=${ifDefined(id)}>
+          ${description}
+        </div>`
       : html``;
   }
 
-  protected renderErrors(errors: string | string[] | undefined) {
+  protected renderErrors(errors: string | string[] | undefined, id?: string) {
     const text = Array.isArray(errors) ? errors.join('\n') : errors;
-    return text ? html`<div class="jsonforms-error">${text}</div>` : html``;
+    return text
+      ? html`<div class="jsonforms-error" id=${ifDefined(id)}>${text}</div>`
+      : html``;
   }
 }
 

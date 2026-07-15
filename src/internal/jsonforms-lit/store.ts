@@ -69,7 +69,9 @@ const coreActionTypes = new Set<string>([
 ]);
 
 const createDefaultI18nState = (): JsonFormsI18nState =>
-  jsonFormsReducerConfig.i18n(undefined, {type: '@@jsonforms-lit/INIT'} as AnyAction);
+  jsonFormsReducerConfig.i18n(undefined, {
+    type: '@@jsonforms-lit/INIT',
+  } as AnyAction);
 
 export class LitJsonFormsStore {
   private state: JsonFormsState = {
@@ -85,11 +87,8 @@ export class LitJsonFormsStore {
 
   private readonly subscribers = new Set<Subscriber>();
 
-  private middleware: JsonFormsMiddleware = (
-    state,
-    action,
-    defaultReducer
-  ) => defaultReducer(state, action);
+  private middleware: JsonFormsMiddleware = (state, action, defaultReducer) =>
+    defaultReducer(state, action);
 
   private explicitUiSchema = false;
 
@@ -280,7 +279,7 @@ export class LitJsonFormsStore {
     const core = this.state.jsonforms.core;
     const schema = next.schema ?? core?.schema ?? {};
     const shouldGenerateUiSchema =
-      !this.explicitUiSchema || next.uischema === undefined;
+      !this.explicitUiSchema && next.uischema === undefined;
     const uischema = shouldGenerateUiSchema
       ? generateDefaultUISchema(schema, 'VerticalLayout')
       : next.uischema ?? core?.uischema;

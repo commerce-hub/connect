@@ -1,5 +1,5 @@
 import {
-  generateDefaultUISchema,
+  type JsonFormsI18nState,
   type JsonSchema,
   type UISchemaElement,
 } from '@jsonforms/core';
@@ -16,27 +16,13 @@ import {
 import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
 import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
 import {
-  bankAccountFieldLastFour,
-  buildBankAccountEncryptionErrorMessage,
-  createBankAccountDraft,
-  createBankAccountEncryptionState,
-  isBankAccountFormSchema,
-  isBankAccountDraftReady,
-  isEncryptedBankAccountDisplayValue,
-  isSensitiveBankAccountField,
-  maskSensitiveDisplayValue,
-  normalizeBankAccountDraftForDisplay,
-  normalizeBankAccountDraftForValidation,
-  normalizeBankAccountNumber,
-  omitBankAccountDraftError,
-  resolveBankAccountPayloadFieldValue,
-  resolveBankAccountSourceName,
-  updateBankAccountDraftFieldState,
-  validateBankAccountDraft,
-  type BankAccountFormSchema,
-} from './internal/forms/bank-account-form-state.js';
-import {bankAccountDraftErrorsToJsonFormsErrors} from './internal/forms/bank-account-jsonforms.js';
-import {bankAccountJsonFormsRenderers} from './internal/forms/bank-account-jsonforms-renderers.js';
+  createInstrumentSchemaErrorTranslator,
+  createInstrumentSchemaInitialData,
+  createInstrumentSchemaUiSchema,
+  normalizeInstrumentSchema,
+  usableInstrumentSchemas,
+  type ConfigInstrumentSchema,
+} from './internal/forms/instrument-schema.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
   NEW_BILLING_ADDRESS_VALUE,
@@ -119,9 +105,6 @@ import {
 } from './internal/primitives.js';
 import type {
   AllowedTenderOptions,
-  BankAccountDraft,
-  BankAccountDraftErrors,
-  BankAccountEncryptionState,
   CardDraft,
   CardDraftErrors,
   CardEncryptionState,
@@ -140,7 +123,6 @@ import type {
   RequiredInfoFileNames,
   RequiredInfoFiles,
   RequiredInfoValues,
-  SensitiveBankAccountField,
   SensitiveCardField,
   TransferDraft,
   TransferDraftErrors,
@@ -307,10 +289,6 @@ type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
 };
-type BankAccountSourcePayload = Omit<BankPaymentSource, 'tenderType'> & {
-  tenderType: 'BANK_ACCOUNT';
-  bankAccount: NonNullable<BankPaymentSource['bankAccount']>;
-};
 type Address = components['schemas']['Address'];
 type BillingAddressResponse = components['schemas']['StringHolder'];
 type VerificationResponse = components['schemas']['VerificationResponse'];
@@ -377,9 +355,9 @@ type PaymentSdkAppearanceBranding = Partial<{
 
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
-const BANK_ACCOUNT_FORM_URL = 'http://127.0.0.1:5500/form.json';
-const BANK_ACCOUNT_FORM_LOAD_ERROR =
-  'Unable to load the bank account form. Try again later.';
+const MANUAL_BANK_ACCOUNT_COUNTRY = 'CAN';
+const NO_INSTRUMENT_SCHEMAS_ERROR =
+  'No instrument schemas are available for Canada. Try again.';
 
 @customElement('commerce-hub-bank-account-jsonforms')
 class CommerceHubBankAccountJsonForms extends JsonFormsLit {
@@ -569,6 +547,7 @@ export class CommerceHubConnect extends LitElement {
     | 'outcome'
     | 'manual-config-loading'
     | 'manual-config-error'
+    | 'manual-schema-selection'
     | 'manual';
 
   @state()
@@ -579,37 +558,30 @@ export class CommerceHubConnect extends LitElement {
   private bankOutcomeSource?: BankPaymentSource;
 
   @state()
-  private bankAccountDraft: BankAccountDraft = createBankAccountDraft();
+  private bankAccountInstrumentSchemas: ConfigInstrumentSchema[] = [];
 
   @state()
-  private bankAccountDraftErrors: BankAccountDraftErrors = {};
+  private selectedBankAccountInstrumentSchemaCode?: string;
 
   @state()
-  private bankAccountEncryption: BankAccountEncryptionState =
-    createBankAccountEncryptionState();
-
-  @state()
-  private bankAccountSubmitError?: string;
-
-  @state()
-  private bankAccountFormSchema?: BankAccountFormSchema;
+  private bankAccountFormSchema?: JsonSchema;
 
   @state()
   private bankAccountFormUiSchema?: UISchemaElement;
 
   @state()
-  private bankAccountFormLoading = false;
+  private bankAccountFormData: Record<string, unknown> = {};
 
-  @state()
-  private bankAccountFormLoadError?: string;
-
-  @state()
-  private bankAccountConfigResponse?: PartyConfigurationResponse;
+  private bankAccountFormI18n?: JsonFormsI18nState;
 
   @state()
   private bankAccountConfigError?: string;
 
   private bankAccountConfigRequestToken = 0;
+
+  private bankProviderRequestToken = 0;
+
+  private cancelPayByBankLaunch?: () => void;
 
   @state()
   private transferDraft: TransferDraft = createTransferDraft();
@@ -707,6 +679,7 @@ export class CommerceHubConnect extends LitElement {
         this.interactionRefresh.reset({requestUpdate: false});
         this.nativeBalance.reset({requestUpdate: false});
         this.billingAddresses = [];
+        this.resetBankFlow();
         this.resetTransferFlow();
         this.resetSavedSourceVerification();
         this.resetRequiredInfo();
@@ -767,8 +740,7 @@ export class CommerceHubConnect extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.clearDeletePaymentSourceConfirmation();
-    this.removePayByBankProviderContainer();
-    destroyPaymentSdk();
+    this.resetBankFlow();
   }
 
   private emitSdkEvent<Name extends SdkEventName>(
@@ -830,6 +802,10 @@ export class CommerceHubConnect extends LitElement {
 
     if (this.bankFlowScreen === 'manual-config-error') {
       return this.renderManualBankAccountConfigErrorScreen();
+    }
+
+    if (this.bankFlowScreen === 'manual-schema-selection') {
+      return this.renderManualBankAccountSchemaSelectionScreen();
     }
 
     if (this.bankFlowScreen === 'manual') {
@@ -1802,7 +1778,7 @@ export class CommerceHubConnect extends LitElement {
 
   private renderManualBankAccountConfigLoadingScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Enter bank details',
+      title: 'Select an instrument schema',
       headerAction: renderTextLinkButton({
         label: 'Back',
         action: 'back-to-bank-provider',
@@ -1812,8 +1788,8 @@ export class CommerceHubConnect extends LitElement {
       showDivider: false,
       busy: true,
       overlay: renderWidgetLoadingOverlay({
-        title: 'Preparing bank details',
-        helper: 'Loading the bank account form for your country.',
+        title: 'Loading instrument schemas',
+        helper: 'Loading the available bank account options, please wait.',
       }),
       content: html`<div class="payment-flow card-form-screen"></div>`,
     });
@@ -1821,7 +1797,7 @@ export class CommerceHubConnect extends LitElement {
 
   private renderManualBankAccountConfigErrorScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Enter bank details',
+      title: 'Select an instrument schema',
       headerAction: renderTextLinkButton({
         label: 'Back',
         action: 'back-to-bank-provider',
@@ -1834,7 +1810,7 @@ export class CommerceHubConnect extends LitElement {
             variant: 'danger',
             message:
               this.bankAccountConfigError ??
-              'Unable to load bank account details. Try again.',
+              'Unable to load instrument schemas. Try again.',
           })}
           <div class="primitive-footer card-form-primary">
             ${renderButton({
@@ -1847,98 +1823,80 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
-  private renderManualBankAccountScreen(): TemplateResult {
-    if (!this.bankAccountConfigResponse) {
-      return this.renderManualBankAccountConfigErrorScreen();
-    }
+  private renderManualBankAccountSchemaSelectionScreen(): TemplateResult {
+    return this.renderWidgetShell({
+      title: 'Select an instrument schema',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-bank-provider',
+      }),
+      showClose: false,
+      showDivider: false,
+      content: html`
+        <div class="instrument-schema-selection">
+          <fieldset
+            class="instrument-schema-options"
+            aria-label="Instrument schemas"
+          >
+            <legend>Available instrument schemas</legend>
+            ${this.bankAccountInstrumentSchemas.map(
+              (schema) => html`
+                <label class="instrument-schema-option">
+                  <input
+                    type="radio"
+                    name="instrument-schema"
+                    value=${schema.bavSupportedCode}
+                    data-instrument-schema-code=${schema.bavSupportedCode}
+                    .checked=${this.selectedBankAccountInstrumentSchemaCode ===
+                    schema.bavSupportedCode}
+                  />
+                  <span>${schema.bavSupportedCode}</span>
+                </label>
+              `
+            )}
+          </fieldset>
+          <div class="primitive-footer card-form-primary">
+            ${renderButton({
+              label: 'Continue',
+              action: 'select-instrument-schema',
+              disabled: !this.selectedBankAccountInstrumentSchemaCode,
+            })}
+          </div>
+        </div>
+      `,
+    });
+  }
 
-    const isSaving = this.pendingAction === 'save-ach-manual';
-    const isEncrypting =
-      this.bankAccountEncryption.routingNumber.status === 'encrypting' ||
-      this.bankAccountEncryption.accountNumber.status === 'encrypting' ||
-      this.bankAccountEncryption.confirmAccountNumber.status === 'encrypting';
+  private renderManualBankAccountScreen(): TemplateResult {
     const bankAccountFormSchema = this.bankAccountFormSchema;
     const bankAccountFormUiSchema = this.bankAccountFormUiSchema;
-    const bankAccountFormReady =
-      bankAccountFormSchema !== undefined &&
-      bankAccountFormUiSchema !== undefined;
+
+    if (!bankAccountFormSchema || !bankAccountFormUiSchema) {
+      return this.renderManualBankAccountConfigErrorScreen();
+    }
 
     return this.renderWidgetShell({
       title: 'Enter bank details',
       headerAction: renderTextLinkButton({
         label: 'Back',
-        action: 'back-to-bank-provider',
-        disabled: isSaving,
+        action:
+          this.bankAccountInstrumentSchemas.length > 1
+            ? 'back-to-instrument-schema-selection'
+            : 'back-to-bank-provider',
       }),
       showClose: false,
       showDivider: false,
-      busy: isSaving,
-      overlay: isSaving
-        ? renderWidgetLoadingOverlay({
-            title: 'Saving bank account',
-            helper: 'Securely saving your bank account, please wait.',
-          })
-        : undefined,
       content: html`
         <div class="payment-flow card-form-screen">
-          ${this.bankAccountSubmitError
-            ? renderAlert({
-                variant: 'danger',
-                message: this.bankAccountSubmitError,
-              })
-            : ''}
-          ${this.bankAccountFormLoadError
-            ? renderAlert({
-                variant: 'danger',
-                message: this.bankAccountFormLoadError,
-              })
-            : ''}
-          ${this.bankAccountFormLoading
-            ? renderWidgetLoadingOverlay({
-                title: 'Loading bank account form',
-                helper: 'Preparing secure bank details, please wait.',
-              })
-            : ''}
-          ${bankAccountFormReady
-            ? html`
-                <commerce-hub-bank-account-jsonforms
-                  class="bank-account-jsonforms"
-                  .schema=${bankAccountFormSchema as JsonSchema}
-                  .uischema=${bankAccountFormUiSchema}
-                  .data=${this.bankAccountDraft}
-                  .renderers=${bankAccountJsonFormsRenderers}
-                  .readonly=${isSaving}
-                  .config=${{
-                    draft: this.bankAccountDraft,
-                    errors: this.bankAccountDraftErrors,
-                    encryption: this.bankAccountEncryption,
-                    disabled: isSaving,
-                  }}
-                  .additionalErrors=${bankAccountDraftErrorsToJsonFormsErrors(
-                    this.bankAccountDraftErrors
-                  )}
-                  .validationMode=${'ValidateAndShow'}
-                ></commerce-hub-bank-account-jsonforms>
-              `
-            : ''}
-          <div class="primitive-footer card-form-primary">
-            <div class="card-form-primary">
-              ${renderButton({
-                label: isSaving ? 'Saving bank account' : 'Save bank account',
-                action: 'save-ach-manual',
-                loading: isSaving,
-                disabled:
-                  isSaving ||
-                  isEncrypting ||
-                  this.bankAccountFormLoading ||
-                  !isBankAccountDraftReady(
-                    this.bankAccountDraft,
-                    this.bankAccountEncryption,
-                    bankAccountFormSchema
-                  ),
-              })}
-            </div>
-          </div>
+          <commerce-hub-bank-account-jsonforms
+            class="bank-account-jsonforms"
+            .schema=${bankAccountFormSchema}
+            .uischema=${bankAccountFormUiSchema}
+            .data=${this.bankAccountFormData}
+            .i18n=${this.bankAccountFormI18n}
+            .validationMode=${'ValidateAndShow'}
+            @data-change=${this.handleBankAccountFormDataChange}
+          ></commerce-hub-bank-account-jsonforms>
         </div>
       `,
     });
@@ -2117,6 +2075,17 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'select-instrument-schema') {
+      this.initializeManualBankAccountScreen();
+      return;
+    }
+
+    if (action === 'back-to-instrument-schema-selection') {
+      this.clearManualBankAccountForm();
+      this.bankFlowScreen = 'manual-schema-selection';
+      return;
+    }
+
     if (
       action === 'add-bank-account' ||
       action === 'use-bank-account-instead' ||
@@ -2128,6 +2097,7 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
+      this.resetBankFlow();
       void this.startPayByBankFlow();
       return;
     }
@@ -2173,11 +2143,6 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (action === 'save-ach-manual') {
-      void this.saveManualBankAccount();
-      return;
-    }
-
     if (action === 'edit-card-details') {
       this.cardFlowScreen = 'form';
       return;
@@ -2210,22 +2175,6 @@ export class CommerceHubConnect extends LitElement {
       this.updateCardDraftField(
         cardInput.dataset.cardField as keyof CardDraft,
         cardInput.value
-      );
-      return;
-    }
-
-    const bankAccountInput = event
-      .composedPath()
-      .find(
-        (item): item is HTMLInputElement =>
-          item instanceof HTMLInputElement &&
-          Boolean(item.dataset.bankAccountField)
-      );
-
-    if (bankAccountInput) {
-      this.updateBankAccountDraftField(
-        bankAccountInput.dataset.bankAccountField as keyof BankAccountDraft,
-        bankAccountInput.value
       );
       return;
     }
@@ -2359,6 +2308,21 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleChange = (event: Event) => {
+    const instrumentSchemaInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          item.name === 'instrument-schema' &&
+          Boolean(item.dataset.instrumentSchemaCode)
+      );
+
+    if (instrumentSchemaInput) {
+      this.selectedBankAccountInstrumentSchemaCode =
+        instrumentSchemaInput.dataset.instrumentSchemaCode;
+      return;
+    }
+
     const requiredInfoFileInput = event
       .composedPath()
       .find(
@@ -2388,22 +2352,6 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    const bankAccountSelect = event
-      .composedPath()
-      .find(
-        (item): item is HTMLSelectElement =>
-          item instanceof HTMLSelectElement &&
-          Boolean(item.dataset.bankAccountField)
-      );
-
-    if (bankAccountSelect) {
-      this.updateBankAccountDraftField(
-        bankAccountSelect.dataset.bankAccountField as keyof BankAccountDraft,
-        bankAccountSelect.value
-      );
-      return;
-    }
-
     const transferSelect = event
       .composedPath()
       .find(
@@ -2418,6 +2366,17 @@ export class CommerceHubConnect extends LitElement {
         transferSelect.value
       );
     }
+  };
+
+  private handleBankAccountFormDataChange = (
+    event: CustomEvent<{data?: unknown}>
+  ) => {
+    const data = event.detail.data;
+
+    this.bankAccountFormData =
+      typeof data === 'object' && data !== null && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : {};
   };
 
   private handlePaste = (event: Event) => {
@@ -2491,25 +2450,7 @@ export class CommerceHubConnect extends LitElement {
         cardInput.dataset.cardField as SensitiveCardField,
         cardInput.value
       );
-      return;
     }
-
-    const bankAccountInput = event
-      .composedPath()
-      .find(
-        (item): item is HTMLInputElement =>
-          item instanceof HTMLInputElement &&
-          isSensitiveBankAccountField(item.dataset.bankAccountField)
-      );
-
-    if (!bankAccountInput) {
-      return;
-    }
-
-    void this.encryptBankAccountField(
-      bankAccountInput.dataset.bankAccountField as SensitiveBankAccountField,
-      bankAccountInput.value
-    );
   };
 
   private getOtpInputs(): HTMLInputElement[] {
@@ -2718,7 +2659,6 @@ export class CommerceHubConnect extends LitElement {
 
   private async showManualBankAccountScreen() {
     const interactionId = this.requireInteractionId();
-    const country = this.interactionResponse?.country?.trim();
 
     this.clearDeletePaymentSourceConfirmation();
     this.resetBankFlow();
@@ -2733,24 +2673,16 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (!country) {
-      this.bankAccountConfigError =
-        'Bank account details are not available because the interaction response is missing a country.';
-      this.bankFlowScreen = 'manual-config-error';
-      return;
-    }
-
     try {
       const configResponse = await this.fetchManualBankAccountCountryConfig(
         interactionId,
-        country
+        MANUAL_BANK_ACCOUNT_COUNTRY
       );
 
       if (
         !this.isCurrentManualBankAccountConfigRequest(
           requestToken,
-          interactionId,
-          country
+          interactionId
         )
       ) {
         if (requestToken === this.bankAccountConfigRequestToken) {
@@ -2760,14 +2692,32 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      this.bankAccountConfigResponse = configResponse;
-      this.initializeManualBankAccountScreen();
+      const instrumentSchemas = usableInstrumentSchemas(
+        configResponse.instrumentSchemas
+      );
+
+      if (instrumentSchemas.length === 0) {
+        this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
+        this.bankFlowScreen = 'manual-config-error';
+        return;
+      }
+
+      this.bankAccountInstrumentSchemas = instrumentSchemas;
+      this.bankAccountConfigError = undefined;
+
+      if (instrumentSchemas.length === 1) {
+        this.selectedBankAccountInstrumentSchemaCode =
+          instrumentSchemas[0].bavSupportedCode;
+        this.initializeManualBankAccountScreen();
+        return;
+      }
+
+      this.bankFlowScreen = 'manual-schema-selection';
     } catch (cause) {
       if (
         !this.isCurrentManualBankAccountConfigRequest(
           requestToken,
-          interactionId,
-          country
+          interactionId
         )
       ) {
         if (requestToken === this.bankAccountConfigRequestToken) {
@@ -2777,7 +2727,6 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      this.bankAccountConfigResponse = undefined;
       this.bankAccountConfigError = apiErrorMessage(cause);
       this.bankFlowScreen = 'manual-config-error';
     }
@@ -2785,26 +2734,44 @@ export class CommerceHubConnect extends LitElement {
 
   private isCurrentManualBankAccountConfigRequest(
     requestToken: number,
-    interactionId: string | undefined,
-    country: string | undefined
+    interactionId: string | undefined
   ): boolean {
     return (
       requestToken === this.bankAccountConfigRequestToken &&
       Boolean(interactionId) &&
-      Boolean(country) &&
-      this.interactionResponse?.interactionId === interactionId &&
-      this.interactionResponse?.country?.trim() === country
+      this.interactionResponse?.interactionId === interactionId
     );
   }
 
   private initializeManualBankAccountScreen() {
+    const selectedSchema = this.bankAccountInstrumentSchemas.find(
+      (schema) =>
+        schema.bavSupportedCode === this.selectedBankAccountInstrumentSchemaCode
+    );
+
+    if (!selectedSchema) {
+      return;
+    }
+
+    const formSchema = normalizeInstrumentSchema(selectedSchema);
+
     this.bankFlowScreen = 'manual';
-    this.bankAccountDraft = createBankAccountDraft();
-    this.bankAccountDraftErrors = {};
-    this.bankAccountEncryption = createBankAccountEncryptionState();
-    this.bankAccountSubmitError = undefined;
+    this.bankAccountFormSchema = formSchema;
+    this.bankAccountFormUiSchema =
+      createInstrumentSchemaUiSchema(selectedSchema);
+    this.bankAccountFormData =
+      createInstrumentSchemaInitialData(selectedSchema);
+    this.bankAccountFormI18n = {
+      translateError: createInstrumentSchemaErrorTranslator(selectedSchema),
+    };
     this.bankAccountConfigError = undefined;
-    void this.loadBankAccountFormSchema();
+  }
+
+  private clearManualBankAccountForm() {
+    this.bankAccountFormSchema = undefined;
+    this.bankAccountFormUiSchema = undefined;
+    this.bankAccountFormData = {};
+    this.bankAccountFormI18n = undefined;
   }
 
   private updateTransferDraftField(field: keyof TransferDraft, value: string) {
@@ -2821,31 +2788,6 @@ export class CommerceHubConnect extends LitElement {
     this.transferFlowScreen = 'form';
     this.transferSubmitError = undefined;
     this.transferSubmitSuccess = false;
-  }
-
-  private updateBankAccountDraftField(
-    field: keyof BankAccountDraft,
-    value: string
-  ) {
-    const schema = this.bankAccountFormSchema;
-
-    if (schema === undefined) {
-      return;
-    }
-
-    const nextState = updateBankAccountDraftFieldState({
-      draft: this.bankAccountDraft,
-      errors: this.bankAccountDraftErrors,
-      encryption: this.bankAccountEncryption,
-      schema,
-      field,
-      value,
-    });
-
-    this.bankAccountDraft = nextState.draft;
-    this.bankAccountEncryption = nextState.encryption;
-    this.bankAccountDraftErrors = nextState.errors;
-    this.bankAccountSubmitError = undefined;
   }
 
   private updateCardDraftField(field: keyof CardDraft, value: string) {
@@ -2967,131 +2909,6 @@ export class CommerceHubConnect extends LitElement {
           status: 'failed',
           normalizedValue,
         },
-      };
-    }
-  }
-
-  private async encryptBankAccountField(
-    field: SensitiveBankAccountField,
-    value: string
-  ): Promise<void> {
-    const schema = this.bankAccountFormSchema;
-
-    if (schema === undefined) {
-      return;
-    }
-
-    const currentFieldState = this.bankAccountEncryption[field];
-
-    if (isEncryptedBankAccountDisplayValue(value, currentFieldState)) {
-      this.bankAccountDraft = {
-        ...this.bankAccountDraft,
-        [field]: value,
-      };
-      this.bankAccountSubmitError = undefined;
-      return;
-    }
-
-    this.updateBankAccountDraftField(field, value);
-
-    const normalizedValue = normalizeBankAccountNumber(value);
-
-    if (!normalizedValue) {
-      const nextEncryption = {
-        ...this.bankAccountEncryption,
-        [field]: createCardEncryptionFieldState(),
-      };
-
-      this.bankAccountEncryption = nextEncryption;
-      this.bankAccountDraftErrors = validateBankAccountDraft(
-        normalizeBankAccountDraftForValidation(
-          this.bankAccountDraft,
-          nextEncryption
-        ),
-        schema
-      );
-      return;
-    }
-
-    if (
-      (currentFieldState.status === 'encrypting' ||
-        currentFieldState.status === 'encrypted') &&
-      currentFieldState.normalizedValue === normalizedValue
-    ) {
-      return;
-    }
-
-    this.bankAccountDraftErrors = omitBankAccountDraftError(
-      this.bankAccountDraftErrors,
-      field
-    );
-    this.bankAccountEncryption = {
-      ...this.bankAccountEncryption,
-      [field]: {
-        status: 'encrypting',
-        normalizedValue,
-      },
-    };
-
-    try {
-      const encryptedValue = await this.encryptSensitiveSourceValue(
-        normalizedValue
-      );
-
-      if (
-        normalizeBankAccountNumber(this.bankAccountDraft[field]) !==
-        normalizedValue
-      ) {
-        return;
-      }
-
-      const nextDraft = {
-        ...this.bankAccountDraft,
-        [field]: maskSensitiveDisplayValue(normalizedValue),
-      };
-      const nextEncryption = {
-        ...this.bankAccountEncryption,
-        [field]: {
-          status: 'encrypted',
-          normalizedValue,
-          encryptedValue,
-        },
-      };
-
-      this.bankAccountDraft = nextDraft;
-      this.bankAccountEncryption = nextEncryption;
-      this.bankAccountDraftErrors = validateBankAccountDraft(
-        normalizeBankAccountDraftForValidation(nextDraft, nextEncryption),
-        schema
-      );
-    } catch (cause) {
-      void cause;
-
-      if (
-        normalizeBankAccountNumber(this.bankAccountDraft[field]) !==
-        normalizedValue
-      ) {
-        return;
-      }
-
-      const nextEncryption = {
-        ...this.bankAccountEncryption,
-        [field]: {
-          status: 'failed',
-          normalizedValue,
-        },
-      };
-
-      this.bankAccountEncryption = nextEncryption;
-      this.bankAccountDraftErrors = {
-        ...validateBankAccountDraft(
-          normalizeBankAccountDraftForValidation(
-            this.bankAccountDraft,
-            nextEncryption
-          ),
-          schema
-        ),
-        [field]: buildBankAccountEncryptionErrorMessage(field),
       };
     }
   }
@@ -3232,166 +3049,6 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private async saveManualBankAccount() {
-    if (this.pendingAction === 'save-ach-manual') {
-      return;
-    }
-
-    const interactionId = this.requireInteractionId();
-
-    if (!interactionId) {
-      return;
-    }
-
-    const schema = this.bankAccountFormSchema;
-
-    if (schema === undefined) {
-      this.bankAccountSubmitError =
-        this.bankAccountFormLoadError ?? BANK_ACCOUNT_FORM_LOAD_ERROR;
-      return;
-    }
-
-    const normalizedDraft = normalizeBankAccountDraftForValidation(
-      this.bankAccountDraft,
-      this.bankAccountEncryption
-    );
-    const errors = validateBankAccountDraft(normalizedDraft, schema);
-
-    if (Object.keys(errors).length > 0) {
-      this.bankAccountDraft = normalizeBankAccountDraftForDisplay(
-        this.bankAccountDraft,
-        this.bankAccountEncryption
-      );
-      this.bankAccountDraftErrors = errors;
-      this.bankAccountSubmitError = undefined;
-      return;
-    }
-
-    let sourceCreateContext: SourceCreateContext;
-
-    try {
-      sourceCreateContext = this.requireSourceCreateContext();
-    } catch (cause) {
-      this.bankAccountDraft = normalizeBankAccountDraftForDisplay(
-        this.bankAccountDraft,
-        this.bankAccountEncryption
-      );
-      this.bankAccountDraftErrors = {};
-      this.bankAccountSubmitError = apiErrorMessage(cause);
-      return;
-    }
-
-    this.pendingAction = 'save-ach-manual';
-    this.bankAccountDraft = normalizeBankAccountDraftForDisplay(
-      this.bankAccountDraft,
-      this.bankAccountEncryption
-    );
-    this.bankAccountDraftErrors = {};
-    this.bankAccountSubmitError = undefined;
-
-    try {
-      await this.encryptChangedBankAccountFields();
-
-      const encryptedNormalizedDraft = normalizeBankAccountDraftForValidation(
-        this.bankAccountDraft,
-        this.bankAccountEncryption
-      );
-      const postEncryptionErrors = validateBankAccountDraft(
-        encryptedNormalizedDraft,
-        schema
-      );
-
-      if (Object.keys(postEncryptionErrors).length > 0) {
-        this.bankAccountDraftErrors = postEncryptionErrors;
-        this.bankAccountSubmitError = undefined;
-        return;
-      }
-
-      const encryptedRoutingNumber = resolveBankAccountPayloadFieldValue(
-        'routingNumber',
-        this.bankAccountDraft,
-        this.bankAccountEncryption
-      );
-      const encryptedAccountNumber = resolveBankAccountPayloadFieldValue(
-        'accountNumber',
-        this.bankAccountDraft,
-        this.bankAccountEncryption
-      );
-      const encryptedAccountNumberReEntered =
-        resolveBankAccountPayloadFieldValue(
-          'confirmAccountNumber',
-          this.bankAccountDraft,
-          this.bankAccountEncryption
-        );
-      const displayAccountNumber = bankAccountFieldLastFour(
-        'accountNumber',
-        this.bankAccountEncryption,
-        encryptedNormalizedDraft
-      );
-      const bankAccountSource: BankAccountSourcePayload = {
-        id: '',
-        tenderType: 'BANK_ACCOUNT',
-        name: resolveBankAccountSourceName(
-          this.bankAccountDraft.accountNickname,
-          displayAccountNumber
-        ),
-        bankAccount: {
-          routingNumber: encryptedRoutingNumber,
-          accountNumber: encryptedAccountNumber,
-          accountNumberReEntered: encryptedAccountNumberReEntered,
-          routingNumberEncrypted: encryptedRoutingNumber,
-          accountNumberEncrypted: encryptedAccountNumber,
-        },
-      };
-      const verificationResponse =
-        await this.requestCommerceHubJson<VerificationResponse>(
-          '/interaction/source/ach',
-          interactionId,
-          {
-            method: 'POST',
-            headers: this.createSourceCreateHeaders(
-              interactionId,
-              sourceCreateContext,
-              {'Content-Type': 'application/json'}
-            ),
-            body: JSON.stringify(bankAccountSource),
-            credentials: 'include',
-          }
-        );
-      const createdSource = this.sourceWithVerificationResponse(
-        bankPaymentSourceFromPayload(bankAccountSource, displayAccountNumber),
-        verificationResponse
-      ) as BankPaymentSource & {id: string};
-      const paymentSourceId = sourceIdFromVerificationResponse(
-        verificationResponse,
-        'The bank account creation response did not include a source id.'
-      );
-      const nextInteractionResponse = this.interactionResponseWithAddedSource(
-        interactionId,
-        createdSource
-      );
-
-      this.bankFlowScreen = undefined;
-      this.bankAccountDraft = createBankAccountDraft();
-      this.bankAccountDraftErrors = {};
-      this.bankAccountEncryption = createBankAccountEncryptionState();
-      this.bankAccountSubmitError = undefined;
-      this.setInteractionResponseFromSdk(nextInteractionResponse);
-      this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
-
-      if (createdSource.verificationInfo?.status === 'VERIFIED') {
-        await this.attachPaymentSource(paymentSourceId);
-        return;
-      }
-
-      this.showAddedPaymentSourceStatus(createdSource);
-    } catch (cause) {
-      this.bankAccountSubmitError = apiErrorMessage(cause);
-    } finally {
-      this.pendingAction = undefined;
-    }
-  }
-
   private reviewTransfer() {
     if (this.pendingAction === 'transfer') {
       return;
@@ -3478,83 +3135,6 @@ export class CommerceHubConnect extends LitElement {
       this.transferSubmitError = apiErrorMessage(cause);
     } finally {
       this.pendingAction = undefined;
-    }
-  }
-
-  private async encryptChangedBankAccountFields(): Promise<void> {
-    for (const field of [
-      'routingNumber',
-      'accountNumber',
-      'confirmAccountNumber',
-    ] as const) {
-      const value = this.bankAccountDraft[field];
-      const encryptedField = this.bankAccountEncryption[field];
-
-      if (isEncryptedBankAccountDisplayValue(value, encryptedField)) {
-        continue;
-      }
-
-      const normalizedValue = normalizeBankAccountNumber(value);
-
-      if (!normalizedValue) {
-        continue;
-      }
-
-      const isAlreadyEncrypted =
-        encryptedField.status === 'encrypted' &&
-        encryptedField.normalizedValue === normalizedValue &&
-        Boolean(encryptedField.encryptedValue);
-
-      if (!isAlreadyEncrypted) {
-        await this.encryptBankAccountField(field, value);
-      }
-    }
-  }
-
-  private async loadBankAccountFormSchema(): Promise<void> {
-    const request = new Request(BANK_ACCOUNT_FORM_URL, {
-      method: 'GET',
-      headers: {Accept: 'application/json'},
-    });
-
-    this.bankAccountFormSchema = undefined;
-    this.bankAccountFormUiSchema = undefined;
-    this.bankAccountFormLoadError = undefined;
-    this.bankAccountFormLoading = true;
-
-    try {
-      const response = await fetch(request);
-      const formSchema = await response.json();
-
-      if (!response.ok || !isBankAccountFormSchema(formSchema)) {
-        throw new Error(BANK_ACCOUNT_FORM_LOAD_ERROR);
-      }
-
-      if (this.bankFlowScreen !== 'manual') {
-        return;
-      }
-
-      this.bankAccountFormSchema = formSchema;
-      this.bankAccountFormUiSchema = generateDefaultUISchema(
-        formSchema as JsonSchema,
-        'VerticalLayout'
-      );
-      this.bankAccountFormLoadError = undefined;
-    } catch (cause) {
-      void cause;
-
-      if (this.bankFlowScreen !== 'manual') {
-        return;
-      }
-
-      this.bankAccountFormSchema = undefined;
-      this.bankAccountFormUiSchema = undefined;
-      this.bankAccountFormLoadError = BANK_ACCOUNT_FORM_LOAD_ERROR;
-      this.bankAccountDraftErrors = {};
-    } finally {
-      if (this.bankFlowScreen === 'manual') {
-        this.bankAccountFormLoading = false;
-      }
     }
   }
 
@@ -4295,6 +3875,8 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    const requestToken = ++this.bankProviderRequestToken;
+
     this.bankFlowScreen = 'provider';
     this.bankOutcomeSource = undefined;
     this.bankLinkLoading = true;
@@ -4304,31 +3886,63 @@ export class CommerceHubConnect extends LitElement {
     try {
       await this.launchPayByBankProvider(
         interactionId,
-        PAY_BY_BANK_PROVIDER_CONTAINER_ID
+        PAY_BY_BANK_PROVIDER_CONTAINER_ID,
+        requestToken
       );
     } catch (cause) {
+      if (
+        !this.isCurrentPayByBankProviderRequest(requestToken, interactionId)
+      ) {
+        return;
+      }
+
       console.error('CommerceHub Connect Pay by Bank failed', cause);
       this.resetBankFlow();
       this.showPaymentSourceList({refresh: true});
     } finally {
-      this.bankLinkLoading = false;
+      if (requestToken === this.bankProviderRequestToken) {
+        this.cancelPayByBankLaunch = undefined;
+        this.bankLinkLoading = false;
+      }
     }
+  }
+
+  private isCurrentPayByBankProviderRequest(
+    requestToken: number,
+    interactionId: string
+  ): boolean {
+    return (
+      this.isConnected &&
+      requestToken === this.bankProviderRequestToken &&
+      this.interactionResponse?.interactionId === interactionId &&
+      this.bankFlowScreen === 'provider'
+    );
   }
 
   private async launchPayByBankProvider(
     interactionId: string,
-    containerId: string
+    containerId: string,
+    requestToken: number
   ) {
     const session = await this.requestCommerceHubJson<PayByBankSession>(
       '/interaction/source/pbb/session',
       interactionId,
       {method: 'GET', credentials: 'include'}
     );
+
+    if (!this.isCurrentPayByBankProviderRequest(requestToken, interactionId)) {
+      return;
+    }
+
     const {aggregatorSessionId, accessToken, pToken, publicKey} =
       resolvePayByBankSession(session);
     const payByBank = resolvePayByBankOptions(this.designConfig?.payByBank);
 
     await loadPaymentSdkScript(payByBank.paymentSdkUrl);
+
+    if (!this.isCurrentPayByBankProviderRequest(requestToken, interactionId)) {
+      return;
+    }
 
     const paymentSdk = window.PaymentSDK;
 
@@ -4340,6 +3954,12 @@ export class CommerceHubConnect extends LitElement {
 
     await new Promise<void>((resolve, reject) => {
       let settled = false;
+      const cancel = () => {
+        settled = true;
+        resolve();
+      };
+
+      this.cancelPayByBankLaunch = cancel;
 
       destroyPaymentSdk();
 
@@ -4355,14 +3975,19 @@ export class CommerceHubConnect extends LitElement {
         aggregatorSessionId,
         containerId,
         onEvent: async (event) => {
-          if (settled || !isTerminalPaymentSdkEvent(event)) {
+          if (
+            settled ||
+            !isTerminalPaymentSdkEvent(event) ||
+            !this.isCurrentPayByBankProviderRequest(requestToken, interactionId)
+          ) {
             return;
           }
 
+          settled = true;
+          this.bankLinkLoading = true;
           destroyPaymentSdk();
 
           if (event.type !== 'success') {
-            settled = true;
             this.resetBankFlow();
             this.showPaymentSourceList({refresh: true});
             resolve();
@@ -4375,6 +4000,17 @@ export class CommerceHubConnect extends LitElement {
               aggregatorSessionId,
               pToken
             );
+
+            if (
+              !this.isCurrentPayByBankProviderRequest(
+                requestToken,
+                interactionId
+              )
+            ) {
+              resolve();
+              return;
+            }
+
             const resolvedBankSource =
               bankPaymentSourceFromVerificationResponse(verificationResponse);
             const paymentSourceId = resolvedBankSource.id?.trim();
@@ -4396,21 +4032,34 @@ export class CommerceHubConnect extends LitElement {
 
             if (resolvedBankSource.verificationInfo?.status === 'VERIFIED') {
               await this.attachPaymentSource(paymentSourceId);
-              settled = true;
               resolve();
               return;
             }
 
             this.showAddedPaymentSourceStatus(resolvedBankSource);
-            settled = true;
             resolve();
           } catch (cause) {
-            settled = true;
+            if (
+              !this.isCurrentPayByBankProviderRequest(
+                requestToken,
+                interactionId
+              )
+            ) {
+              resolve();
+              return;
+            }
+
             reject(cause);
           }
         },
       });
-      this.bankLinkLoading = false;
+
+      if (
+        !settled &&
+        this.isCurrentPayByBankProviderRequest(requestToken, interactionId)
+      ) {
+        this.bankLinkLoading = false;
+      }
     });
   }
 
@@ -4588,20 +4237,22 @@ export class CommerceHubConnect extends LitElement {
 
   private resetBankFlow() {
     this.bankAccountConfigRequestToken += 1;
+    this.cancelPayByBankProvider();
     this.bankFlowScreen = undefined;
     this.bankOutcomeSource = undefined;
     this.bankLinkLoading = false;
-    this.bankAccountDraft = createBankAccountDraft();
-    this.bankAccountDraftErrors = {};
-    this.bankAccountEncryption = createBankAccountEncryptionState();
-    this.bankAccountSubmitError = undefined;
-    this.bankAccountFormSchema = undefined;
-    this.bankAccountFormUiSchema = undefined;
-    this.bankAccountFormLoading = false;
-    this.bankAccountFormLoadError = undefined;
-    this.bankAccountConfigResponse = undefined;
+    this.bankAccountInstrumentSchemas = [];
+    this.selectedBankAccountInstrumentSchemaCode = undefined;
+    this.clearManualBankAccountForm();
     this.bankAccountConfigError = undefined;
     this.removePayByBankProviderContainer();
+  }
+
+  private cancelPayByBankProvider() {
+    this.bankProviderRequestToken += 1;
+    this.cancelPayByBankLaunch?.();
+    this.cancelPayByBankLaunch = undefined;
+    destroyPaymentSdk();
   }
 
   private resetCardFlow() {
@@ -4940,24 +4591,6 @@ const cardPaymentSourceFromPayload = (
     card: {
       ...source.card,
       ...(displayLast4 ? {cardNumber: displayLast4} : {}),
-    },
-  };
-};
-
-const bankPaymentSourceFromPayload = (
-  source: BankAccountSourcePayload,
-  displayAccountNumber?: string
-): BankPaymentSource => {
-  const displayLast4 = normalizeBankAccountNumber(
-    displayAccountNumber ?? ''
-  ).slice(-4);
-
-  return {
-    ...source,
-    tenderType: 'BankAccount',
-    bankAccount: {
-      ...source.bankAccount,
-      ...(displayLast4 ? {accountNumber: displayLast4} : {}),
     },
   };
 };
