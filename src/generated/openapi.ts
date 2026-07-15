@@ -678,6 +678,7 @@ export interface components {
             bankAccount?: components["schemas"]["BankAccountDetail"];
             billingAddressId?: string;
             productCode?: string;
+            accountHolderType?: string;
         });
         BankAccountDetail: {
             bankName?: string;

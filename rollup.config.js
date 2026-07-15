@@ -5,6 +5,8 @@
  */
 
 import summary from 'rollup-plugin-summary';
+import commonjs from '@rollup/plugin-commonjs';
+import json from '@rollup/plugin-json';
 import terser from '@rollup/plugin-terser';
 import resolve from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
@@ -23,6 +25,8 @@ export default {
   plugins: [
     replace({preventAssignment: false, 'Reflect.decorate': 'undefined'}),
     resolve(),
+    json(),
+    commonjs(),
     /**
      * This minification setup serves the static site generation.
      * For bundling and minification, check the README.md file.
