@@ -1,4 +1,5 @@
 import {
+  generateDefaultUISchema,
   type JsonFormsI18nState,
   type JsonSchema,
   type UISchemaElement,
@@ -15,6 +16,27 @@ import {
 } from './internal/api-client.js';
 import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
 import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
+import {
+  bankAccountFieldLastFour,
+  buildBankAccountEncryptionErrorMessage,
+  createBankAccountDraft,
+  createBankAccountEncryptionState,
+  isBankAccountDraftReady,
+  isEncryptedBankAccountDisplayValue,
+  isSensitiveBankAccountField,
+  legacyBankAccountFormSchema,
+  maskSensitiveDisplayValue,
+  normalizeBankAccountDraftForDisplay,
+  normalizeBankAccountDraftForValidation,
+  normalizeBankAccountNumber,
+  omitBankAccountDraftError,
+  resolveBankAccountPayloadFieldValue,
+  resolveBankAccountSourceName,
+  updateBankAccountDraftFieldState,
+  validateBankAccountDraft,
+} from './internal/forms/bank-account-form-state.js';
+import {bankAccountDraftErrorsToJsonFormsErrors} from './internal/forms/bank-account-jsonforms.js';
+import {bankAccountJsonFormsRenderers} from './internal/forms/bank-account-jsonforms-renderers.js';
 import {
   createInstrumentSchemaErrorTranslator,
   createInstrumentSchemaInitialData,
@@ -111,6 +133,9 @@ import {
 } from './internal/primitives.js';
 import type {
   AllowedTenderOptions,
+  BankAccountDraft,
+  BankAccountDraftErrors,
+  BankAccountEncryptionState,
   CardDraft,
   CardDraftErrors,
   CardEncryptionState,
@@ -129,6 +154,7 @@ import type {
   RequiredInfoFileNames,
   RequiredInfoFiles,
   RequiredInfoValues,
+  SensitiveBankAccountField,
   SensitiveCardField,
   TransferDraft,
   TransferDraftErrors,
@@ -295,6 +321,10 @@ type VerificationInfo = NonNullable<PaymentSource['verificationInfo']>;
 type CardSourcePayload = Omit<CardPaymentSource, 'tenderType'> & {
   tenderType: 'CARD';
 };
+type BankAccountSourcePayload = Omit<BankPaymentSource, 'tenderType'> & {
+  tenderType: 'BANK_ACCOUNT';
+  bankAccount: NonNullable<BankPaymentSource['bankAccount']>;
+};
 type Address = components['schemas']['Address'];
 type BillingAddressResponse = components['schemas']['StringHolder'];
 type VerificationResponse = components['schemas']['VerificationResponse'];
@@ -363,6 +393,10 @@ const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NO_INSTRUMENT_SCHEMAS_ERROR =
   'No instrument schemas are available for this country. Try again.';
+const LEGACY_BANK_ACCOUNT_UI_SCHEMA = generateDefaultUISchema(
+  legacyBankAccountFormSchema as JsonSchema,
+  'VerticalLayout'
+);
 
 @customElement('commerce-hub-bank-account-jsonforms')
 class CommerceHubBankAccountJsonForms extends JsonFormsLit {
@@ -566,6 +600,9 @@ export class CommerceHubConnect extends LitElement {
   private bankAccountInstrumentSchemas: ConfigInstrumentSchema[] = [];
 
   @state()
+  private manualBankAccountFormMode?: 'instrument-schema' | 'legacy';
+
+  @state()
   private selectedBankAccountInstrumentSchemaCode?: string;
 
   @state()
@@ -584,6 +621,16 @@ export class CommerceHubConnect extends LitElement {
   private bankAccountSubmitError?: string;
 
   private bankAccountFormI18n?: JsonFormsI18nState;
+
+  @state()
+  private legacyBankAccountDraft: BankAccountDraft = createBankAccountDraft();
+
+  @state()
+  private legacyBankAccountDraftErrors: BankAccountDraftErrors = {};
+
+  @state()
+  private legacyBankAccountEncryption: BankAccountEncryptionState =
+    createBankAccountEncryptionState();
 
   @state()
   private bankAccountConfigError?: string;
@@ -1879,6 +1926,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderManualBankAccountScreen(): TemplateResult {
+    if (this.manualBankAccountFormMode === 'legacy') {
+      return this.renderLegacyManualBankAccountScreen();
+    }
+
     const bankAccountFormSchema = this.bankAccountFormSchema;
     const bankAccountFormUiSchema = this.bankAccountFormUiSchema;
 
@@ -1924,6 +1975,74 @@ export class CommerceHubConnect extends LitElement {
               action: 'save-bank-account',
               loading: isSaving,
               disabled: !this.bankAccountFormValid || isSaving,
+            })}
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  private renderLegacyManualBankAccountScreen(): TemplateResult {
+    const isSaving = this.pendingAction === 'save-bank-account';
+    const isEncrypting = Object.values(this.legacyBankAccountEncryption).some(
+      (field) => field.status === 'encrypting'
+    );
+
+    return this.renderWidgetShell({
+      title: 'Enter bank details',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-bank-provider',
+        disabled: isSaving,
+      }),
+      showClose: false,
+      showDivider: false,
+      busy: isSaving,
+      overlay: isSaving
+        ? renderWidgetLoadingOverlay({
+            title: 'Saving bank account',
+            helper: 'Securely saving your bank account, please wait.',
+          })
+        : undefined,
+      content: html`
+        <div class="payment-flow card-form-screen">
+          ${this.bankAccountSubmitError
+            ? renderAlert({
+                variant: 'danger',
+                message: this.bankAccountSubmitError,
+              })
+            : ''}
+          <commerce-hub-bank-account-jsonforms
+            class="bank-account-jsonforms"
+            .schema=${legacyBankAccountFormSchema as JsonSchema}
+            .uischema=${LEGACY_BANK_ACCOUNT_UI_SCHEMA}
+            .data=${this.legacyBankAccountDraft}
+            .renderers=${bankAccountJsonFormsRenderers}
+            .readonly=${isSaving}
+            .config=${{
+              draft: this.legacyBankAccountDraft,
+              errors: this.legacyBankAccountDraftErrors,
+              encryption: this.legacyBankAccountEncryption,
+              disabled: isSaving,
+            }}
+            .additionalErrors=${bankAccountDraftErrorsToJsonFormsErrors(
+              this.legacyBankAccountDraftErrors
+            )}
+            .validationMode=${'ValidateAndShow'}
+          ></commerce-hub-bank-account-jsonforms>
+          <div class="primitive-footer card-form-primary">
+            ${renderButton({
+              label: isSaving ? 'Saving bank account' : 'Save bank account',
+              action: 'save-bank-account',
+              loading: isSaving,
+              disabled:
+                isSaving ||
+                isEncrypting ||
+                !isBankAccountDraftReady(
+                  this.legacyBankAccountDraft,
+                  this.legacyBankAccountEncryption,
+                  legacyBankAccountFormSchema
+                ),
             })}
           </div>
         </div>
@@ -2213,6 +2332,22 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    const bankAccountInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          Boolean(item.dataset.bankAccountField)
+      );
+
+    if (bankAccountInput) {
+      this.updateLegacyBankAccountDraftField(
+        bankAccountInput.dataset.bankAccountField as keyof BankAccountDraft,
+        bankAccountInput.value
+      );
+      return;
+    }
+
     const transferInput = event
       .composedPath()
       .find(
@@ -2492,6 +2627,22 @@ export class CommerceHubConnect extends LitElement {
         cardInput.dataset.cardField as SensitiveCardField,
         cardInput.value
       );
+      return;
+    }
+
+    const bankAccountInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          isSensitiveBankAccountField(item.dataset.bankAccountField)
+      );
+
+    if (bankAccountInput) {
+      void this.encryptLegacyBankAccountField(
+        bankAccountInput.dataset.bankAccountField as SensitiveBankAccountField,
+        bankAccountInput.value
+      );
     }
   };
 
@@ -2743,9 +2894,18 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      const instrumentSchemas = usableInstrumentSchemas(
-        configResponse.instrumentSchemas
-      );
+      const rawInstrumentSchemas = configResponse.instrumentSchemas;
+
+      if (
+        rawInstrumentSchemas === undefined ||
+        (Array.isArray(rawInstrumentSchemas) &&
+          rawInstrumentSchemas.length === 0)
+      ) {
+        this.initializeLegacyManualBankAccountScreen();
+        return;
+      }
+
+      const instrumentSchemas = usableInstrumentSchemas(rawInstrumentSchemas);
 
       if (instrumentSchemas.length === 0) {
         this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
@@ -2810,6 +2970,7 @@ export class CommerceHubConnect extends LitElement {
 
     const formSchema = normalizeInstrumentSchema(selectedSchema);
 
+    this.manualBankAccountFormMode = 'instrument-schema';
     this.bankFlowScreen = 'manual';
     this.bankAccountFormSchema = formSchema;
     this.bankAccountFormUiSchema =
@@ -2824,13 +2985,27 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountConfigError = undefined;
   }
 
+  private initializeLegacyManualBankAccountScreen() {
+    this.manualBankAccountFormMode = 'legacy';
+    this.bankFlowScreen = 'manual';
+    this.legacyBankAccountDraft = createBankAccountDraft();
+    this.legacyBankAccountDraftErrors = {};
+    this.legacyBankAccountEncryption = createBankAccountEncryptionState();
+    this.bankAccountSubmitError = undefined;
+    this.bankAccountConfigError = undefined;
+  }
+
   private clearManualBankAccountForm() {
+    this.manualBankAccountFormMode = undefined;
     this.bankAccountFormSchema = undefined;
     this.bankAccountFormUiSchema = undefined;
     this.bankAccountFormData = {};
     this.bankAccountFormValid = false;
     this.bankAccountSubmitError = undefined;
     this.bankAccountFormI18n = undefined;
+    this.legacyBankAccountDraft = createBankAccountDraft();
+    this.legacyBankAccountDraftErrors = {};
+    this.legacyBankAccountEncryption = createBankAccountEncryptionState();
   }
 
   private updateTransferDraftField(field: keyof TransferDraft, value: string) {
@@ -2847,6 +3022,29 @@ export class CommerceHubConnect extends LitElement {
     this.transferFlowScreen = 'form';
     this.transferSubmitError = undefined;
     this.transferSubmitSuccess = false;
+  }
+
+  private updateLegacyBankAccountDraftField(
+    field: keyof BankAccountDraft,
+    value: string
+  ) {
+    if (this.manualBankAccountFormMode !== 'legacy') {
+      return;
+    }
+
+    const nextState = updateBankAccountDraftFieldState({
+      draft: this.legacyBankAccountDraft,
+      errors: this.legacyBankAccountDraftErrors,
+      encryption: this.legacyBankAccountEncryption,
+      schema: legacyBankAccountFormSchema,
+      field,
+      value,
+    });
+
+    this.legacyBankAccountDraft = nextState.draft;
+    this.legacyBankAccountEncryption = nextState.encryption;
+    this.legacyBankAccountDraftErrors = nextState.errors;
+    this.bankAccountSubmitError = undefined;
   }
 
   private updateCardDraftField(field: keyof CardDraft, value: string) {
@@ -2968,6 +3166,131 @@ export class CommerceHubConnect extends LitElement {
           status: 'failed',
           normalizedValue,
         },
+      };
+    }
+  }
+
+  private async encryptLegacyBankAccountField(
+    field: SensitiveBankAccountField,
+    value: string
+  ): Promise<void> {
+    if (this.manualBankAccountFormMode !== 'legacy') {
+      return;
+    }
+
+    const currentFieldState = this.legacyBankAccountEncryption[field];
+
+    if (isEncryptedBankAccountDisplayValue(value, currentFieldState)) {
+      this.legacyBankAccountDraft = {
+        ...this.legacyBankAccountDraft,
+        [field]: value,
+      };
+      this.bankAccountSubmitError = undefined;
+      return;
+    }
+
+    this.updateLegacyBankAccountDraftField(field, value);
+
+    const normalizedValue = normalizeBankAccountNumber(value);
+
+    if (!normalizedValue) {
+      const nextEncryption = {
+        ...this.legacyBankAccountEncryption,
+        [field]: createCardEncryptionFieldState(),
+      };
+
+      this.legacyBankAccountEncryption = nextEncryption;
+      this.legacyBankAccountDraftErrors = validateBankAccountDraft(
+        normalizeBankAccountDraftForValidation(
+          this.legacyBankAccountDraft,
+          nextEncryption
+        ),
+        legacyBankAccountFormSchema
+      );
+      return;
+    }
+
+    if (
+      (currentFieldState.status === 'encrypting' ||
+        currentFieldState.status === 'encrypted') &&
+      currentFieldState.normalizedValue === normalizedValue
+    ) {
+      return;
+    }
+
+    this.legacyBankAccountDraftErrors = omitBankAccountDraftError(
+      this.legacyBankAccountDraftErrors,
+      field
+    );
+    this.legacyBankAccountEncryption = {
+      ...this.legacyBankAccountEncryption,
+      [field]: {
+        status: 'encrypting',
+        normalizedValue,
+      },
+    };
+
+    try {
+      const encryptedValue = await this.encryptSensitiveSourceValue(
+        normalizedValue
+      );
+
+      if (
+        this.manualBankAccountFormMode !== 'legacy' ||
+        normalizeBankAccountNumber(this.legacyBankAccountDraft[field]) !==
+          normalizedValue
+      ) {
+        return;
+      }
+
+      const nextDraft = {
+        ...this.legacyBankAccountDraft,
+        [field]: maskSensitiveDisplayValue(normalizedValue),
+      };
+      const nextEncryption = {
+        ...this.legacyBankAccountEncryption,
+        [field]: {
+          status: 'encrypted' as const,
+          normalizedValue,
+          encryptedValue,
+        },
+      };
+
+      this.legacyBankAccountDraft = nextDraft;
+      this.legacyBankAccountEncryption = nextEncryption;
+      this.legacyBankAccountDraftErrors = validateBankAccountDraft(
+        normalizeBankAccountDraftForValidation(nextDraft, nextEncryption),
+        legacyBankAccountFormSchema
+      );
+    } catch (cause) {
+      void cause;
+
+      if (
+        this.manualBankAccountFormMode !== 'legacy' ||
+        normalizeBankAccountNumber(this.legacyBankAccountDraft[field]) !==
+          normalizedValue
+      ) {
+        return;
+      }
+
+      const nextEncryption = {
+        ...this.legacyBankAccountEncryption,
+        [field]: {
+          status: 'failed' as const,
+          normalizedValue,
+        },
+      };
+
+      this.legacyBankAccountEncryption = nextEncryption;
+      this.legacyBankAccountDraftErrors = {
+        ...validateBankAccountDraft(
+          normalizeBankAccountDraftForValidation(
+            this.legacyBankAccountDraft,
+            nextEncryption
+          ),
+          legacyBankAccountFormSchema
+        ),
+        [field]: buildBankAccountEncryptionErrorMessage(field),
       };
     }
   }
@@ -3109,6 +3432,11 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private async saveManualBankAccount() {
+    if (this.manualBankAccountFormMode === 'legacy') {
+      await this.saveLegacyManualBankAccount();
+      return;
+    }
+
     if (
       this.pendingAction === 'save-bank-account' ||
       !this.bankAccountFormValid
@@ -3212,6 +3540,189 @@ export class CommerceHubConnect extends LitElement {
       this.bankAccountSubmitError = apiErrorMessage(cause);
     } finally {
       this.pendingAction = undefined;
+    }
+  }
+
+  private async saveLegacyManualBankAccount() {
+    if (this.pendingAction === 'save-bank-account') {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+
+    if (!interactionId || this.manualBankAccountFormMode !== 'legacy') {
+      return;
+    }
+
+    const normalizedDraft = normalizeBankAccountDraftForValidation(
+      this.legacyBankAccountDraft,
+      this.legacyBankAccountEncryption
+    );
+    const errors = validateBankAccountDraft(
+      normalizedDraft,
+      legacyBankAccountFormSchema
+    );
+
+    if (Object.keys(errors).length > 0) {
+      this.legacyBankAccountDraft = normalizeBankAccountDraftForDisplay(
+        this.legacyBankAccountDraft,
+        this.legacyBankAccountEncryption
+      );
+      this.legacyBankAccountDraftErrors = errors;
+      this.bankAccountSubmitError = undefined;
+      return;
+    }
+
+    let sourceCreateContext: SourceCreateContext;
+
+    try {
+      sourceCreateContext = this.requireSourceCreateContext();
+    } catch (cause) {
+      this.legacyBankAccountDraft = normalizeBankAccountDraftForDisplay(
+        this.legacyBankAccountDraft,
+        this.legacyBankAccountEncryption
+      );
+      this.legacyBankAccountDraftErrors = {};
+      this.bankAccountSubmitError = apiErrorMessage(cause);
+      return;
+    }
+
+    this.pendingAction = 'save-bank-account';
+    this.legacyBankAccountDraft = normalizeBankAccountDraftForDisplay(
+      this.legacyBankAccountDraft,
+      this.legacyBankAccountEncryption
+    );
+    this.legacyBankAccountDraftErrors = {};
+    this.bankAccountSubmitError = undefined;
+
+    try {
+      await this.encryptChangedLegacyBankAccountFields();
+
+      const encryptedNormalizedDraft = normalizeBankAccountDraftForValidation(
+        this.legacyBankAccountDraft,
+        this.legacyBankAccountEncryption
+      );
+      const postEncryptionErrors = validateBankAccountDraft(
+        encryptedNormalizedDraft,
+        legacyBankAccountFormSchema
+      );
+
+      if (Object.keys(postEncryptionErrors).length > 0) {
+        this.legacyBankAccountDraftErrors = postEncryptionErrors;
+        return;
+      }
+
+      const encryptedRoutingNumber = resolveBankAccountPayloadFieldValue(
+        'routingNumber',
+        this.legacyBankAccountDraft,
+        this.legacyBankAccountEncryption
+      );
+      const encryptedAccountNumber = resolveBankAccountPayloadFieldValue(
+        'accountNumber',
+        this.legacyBankAccountDraft,
+        this.legacyBankAccountEncryption
+      );
+      const encryptedAccountNumberReEntered =
+        resolveBankAccountPayloadFieldValue(
+          'confirmAccountNumber',
+          this.legacyBankAccountDraft,
+          this.legacyBankAccountEncryption
+        );
+      const displayAccountNumber = bankAccountFieldLastFour(
+        'accountNumber',
+        this.legacyBankAccountEncryption,
+        encryptedNormalizedDraft
+      );
+      const bankAccountSource: BankAccountSourcePayload = {
+        id: '',
+        tenderType: 'BANK_ACCOUNT',
+        name: resolveBankAccountSourceName(
+          this.legacyBankAccountDraft.accountNickname,
+          displayAccountNumber
+        ),
+        bankAccount: {
+          routingNumber: encryptedRoutingNumber,
+          accountNumber: encryptedAccountNumber,
+          accountNumberReEntered: encryptedAccountNumberReEntered,
+          routingNumberEncrypted: encryptedRoutingNumber,
+          accountNumberEncrypted: encryptedAccountNumber,
+        },
+      };
+      const verificationResponse =
+        await this.requestCommerceHubJson<VerificationResponse>(
+          '/interaction/source/ach',
+          interactionId,
+          {
+            method: 'POST',
+            headers: this.createSourceCreateHeaders(
+              interactionId,
+              sourceCreateContext,
+              {'Content-Type': 'application/json'}
+            ),
+            body: JSON.stringify(bankAccountSource),
+            credentials: 'include',
+          }
+        );
+      const createdSource = this.sourceWithVerificationResponse(
+        bankPaymentSourceFromLegacyPayload(
+          bankAccountSource,
+          displayAccountNumber
+        ),
+        verificationResponse
+      ) as BankPaymentSource & {id: string};
+      const paymentSourceId = sourceIdFromVerificationResponse(
+        verificationResponse,
+        'The bank account creation response did not include a source id.'
+      );
+      const nextInteractionResponse = this.interactionResponseWithAddedSource(
+        interactionId,
+        createdSource
+      );
+
+      this.setInteractionResponseFromSdk(nextInteractionResponse);
+      this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
+      this.resetBankFlow();
+
+      if (createdSource.verificationInfo?.status === 'VERIFIED') {
+        await this.attachPaymentSource(paymentSourceId);
+        return;
+      }
+
+      this.showAddedPaymentSourceStatus(createdSource);
+    } catch (cause) {
+      this.bankAccountSubmitError = apiErrorMessage(cause);
+    } finally {
+      this.pendingAction = undefined;
+    }
+  }
+
+  private async encryptChangedLegacyBankAccountFields(): Promise<void> {
+    for (const field of [
+      'routingNumber',
+      'accountNumber',
+      'confirmAccountNumber',
+    ] as const) {
+      const value = this.legacyBankAccountDraft[field];
+      const encryptedField = this.legacyBankAccountEncryption[field];
+
+      if (isEncryptedBankAccountDisplayValue(value, encryptedField)) {
+        continue;
+      }
+
+      const normalizedValue = normalizeBankAccountNumber(value);
+
+      if (!normalizedValue) {
+        continue;
+      }
+
+      const isAlreadyEncrypted =
+        encryptedField.status === 'encrypted' &&
+        encryptedField.normalizedValue === normalizedValue &&
+        Boolean(encryptedField.encryptedValue);
+
+      if (!isAlreadyEncrypted) {
+        await this.encryptLegacyBankAccountField(field, value);
+      }
     }
   }
 
@@ -4789,6 +5300,24 @@ const bankPaymentSourceFromManualRequest = (
     country: request.bankAccount.country,
   },
 });
+
+const bankPaymentSourceFromLegacyPayload = (
+  source: BankAccountSourcePayload,
+  displayAccountNumber?: string
+): BankPaymentSource => {
+  const displayLast4 = normalizeBankAccountNumber(
+    displayAccountNumber ?? ''
+  ).slice(-4);
+
+  return {
+    ...source,
+    tenderType: 'BankAccount',
+    bankAccount: {
+      ...source.bankAccount,
+      ...(displayLast4 ? {accountNumber: displayLast4} : {}),
+    },
+  };
+};
 
 const sourceIdFromVerificationResponse = (
   response: VerificationResponse,

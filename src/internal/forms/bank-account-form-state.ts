@@ -36,6 +36,72 @@ export type BankAccountFormSchema = {
   required?: BankAccountFormField[];
 };
 
+export const legacyBankAccountFormSchema: BankAccountFormSchema = {
+  type: 'object',
+  properties: {
+    accountNickname: {
+      type: 'string',
+      minLength: 3,
+      description: 'Please enter the account nickname',
+      title: 'Account Nickname',
+      'x-errorMessages': {
+        required: 'Enter an account nickname of at least 3 characters.',
+        minLength: 'Enter an account nickname of at least 3 characters.',
+      },
+    },
+    routingNumber: {
+      type: 'string',
+      description: 'Please enter the routing number',
+      title: 'Routing number',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-errorMessages': {
+        required: 'Enter a routing number.',
+        minLength: 'Enter a 9-digit routing number.',
+        maxLength: 'Enter a 9-digit routing number.',
+        pattern: 'Enter a 9-digit routing number.',
+      },
+    },
+    accountNumber: {
+      type: 'string',
+      description: 'Please enter the account number',
+      title: 'Account number',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-errorMessages': {
+        required: 'Enter an account number.',
+        minLength: 'Enter a 9-digit account number.',
+        maxLength: 'Enter a 9-digit account number.',
+        pattern: 'Enter a 9-digit account number.',
+      },
+    },
+    confirmAccountNumber: {
+      type: 'string',
+      description: 'Confirm the account number',
+      title: 'Confirm account number',
+      minLength: 9,
+      maxLength: 9,
+      pattern: '^[0-9]{9}$',
+      'x-equalsField': 'accountNumber',
+      'x-errorMessages': {
+        required: 'Confirm the account number.',
+        minLength: 'Enter a 9-digit account number.',
+        maxLength: 'Enter a 9-digit account number.',
+        pattern: 'Enter a 9-digit account number.',
+        equals: 'Account numbers must match.',
+      },
+    },
+  },
+  required: [
+    'accountNickname',
+    'routingNumber',
+    'accountNumber',
+    'confirmAccountNumber',
+  ],
+};
+
 const bankAccountFormFields: readonly BankAccountFormField[] = [
   'accountNickname',
   'routingNumber',

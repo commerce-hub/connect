@@ -2814,7 +2814,157 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('manual schema selection blocks and retries failed, empty, and malformed responses', async () => {
+  test('missing and empty instrument schemas use the bundled legacy ACH form', async () => {
+    const requests: CapturedRequest[] = [];
+    let configAttempt = 0;
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/pbb/session') {
+        return new Response(
+          JSON.stringify({
+            aggregatorSessionId: 'agg-session-1',
+            tokenID: 'access-token-1',
+            pToken: 'p-token-1',
+            publicKey: TEST_SOURCE_ENCRYPTION_PUBLIC_KEY,
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      if (pathname === '/party/configuration-inquiry') {
+        configAttempt += 1;
+
+        if (configAttempt === 1) {
+          return new Response(
+            JSON.stringify({configurationType: 'COUNTRY_TENDER'}),
+            {status: 200, headers: {'Content-Type': 'application/json'}}
+          );
+        }
+
+        return bankAccountCountryConfigResponse([]);
+      }
+
+      if (pathname === '/interaction/source/ach') {
+        return new Response(
+          JSON.stringify({sourceId: 'bank-legacy-1', status: 'UNDER_REVIEW'}),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'US',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+    const {addPaymentMethodEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    await clickAction(el, 'add-ach-manually');
+    await waitFor(
+      () => Boolean(el.shadowRoot!.querySelector('#ach-routing-number')),
+      'missing schemas did not open the legacy form'
+    );
+
+    assert.exists(el.shadowRoot!.querySelector('#ach-account-nickname'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('input[name="instrument-schema"]')
+    );
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/form.json'
+    );
+
+    await clickAction(el, 'back-to-bank-provider');
+    await waitFor(
+      () => Boolean(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider')),
+      'bank provider did not reopen'
+    );
+    await clickAction(el, 'add-ach-manually');
+    await waitFor(
+      () => configAttempt === 2,
+      'empty schema configuration was not requested'
+    );
+    await waitFor(
+      () => Boolean(el.shadowRoot!.querySelector('#ach-routing-number')),
+      'empty schemas did not open the legacy form'
+    );
+
+    await setFieldValue(el, 'ach-account-nickname', 'Household checking');
+    await setFieldValue(el, 'ach-routing-number', '021000021');
+    await setFieldValue(el, 'ach-account-number', '123456789');
+    await setFieldValue(el, 'ach-account-number-confirm', '123456789');
+    await blurField(el, 'ach-routing-number');
+    await blurField(el, 'ach-account-number');
+    await blurField(el, 'ach-account-number-confirm');
+    await waitForActionEnabled(el, 'save-bank-account');
+
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#ach-account-number')
+        ?.value,
+      '•••••6789'
+    );
+
+    await clickAction(el, 'save-bank-account');
+    await waitForRequest(requests, '/interaction/source/ach');
+    await waitFor(
+      () => addPaymentMethodEvents.length === 1,
+      'legacy bank source event was not emitted'
+    );
+
+    const sourceRequest = requests.find(
+      (request) => new URL(request.url).pathname === '/interaction/source/ach'
+    )!;
+    const sourceBody = JSON.parse(sourceRequest.bodyText);
+
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/billing-address'
+    );
+    assert.equal(
+      await decryptSourceValue(sourceBody.bankAccount.routingNumber),
+      '021000021'
+    );
+    assert.equal(
+      await decryptSourceValue(sourceBody.bankAccount.accountNumber),
+      '123456789'
+    );
+    assert.equal(sourceBody.name, 'Household checking');
+    assert.equal(sourceBody.tenderType, 'BANK_ACCOUNT');
+    assertSourceCreateHeaders(sourceRequest);
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Bank account pending review'
+    );
+  });
+
+  test('manual schema selection blocks and retries failed and malformed responses', async () => {
     const requests: CapturedRequest[] = [];
     let configAttempt = 0;
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
@@ -2861,10 +3011,6 @@ suite('commerce-hub-connect flow', () => {
         }
 
         if (attempt === 1) {
-          return bankAccountCountryConfigResponse([]);
-        }
-
-        if (attempt === 2) {
           return bankAccountCountryConfigResponse([
             {
               bavSupportedCode: 'CAD-Broken',
@@ -2916,7 +3062,7 @@ suite('commerce-hub-connect flow', () => {
     await flushElement(el);
     await clickAction(el, 'add-ach-manually');
 
-    for (let expectedAttempt = 1; expectedAttempt <= 3; expectedAttempt += 1) {
+    for (let expectedAttempt = 1; expectedAttempt <= 2; expectedAttempt += 1) {
       await waitFor(
         () => configAttempt === expectedAttempt,
         'configuration attempt did not finish'
@@ -2942,7 +3088,7 @@ suite('commerce-hub-connect flow', () => {
     }
 
     await waitFor(
-      () => configAttempt === 4,
+      () => configAttempt === 3,
       'valid configuration retry was not requested'
     );
     await waitFor(
@@ -2956,7 +3102,7 @@ suite('commerce-hub-connect flow', () => {
         (request) =>
           new URL(request.url).pathname === '/party/configuration-inquiry'
       ),
-      4
+      3
     );
   });
 
