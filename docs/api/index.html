@@ -1653,7 +1653,7 @@
      <details class="api-schema" id="schema-BankAccount">
        <summary class="api-schema__summary">
          <span class="api-schema__name">BankAccount</span>
-         <span class="api-schema__meta">composition · 1 field</span>
+         <span class="api-schema__meta">composition · 4 fields</span>
        </summary>
        <div class="api-schema__body">
          <dl class="api-meta api-meta--stacked">
@@ -1694,6 +1694,75 @@
 
      </article>
 
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">billingAddressId</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">productCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">accountHolderType</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
        </div>
      </section>
 
@@ -1703,7 +1772,7 @@
      <details class="api-schema" id="schema-BankAccountDetail">
        <summary class="api-schema__summary">
          <span class="api-schema__name">BankAccountDetail</span>
-         <span class="api-schema__meta">object · 7 fields</span>
+         <span class="api-schema__meta">object · 19 fields</span>
        </summary>
        <div class="api-schema__body">
          <dl class="api-meta api-meta--stacked">
@@ -1882,6 +1951,282 @@
 
      </article>
 
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">accountIdentificationNumberType</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">accountIdentificationNumber</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">sortCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">swiftCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">ifscCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">bankCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">branchCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">billerCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">institutionNumber</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">transitNumber</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">asset</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-Asset">Asset</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">country</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
        </div>
      </section>
 
@@ -1891,7 +2236,7 @@
      <details class="api-schema" id="schema-Card">
        <summary class="api-schema__summary">
          <span class="api-schema__name">Card</span>
-         <span class="api-schema__meta">composition · 2 fields</span>
+         <span class="api-schema__meta">composition · 3 fields</span>
        </summary>
        <div class="api-schema__body">
          <dl class="api-meta api-meta--stacked">
@@ -1947,6 +2292,29 @@
            <div class="api-meta__item">
              <dt class="api-meta__label">Type</dt>
              <dd class="api-meta__value"><a href="#schema-CardDetail">CardDetail</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">productCode</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
            </div>
 
        </dl>
@@ -2700,7 +3068,7 @@
      <details class="api-schema" id="schema-NativeAccountDetail">
        <summary class="api-schema__summary">
          <span class="api-schema__name">NativeAccountDetail</span>
-         <span class="api-schema__meta">object · 5 fields</span>
+         <span class="api-schema__meta">object · 7 fields</span>
        </summary>
        <div class="api-schema__body">
          <dl class="api-meta api-meta--stacked">
@@ -2813,6 +3181,52 @@
      <article class="api-item">
        <div class="api-item__header">
          <code class="api-item__name">token</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">asset</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value"><a href="#schema-Asset">Asset</a></dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">recipientId</code>
        </div>
 
        <dl class="api-meta">
@@ -3821,7 +4235,7 @@
      <details class="api-schema" id="schema-InteractionResponse">
        <summary class="api-schema__summary">
          <span class="api-schema__name">InteractionResponse</span>
-         <span class="api-schema__meta">object · 11 fields</span>
+         <span class="api-schema__meta">object · 12 fields</span>
        </summary>
        <div class="api-schema__body">
          <dl class="api-meta api-meta--stacked">
@@ -4087,6 +4501,29 @@
      <article class="api-item">
        <div class="api-item__header">
          <code class="api-item__name">publicKey</code>
+       </div>
+
+       <dl class="api-meta">
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Required</dt>
+             <dd class="api-meta__value"><code>no</code></dd>
+           </div>
+
+           <div class="api-meta__item">
+             <dt class="api-meta__label">Type</dt>
+             <dd class="api-meta__value">string</dd>
+           </div>
+
+       </dl>
+
+
+
+     </article>
+
+     <article class="api-item">
+       <div class="api-item__header">
+         <code class="api-item__name">country</code>
        </div>
 
        <dl class="api-meta">
