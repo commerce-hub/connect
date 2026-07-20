@@ -45,8 +45,9 @@ request. The SDK owns the browser widget once the host passes an
    `interactionResponse.oauth.access_token` is present.
 6. The shopper completes the required flow, such as OTP, saved source
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
-7. The SDK emits `onSelect` with the selected `PaymentSource` in
-   `event.detail` after a verified source is attached or selected.
+7. The shopper chooses a verified source and explicitly confirms with **Use
+   selected method**. The SDK then attaches it and emits `onSelect` with the
+   selected `PaymentSource` in `event.detail`.
 8. The SDK also emits success-only operation events for SDK-managed source
    listing, creation, verification, deletion, and native account transfers.
 9. Your host completes the merchant interaction with
@@ -153,6 +154,11 @@ error and blocks shopper payment actions until the host assigns it.
 work. Its `event.detail` is the selected `PaymentSource`, and hosts should still
 complete the merchant interaction from that event.
 
+Changing the selected radio never performs a request. New and newly verified
+sources emit their operation event, return to the method list as the draft
+selection, and wait for explicit confirmation. This means `onSelect` is no
+longer emitted automatically after source creation or verification.
+
 The SDK also emits success-only operation events with raw operation results:
 
 | Event                   | Detail                                                          |
@@ -217,6 +223,9 @@ commerce-hub-connect::part(primary-action) {
 
 Avoid styling internal shadow-DOM classes directly; those class names are not a
 public API.
+
+The `footer` part is the pinned screen-action region. `colors.widgetBorder`
+controls the visible framed shell border.
 
 ## Framework integration
 
@@ -341,7 +350,12 @@ local augmentation in `src/commerce-hub-connect.ts` after client regeneration.
 npm i
 npm run build
 npm test
+npm run test:visual
 ```
+
+Update the checked-in Chromium baselines intentionally with
+`npm run test:visual:update`. If Playwright browsers are not installed locally,
+set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to a compatible Chrome executable.
 
 Run the local demo:
 

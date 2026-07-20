@@ -9,6 +9,7 @@ npm i
 npm run build
 npm run lint
 npm test
+npm run test:visual
 ```
 
 Use `BROWSERS=chromium npm run test:dev -- --files test/<file>.js` for focused

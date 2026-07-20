@@ -61,9 +61,24 @@ if (!['dev', 'prod'].includes(mode)) {
 const browsers = {
   // Local browser testing via playwright
   // ===========
-  chromium: playwrightLauncher({product: 'chromium'}),
-  firefox: playwrightLauncher({product: 'firefox'}),
-  webkit: playwrightLauncher({product: 'webkit'}),
+  chromium: playwrightLauncher({
+    product: 'chromium',
+    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? {executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}
+      : undefined,
+  }),
+  firefox: playwrightLauncher({
+    product: 'firefox',
+    launchOptions: process.env.PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH
+      ? {executablePath: process.env.PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH}
+      : undefined,
+  }),
+  webkit: playwrightLauncher({
+    product: 'webkit',
+    launchOptions: process.env.PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH
+      ? {executablePath: process.env.PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH}
+      : undefined,
+  }),
 
   // Uncomment example launchers for running on Sauce Labs
   // ===========

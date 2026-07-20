@@ -84,9 +84,8 @@ const flushElement = async (el: CommerceHubConnect) => {
 };
 
 const TEST_COMMERCE_HUB_BASE_URL = 'http://commercehub.test';
-const TEST_INTERACTION_FEATURES: NonNullable<
-  InteractionResponse['features']
-> = ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
+const TEST_INTERACTION_FEATURES: NonNullable<InteractionResponse['features']> =
+  ['ADD_ACCOUNT', 'SELECT', 'TRANSFER'];
 
 const renderConnect = async (
   interactionResponse: InteractionResponse,
@@ -118,13 +117,10 @@ const renderConnect = async (
       ) {
         servedInitialInteraction = true;
 
-        return new Response(
-          JSON.stringify(initialInteractionResponse),
-          {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          }
-        );
+        return new Response(JSON.stringify(initialInteractionResponse), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       return fetchForTest(input, init);
@@ -191,7 +187,7 @@ suite('commerce-hub-connect payment selection', () => {
     window.confirm = originalConfirm;
   });
 
-  test('saved payment methods render without confirm button or radio controls', async () => {
+  test('verified saved payment methods render as radios with explicit confirmation', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'OTP_VALIDATION_SUCCESS',
@@ -224,11 +220,11 @@ suite('commerce-hub-connect payment selection', () => {
     ];
 
     assert.lengthOf(rows, 2);
-    assert.notExists(
-      el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="attach-payment-source"]')
     );
     assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
-    assert.notExists(rows[0].querySelector('.payment-method-radio'));
+    assert.exists(rows[0].querySelector('.payment-method-radio'));
     assert.notExists(rows[1].querySelector('.payment-method-radio'));
     assert.notEqual(rows[0].dataset.action, 'verify-payment-source');
     assert.equal(rows[1].dataset.action, undefined);
@@ -631,7 +627,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.exists(rows[3].querySelector('[data-payment-method-icon="native"]'));
     assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.exists(
-      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
@@ -850,7 +846,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
 
     el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '[data-payment-method-id="native-account-1"]'
+      '[data-action="attach-payment-source"]'
     )!.click();
     await flushElement(el);
 
@@ -980,7 +976,9 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notInclude(text, 'James Anderson');
     assert.notInclude(text, 'visa-1111');
     assert.notInclude(text, 'amex-8000');
-    assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
+    );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
     );
@@ -1023,17 +1021,15 @@ suite('commerce-hub-connect payment selection', () => {
       );
 
     assert.equal(editButton()?.textContent?.trim(), 'Edit');
-    assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.exists(
-      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
     );
 
     await clickAction(el, 'toggle-payment-source-edit-mode');
 
     assert.equal(editButton()?.textContent?.trim(), 'Done');
-    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.notExists(
-      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="attach-payment-source"]')
@@ -1049,9 +1045,8 @@ suite('commerce-hub-connect payment selection', () => {
     await clickAction(el, 'toggle-payment-source-edit-mode');
 
     assert.equal(editButton()?.textContent?.trim(), 'Edit');
-    assert.exists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
     assert.exists(
-      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
     );
     assert.lengthOf(
       el.shadowRoot!.querySelectorAll('[data-action="delete-payment-source"]'),
@@ -1479,6 +1474,7 @@ suite('commerce-hub-connect payment selection', () => {
       '•••• 1111'
     );
 
+    await clickAction(el, 'open-add-payment-source');
     await clickAction(el, 'add-card');
     await waitFor(() =>
       Boolean(el.shadowRoot!.querySelector('.billing-address-summary'))
@@ -1605,7 +1601,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('clicking a verified saved method shows the selected payment screen before attaching and emits onSelect', async () => {
+  test('radio selection waits for confirmation before attaching and emitting onSelect', async () => {
     const requests: CapturedRequest[] = [];
     const selectedSource: PaymentSource = {
       tenderType: 'Card',
@@ -1665,32 +1661,18 @@ suite('commerce-hub-connect payment selection', () => {
     const {successEvents, legacySuccessEvents, errorEvents} =
       recordOutputEvents(el);
 
-    el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '.payment-method-row'
-    )?.click();
+    const radio = el.shadowRoot!.querySelector<HTMLInputElement>(
+      '.payment-method-radio'
+    )!;
+    radio.click();
     await flushElement(el);
 
-    assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="change-payment-source"]')
-    );
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.lengthOf(requests, 0);
     assert.equal(successEvents.length, 0);
-    assert.equal(
-      el
-        .shadowRoot!.querySelector(
-          '.selected-payment-method .payment-method-title'
-        )
-        ?.textContent?.trim(),
-      'Corporate card'
-    );
-    assert.equal(
-      el
-        .shadowRoot!.querySelector(
-          '.selected-payment-method .payment-method-meta'
-        )
-        ?.textContent?.trim(),
-      '•••• 1111'
-    );
+
+    await clickAction(el, 'attach-payment-source');
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
 
     resolveAttachResponse?.(
       new Response(
@@ -1752,6 +1734,69 @@ suite('commerce-hub-connect payment selection', () => {
       '•••• 1111'
     );
     assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
+  });
+
+  test('attach failure keeps the draft selection and exposes inline retry feedback', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(JSON.stringify({message: 'Attach was declined'}), {
+        status: 409,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '4111111111111111'},
+        },
+      ],
+    });
+    const {successEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'attach-payment-source');
+    await waitFor(
+      () =>
+        Boolean(
+          el.shadowRoot!.querySelector('.widget-action-footer .alert-danger')
+        ),
+      'attach error did not render'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['POST /interaction/source/card-1/attach']
+    );
+    assert.equal(successEvents.length, 0);
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLInputElement>('.payment-method-radio')!
+        .checked
+    );
+    assert.include(
+      el.shadowRoot!.querySelector('.alert-danger')?.textContent ?? '',
+      'Attach was declined'
+    );
   });
 
   test('payment source attached renders the payment-method-saved summary with a change link', async () => {
@@ -1886,7 +1931,7 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Choose a payment method'
     );
     assert.exists(el.shadowRoot!.querySelector('.payment-method-row'));
     assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
@@ -2001,7 +2046,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(row.dataset.action, 'verify-payment-source');
     assert.equal(
       row.querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Action Required'
+      'Action required'
     );
     assert.exists(row.querySelector('.payment-method-chevron'));
     assert.deepEqual(
@@ -2079,7 +2124,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(row.dataset.action, undefined);
     assert.equal(
       row.querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Under review'
+      'Needs review'
     );
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
@@ -2087,7 +2132,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Choose a payment method'
     );
     assert.lengthOf(requests, 0);
     assert.lengthOf(successEvents, 0);
@@ -2140,11 +2185,11 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(row.dataset.action, undefined);
     assert.equal(
       row.querySelector('.verification-status-badge')?.textContent?.trim(),
-      "Can't Use"
+      "Can't use"
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Pay with'
+      'Choose a payment method'
     );
     assert.lengthOf(requests, 0);
   });
@@ -2236,7 +2281,7 @@ suite('commerce-hub-connect payment selection', () => {
       el
         .shadowRoot!.querySelector('.required-info-card-status')
         ?.textContent?.trim(),
-      'Need More Information'
+      'Needs info'
     );
     assert.exists(
       el.shadowRoot!.querySelector('[data-required-info-card-icon="bank"]')
@@ -2461,7 +2506,7 @@ suite('commerce-hub-connect payment selection', () => {
       el
         .shadowRoot!.querySelector('.required-info-card-status')
         ?.textContent?.trim(),
-      'Need More Information'
+      'Needs info'
     );
     assert.exists(
       el.shadowRoot!.querySelector('[data-required-info-card-icon="visa"]')

@@ -987,11 +987,7 @@ suite('demo host page', () => {
       `${pageWindow.location.origin}/__commercehub/LOCAL_MERCHANT/merchant/interaction/create`
     );
     assert.notProperty(createRequest.body ?? {}, 'email');
-    assert.propertyVal(
-      createRequest.body ?? {},
-      'partyId',
-      '104604000020044'
-    );
+    assert.propertyVal(createRequest.body ?? {}, 'partyId', '104604000020044');
     assert.deepEqual(createRequest.body?.merchantData, {
       clientId: 'marriottest',
       merchantId: '104604000000046',
@@ -1037,7 +1033,8 @@ suite('demo host page', () => {
     }> = [];
 
     pageWindow.fetch = (async (input, init) => {
-      const request = input instanceof Request ? input : new Request(input, init);
+      const request =
+        input instanceof Request ? input : new Request(input, init);
       const url = request.url;
       const method = request.method;
       const bodyText = await request.clone().text();
@@ -1216,14 +1213,14 @@ suite('demo host page', () => {
     const html = await response.text();
 
     assert.include(html, "baseFontSize: '16px'");
-    assert.include(html, "baseFontWeight: '300'");
-    assert.include(html, "shellPadding: '1.75rem 1.5rem 1.5rem'");
-    assert.include(html, "primaryColor: '#084acc'");
-    assert.include(html, "textColor: '#101828'");
-    assert.include(html, "copyColor: '#9f9f9f'");
-    assert.include(html, "borderColor: '#cbd5e1'");
+    assert.include(html, "baseFontWeight: '400'");
+    assert.include(html, "shellPadding: '0'");
+    assert.include(html, "primaryColor: '#533afd'");
+    assert.include(html, "textColor: '#061b31'");
+    assert.include(html, "copyColor: '#50617a'");
+    assert.include(html, "borderColor: '#e5edf5'");
     assert.include(html, "widgetBackground: '#ffffff'");
-    assert.include(html, "paymentMethodBackground: '#f8fafc'");
+    assert.include(html, "paymentMethodBackground: '#f8fafd'");
     assert.include(html, "otpTitle: 'Verify OTP'");
     assert.include(html, "otpVerifyButton: 'Verify'");
     assert.include(html, "paymentMethodsTitle: 'Choose payment method'");

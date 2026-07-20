@@ -16,7 +16,6 @@ import {
   renderOutcomeShell,
   renderPaymentMethodSkeletonRows,
   renderPaymentMethodRow,
-  renderPoweredByFooter,
   renderProviderFrame,
   renderSelectedPaymentMethod,
   renderSelectField,
@@ -96,14 +95,22 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
 
-  test('does not hard-code shared font weights so base font-weight inheritance remains intact', () => {
+  test('inherits body typography while emphasizing toolbar and tender-tab controls', () => {
     const hardCodedFontWeights =
       primitiveStyles.cssText.match(
         /(^|[^-])font-weight\s*:\s*(?:[0-9]+|bold|normal|bolder|lighter)/g
       ) ?? [];
 
     assert.notInclude(primitiveStyles.cssText, 'font: inherit');
-    assert.deepEqual(hardCodedFontWeights, []);
+    assert.deepEqual(
+      hardCodedFontWeights.map((declaration) => declaration.trim()),
+      ['font-weight: 600', 'font-weight: 600']
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      '.widget-toolbar .text-link-button'
+    );
+    assert.include(primitiveStyles.cssText, '.tender-tab');
   });
 
   test('uses rem units in shared styles instead of px sizing tokens', () => {
@@ -130,12 +137,12 @@ suite('commerce-hub-connect primitives', () => {
             title: 'Connect your bank',
             loadingLabel: 'Loading provider',
           })}
-          ${renderButton({
-            label: 'Continue',
-            variant: 'primary',
-            action: 'continue',
-          })}
         `,
+        footer: renderButton({
+          label: 'Continue',
+          variant: 'primary',
+          action: 'continue',
+        }),
       })
     );
 
@@ -201,7 +208,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(imageStyle.height, '28px');
   });
 
-  test('renders the widget shell with SDK v3 compact token defaults and footer treatment', async () => {
+  test('renders the framed shell with prototype tokens, toolbar, and action footer', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
         .interactionResponse=${createStyleInteractionResponse()}
@@ -213,29 +220,29 @@ suite('commerce-hub-connect primitives', () => {
     const paymentTitle = el.shadowRoot!.querySelector<HTMLElement>(
       '.payment-method-title'
     )!;
-    const poweredByFooter =
-      el.shadowRoot!.querySelector<HTMLElement>('.powered-by-footer')!;
-    const poweredByBrand =
-      el.shadowRoot!.querySelector<HTMLElement>('.powered-by-brand')!;
-
     const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
     const content =
       el.shadowRoot!.querySelector<HTMLElement>('.widget-content')!;
+    const actionFooter = el.shadowRoot!.querySelector<HTMLElement>(
+      '.widget-action-footer'
+    )!;
+    const toolbar =
+      el.shadowRoot!.querySelector<HTMLElement>('.widget-toolbar')!;
 
     assert.equal(
       getComputedStyle(el)
         .getPropertyValue('--chc-primary')
         .trim()
         .toUpperCase(),
-      '#1D4ED8'
+      '#533AFD'
     );
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-text').trim().toUpperCase(),
-      '#111827'
+      '#061B31'
     );
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-copy').trim().toUpperCase(),
-      '#4B5565'
+      '#50617A'
     );
     assert.equal(getComputedStyle(el).fontFamily.includes('Inter'), true);
     assert.equal(
@@ -247,10 +254,13 @@ suite('commerce-hub-connect primitives', () => {
       'Commerce Hub Connect'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-close'));
-    assert.equal(getComputedStyle(shell).maxWidth, '404px');
-    assert.equal(getComputedStyle(shell).borderTopStyle, 'none');
-    assert.equal(getComputedStyle(shell).borderRadius, '0px');
+    assert.equal(getComputedStyle(shell).width, '386px');
+    assert.equal(getComputedStyle(shell).height, '564px');
+    assert.equal(getComputedStyle(shell).borderTopStyle, 'solid');
+    assert.equal(getComputedStyle(shell).borderRadius, '8px');
+    assert.notEqual(getComputedStyle(shell).boxShadow, 'none');
     assert.equal(getComputedStyle(content).maxWidth, 'none');
+    assert.equal(getComputedStyle(content).overflowY, 'auto');
     assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 18, 0.01);
     assert.equal(getComputedStyle(title).fontWeight, '400');
     assert.equal(getComputedStyle(paymentTitle).fontWeight, '400');
@@ -260,18 +270,23 @@ suite('commerce-hub-connect primitives', () => {
           '.widget-header-action .text-link-button'
         )!
       ).borderTopStyle,
-      'none'
+      'solid'
     );
-    assert.equal(getComputedStyle(poweredByFooter).justifyContent, 'center');
-    assert.equal(getComputedStyle(poweredByFooter).fontSize, '12px');
-    assert.equal(poweredByBrand.textContent?.trim(), 'Commerce Hub Connect');
+    assert.deepEqual(
+      [...toolbar.querySelectorAll('button')].map((button) =>
+        button.textContent?.trim()
+      ),
+      ['Edit', 'Add']
+    );
+    assert.equal(actionFooter.getAttribute('part'), 'footer');
     assert.equal(
-      getComputedStyle(poweredByBrand).color,
-      getComputedStyle(poweredByFooter).color
+      actionFooter.querySelector('button')?.textContent?.trim(),
+      'Use selected method'
     );
+    assert.notExists(el.shadowRoot!.querySelector('.powered-by-footer'));
   });
 
-  test('does not apply box shadows to the SDK shell or buttons', async () => {
+  test('applies the prototype shell shadow without adding button shadows', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
         .interactionResponse=${createStyleInteractionResponse()}
@@ -306,13 +321,13 @@ suite('commerce-hub-connect primitives', () => {
       'button.button-secondary'
     )!;
 
-    assert.equal(getComputedStyle(shell).boxShadow, 'none');
+    assert.notEqual(getComputedStyle(shell).boxShadow, 'none');
     assert.equal(getComputedStyle(primaryButton).boxShadow, 'none');
     assert.equal(getComputedStyle(secondaryButton).boxShadow, 'none');
     assert.deepEqual(buttonShadowSelectors, []);
   });
 
-  test('centers widget subtitle text', async () => {
+  test('left-aligns widget subtitle text within the framed header', async () => {
     const root = await renderHarness(html`
       <style>
         ${primitiveStyles.cssText}
@@ -328,10 +343,10 @@ suite('commerce-hub-connect primitives', () => {
 
     const subtitle = root.querySelector<HTMLElement>('.widget-subtitle')!;
 
-    assert.equal(getComputedStyle(subtitle).textAlign, 'center');
+    assert.equal(getComputedStyle(subtitle).textAlign, 'left');
   });
 
-  test('applies partial designConfig color and typography without resizing controls', async () => {
+  test('applies partial designConfig tokens while retaining framed control sizing', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
         .interactionResponse=${createStyleInteractionResponse()}
@@ -353,15 +368,13 @@ suite('commerce-hub-connect primitives', () => {
     const paymentTitle = el.shadowRoot!.querySelector<HTMLElement>(
       '.payment-method-title'
     )!;
-    const button = el.shadowRoot!.querySelector<HTMLElement>(
-      '.source-action-link'
-    )!;
-    const buttonTitle = el.shadowRoot!.querySelector<HTMLElement>(
-      '.source-action-link-title'
+    const toolbarButton = el.shadowRoot!.querySelector<HTMLElement>(
+      '.widget-toolbar .text-link-button'
     )!;
     const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
-    const poweredByFooter =
-      el.shadowRoot!.querySelector<HTMLElement>('.powered-by-footer')!;
+    const actionFooter = el.shadowRoot!.querySelector<HTMLElement>(
+      '.widget-action-footer'
+    )!;
 
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-primary').trim(),
@@ -373,20 +386,20 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 18, 0.01);
     assert.equal(getComputedStyle(title).fontWeight, '350');
-    assert.equal(getComputedStyle(button).fontSize, '20px');
-    assert.equal(getComputedStyle(buttonTitle).fontWeight, '350');
     assert.equal(getComputedStyle(paymentTitle).fontWeight, '350');
     assert.equal(getComputedStyle(paymentTitle).fontSize, '20px');
-    assert.equal(getComputedStyle(poweredByFooter).fontSize, '15px');
-    assert.equal(getComputedStyle(button).minHeight, '40px');
-    assert.equal(getComputedStyle(button).paddingTop, '10px');
-    assert.equal(getComputedStyle(button).paddingBottom, '10px');
-    assert.equal(getComputedStyle(button).fontWeight, '350');
+    assert.equal(getComputedStyle(toolbarButton).fontSize, '13px');
+    assert.equal(getComputedStyle(toolbarButton).minHeight, '32px');
+    assert.equal(getComputedStyle(toolbarButton).paddingTop, '0px');
+    assert.equal(getComputedStyle(toolbarButton).paddingBottom, '0px');
+    assert.equal(getComputedStyle(toolbarButton).fontWeight, '600');
+    assert.equal(getComputedStyle(actionFooter).fontSize, '20px');
     assert.equal(getComputedStyle(shell).backgroundColor, 'rgb(244, 247, 251)');
     assert.equal(getComputedStyle(shell).paddingTop, '32px');
     assert.equal(getComputedStyle(shell).paddingRight, '20px');
     assert.equal(getComputedStyle(shell).paddingBottom, '16px');
     assert.equal(getComputedStyle(shell).paddingLeft, '20px');
+    assert.notExists(el.shadowRoot!.querySelector('.powered-by-footer'));
   });
 
   test('renders payment sources from an interaction response input', async () => {
@@ -461,7 +474,13 @@ suite('commerce-hub-connect primitives', () => {
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
       '•••• 4242'
     );
-    assert.notExists(rows[0].querySelector('.payment-method-radio'));
+    const selectedRadio = rows[0].querySelector<HTMLInputElement>(
+      '.payment-method-radio'
+    )!;
+    assert.exists(selectedRadio);
+    assert.equal(selectedRadio.checked, true);
+    assert.equal(selectedRadio.getAttribute('type'), 'radio');
+    assert.equal(selectedRadio.getAttribute('name'), 'payment-method');
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
     assert.equal(
       getComputedStyle(
@@ -474,7 +493,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(rows[0].querySelector('.payment-method-status'));
     assert.notExists(rows[0].querySelector('.verification-status-icon'));
     assert.notExists(rows[0].querySelector('.verification-status-badge'));
-    assert.exists(rows[0].querySelector('.payment-method-chevron'));
+    assert.notExists(rows[0].querySelector('.payment-method-chevron'));
     assert.equal(
       rows[1].querySelector('.payment-method-title')?.textContent?.trim(),
       'Operating account'
@@ -488,7 +507,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(rows[1].querySelector('.payment-method-status'));
     assert.equal(
       rows[1].querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Under review'
+      'Needs review'
     );
     assert.notExists(rows[1].querySelector('.payment-method-status-icon'));
     assert.notExists(rows[1].querySelector('.payment-method-chevron'));
@@ -504,6 +523,11 @@ suite('commerce-hub-connect primitives', () => {
       'Wallet •••• 7890'
     );
     assert.exists(rows[2].querySelector('[data-payment-method-icon="native"]'));
+    const nativeRadio = rows[2].querySelector<HTMLInputElement>(
+      '.payment-method-radio'
+    )!;
+    assert.exists(nativeRadio);
+    assert.equal(nativeRadio.checked, false);
   });
 
   test('maps card brands to credit-card-payment-icons logo assets', () => {
@@ -693,7 +717,7 @@ suite('commerce-hub-connect primitives', () => {
         title: 'Verifying code',
         helper: 'Validating the 6-digit OTP',
       })}
-      ${renderStatusPill({status: 'unverified'})} ${renderPoweredByFooter()}
+      ${renderStatusPill({status: 'unverified'})}
     `);
 
     assert.equal(
@@ -747,10 +771,7 @@ suite('commerce-hub-connect primitives', () => {
       root.querySelector('.status-pill')?.textContent?.trim(),
       'Unverified'
     );
-    assert.equal(
-      root.querySelector('.powered-by-brand')?.textContent?.trim(),
-      'Commerce Hub Connect'
-    );
+    assert.notExists(root.querySelector('.powered-by-footer'));
   });
 
   test('renders alert variants without icons', async () => {
@@ -910,7 +931,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.lengthOf(root.querySelectorAll('.payment-method-skeleton-icon'), 3);
   });
 
-  test('renders the internal OTP screen module with failed, submit, and resend states', async () => {
+  test('renders the internal OTP form with failed, submit, and resend states', async () => {
     const root = await renderHarness(html`
       ${renderOtpScreen({
         status: 'OTP_VALIDATION_FAILED',
@@ -936,11 +957,15 @@ suite('commerce-hub-connect primitives', () => {
       'That code expired.'
     );
     assert.lengthOf(root.querySelectorAll('.otp-input'), 6);
-    assert.equal(
-      root.querySelector<HTMLButtonElement>('[data-action="verify-otp"]')
-        ?.disabled,
-      true
-    );
+    const form = root.querySelector<HTMLFormElement>(
+      'form[data-submit-action="verify-otp"]'
+    )!;
+    const submitButton = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"][data-action="verify-otp"]'
+    )!;
+    assert.exists(form);
+    assert.exists(submitButton);
+    assert.equal(submitButton.disabled, true);
     assert.equal(
       root.querySelector('[data-action="resend-otp"]')?.textContent?.trim(),
       'Sending code...'
@@ -968,89 +993,102 @@ suite('commerce-hub-connect primitives', () => {
       continuingButton: 'Confirming...',
     };
     const root = await renderHarness(html`
-      ${renderPaymentMethodsSkeletonScreen()}
-      ${renderPaymentMethodsScreen({
-        status: 'PAYMENT_SOURCE_REQUESTED',
-        methods: [method],
-        allowedTenderOptions: {
-          card: true,
-          bankAccount: true,
-          nativeAccount: false,
-        },
-        canAddPaymentSources: true,
-        canSelectPaymentSources: true,
-        editing: false,
-        actionPending: false,
-        selectedPaymentSourceId: 'card-1',
-        copy,
-        showTransferAction: true,
-      })}
-      ${renderPaymentMethodsScreen({
-        status: 'PAYMENT_SOURCE_REQUESTED',
-        methods: [method],
-        allowedTenderOptions: {
-          card: true,
-          bankAccount: true,
-          nativeAccount: false,
-        },
-        canAddPaymentSources: true,
-        canSelectPaymentSources: true,
-        editing: true,
-        actionPending: false,
-        deleteConfirmationPaymentSourceId: 'card-1',
-        copy,
-      })}
-      ${renderNoSavedPaymentMethodsScreen({
-        allowedTenderOptions: {
-          card: true,
-          bankAccount: true,
-          nativeAccount: false,
-        },
-        canAddPaymentSources: true,
-        copy: {
-          title: 'Add payment method',
-          subtitle: '',
-          emptyTitle: 'No saved methods',
-          emptyMessage: 'Add a payment method to keep going.',
-          addBankAccountTitle: 'Connect bank',
-          addBankAccountSubtitle: 'Use your account',
-          addCardTitle: 'Add card',
-          addCardSubtitle: 'Use card details',
-        },
-        showTransferAction: true,
-      })}
+      <div data-screen="loading">${renderPaymentMethodsSkeletonScreen()}</div>
+      <div data-screen="list">
+        ${renderPaymentMethodsScreen({
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          methods: [method],
+          allowedTenderOptions: {
+            card: true,
+            bankAccount: true,
+            nativeAccount: false,
+          },
+          canAddPaymentSources: true,
+          canSelectPaymentSources: true,
+          editing: false,
+          actionPending: false,
+          selectedPaymentSourceId: 'card-1',
+          copy,
+          showTransferAction: true,
+        })}
+      </div>
+      <div data-screen="edit">
+        ${renderPaymentMethodsScreen({
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          methods: [method],
+          allowedTenderOptions: {
+            card: true,
+            bankAccount: true,
+            nativeAccount: false,
+          },
+          canAddPaymentSources: true,
+          canSelectPaymentSources: true,
+          editing: true,
+          actionPending: false,
+          deleteConfirmationPaymentSourceId: 'card-1',
+          copy,
+        })}
+      </div>
+      <div data-screen="empty">
+        ${renderNoSavedPaymentMethodsScreen({
+          allowedTenderOptions: {
+            card: true,
+            bankAccount: true,
+            nativeAccount: false,
+          },
+          canAddPaymentSources: true,
+          copy: {
+            title: 'Add payment method',
+            subtitle: '',
+            emptyTitle: 'No saved methods',
+            emptyMessage: 'Add a payment method to keep going.',
+            addBankAccountTitle: 'Connect bank',
+            addBankAccountSubtitle: 'Use your account',
+            addCardTitle: 'Add card',
+            addCardSubtitle: 'Use card details',
+          },
+          showTransferAction: true,
+        })}
+      </div>
     `);
 
-    assert.exists(root.querySelector('.payment-method-skeletons'));
-    assert.exists(root.querySelector('.payment-method-row-selected'));
+    const listScreen = root.querySelector<HTMLElement>('[data-screen="list"]')!;
+    const editScreen = root.querySelector<HTMLElement>('[data-screen="edit"]')!;
+    const emptyScreen = root.querySelector<HTMLElement>(
+      '[data-screen="empty"]'
+    )!;
+
+    assert.exists(
+      root.querySelector('[data-screen="loading"] .payment-method-skeletons')
+    );
+    assert.exists(listScreen.querySelector('.payment-method-row-selected'));
+    assert.equal(
+      listScreen.querySelector<HTMLInputElement>('.payment-method-radio')
+        ?.checked,
+      true
+    );
+    assert.notExists(listScreen.querySelector('.payment-action-links'));
     assert.deepEqual(
       [
-        ...root.querySelectorAll<HTMLElement>(
+        ...emptyScreen.querySelectorAll<HTMLElement>(
           '.payment-action-links .source-action-title'
         ),
       ].map((item) => item.textContent?.trim()),
-      [
-        'Add credit or debit card',
-        'Add bank account',
-        'Transfer funds',
-        'Add card',
-        'Connect bank',
-        'Transfer funds',
-      ]
+      ['Add card', 'Connect bank', 'Transfer funds']
     );
     assert.equal(
-      root
+      editScreen
         .querySelector('.payment-method-delete-confirmation')
         ?.textContent?.trim(),
       'Remove this payment method?'
     );
     assert.equal(
-      root.querySelector('.empty-state-message')?.textContent?.trim(),
+      emptyScreen.querySelector('.empty-state-message')?.textContent?.trim(),
       'Add a payment method to keep going.'
     );
   });
 
-  test('declares SDK v3 motion tokens and reduced-motion spinner overrides', () => {
+  test('declares framed-shell motion, narrow-layout, and reduced-motion overrides', () => {
     assert.include(primitiveStyles.cssText, '--chc-motion-fast: 120ms');
     assert.include(primitiveStyles.cssText, '--chc-motion-base: 180ms');
     assert.include(primitiveStyles.cssText, '--chc-motion-slow: 240ms');
@@ -1065,6 +1103,13 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.include(primitiveStyles.cssText, '@keyframes chc-spinner-rotate');
     assert.include(primitiveStyles.cssText, '@keyframes chc-loading-dot');
+    assert.include(primitiveStyles.cssText, '@keyframes chc-shell-enter');
+    assert.include(primitiveStyles.cssText, '@media (max-width: 26.25rem)');
+    assert.include(primitiveStyles.cssText, 'width: calc(100vw - 1rem)');
+    assert.include(
+      primitiveStyles.cssText,
+      '@media (prefers-reduced-motion: reduce)'
+    );
     assert.include(primitiveStyles.cssText, 'animation: none');
     assert.include(primitiveStyles.cssText, 'transform: none');
   });
@@ -1092,7 +1137,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(otpInputStyles.borderRadius, '10px');
   });
 
-  test('renders SDK v3 payment method, source action, and detail primitives with disabled state semantics', async () => {
+  test('renders payment method, source action, and detail primitives with disabled state semantics', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',
       label: 'James Anderson',
@@ -1123,12 +1168,14 @@ suite('commerce-hub-connect primitives', () => {
       ])}
     `);
 
-    const row = root.querySelector<HTMLButtonElement>(
+    const row = root.querySelector<HTMLElement>(
       '[data-payment-method-id="bank-1"]'
-    );
-    assert.equal(row?.disabled, true);
-    assert.equal(row?.getAttribute('aria-disabled'), 'true');
-    assert.notExists(row?.querySelector('.payment-method-radio'));
+    )!;
+    const radio = row.querySelector<HTMLInputElement>('.payment-method-radio')!;
+    assert.equal(row.tagName, 'LABEL');
+    assert.exists(radio);
+    assert.equal(radio.disabled, true);
+    assert.equal(radio.getAttribute('aria-label'), 'Select James Anderson');
     assert.notExists(
       row?.querySelector('[data-action="verify-payment-source"]')
     );
@@ -1219,7 +1266,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(statusBadge);
     assert.exists(row.querySelector('.payment-method-title-row'));
     assert.exists(metaRow);
-    assert.equal(statusBadge.textContent?.trim(), 'Action Required');
+    assert.equal(statusBadge.textContent?.trim(), 'Action required');
     assert.equal(
       statusBadge.getAttribute('data-verification-status'),
       'not-verified'
@@ -1265,7 +1312,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(row.tagName, 'BUTTON');
     assert.equal(row.dataset.action, 'verify-payment-source');
     assert.equal(row.dataset.paymentMethodId, 'bank-1');
-    assert.equal(statusBadge.textContent?.trim(), 'Need More Information');
+    assert.equal(statusBadge.textContent?.trim(), 'Needs info');
     assert.equal(
       statusBadge.getAttribute('data-verification-status'),
       'require-info'
@@ -1359,7 +1406,7 @@ suite('commerce-hub-connect primitives', () => {
       '•••• 1005'
     );
     assert.notExists(row.querySelector('.payment-method-status'));
-    assert.equal(statusBadge.textContent?.trim(), "Can't Use");
+    assert.equal(statusBadge.textContent?.trim(), "Can't use");
     assert.equal(
       statusBadge.getAttribute('data-verification-status'),
       'declined'
@@ -1622,8 +1669,11 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
-  test('renders shell and responsive form grid composition primitives', async () => {
+  test('renders shell, action-footer, and responsive form-grid composition primitives', async () => {
     const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
       ${renderWidgetShell({
         title: 'Add card',
         subtitle: 'Save a new credit or debit card to this wallet.',
@@ -1645,6 +1695,7 @@ suite('commerce-hub-connect primitives', () => {
             span: 'full',
           }),
         ]),
+        footer: renderButton({label: 'Save card', action: 'save-card'}),
       })}
     `);
 
@@ -1662,13 +1713,11 @@ suite('commerce-hub-connect primitives', () => {
       root.querySelector('.widget-close')?.getAttribute('data-action'),
       'close-card'
     );
-    assert.equal(
-      root
-        .querySelector('.powered-by-footer')
-        ?.textContent?.replace(/\s+/g, ' ')
-        .trim(),
-      'Powered by Commerce Hub Connect'
-    );
+    const footer = root.querySelector<HTMLElement>('.widget-action-footer')!;
+    assert.equal(footer.getAttribute('part'), 'footer');
+    assert.equal(footer.textContent?.trim(), 'Save card');
+    assert.equal(getComputedStyle(footer).borderTopStyle, 'solid');
+    assert.notExists(root.querySelector('.powered-by-footer'));
     assert.lengthOf(root.querySelectorAll('.field'), 4);
     assert.equal(
       root

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CommerceHub Connect visual fixture</title>
+    <style>
+      @font-face {
+        font-family: 'Visual Test Sans';
+        src: url('/node_modules/browser-sync-ui/public/fonts/source-sans/sourcesanspro-regular-webfont.woff2')
+          format('woff2');
+        font-style: normal;
+        font-weight: 400;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: 'Visual Test Sans';
+        src: url('/node_modules/browser-sync-ui/public/fonts/source-sans/sourcesanspro-bold-webfont.woff2')
+          format('woff2');
+        font-style: normal;
+        font-weight: 600 700;
+        font-display: block;
+      }
+
+      :root {
+        color-scheme: light;
+        background: #ffffff;
+      }
+
+      body {
+        min-width: 100vw;
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      commerce-hub-connect {
+        --chc-font-family: 'Visual Test Sans', sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module" src="./fixture.js"></script>
+  </body>
+</html>

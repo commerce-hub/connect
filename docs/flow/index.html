@@ -121,6 +121,10 @@ state. These events use raw operation results in <code>event.detail</code>:</p>
 <p>The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
 event for those states.</p>
+<p>Selecting a saved method only updates the draft radio selection. The attach
+request and <code>onSelect</code> event occur after the shopper activates <strong>Use selected
+method</strong>. Added and newly verified sources return to the list selected, but do
+not attach automatically.</p>
 <h2>5. Configure production behavior</h2>
 <p>SDK-managed browser calls use the <code>PROD</code> preset by default. Set <code>.baseURL</code> only
 when the host needs a different CommerceHub environment or gateway origin.</p>

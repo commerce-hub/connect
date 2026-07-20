@@ -65,7 +65,7 @@ Stable shadow parts:
 | `header`             | Screen header row.                    |
 | `title`              | Screen title.                         |
 | `content`            | Screen content region.                |
-| `footer`             | Powered-by footer.                    |
+| `footer`             | Pinned screen action footer.          |
 | `primary-action`     | Primary CTA button.                   |
 | `alert`              | Screen-level alert message.           |
 | `payment-method-row` | Saved or selected payment-method row. |
@@ -90,3 +90,5 @@ Supported CSS custom properties are the stable tokens populated by
 Prefer `designConfig` when a matching field exists. Use `::part` or custom
 properties only as additive escape hatches; private classes and internal spans
 are not part of the public styling contract.
+
+`colors.widgetBorder` maps to the border of the visible 386 × 564 widget shell.

@@ -147,6 +147,11 @@ The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
 event for those states.
 
+Selecting a saved method only updates the draft radio selection. The attach
+request and `onSelect` event occur after the shopper activates **Use selected
+method**. Added and newly verified sources return to the list selected, but do
+not attach automatically.
+
 ## 5. Configure production behavior
 
 SDK-managed browser calls use the `PROD` preset by default. Set `.baseURL` only

@@ -66,22 +66,22 @@ const paymentMethodStatusPresentation = (
   status: PaymentMethod['status']
 ): VerificationStatusPresentation => {
   if (status === 'verified') {
-    return {label: 'Verified', tone: 'success'};
+    return {label: 'Ready', tone: 'success'};
   }
 
   if (status === 'under-review') {
-    return {label: 'Under review', tone: 'warning'};
+    return {label: 'Needs review', tone: 'warning'};
   }
 
   if (status === 'require-info') {
-    return {label: 'Need More Information', tone: 'warning'};
+    return {label: 'Needs info', tone: 'warning'};
   }
 
   if (status === 'declined') {
-    return {label: "Can't Use", tone: 'danger'};
+    return {label: "Can't use", tone: 'danger'};
   }
 
-  return {label: 'Action Required', tone: 'warning'};
+  return {label: 'Action required', tone: 'warning'};
 };
 
 export const renderVerificationStatusBadge = (
@@ -584,6 +584,38 @@ export const renderPaymentMethodRow = (
   }
 
   if (selectable && isPaymentMethodRowClickable(method)) {
+    if (status === 'verified') {
+      return html`
+        <label
+          class=${joinClassNames(
+            'payment-method-row',
+            'payment-method-row-action',
+            'payment-method-row-radio',
+            selected && 'payment-method-row-selected'
+          )}
+          part="payment-method-row"
+          data-payment-method-id=${id}
+        >
+          ${renderPaymentMethodContent(
+            method,
+            html`<span class="payment-method-trailing">
+              ${renderPaymentMethodBalance(method)}
+              <input
+                class="payment-method-radio"
+                type="radio"
+                name="payment-method"
+                value=${id}
+                data-payment-method-radio="true"
+                aria-label=${`Select ${label}`}
+                .checked=${selected}
+                ?disabled=${disabled}
+              />
+            </span>`
+          )}
+        </label>
+      `;
+    }
+
     return html`
       <button
         class=${joinClassNames(
@@ -594,9 +626,7 @@ export const renderPaymentMethodRow = (
         part="payment-method-row"
         type="button"
         aria-disabled=${disabled ? 'true' : 'false'}
-        data-action=${status === 'verified'
-          ? 'attach-payment-source'
-          : 'verify-payment-source'}
+        data-action="verify-payment-source"
         data-payment-method-id=${id}
         ?disabled=${disabled}
       >
@@ -929,6 +959,7 @@ export const renderWidgetShell = ({
   subtitle,
   content,
   headerAction,
+  footer,
   width = 'default',
   ariaLabel = 'Commerce Hub Connect',
   closeAction = 'close',
@@ -961,17 +992,21 @@ export const renderWidgetShell = ({
         `
       : ''}
     <div class="widget-header" part="header">
-      <h2 class="widget-title" part="title">${title}</h2>
+      <div class="widget-heading">
+        <h2 class="widget-title" part="title">${title}</h2>
+        ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
+      </div>
       ${headerAction
         ? html`<div class="widget-header-action">${headerAction}</div>`
         : ''}
     </div>
-    ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
     ${showDivider
       ? html`<div class="widget-divider" aria-hidden="true"></div>`
       : ''}
     <div class="widget-content" part="content">${content}</div>
+    ${footer && showFooter
+      ? html`<div class="widget-action-footer" part="footer">${footer}</div>`
+      : ''}
     ${overlay ? html`<div class="widget-loading-overlay">${overlay}</div>` : ''}
-    ${showFooter ? renderPoweredByFooter() : ''}
   </section>
 `;

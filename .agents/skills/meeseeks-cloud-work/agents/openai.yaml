@@ -1,0 +1,4 @@
+interface:
+  display_name: "Meeseeks Cloud Work"
+  short_description: "Delegate repo work to isolated cloud agents"
+  default_prompt: "Use $meeseeks-cloud-work to hand off this implementation plan to Meeseeks cloud workers."

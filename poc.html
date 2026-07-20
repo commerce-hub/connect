@@ -1,0 +1,1524 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payments SDK Method Selector</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f8fafd;
+      --fg: #061b31;
+      --muted: #50617a;
+      --border: #e5edf5;
+      --accent: #533afd;
+      --accent-secondary: #ff6118;
+      --font-display: sohne-var, "SF Pro Display", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --font-body: sohne-var, "SF Pro Display", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "Source Code Pro", SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      --radius: 8px;
+      --shadow: 0 24px 80px color-mix(in srgb, var(--fg) 10%, transparent);
+      --ease-out: cubic-bezier(0.2, 0, 0, 1);
+      --ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+      --motion-fast: 150ms;
+      --motion-medium: 220ms;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--surface); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--fg);
+      background:
+        radial-gradient(circle at 84% 10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 28rem),
+        linear-gradient(180deg, var(--bg), var(--surface));
+      font-family: var(--font-body);
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .sdk-shell {
+      width: 386px;
+      height: 564px;
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 24px);
+      display: grid;
+      grid-template-columns: 1fr;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+      animation: shell-enter var(--motion-medium) var(--ease-out) both;
+    }
+
+    .workspace {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .header {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .eyebrow {
+      margin: 0 0 3px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 22px;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+    }
+
+    .header-copy {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .button-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .header .button-row {
+      display: grid;
+      grid-template-columns: repeat(var(--action-count, 3), minmax(0, 1fr));
+      justify-content: stretch;
+    }
+
+    .header .btn {
+      width: 100%;
+    }
+
+    .action-skeleton {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .action-skeleton span {
+      min-height: 38px;
+      border-radius: var(--radius);
+      background: var(--border);
+      animation: skeleton-pulse 1100ms ease-in-out infinite alternate;
+    }
+
+    .btn {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--fg);
+      padding: 0 12px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--fg) 18%, var(--border)); }
+    .btn:active { transform: translateY(0); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+    .btn.ghost { color: var(--muted); }
+    .btn.danger { color: var(--accent-secondary); }
+    .btn.full { width: 100%; }
+    .btn[disabled] {
+      cursor: not-allowed;
+      opacity: 0.62;
+      transform: none;
+    }
+    .btn.is-loading::before {
+      content: "";
+      width: 13px;
+      height: 13px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 999px;
+      animation: spin 720ms linear infinite;
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex: 0 0 auto;
+    }
+
+    .content {
+      min-height: 0;
+      display: block;
+      padding: 12px 14px;
+      overflow: hidden;
+    }
+
+    .widget-view {
+      min-height: 0;
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .widget-view[hidden] {
+      display: none !important;
+    }
+
+    .widget-view.is-entering {
+      animation: view-enter var(--motion-medium) var(--ease-out) both;
+    }
+
+    .widget-view.is-entering .screen-head,
+    .widget-view.is-entering .screen-body,
+    .widget-view.is-entering .screen-actions,
+    .widget-view.is-entering .method-panel,
+    .widget-view.is-entering .confirmed-body {
+      animation: content-rise var(--motion-medium) var(--ease-out) both;
+    }
+
+  .form-view {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+
+    #methodsView {
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+  .screen-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0 12px;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+  }
+
+  .screen-body {
+    min-height: 0;
+    overflow: auto;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding: 12px 0;
+    background: transparent;
+  }
+
+  .screen-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--border);
+    background: transparent;
+  }
+
+  .screen-actions.single {
+    grid-template-columns: 1fr;
+  }
+
+  .confirmed-view {
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0;
+  }
+
+  .confirmed-body {
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    padding: 8px 0 14px;
+  }
+
+  .selected-method {
+    width: 100%;
+    min-height: 300px;
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-content: center;
+    gap: 16px;
+    padding: 28px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    text-align: center;
+    transform-origin: center;
+  }
+
+  .confirmed-view.is-entering .selected-method {
+    animation: selected-method-enter 260ms var(--ease-out) both;
+  }
+
+  .confirmed-view .selected-method .rail-icon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .confirmed-view .selected-method .method-copy {
+    align-items: center;
+    gap: 6px;
+  }
+
+  .confirmed-view .selected-method .method-title {
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+
+  .confirmed-view .selected-method .method-meta {
+    font-size: 13px;
+  }
+
+  .confirmed-view .screen-actions {
+    align-self: end;
+    padding: 12px 0 0;
+  }
+
+  .transfer-route {
+    display: grid;
+    gap: 12px;
+  }
+
+  .transfer-arrow {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    justify-self: center;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--muted);
+    background: var(--surface);
+  }
+
+  .transfer-result {
+    width: 100%;
+    display: grid;
+    align-content: center;
+    gap: 18px;
+    padding: 20px 0;
+  }
+
+  .transfer-result h2 {
+    text-align: center;
+  }
+
+  .transfer-summary {
+    display: grid;
+    gap: 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .transfer-summary-row {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .transfer-summary-row:last-child { border-bottom: 0; }
+  .transfer-summary-label { color: var(--muted); font-size: 13px; }
+  .transfer-summary-value { color: var(--fg); font-size: 13px; font-weight: 600; text-align: right; }
+
+  .method-panel {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+    .method-panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+  .panel-head {
+    padding: 4px 0 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 17px;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      font-weight: 600;
+    }
+
+    .count {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+  .method-list {
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+    padding: 8px 0 0;
+    overscroll-behavior: contain;
+  }
+
+    .method-skeleton {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) 18px;
+      gap: 10px;
+      align-items: center;
+      min-height: 62px;
+      padding: 9px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .skeleton-block {
+      border-radius: 6px;
+      background: var(--border);
+      animation: skeleton-pulse 1100ms ease-in-out infinite alternate;
+    }
+
+    .skeleton-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+    }
+
+    .skeleton-copy {
+      display: grid;
+      gap: 8px;
+    }
+
+    .skeleton-line {
+      height: 10px;
+    }
+
+    .skeleton-line:first-child { width: 58%; }
+    .skeleton-line:last-child { width: 82%; opacity: 0.72; }
+
+    .skeleton-radio {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+    }
+
+    @keyframes skeleton-pulse {
+      from { opacity: 0.42; }
+      to { opacity: 0.9; }
+    }
+
+    .method-card {
+      width: 100%;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 9px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--fg);
+      text-align: left;
+      transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), opacity var(--motion-fast) var(--ease-standard);
+    }
+
+    .method-card:hover {
+      background: var(--surface);
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+    .method-card[aria-selected="true"] {
+      background: var(--surface);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+
+    .method-card[aria-selected="true"] .rail-icon {
+      animation: selected-icon-pop var(--motion-medium) var(--ease-out) both;
+    }
+
+    .rail-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      color: var(--fg);
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .method-copy { min-width: 0; }
+    .method-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .method-meta {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2px 6px;
+      color: var(--muted);
+      background: var(--bg);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .radio-dot {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .method-card[aria-selected="true"] .radio-dot {
+      border-color: var(--accent);
+    }
+
+    .method-card[aria-selected="true"] .radio-dot::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      animation: radio-dot-in var(--motion-fast) var(--ease-out) both;
+    }
+
+    .footer {
+      display: grid;
+      gap: 8px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .footer .btn {
+      width: 100%;
+      min-height: 40px;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 6px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .segmented button {
+      min-height: 40px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard);
+    }
+
+    .segmented button.active {
+      background: var(--bg);
+      color: var(--fg);
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field.wide { grid-column: 1 / -1; }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .field input, .field select {
+      min-height: 44px;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--fg);
+      padding: 0 12px;
+      outline: none;
+      transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+    }
+
+    .field input:focus, .field select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+
+    .validation {
+      min-height: 22px;
+      color: var(--accent-secondary);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .api-message {
+      min-height: 0;
+      display: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--accent-secondary);
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 600;
+    }
+
+    .api-message.show {
+      display: block;
+      animation: message-in var(--motion-medium) var(--ease-out) both;
+    }
+
+    .widget-view[aria-busy="true"] .method-card,
+    .form-view[aria-busy="true"] .screen-body {
+      opacity: 0.58;
+      pointer-events: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes shell-enter {
+      from { opacity: 0; transform: translateY(8px) scale(0.995); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes view-enter {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes content-rise {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes selected-method-enter {
+      from { opacity: 0; transform: translateY(10px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes selected-icon-pop {
+      from { transform: scale(0.92); }
+      to { transform: scale(1); }
+    }
+
+    @keyframes radio-dot-in {
+      from { opacity: 0; transform: scale(0.65); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes message-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .toast {
+      position: absolute;
+      left: 50%;
+      bottom: 14px;
+      transform: translate(-50%, 18px);
+      opacity: 0;
+      pointer-events: none;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--fg);
+      color: var(--bg);
+      font-size: 14px;
+      font-weight: 600;
+      transition: opacity 180ms ease, transform 180ms ease;
+      z-index: 5;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 640px) {
+      .page { padding: 12px; }
+      .sdk-shell {
+        width: min(386px, calc(100vw - 24px));
+        height: min(564px, calc(100vh - 24px));
+      }
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 1ms !important;
+        transition-duration: 1ms !important;
+      }
+
+      .sdk-shell,
+      .widget-view.is-entering,
+      .widget-view.is-entering .screen-head,
+      .widget-view.is-entering .screen-body,
+      .widget-view.is-entering .screen-actions,
+      .widget-view.is-entering .method-panel,
+      .widget-view.is-entering .confirmed-body,
+      .confirmed-view.is-entering .selected-method,
+      .api-message.show {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page" data-od-id="payments-sdk-page">
+    <section class="sdk-shell" aria-label="Payments SDK payment methods" data-od-id="payments-sdk-shell">
+      <div class="workspace" data-od-id="payment-method-workspace">
+        <header class="header" data-od-id="sdk-header">
+          <div class="brand" data-od-id="sdk-brand">
+            <div class="header-copy">
+              <h1 data-od-id="payment-method-heading">Choose a payment method</h1>
+            </div>
+          </div>
+          <div class="button-row" data-od-id="header-actions" aria-busy="true">
+            <div class="action-skeleton" id="actionSkeleton" role="status" aria-label="Loading payment actions">
+              <span aria-hidden="true"></span>
+              <span aria-hidden="true"></span>
+              <span aria-hidden="true"></span>
+            </div>
+            <button class="btn" type="button" id="editSelectedBtn" data-od-id="edit-selected-button" hidden>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              Edit
+            </button>
+            <button class="btn primary" type="button" id="openAddBtn" data-od-id="add-payment-button" hidden>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+              Add
+            </button>
+            <button class="btn" type="button" id="openTransferBtn" data-od-id="transfer-funds-button" hidden>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3"/><path d="m18 7-3 3"/><path d="M17 17H6l3 3"/><path d="m6 17 3-3"/></svg>
+              Transfer
+            </button>
+          </div>
+        </header>
+
+        <div class="content" data-od-id="payment-method-content">
+          <div class="widget-view" id="methodsView" data-od-id="methods-view">
+            <section class="method-panel" aria-label="Saved payment methods" data-od-id="saved-methods-panel">
+              <span class="count" id="methodCount" data-od-id="method-count" hidden>00</span>
+              <div class="method-list" id="methodList" role="listbox" aria-label="Saved payment methods" data-od-id="payment-method-list"></div>
+            </section>
+          </div>
+
+          <section class="widget-view confirmed-view" id="confirmedView" aria-label="Selected payment method" data-od-id="confirmed-payment-view" hidden>
+            <div class="confirmed-body">
+              <div class="selected-method" id="confirmedMethod" data-od-id="confirmed-payment-method"></div>
+            </div>
+            <div class="screen-actions single">
+              <button class="btn primary" type="button" id="changeMethodBtn" data-od-id="change-payment-method-button">Change payment method</button>
+            </div>
+          </section>
+
+          <section class="widget-view form-view" id="addView" aria-labelledby="addTitle" data-od-id="add-payment-view" hidden>
+            <div class="screen-head">
+              <div>
+                <h2 id="addTitle" data-od-id="add-payment-heading">Connect a new source</h2>
+              </div>
+            </div>
+            <div class="screen-body">
+              <div class="segmented" role="tablist" aria-label="Payment method type" data-od-id="payment-type-tabs">
+                <button type="button" class="active" id="cardTab" aria-selected="true">Card</button>
+                <button type="button" id="bankTab" aria-selected="false">Bank account</button>
+              </div>
+
+              <form id="cardForm" class="form-grid" data-od-id="card-payment-form">
+                <div class="field wide">
+                  <label for="cardName">Card nickname</label>
+                  <input id="cardName" autocomplete="off" placeholder="Travel card">
+                </div>
+                <div class="field wide">
+                  <label for="cardNumber">Card number</label>
+                  <input id="cardNumber" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242">
+                </div>
+                <div class="field">
+                  <label for="cardExp">Expiration</label>
+                  <input id="cardExp" autocomplete="cc-exp" placeholder="12 / 30">
+                </div>
+                <div class="field">
+                  <label for="cardCvc">CVC</label>
+                  <input id="cardCvc" inputmode="numeric" autocomplete="cc-csc" placeholder="123">
+                </div>
+              </form>
+
+              <form id="bankForm" class="form-grid" data-od-id="bank-payment-form" hidden>
+                <div class="field wide">
+                  <label for="bankName">Account nickname</label>
+                  <input id="bankName" autocomplete="off" placeholder="Operating account">
+                </div>
+                <div class="field">
+                  <label for="routingNumber">Routing number</label>
+                  <input id="routingNumber" inputmode="numeric" placeholder="110000000">
+                </div>
+                <div class="field">
+                  <label for="accountNumber">Account number</label>
+                  <input id="accountNumber" inputmode="numeric" placeholder="000123456789">
+                </div>
+                <div class="field wide">
+                  <label for="accountType">Account type</label>
+                  <select id="accountType">
+                    <option>Checking</option>
+                    <option>Savings</option>
+                  </select>
+                </div>
+              </form>
+
+              <div class="validation" id="addValidation" aria-live="polite"></div>
+              <div class="api-message" id="addApiMessage" role="alert"></div>
+            </div>
+            <div class="screen-actions">
+              <button class="btn ghost" type="button" id="cancelAddBtn">Cancel</button>
+              <button class="btn primary" type="button" id="saveAddBtn">Save</button>
+            </div>
+          </section>
+
+          <section class="widget-view form-view" id="editView" aria-label="Edit payment method" data-od-id="edit-payment-view" hidden>
+            <div class="screen-head">
+              <div>
+                <h2 data-od-id="edit-heading">Payment details</h2>
+              </div>
+            </div>
+            <div class="screen-body">
+              <div class="field">
+                <label for="editNickname">Nickname</label>
+                <input id="editNickname" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="editOwner">Billing owner</label>
+                <input id="editOwner" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="editUsage">Usage label</label>
+                <input id="editUsage" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="editStatus">Status</label>
+                <select id="editStatus">
+                  <option>Ready</option>
+                  <option>Needs review</option>
+                  <option>Pending verification</option>
+                </select>
+              </div>
+              <div class="api-message" id="editApiMessage" role="alert"></div>
+            </div>
+            <div class="screen-actions">
+              <button class="btn ghost" type="button" id="cancelEditBtn">Cancel</button>
+              <button class="btn primary" type="button" id="saveEditBtn">Save</button>
+            </div>
+          </section>
+
+          <section class="widget-view form-view" id="transferView" aria-labelledby="transferTitle" data-od-id="transfer-funds-view" hidden>
+            <div class="screen-head">
+              <h2 id="transferTitle" data-od-id="transfer-funds-heading">Transfer funds</h2>
+            </div>
+            <div class="screen-body">
+              <div class="transfer-route">
+                <div class="field">
+                  <label for="transferSource">From bank account</label>
+                  <select id="transferSource"></select>
+                </div>
+                <div class="transfer-arrow" aria-hidden="true">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m7 14 5 5 5-5"/></svg>
+                </div>
+                <div class="field">
+                  <label for="transferDestination">To bank account</label>
+                  <select id="transferDestination"></select>
+                </div>
+                <div class="field">
+                  <label for="transferAmount">Transfer amount</label>
+                  <input id="transferAmount" inputmode="decimal" autocomplete="off" placeholder="0.00">
+                </div>
+              </div>
+              <div class="validation" id="transferValidation" aria-live="polite"></div>
+              <div class="api-message" id="transferApiMessage" role="alert"></div>
+            </div>
+            <div class="screen-actions">
+              <button class="btn ghost" type="button" id="cancelTransferBtn">Cancel</button>
+              <button class="btn primary" type="button" id="submitTransferBtn">Transfer</button>
+            </div>
+          </section>
+
+          <section class="widget-view confirmed-view" id="transferSuccessView" aria-labelledby="transferSuccessTitle" data-od-id="transfer-success-view" hidden>
+            <div class="confirmed-body">
+              <div class="transfer-result">
+                <h2 id="transferSuccessTitle" data-od-id="transfer-success-heading">Transfer submitted</h2>
+                <div class="transfer-summary" id="transferSummary" data-od-id="transfer-summary"></div>
+              </div>
+            </div>
+            <div class="screen-actions single">
+              <button class="btn primary" type="button" id="transferDoneBtn">Done</button>
+            </div>
+          </section>
+        </div>
+
+        <footer class="footer" data-od-id="sdk-footer">
+          <button class="btn primary" type="button" id="continueBtn" data-od-id="continue-button">Use selected method</button>
+          <div class="api-message" id="continueApiMessage" role="alert"></div>
+        </footer>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite">Updated</div>
+    </section>
+  </main>
+
+  <script>
+    const methodSeeds = [
+      { id: "pm_card_4242", type: "card", network: "Visa", last4: "4242", nickname: "Checkout card", owner: "Merchant operations", usage: "Checkout and invoices", status: "Ready" },
+      { id: "pm_bank_8831", type: "bank", network: "ACH", last4: "8831", nickname: "Operating account", owner: "Finance team", usage: "Settlement and payouts", status: "Ready" },
+      { id: "pm_card_1881", type: "card", network: "Mastercard", last4: "1881", nickname: "Procurement card", owner: "Admin team", usage: "Platform fees", status: "Ready" },
+      { id: "pm_bank_2190", type: "bank", network: "ACH", last4: "2190", nickname: "Treasury account", owner: "Controller", usage: "Invoice collection", status: "Needs review" },
+      { id: "pm_card_3005", type: "card", network: "Amex", last4: "3005", nickname: "Events card", owner: "Growth team", usage: "Campaign spend", status: "Ready" },
+      { id: "pm_bank_7614", type: "bank", network: "ACH", last4: "7614", nickname: "Reserve account", owner: "Finance team", usage: "Reserve funding", status: "Ready" },
+      { id: "pm_card_6408", type: "card", network: "Visa", last4: "6408", nickname: "Support card", owner: "Customer operations", usage: "Customer adjustments", status: "Ready" },
+      { id: "pm_bank_4527", type: "bank", network: "ACH", last4: "4527", nickname: "Collections account", owner: "Accounts receivable", usage: "Invoice collection", status: "Ready" },
+      { id: "pm_card_9116", type: "card", network: "Mastercard", last4: "9116", nickname: "Travel card", owner: "People operations", usage: "Business travel", status: "Ready" },
+      { id: "pm_bank_6043", type: "bank", network: "ACH", last4: "6043", nickname: "Tax account", owner: "Controller", usage: "Tax payments", status: "Needs review" },
+      { id: "pm_card_2739", type: "card", network: "Visa", last4: "2739", nickname: "Software card", owner: "IT operations", usage: "Software subscriptions", status: "Ready" },
+      { id: "pm_bank_1378", type: "bank", network: "ACH", last4: "1378", nickname: "Vendor account", owner: "Procurement", usage: "Vendor payments", status: "Ready" }
+    ];
+
+    let methods = [];
+    let selectedId = null;
+    let addType = "card";
+    let currentView = "methods";
+    let paymentPermissions = null;
+
+    const methodList = document.getElementById("methodList");
+    const methodCount = document.getElementById("methodCount");
+    const methodsView = document.getElementById("methodsView");
+    const confirmedView = document.getElementById("confirmedView");
+    const confirmedMethod = document.getElementById("confirmedMethod");
+    const addView = document.getElementById("addView");
+    const editView = document.getElementById("editView");
+    const transferView = document.getElementById("transferView");
+    const transferSuccessView = document.getElementById("transferSuccessView");
+    const header = document.querySelector(".header");
+    const footer = document.querySelector(".footer");
+    const headerActions = document.querySelector(".header .button-row");
+    const toast = document.getElementById("toast");
+    const apiState = {
+      failNextSave: false,
+      latency: 820,
+      paymentPermissions: { canEdit: true, canAdd: true, canTransfer: true }
+    };
+
+    const icons = {
+      card: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h3"/></svg>',
+      bank: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16"/><path d="M6 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/><path d="M18 10v8"/><path d="M3 18h18"/><path d="m12 4 8 4H4Z"/></svg>'
+    };
+
+    function selectedMethod() {
+      return methods.find((method) => method.id === selectedId) || methods[0];
+    }
+
+    function renderMethodSkeletons() {
+      methodList.setAttribute("role", "status");
+      methodList.setAttribute("aria-label", "Loading saved payment methods");
+      methodList.setAttribute("aria-busy", "true");
+      methodList.innerHTML = Array.from({ length: 4 }, (_, index) => `
+        <div class="method-skeleton" aria-hidden="true" style="animation-delay:${index * 80}ms">
+          <span class="skeleton-block skeleton-icon"></span>
+          <span class="skeleton-copy">
+            <span class="skeleton-block skeleton-line"></span>
+            <span class="skeleton-block skeleton-line"></span>
+          </span>
+          <span class="skeleton-block skeleton-radio"></span>
+        </div>
+      `).join("");
+    }
+
+    function setMethodListLoading(isLoading) {
+      methodsView.setAttribute("aria-busy", String(isLoading));
+      document.getElementById("continueBtn").disabled = isLoading;
+      headerActions.setAttribute("aria-busy", String(isLoading));
+    }
+
+    function updatePaymentActions() {
+      const isLoading = paymentPermissions === null;
+      const canEdit = Boolean(paymentPermissions?.canEdit);
+      const canAdd = Boolean(paymentPermissions?.canAdd);
+      const canTransfer = Boolean(paymentPermissions?.canTransfer) && methods.filter((method) => method.type === "bank").length >= 2;
+      const actionCount = [canEdit, canAdd, canTransfer].filter(Boolean).length;
+      document.getElementById("actionSkeleton").hidden = !isLoading;
+      document.getElementById("editSelectedBtn").hidden = isLoading || !canEdit;
+      document.getElementById("openAddBtn").hidden = isLoading || !canAdd;
+      document.getElementById("openTransferBtn").hidden = isLoading || !canTransfer;
+      headerActions.style.setProperty("--action-count", String(Math.max(actionCount, 1)));
+      headerActions.hidden = currentView !== "methods" || (!isLoading && actionCount === 0);
+    }
+
+    function fetchPaymentMethods() {
+      return new Promise((resolve) => {
+        window.setTimeout(() => {
+          resolve({
+            methods: methodSeeds.map((method) => ({ ...method })),
+            permissions: { ...apiState.paymentPermissions }
+          });
+        }, apiState.latency);
+      });
+    }
+
+    async function loadPaymentMethods() {
+      renderMethodSkeletons();
+      setMethodListLoading(true);
+      paymentPermissions = null;
+      updatePaymentActions();
+      const response = await fetchPaymentMethods();
+        methods = response.methods;
+        paymentPermissions = response.permissions;
+        selectedId = methods[0].id;
+        methodList.setAttribute("role", "listbox");
+        methodList.setAttribute("aria-label", "Saved payment methods");
+        methodList.removeAttribute("aria-busy");
+        renderAll();
+        setMethodListLoading(false);
+        updatePaymentActions();
+    }
+
+    function renderMethods() {
+      methodCount.textContent = String(methods.length).padStart(2, "0");
+      methodList.innerHTML = "";
+
+      methods.forEach((method) => {
+        const button = document.createElement("button");
+        button.className = "method-card";
+        button.type = "button";
+        button.role = "option";
+        button.setAttribute("aria-selected", String(method.id === selectedId));
+        button.dataset.id = method.id;
+        button.dataset.odId = `payment-method-${method.id.replaceAll("_", "-")}`;
+        button.innerHTML = `
+          <span class="rail-icon">${icons[method.type]}</span>
+          <span class="method-copy">
+            <span class="method-title">${method.nickname} <span class="badge">${method.status}</span></span>
+            <span class="method-meta">${method.network} ending ${method.last4} · ${method.owner}</span>
+          </span>
+          <span class="radio-dot" aria-hidden="true"></span>
+        `;
+        button.addEventListener("click", () => {
+          selectedId = method.id;
+          setConfirmState("idle");
+          renderAll();
+          flash(`${method.nickname} selected`);
+        });
+        methodList.appendChild(button);
+      });
+    }
+
+    function renderAll() {
+      renderMethods();
+      renderConfirmedMethod();
+      populateTransferAccounts();
+      updatePaymentActions();
+    }
+
+    function renderConfirmedMethod() {
+      const method = selectedMethod();
+      confirmedMethod.innerHTML = `
+        <span class="rail-icon">${icons[method.type]}</span>
+        <span class="method-copy">
+          <span class="method-title">${method.nickname} <span class="badge">${method.status}</span></span>
+          <span class="method-meta">${method.network} ending ${method.last4} · ${method.owner}</span>
+        </span>
+      `;
+    }
+
+    function cueViewEnter(viewEl) {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      viewEl.classList.remove("is-entering");
+      if (reduceMotion) return;
+      window.requestAnimationFrame(() => {
+        viewEl.classList.add("is-entering");
+        window.setTimeout(() => viewEl.classList.remove("is-entering"), 260);
+      });
+    }
+
+    function setView(view) {
+      currentView = view;
+      methodsView.hidden = view !== "methods";
+      confirmedView.hidden = view !== "confirmed";
+      addView.hidden = view !== "add";
+      editView.hidden = view !== "edit";
+      transferView.hidden = view !== "transfer";
+      transferSuccessView.hidden = view !== "transfer-success";
+      header.hidden = view !== "methods";
+      footer.hidden = view !== "methods";
+      document.getElementById("continueBtn").hidden = view !== "methods";
+      document.getElementById("continueApiMessage").hidden = view !== "methods";
+      updatePaymentActions();
+      const activeView = { methods: methodsView, confirmed: confirmedView, add: addView, edit: editView, transfer: transferView, "transfer-success": transferSuccessView }[view];
+      if (activeView) cueViewEnter(activeView);
+    }
+
+    function openAdd() {
+      setView("add");
+      document.getElementById(addType === "card" ? "cardName" : "bankName").focus();
+    }
+
+    function closeAdd() {
+      setSaveState("add", "idle");
+      setView("methods");
+      document.getElementById("addValidation").textContent = "";
+    }
+
+    function setAddType(type) {
+      addType = type;
+      document.getElementById("cardTab").classList.toggle("active", type === "card");
+      document.getElementById("bankTab").classList.toggle("active", type === "bank");
+      document.getElementById("cardTab").setAttribute("aria-selected", String(type === "card"));
+      document.getElementById("bankTab").setAttribute("aria-selected", String(type === "bank"));
+      document.getElementById("cardForm").hidden = type !== "card";
+      document.getElementById("bankForm").hidden = type !== "bank";
+      document.getElementById("addValidation").textContent = "";
+      document.getElementById("addApiMessage").classList.remove("show");
+      document.getElementById("addApiMessage").textContent = "";
+    }
+
+    function digits(value) {
+      return value.replace(/\D/g, "");
+    }
+
+    function setSaveState(view, state, message = "") {
+      const isAdd = view === "add";
+      const saveButton = document.getElementById(isAdd ? "saveAddBtn" : "saveEditBtn");
+      const cancelButton = document.getElementById(isAdd ? "cancelAddBtn" : "cancelEditBtn");
+      const messageEl = document.getElementById(isAdd ? "addApiMessage" : "editApiMessage");
+      const controls = (isAdd ? addView : editView).querySelectorAll("input, select, button");
+      const isLoading = state === "loading";
+      (isAdd ? addView : editView).setAttribute("aria-busy", String(isLoading));
+      controls.forEach((control) => {
+        control.disabled = isLoading;
+      });
+      saveButton.textContent = isLoading ? "Saving..." : "Save";
+      saveButton.classList.toggle("is-loading", isLoading);
+      saveButton.disabled = isLoading;
+      cancelButton.disabled = isLoading;
+      messageEl.textContent = message;
+      messageEl.classList.toggle("show", Boolean(message));
+    }
+
+    function setConfirmState(state, message = "") {
+      const continueButton = document.getElementById("continueBtn");
+      const messageEl = document.getElementById("continueApiMessage");
+      const isLoading = state === "loading";
+      methodsView.setAttribute("aria-busy", String(isLoading));
+      continueButton.textContent = isLoading ? "Confirming..." : "Use selected method";
+      continueButton.classList.toggle("is-loading", isLoading);
+      continueButton.disabled = isLoading;
+      document.getElementById("openAddBtn").disabled = isLoading;
+      document.getElementById("editSelectedBtn").disabled = isLoading;
+      document.getElementById("openTransferBtn").disabled = isLoading;
+      methodList.querySelectorAll("button").forEach((button) => {
+        button.disabled = isLoading;
+      });
+      messageEl.textContent = message;
+      messageEl.classList.toggle("show", Boolean(message));
+    }
+
+    function persistPaymentMethod(payload) {
+      return new Promise((resolve, reject) => {
+        window.setTimeout(() => {
+          const values = Object.values(payload).join(" ").toLowerCase();
+          if (apiState.failNextSave || values.includes("error") || values.includes("fail")) {
+            apiState.failNextSave = false;
+            reject(new Error("Payment method save failed"));
+            return;
+          }
+          resolve(payload);
+        }, apiState.latency);
+      });
+    }
+
+    async function saveAddedMethod() {
+      const validation = document.getElementById("addValidation");
+      document.getElementById("addApiMessage").classList.remove("show");
+      document.getElementById("addApiMessage").textContent = "";
+      if (addType === "card") {
+        const nickname = document.getElementById("cardName").value.trim();
+        const number = digits(document.getElementById("cardNumber").value);
+        const exp = document.getElementById("cardExp").value.trim();
+        const cvc = digits(document.getElementById("cardCvc").value);
+        if (!nickname || number.length < 12 || !exp || cvc.length < 3) {
+          validation.textContent = "Enter a nickname, card number, expiration, and CVC.";
+          return;
+        }
+        const method = {
+          id: `pm_card_${Date.now()}`,
+          type: "card",
+          network: number.startsWith("3") ? "Amex" : "Visa",
+          last4: number.slice(-4),
+          nickname,
+          owner: "Merchant operations",
+          usage: "Checkout and invoices",
+          status: "Ready"
+        };
+        setSaveState("add", "loading");
+        try {
+          await persistPaymentMethod(method);
+          methods.unshift(method);
+          selectedId = method.id;
+        } catch (_) {
+          setSaveState("add", "error", "We couldn’t save this payment method. Check the details or try again.");
+          return;
+        }
+      } else {
+        const nickname = document.getElementById("bankName").value.trim();
+        const routing = digits(document.getElementById("routingNumber").value);
+        const account = digits(document.getElementById("accountNumber").value);
+        if (!nickname || routing.length !== 9 || account.length < 4) {
+          validation.textContent = "Enter a nickname, nine-digit routing number, and account number.";
+          return;
+        }
+        const method = {
+          id: `pm_bank_${Date.now()}`,
+          type: "bank",
+          network: "ACH",
+          last4: account.slice(-4),
+          nickname,
+          owner: "Finance team",
+          usage: `${document.getElementById("accountType").value} funding`,
+          status: "Pending verification"
+        };
+        setSaveState("add", "loading");
+        try {
+          await persistPaymentMethod(method);
+          methods.unshift(method);
+          selectedId = method.id;
+        } catch (_) {
+          setSaveState("add", "error", "We couldn’t save this bank account. Check the details or try again.");
+          return;
+        }
+      }
+      setSaveState("add", "idle");
+      closeAdd();
+      renderAll();
+      flash("Payment method saved");
+    }
+
+    function openEdit() {
+      const method = selectedMethod();
+      document.getElementById("editNickname").value = method.nickname;
+      document.getElementById("editOwner").value = method.owner;
+      document.getElementById("editUsage").value = method.usage;
+      document.getElementById("editStatus").value = method.status;
+      setSaveState("edit", "idle");
+      setView("edit");
+      document.getElementById("editNickname").focus();
+    }
+
+    function closeEdit() {
+      setSaveState("edit", "idle");
+      setView("methods");
+    }
+
+    async function saveEdit() {
+      const method = selectedMethod();
+      const changes = {
+        nickname: document.getElementById("editNickname").value.trim() || method.nickname,
+        owner: document.getElementById("editOwner").value.trim() || method.owner,
+        usage: document.getElementById("editUsage").value.trim() || method.usage,
+        status: document.getElementById("editStatus").value
+      };
+      setSaveState("edit", "loading");
+      try {
+        await persistPaymentMethod(changes);
+      } catch (_) {
+        setSaveState("edit", "error", "We couldn’t update this payment method. Check the details or try again.");
+        return;
+      }
+      method.nickname = changes.nickname;
+      method.owner = changes.owner;
+      method.usage = changes.usage;
+      method.status = changes.status;
+      setSaveState("edit", "idle");
+      closeEdit();
+      renderAll();
+      flash("Payment method updated");
+    }
+
+    async function confirmSelectedMethod() {
+      const method = selectedMethod();
+      setConfirmState("loading");
+      try {
+        await persistPaymentMethod({ action: "confirm", methodId: method.id, nickname: method.nickname });
+      } catch (_) {
+        setConfirmState("error", "We couldn’t confirm this payment method. Try again or choose another method.");
+        return;
+      }
+      setConfirmState("idle");
+      renderConfirmedMethod();
+      setView("confirmed");
+    }
+
+    function changePaymentMethod() {
+      setConfirmState("idle");
+      setView("methods");
+      renderAll();
+    }
+
+    function bankMethods() {
+      return methods.filter((method) => method.type === "bank");
+    }
+
+    function bankOption(method) {
+      return `<option value="${method.id}">${method.nickname} · ending ${method.last4}</option>`;
+    }
+
+    function populateTransferAccounts() {
+      const banks = bankMethods();
+      const source = document.getElementById("transferSource");
+      const previousSource = source.value;
+      source.innerHTML = banks.map(bankOption).join("");
+      if (banks.some((method) => method.id === previousSource)) source.value = previousSource;
+      updateTransferDestinations();
+    }
+
+    function updateTransferDestinations() {
+      const sourceId = document.getElementById("transferSource").value;
+      const destination = document.getElementById("transferDestination");
+      const previousDestination = destination.value;
+      const destinations = bankMethods().filter((method) => method.id !== sourceId);
+      destination.innerHTML = destinations.map(bankOption).join("");
+      if (destinations.some((method) => method.id === previousDestination)) destination.value = previousDestination;
+    }
+
+    function setTransferState(state, message = "") {
+      const isLoading = state === "loading";
+      const submitButton = document.getElementById("submitTransferBtn");
+      transferView.setAttribute("aria-busy", String(isLoading));
+      transferView.querySelectorAll("input, select, button").forEach((control) => {
+        control.disabled = isLoading;
+      });
+      submitButton.textContent = isLoading ? "Transferring..." : "Transfer";
+      submitButton.classList.toggle("is-loading", isLoading);
+      const messageEl = document.getElementById("transferApiMessage");
+      messageEl.textContent = message;
+      messageEl.classList.toggle("show", Boolean(message));
+    }
+
+    function openTransfer() {
+      populateTransferAccounts();
+      document.getElementById("transferAmount").value = "";
+      document.getElementById("transferValidation").textContent = "";
+      setTransferState("idle");
+      setView("transfer");
+      document.getElementById("transferSource").focus();
+    }
+
+    function closeTransfer() {
+      setTransferState("idle");
+      document.getElementById("transferValidation").textContent = "";
+      setView("methods");
+    }
+
+    async function submitTransfer() {
+      const sourceId = document.getElementById("transferSource").value;
+      const destinationId = document.getElementById("transferDestination").value;
+      const rawAmount = document.getElementById("transferAmount").value.trim().replaceAll(",", "");
+      const amount = Number(rawAmount);
+      const validation = document.getElementById("transferValidation");
+      validation.textContent = "";
+      document.getElementById("transferApiMessage").classList.remove("show");
+      if (!sourceId || !destinationId || sourceId === destinationId) {
+        validation.textContent = "Choose two different bank accounts.";
+        return;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        validation.textContent = "Enter a transfer amount greater than zero.";
+        return;
+      }
+      setTransferState("loading");
+      try {
+        await persistPaymentMethod({ action: "transfer", sourceId, destinationId, amount });
+      } catch (_) {
+        setTransferState("error", "We couldn’t submit this transfer. Review the details or try again.");
+        return;
+      }
+      const source = methods.find((method) => method.id === sourceId);
+      const destination = methods.find((method) => method.id === destinationId);
+      document.getElementById("transferSummary").innerHTML = `
+        <div class="transfer-summary-row"><span class="transfer-summary-label">From</span><span class="transfer-summary-value">${source.nickname} · ${source.last4}</span></div>
+        <div class="transfer-summary-row"><span class="transfer-summary-label">To</span><span class="transfer-summary-value">${destination.nickname} · ${destination.last4}</span></div>
+        <div class="transfer-summary-row"><span class="transfer-summary-label">Amount</span><span class="transfer-summary-value">${amount.toFixed(2)}</span></div>
+      `;
+      setTransferState("idle");
+      setView("transfer-success");
+    }
+
+    function showFiftyMethods() {
+      const expanded = methodSeeds.map((method) => ({ ...method }));
+      for (let i = expanded.length + 1; i <= 50; i += 1) {
+        const isBank = i % 4 === 0;
+        expanded.push({
+          id: `pm_${isBank ? "bank" : "card"}_${1000 + i}`,
+          type: isBank ? "bank" : "card",
+          network: isBank ? "ACH" : (i % 3 === 0 ? "Mastercard" : "Visa"),
+          last4: String(7000 + i).slice(-4),
+          nickname: isBank ? `Regional account ${i}` : `Storefront card ${i}`,
+          owner: i % 2 === 0 ? "Finance team" : "Merchant operations",
+          usage: isBank ? "Settlement and payouts" : "Checkout and invoices",
+          status: i % 7 === 0 ? "Needs review" : "Ready"
+        });
+      }
+      methods = expanded;
+      selectedId = methods[0].id;
+      renderAll();
+      flash("Fifty saved methods rendered");
+    }
+
+    function resetSession() {
+      methods = methodSeeds.map((method) => ({ ...method }));
+      selectedId = methods[0].id;
+      renderAll();
+      flash("Session reset");
+    }
+
+    function flash(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(flash.timer);
+      flash.timer = window.setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    document.getElementById("openAddBtn").addEventListener("click", openAdd);
+    document.getElementById("cancelAddBtn").addEventListener("click", closeAdd);
+    document.getElementById("saveAddBtn").addEventListener("click", saveAddedMethod);
+    document.getElementById("cardTab").addEventListener("click", () => setAddType("card"));
+    document.getElementById("bankTab").addEventListener("click", () => setAddType("bank"));
+    document.getElementById("editSelectedBtn").addEventListener("click", openEdit);
+    document.getElementById("cancelEditBtn").addEventListener("click", closeEdit);
+    document.getElementById("saveEditBtn").addEventListener("click", saveEdit);
+    document.getElementById("continueBtn").addEventListener("click", confirmSelectedMethod);
+    document.getElementById("changeMethodBtn").addEventListener("click", changePaymentMethod);
+    document.getElementById("openTransferBtn").addEventListener("click", openTransfer);
+    document.getElementById("transferSource").addEventListener("change", updateTransferDestinations);
+    document.getElementById("cancelTransferBtn").addEventListener("click", closeTransfer);
+    document.getElementById("submitTransferBtn").addEventListener("click", submitTransfer);
+    document.getElementById("transferDoneBtn").addEventListener("click", () => setView("methods"));
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        if (document.getElementById("saveAddBtn").disabled || document.getElementById("saveEditBtn").disabled || document.getElementById("continueBtn").disabled || document.getElementById("submitTransferBtn").disabled) return;
+        setView("methods");
+      }
+    });
+
+    setView("methods");
+    loadPaymentMethods();
+    function simulateNextPaymentApiError() {
+      apiState.failNextSave = true;
+      flash("Next API call will show an error");
+    }
+
+    Object.assign(window, { renderPaymentMethodStressState: showFiftyMethods, resetPaymentMethodSession: resetSession, simulateNextPaymentApiError });
+  </script>
+</body>
+</html>

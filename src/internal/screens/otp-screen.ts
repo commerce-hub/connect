@@ -31,7 +31,7 @@ export const renderOtpScreen = ({
   const isFailed = status === 'OTP_VALIDATION_FAILED';
 
   return html`
-    <div class="otp-flow">
+    <form class="otp-flow" data-submit-action="verify-otp">
       ${isFailed
         ? renderAlert({
             variant: 'danger',
@@ -55,6 +55,7 @@ export const renderOtpScreen = ({
           icon: !submitting && !isFailed ? 'check' : undefined,
           variant: 'primary',
           action: 'verify-otp',
+          type: 'submit',
           loading: submitting,
           disabled: submitting || value.length < length,
         })}
@@ -70,6 +71,6 @@ export const renderOtpScreen = ({
           })}
         </div>
       </div>
-    </div>
+    </form>
   `;
 };

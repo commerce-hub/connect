@@ -2,35 +2,35 @@ import {css} from 'lit';
 
 export const primitiveStyles = css`
   :host {
-    --chc-text: #111827;
-    --chc-copy: #4b5565;
-    --chc-muted: #6b7280;
+    --chc-text: #061b31;
+    --chc-copy: #50617a;
+    --chc-muted: #50617a;
     --chc-placeholder: #9ca3af;
     --chc-surface: #ffffff;
     --chc-widget-background: var(--chc-surface);
-    --chc-soft-surface: #f8fafc;
-    --chc-border: #d9e1ec;
-    --chc-border-strong: #c6d0dd;
+    --chc-soft-surface: #f8fafd;
+    --chc-border: #e5edf5;
+    --chc-border-strong: #8596a8;
     --chc-payment-method-background: var(--chc-surface);
-    --chc-primary: #1d4ed8;
+    --chc-primary: #533afd;
     --chc-success: #047857;
     --chc-success-bg: #ecfdf3;
     --chc-success-border: #a6f4c5;
-    --chc-danger: #f20d19;
+    --chc-danger: #c2410c;
     --chc-danger-bg: #fef3f2;
     --chc-danger-border: #fecdca;
-    --chc-warning: #e88700;
+    --chc-warning: #c2410c;
     --chc-warning-bg: #fffaeb;
     --chc-warning-border: #fedf89;
     --chc-disabled-text: #ffffff;
     --chc-disabled-surface: #c5ccd8;
     --chc-font-family: Inter, 'Segoe UI', Arial, sans-serif;
-    --chc-radius-control: 0.625rem;
-    --chc-radius-card: 0.75rem;
+    --chc-radius-control: 0.5rem;
+    --chc-radius-card: 0.5rem;
     --chc-input-height: 2.5rem;
     --chc-font-weight: 400;
     --chc-divider: #ebeef2;
-    --chc-focus-ring: rgba(29, 78, 216, 0.14);
+    --chc-focus-ring: rgba(83, 58, 253, 0.2);
     --chc-motion-fast: 120ms;
     --chc-motion-base: 180ms;
     --chc-motion-slow: 240ms;
@@ -38,7 +38,7 @@ export const primitiveStyles = css`
     --chc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
     --chc-spinner-duration: 900ms;
-    --chc-shell-padding: 1.1875rem 1.1875rem 1rem;
+    --chc-shell-padding: 0;
     display: block;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
@@ -50,6 +50,15 @@ export const primitiveStyles = css`
   *::before,
   *::after {
     box-sizing: border-box;
+  }
+
+  .screen-reader-status {
+    width: 0.0625rem;
+    height: 0.0625rem;
+    position: absolute;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   .widget-close,
@@ -69,14 +78,22 @@ export const primitiveStyles = css`
   }
 
   .widget-shell {
-    width: 100%;
-    max-width: 25.25rem;
+    width: min(24.125rem, calc(100vw - 1.5rem));
+    height: min(35.25rem, calc(100dvh - 1.5rem));
+    min-height: 20rem;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     position: relative;
     padding: var(--chc-shell-padding);
-    border: 0;
-    border-radius: 0;
+    overflow: hidden;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: 0.5rem;
     background: var(--chc-widget-background);
+    box-shadow: 0 1.5rem 5rem
+      color-mix(in srgb, var(--chc-text) 10%, transparent);
     text-align: left;
+    animation: chc-shell-enter var(--chc-motion-base) var(--chc-ease-emphasized)
+      both;
   }
 
   .widget-shell-busy {
@@ -118,6 +135,12 @@ export const primitiveStyles = css`
     align-items: center;
     justify-content: space-between;
     gap: 0.625rem;
+    padding: 0.875rem;
+    border-bottom: 0.0625rem solid var(--chc-border);
+  }
+
+  .widget-heading {
+    min-width: 0;
   }
 
   .widget-header-action {
@@ -130,11 +153,11 @@ export const primitiveStyles = css`
   }
 
   .widget-subtitle {
-    margin: 0.375rem 0 0;
+    margin: 0.25rem 0 0;
     color: var(--chc-copy);
     font-weight: inherit;
     font-size: 0.9375em;
-    text-align: center;
+    text-align: left;
   }
 
   .widget-divider {
@@ -144,9 +167,90 @@ export const primitiveStyles = css`
   }
 
   .widget-content {
-    margin-top: 1.125rem;
-    margin-right: auto;
-    margin-left: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0.75rem 0.875rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .widget-action-footer {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem 0.875rem;
+    border-top: 0.0625rem solid var(--chc-border);
+    background: var(--chc-surface);
+  }
+
+  .widget-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.625rem;
+  }
+
+  .widget-toolbar .text-link-button,
+  .widget-header-action > .text-link-button {
+    min-height: 2rem;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    padding: 0 0.625rem;
+    background: var(--chc-surface);
+    color: var(--chc-text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .payment-method-radio {
+    width: 1.125rem;
+    height: 1.125rem;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .payment-method-row-radio:has(.payment-method-radio:focus-visible) {
+    outline: 0.1875rem solid var(--chc-focus-ring);
+    outline-offset: 0.0625rem;
+  }
+
+  .add-method-launcher {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .launcher-copy {
+    margin: 0;
+    color: var(--chc-copy);
+  }
+
+  .tender-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .tender-tab {
+    min-height: 4.5rem;
+    border: 0.0625rem solid var(--chc-border-strong);
+    border-radius: var(--chc-radius-control);
+    background: var(--chc-soft-surface);
+    color: var(--chc-text);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .tender-tab:hover,
+  .tender-tab:focus-visible {
+    border-color: var(--chc-primary);
+    outline: none;
+  }
+
+  .tender-tab[aria-selected='true'] {
+    border-color: var(--chc-primary);
+    background: var(--chc-primary);
+    color: #fff;
   }
 
   .primitive-stack {
@@ -161,9 +265,17 @@ export const primitiveStyles = css`
   }
 
   .primitive-footer {
+    position: sticky;
+    bottom: -0.75rem;
+    z-index: 1;
     display: grid;
     gap: 0.625rem;
     margin-top: 0.875rem;
+    margin-right: -0.875rem;
+    margin-left: -0.875rem;
+    padding: 0.625rem 0.875rem 0.75rem;
+    border-top: 0.0625rem solid var(--chc-border);
+    background: var(--chc-surface);
   }
 
   .card-form-back-header,
@@ -213,6 +325,9 @@ export const primitiveStyles = css`
   .required-info-flow {
     display: grid;
     gap: 0.75rem;
+    margin: 0;
+    border: 0;
+    padding: 0;
   }
 
   .required-info-card {
@@ -577,7 +692,7 @@ export const primitiveStyles = css`
   .field-input {
     width: 100%;
     min-height: var(--chc-input-height);
-    border: 0.0625rem solid var(--chc-border);
+    border: 0.0625rem solid var(--chc-border-strong);
     border-radius: var(--chc-radius-control);
     padding: 0.625rem 0.75rem;
     background: var(--chc-surface);
@@ -612,7 +727,7 @@ export const primitiveStyles = css`
     width: 100%;
     min-height: var(--chc-input-height);
     padding: 0.625rem 0.75rem;
-    border: 0.0625rem solid var(--chc-border);
+    border: 0.0625rem solid var(--chc-border-strong);
     border-radius: var(--chc-radius-control);
     background: color-mix(
       in srgb,
@@ -710,7 +825,7 @@ export const primitiveStyles = css`
     box-sizing: border-box;
     width: 100%;
     min-height: var(--chc-input-height);
-    border: 0.0625rem solid var(--chc-border);
+    border: 0.0625rem solid var(--chc-border-strong);
     border-radius: var(--chc-radius-control);
     padding: 0.625rem 0.75rem;
     background: color-mix(
@@ -773,7 +888,7 @@ export const primitiveStyles = css`
 
   .otp-input {
     min-height: var(--chc-input-height);
-    border: 0.0625rem solid var(--chc-border);
+    border: 0.0625rem solid var(--chc-border-strong);
     border-radius: 0.625rem;
     background: var(--chc-surface);
     color: var(--chc-text);
@@ -916,6 +1031,23 @@ export const primitiveStyles = css`
       var(--chc-soft-surface)
     );
     box-shadow: 0 0.625rem 1.125rem rgba(17, 24, 39, 0.05);
+  }
+
+  .payment-flow .selected-payment-method {
+    min-height: 15rem;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-content: center;
+    text-align: center;
+  }
+
+  .payment-flow .selected-payment-method .payment-method-icon-chip {
+    width: 4rem;
+    height: 4rem;
+  }
+
+  .payment-flow .selected-payment-method .payment-method-copy {
+    justify-items: center;
   }
 
   .payment-method-row-selected {
@@ -2027,6 +2159,18 @@ export const primitiveStyles = css`
     }
   }
 
+  @keyframes chc-shell-enter {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem) scale(0.99);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
   .powered-by-footer {
     display: flex;
     justify-content: center;
@@ -2043,12 +2187,10 @@ export const primitiveStyles = css`
   }
 
   @media (max-width: 26.25rem) {
-    :host {
-      --chc-shell-padding: 1rem 1rem 0.875rem;
-    }
-
     .widget-shell {
-      border-radius: 1rem;
+      width: calc(100vw - 1rem);
+      height: calc(100dvh - 1rem);
+      border-radius: 0.5rem;
     }
 
     .widget-close {
@@ -2057,6 +2199,20 @@ export const primitiveStyles = css`
 
     .form-grid {
       grid-template-columns: minmax(0, 1fr);
+    }
+
+    .widget-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .widget-header-action,
+    .widget-toolbar {
+      width: 100%;
+    }
+
+    .widget-toolbar > * {
+      flex: 1 1 0;
     }
 
     .otp-inputs {
@@ -2085,6 +2241,7 @@ export const primitiveStyles = css`
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .widget-shell,
     .widget-close,
     .button,
     .field-input,
@@ -2094,6 +2251,7 @@ export const primitiveStyles = css`
     .payment-method-delete-button,
     .payment-method-delete-confirm-button {
       transition: none;
+      animation: none;
     }
 
     .button:hover:not(:disabled) {

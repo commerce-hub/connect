@@ -503,7 +503,7 @@ const DELETE_CONFIRMATION_TIMEOUT_MS = 5000;
  * @csspart header - Screen header row.
  * @csspart title - Screen title.
  * @csspart content - Screen content region.
- * @csspart footer - Powered-by footer.
+ * @csspart footer - Pinned screen action footer.
  * @csspart primary-action - Primary CTA button.
  * @csspart alert - Screen-level alert message.
  * @csspart payment-method-row - Saved or selected payment-method row.
@@ -688,6 +688,12 @@ export class CommerceHubConnect extends LitElement {
   private paymentSourceEditMode = false;
 
   @state()
+  private addLauncherActive = false;
+
+  @state()
+  private attachmentError?: string;
+
+  @state()
   private deleteConfirmationPaymentSourceId?: string;
 
   private deleteConfirmationTimeoutId?: number;
@@ -782,6 +788,7 @@ export class CommerceHubConnect extends LitElement {
     return html`
       <div
         @click=${this.handleClick}
+        @submit=${this.handleSubmit}
         @input=${this.handleInput}
         @keydown=${this.handleKeyDown}
         @change=${this.handleChange}
@@ -790,6 +797,9 @@ export class CommerceHubConnect extends LitElement {
         @focusout=${this.handleFocusLost}
         @blur=${this.handleFocusLost}
       >
+        <span class="screen-reader-status" role="status" aria-live="polite"
+          >${flowActionLiveMessage(this.pendingAction)}</span
+        >
         ${this.renderCurrentScreen()}
       </div>
     `;
@@ -812,6 +822,19 @@ export class CommerceHubConnect extends LitElement {
     this.dispatchEvent(
       new CustomEvent<SdkEventDetailMap[Name]>(name, {detail})
     );
+  }
+
+  private focusAfterUpdate(...selectors: string[]) {
+    void this.updateComplete.then(() => {
+      for (const selector of selectors) {
+        const target = this.renderRoot.querySelector<HTMLElement>(selector);
+
+        if (target) {
+          target.focus();
+          return;
+        }
+      }
+    });
   }
 
   private renderWidgetShell({
@@ -848,6 +871,10 @@ export class CommerceHubConnect extends LitElement {
 
     if (this.bankFlowScreen === 'provider') {
       return this.renderBankProviderScreen();
+    }
+
+    if (this.addLauncherActive) {
+      return this.renderAddPaymentSourceLauncher();
     }
 
     if (this.bankFlowScreen === 'outcome') {
@@ -972,17 +999,17 @@ export class CommerceHubConnect extends LitElement {
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
     );
-    const canAddPaymentSources = isInteractionFeatureEnabled(
-      this.interactionResponse,
-      'ADD_ACCOUNT'
-    );
+    const canAddPaymentSources =
+      isInteractionFeatureEnabled(this.interactionResponse, 'ADD_ACCOUNT') &&
+      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
     const canSelectPaymentSources = isInteractionFeatureEnabled(
       this.interactionResponse,
       'SELECT'
     );
     const showTransferAction =
-      allowedTenderOptions.bankAccount &&
-      isAddSelectTransferFeatureEnabled(this.interactionResponse);
+      isInteractionFeatureEnabled(this.interactionResponse, 'TRANSFER') &&
+      transferPaymentSourcesFromInteractionResponse(this.interactionResponse)
+        .length >= 2;
     const isPaymentSourceActionPending =
       this.pendingAction === 'attach-payment-source' ||
       this.pendingAction === 'verify-payment-source' ||
@@ -1012,16 +1039,47 @@ export class CommerceHubConnect extends LitElement {
 
     this.queueNativeAccountBalanceRefresh();
 
+    const toolbar = isEditingPaymentSources
+      ? renderTextLinkButton({
+          label: 'Done',
+          action: 'toggle-payment-source-edit-mode',
+          disabled: isPaymentSourceActionPending,
+        })
+      : html`
+          <div class="widget-toolbar" aria-label="Payment method actions">
+            ${renderTextLinkButton({
+              label: 'Edit',
+              action: 'toggle-payment-source-edit-mode',
+              disabled: isPaymentSourceActionPending,
+            })}
+            ${canAddPaymentSources
+              ? renderTextLinkButton({
+                  label: 'Add',
+                  action: 'open-add-payment-source',
+                  disabled: isPaymentSourceActionPending,
+                })
+              : ''}
+            ${showTransferAction
+              ? renderTextLinkButton({
+                  label: 'Transfer',
+                  action: 'open-transfer',
+                  disabled: isPaymentSourceActionPending,
+                })
+              : ''}
+          </div>
+        `;
+
     return this.renderWidgetShell({
       title: copy.title,
-      headerAction: renderTextLinkButton({
-        label: isEditingPaymentSources ? 'Done' : 'Edit',
-        action: 'toggle-payment-source-edit-mode',
-        disabled: isPaymentSourceActionPending,
-      }),
+      headerAction: toolbar,
       showClose: false,
-      busy: isPaymentSourceActionPending,
-      overlay: paymentSourceActionLoadingOverlay(this.pendingAction),
+      busy:
+        isPaymentSourceActionPending &&
+        this.pendingAction !== 'attach-payment-source',
+      overlay:
+        this.pendingAction === 'attach-payment-source'
+          ? undefined
+          : paymentSourceActionLoadingOverlay(this.pendingAction),
       content: renderPaymentMethodsScreenContent({
         status: 'PAYMENT_SOURCE_REQUESTED',
         methods: paymentMethods,
@@ -1036,6 +1094,102 @@ export class CommerceHubConnect extends LitElement {
         copy,
         showTransferAction,
       }),
+      footer:
+        isEditingPaymentSources || !canSelectPaymentSources
+          ? undefined
+          : html`
+              ${this.attachmentError
+                ? renderAlert({
+                    variant: 'danger',
+                    message: this.attachmentError,
+                  })
+                : ''}
+              ${renderButton({
+                label:
+                  this.pendingAction === 'attach-payment-source'
+                    ? copy.continuingButton
+                    : copy.continueButton,
+                action: 'attach-payment-source',
+                loading: this.pendingAction === 'attach-payment-source',
+                disabled:
+                  !this.selectedPaymentSourceId ||
+                  this.pendingAction === 'attach-payment-source',
+              })}
+            `,
+    });
+  }
+
+  private renderAddPaymentSourceLauncher(): TemplateResult {
+    const allowed = allowedTenderOptionsFromInteractionResponse(
+      this.interactionResponse
+    );
+
+    return this.renderWidgetShell({
+      title: 'Add a payment method',
+      headerAction: renderTextLinkButton({
+        label: 'Back',
+        action: 'back-to-payment-methods',
+      }),
+      showClose: false,
+      content: html`
+        <div class="add-method-launcher">
+          <p class="launcher-copy">Choose the type of payment method to add.</p>
+          <div
+            class="tender-tabs"
+            role="tablist"
+            aria-label="Payment method type"
+          >
+            ${allowed.card
+              ? html`<button
+                  class="tender-tab"
+                  id="add-card-tab"
+                  type="button"
+                  role="tab"
+                  aria-controls="add-card-tab-panel"
+                  aria-selected="true"
+                  tabindex="0"
+                  data-action="add-card"
+                >
+                  Card
+                </button>`
+              : ''}
+            ${allowed.bankAccount
+              ? html`<button
+                  class="tender-tab"
+                  id="add-bank-account-tab"
+                  type="button"
+                  role="tab"
+                  aria-controls="add-bank-account-tab-panel"
+                  aria-selected="false"
+                  tabindex="-1"
+                  data-action="add-bank-account"
+                >
+                  Bank
+                </button>`
+              : ''}
+          </div>
+          ${allowed.card
+            ? html`<div
+                class="screen-reader-status"
+                id="add-card-tab-panel"
+                role="tabpanel"
+                aria-labelledby="add-card-tab"
+              >
+                Add a card.
+              </div>`
+            : ''}
+          ${allowed.bankAccount
+            ? html`<div
+                id="add-bank-account-tab-panel"
+                role="tabpanel"
+                aria-labelledby="add-bank-account-tab"
+                hidden
+              >
+                Add a bank account.
+              </div>`
+            : ''}
+        </div>
+      `,
     });
   }
 
@@ -1199,7 +1353,10 @@ export class CommerceHubConnect extends LitElement {
           })
         : undefined,
       content: html`
-        <div class="required-info-flow">
+        <form
+          class="required-info-flow"
+          data-submit-action="submit-required-info"
+        >
           ${renderRequiredInfoSourceCard(source)}
           ${this.requiredInfoSubmitError
             ? renderAlert({
@@ -1273,11 +1430,12 @@ export class CommerceHubConnect extends LitElement {
             ${renderButton({
               label: isSubmitting ? 'Verifying...' : 'Verify',
               action: 'submit-required-info',
+              type: 'submit',
               loading: isSubmitting,
               disabled: isSubmitting || !canSubmit,
             })}
           </div>
-        </div>
+        </form>
       `,
     });
   }
@@ -1288,25 +1446,26 @@ export class CommerceHubConnect extends LitElement {
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
     );
-    const canAddPaymentSources = isInteractionFeatureEnabled(
-      this.interactionResponse,
-      'ADD_ACCOUNT'
-    );
-    const showTransferAction =
-      allowedTenderOptions.bankAccount &&
-      isAddSelectTransferFeatureEnabled(this.interactionResponse);
-
+    const canAddPaymentSources =
+      isInteractionFeatureEnabled(this.interactionResponse, 'ADD_ACCOUNT') &&
+      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
     return this.renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
+      headerAction: canAddPaymentSources
+        ? renderTextLinkButton({
+            label: 'Add',
+            action: 'open-add-payment-source',
+            disabled: isDeletePending,
+          })
+        : undefined,
       showClose: false,
       showDivider: false,
       content: renderNoSavedPaymentMethodsScreen({
         allowedTenderOptions,
-        canAddPaymentSources,
+        canAddPaymentSources: false,
         deletePending: isDeletePending,
         copy,
-        showTransferAction,
       }),
     });
   }
@@ -1394,7 +1553,10 @@ export class CommerceHubConnect extends LitElement {
           })
         : undefined,
       content: html`
-        <div class="payment-flow card-form-screen">
+        <form
+          class="payment-flow card-form-screen"
+          data-submit-action="transfer"
+        >
           ${this.transferSubmitError
             ? renderAlert({
                 variant: 'danger',
@@ -1452,6 +1614,7 @@ export class CommerceHubConnect extends LitElement {
               ${renderButton({
                 label: isSubmitting ? 'Transferring' : 'Transfer',
                 action: 'transfer',
+                type: 'submit',
                 loading: isSubmitting,
                 disabled:
                   isSubmitting ||
@@ -1459,7 +1622,7 @@ export class CommerceHubConnect extends LitElement {
               })}
             </div>
           </div>
-        </div>
+        </form>
       `,
     });
   }
@@ -1487,7 +1650,10 @@ export class CommerceHubConnect extends LitElement {
           })
         : undefined,
       content: html`
-        <div class="payment-flow card-form-screen">
+        <form
+          class="payment-flow card-form-screen"
+          data-submit-action="confirm-transfer"
+        >
           ${this.transferSubmitError
             ? renderAlert({
                 variant: 'danger',
@@ -1504,6 +1670,7 @@ export class CommerceHubConnect extends LitElement {
               ${renderButton({
                 label: isSubmitting ? 'Transferring' : 'Confirm transfer',
                 action: 'confirm-transfer',
+                type: 'submit',
                 loading: isSubmitting,
                 disabled: isSubmitting,
               })}
@@ -1517,7 +1684,7 @@ export class CommerceHubConnect extends LitElement {
               })}
             </div>
           </div>
-        </div>
+        </form>
       `,
     });
   }
@@ -1682,7 +1849,10 @@ export class CommerceHubConnect extends LitElement {
           })
         : undefined,
       content: html`
-        <div class="payment-flow card-form-screen">
+        <form
+          class="payment-flow card-form-screen"
+          data-submit-action="save-card"
+        >
           ${this.cardSubmitError
             ? renderAlert({variant: 'danger', message: this.cardSubmitError})
             : ''}
@@ -1759,6 +1929,7 @@ export class CommerceHubConnect extends LitElement {
               ${renderButton({
                 label: isSaving ? 'Saving payment method' : 'Save card',
                 action: 'save-card',
+                type: 'submit',
                 loading: isSaving,
                 disabled:
                   isSaving ||
@@ -1767,7 +1938,7 @@ export class CommerceHubConnect extends LitElement {
               })}
             </div>
           </div>
-        </div>
+        </form>
       `,
     });
   }
@@ -1951,7 +2122,10 @@ export class CommerceHubConnect extends LitElement {
       showClose: false,
       showDivider: false,
       content: html`
-        <div class="payment-flow card-form-screen">
+        <form
+          class="payment-flow card-form-screen"
+          data-submit-action="save-bank-account"
+        >
           <commerce-hub-bank-account-jsonforms
             class="bank-account-jsonforms"
             .schema=${bankAccountFormSchema}
@@ -1973,11 +2147,12 @@ export class CommerceHubConnect extends LitElement {
             ${renderButton({
               label: isSaving ? 'Saving bank account' : 'Save bank account',
               action: 'save-bank-account',
+              type: 'submit',
               loading: isSaving,
               disabled: !this.bankAccountFormValid || isSaving,
             })}
           </div>
-        </div>
+        </form>
       `,
     });
   }
@@ -2005,7 +2180,10 @@ export class CommerceHubConnect extends LitElement {
           })
         : undefined,
       content: html`
-        <div class="payment-flow card-form-screen">
+        <form
+          class="payment-flow card-form-screen"
+          data-submit-action="save-bank-account"
+        >
           ${this.bankAccountSubmitError
             ? renderAlert({
                 variant: 'danger',
@@ -2034,6 +2212,7 @@ export class CommerceHubConnect extends LitElement {
             ${renderButton({
               label: isSaving ? 'Saving bank account' : 'Save bank account',
               action: 'save-bank-account',
+              type: 'submit',
               loading: isSaving,
               disabled:
                 isSaving ||
@@ -2045,7 +2224,7 @@ export class CommerceHubConnect extends LitElement {
                 ),
             })}
           </div>
-        </div>
+        </form>
       `,
     });
   }
@@ -2107,6 +2286,25 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
+  private handleSubmit = (event: SubmitEvent) => {
+    event.preventDefault();
+    const action = findDatasetValue(event, 'submitAction');
+
+    if (action === 'verify-otp') {
+      void this.verifyOtp();
+    } else if (action === 'submit-required-info') {
+      void this.submitRequiredInfo();
+    } else if (action === 'transfer') {
+      this.reviewTransfer();
+    } else if (action === 'confirm-transfer') {
+      void this.submitTransfer();
+    } else if (action === 'save-card') {
+      void this.saveCard();
+    } else if (action === 'save-bank-account') {
+      void this.saveManualBankAccount();
+    }
+  };
+
   private handleClick = (event: Event) => {
     const action = findDatasetValue(event, 'action') as
       | FlowActionName
@@ -2118,12 +2316,29 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'attach-payment-source') {
-      if (paymentMethodId) {
+      const sourceId = paymentMethodId ?? this.selectedPaymentSourceId;
+
+      if (sourceId) {
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceEditMode = false;
-        this.selectedPaymentSourceId = paymentMethodId;
-        this.paymentSourceView = 'selected';
-        void this.attachPaymentSource(paymentMethodId);
+        void this.attachPaymentSource(sourceId);
+      }
+      return;
+    }
+
+    if (action === 'open-add-payment-source') {
+      const allowed = allowedTenderOptionsFromInteractionResponse(
+        this.interactionResponse
+      );
+
+      this.attachmentError = undefined;
+      if (allowed.card && allowed.bankAccount) {
+        this.addLauncherActive = true;
+        this.focusAfterUpdate('.tender-tab');
+      } else if (allowed.card) {
+        void this.showAddCardScreen();
+      } else if (allowed.bankAccount) {
+        void this.startPayByBankFlow();
       }
       return;
     }
@@ -2246,6 +2461,7 @@ export class CommerceHubConnect extends LitElement {
       action === 'back-to-bank-provider' ||
       action === 'use-different-bank-account'
     ) {
+      this.addLauncherActive = false;
       this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
@@ -2265,6 +2481,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'back-to-payment-methods') {
+      this.addLauncherActive = false;
       this.resetCardFlow();
       this.resetBankFlow();
       this.resetRequiredInfo();
@@ -2279,6 +2496,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'add-card') {
+      this.addLauncherActive = false;
       this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetRequiredInfo();
@@ -2420,6 +2638,62 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && !this.pendingAction) {
+      if (
+        this.addLauncherActive ||
+        this.cardFlowScreen ||
+        this.bankFlowScreen ||
+        this.requiredInfoSource ||
+        this.savedSourceVerificationSource ||
+        this.transferFlowActive
+      ) {
+        event.preventDefault();
+        this.addLauncherActive = false;
+        this.resetCardFlow();
+        this.resetBankFlow();
+        this.resetRequiredInfo();
+        this.resetSavedSourceVerification();
+        this.showPaymentSourceList();
+        return;
+      }
+    }
+
+    const tab = event
+      .composedPath()
+      .find(
+        (item): item is HTMLButtonElement =>
+          item instanceof HTMLButtonElement &&
+          item.getAttribute('role') === 'tab'
+      );
+
+    if (
+      tab &&
+      (event.key === 'ArrowLeft' ||
+        event.key === 'ArrowRight' ||
+        event.key === 'Home' ||
+        event.key === 'End')
+    ) {
+      const tabs = [
+        ...this.renderRoot.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+      ];
+      const index = tabs.indexOf(tab);
+      const nextIndex =
+        event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+          ? tabs.length - 1
+          : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) %
+            tabs.length;
+      const nextTab = tabs[nextIndex];
+
+      event.preventDefault();
+      if (nextTab && nextTab !== tab) {
+        nextTab.focus();
+        nextTab.click();
+      }
+      return;
+    }
+
     const input = findOtpInput(event);
 
     if (!input) {
@@ -2477,6 +2751,20 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleChange = (event: Event) => {
+    const paymentMethodRadio = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement =>
+          item instanceof HTMLInputElement &&
+          Boolean(item.dataset.paymentMethodRadio)
+      );
+
+    if (paymentMethodRadio) {
+      this.selectedPaymentSourceId = paymentMethodRadio.value;
+      this.attachmentError = undefined;
+      return;
+    }
+
     const instrumentSchemaInput = event
       .composedPath()
       .find(
@@ -2848,6 +3136,8 @@ export class CommerceHubConnect extends LitElement {
         void cause;
       }
     }
+
+    this.focusAfterUpdate('#card-label');
   }
 
   private async showManualBankAccountScreen() {
@@ -3400,7 +3690,7 @@ export class CommerceHubConnect extends LitElement {
         cardPaymentSourceFromPayload(cardSource, normalizedDraft.cardNumber),
         verificationResponse
       ) as CardPaymentSource & {id: string};
-      const paymentSourceId = sourceIdFromVerificationResponse(
+      sourceIdFromVerificationResponse(
         verificationResponse,
         'The card creation response did not include a source id.'
       );
@@ -3416,11 +3706,6 @@ export class CommerceHubConnect extends LitElement {
       this.cardSubmitError = undefined;
       this.setInteractionResponseFromSdk(nextInteractionResponse);
       this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
-
-      if (createdSource.verificationInfo?.status === 'VERIFIED') {
-        await this.attachPaymentSource(paymentSourceId);
-        return;
-      }
 
       this.showAddedPaymentSourceStatus(createdSource);
     } catch (cause) {
@@ -3513,7 +3798,7 @@ export class CommerceHubConnect extends LitElement {
             credentials: 'include',
           }
         );
-      const paymentSourceId = sourceIdFromVerificationResponse(
+      sourceIdFromVerificationResponse(
         verificationResponse,
         'The bank account creation response did not include a source id.'
       );
@@ -3529,11 +3814,6 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(nextInteractionResponse);
       this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
       this.resetBankFlow();
-
-      if (createdSource.verificationInfo?.status === 'VERIFIED') {
-        await this.attachPaymentSource(paymentSourceId);
-        return;
-      }
 
       this.showAddedPaymentSourceStatus(createdSource);
     } catch (cause) {
@@ -3670,7 +3950,7 @@ export class CommerceHubConnect extends LitElement {
         ),
         verificationResponse
       ) as BankPaymentSource & {id: string};
-      const paymentSourceId = sourceIdFromVerificationResponse(
+      sourceIdFromVerificationResponse(
         verificationResponse,
         'The bank account creation response did not include a source id.'
       );
@@ -3682,11 +3962,6 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(nextInteractionResponse);
       this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
       this.resetBankFlow();
-
-      if (createdSource.verificationInfo?.status === 'VERIFIED') {
-        await this.attachPaymentSource(paymentSourceId);
-        return;
-      }
 
       this.showAddedPaymentSourceStatus(createdSource);
     } catch (cause) {
@@ -3932,7 +4207,8 @@ export class CommerceHubConnect extends LitElement {
     }
 
     this.selectedPaymentSourceId = paymentSourceId;
-    this.paymentSourceView = 'selected';
+    this.paymentSourceView = 'list';
+    this.attachmentError = undefined;
     this.pendingAction = 'attach-payment-source';
 
     try {
@@ -3961,8 +4237,12 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(refreshedInteractionResponse);
       this.paymentSourceView = 'selected';
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
+      this.focusAfterUpdate('[data-action="change-payment-source"]');
     } catch (cause) {
-      void cause;
+      this.paymentSourceView = 'list';
+      this.attachmentError =
+        apiErrorMessage(cause) ||
+        "We couldn't save this payment method. Please try again.";
     } finally {
       this.pendingAction = undefined;
     }
@@ -4028,7 +4308,8 @@ export class CommerceHubConnect extends LitElement {
         const verifiedSourceId = verifiedSource.id?.trim() || paymentSourceId;
 
         this.pendingAction = undefined;
-        await this.attachPaymentSource(verifiedSourceId);
+        this.selectedPaymentSourceId = verifiedSourceId;
+        this.paymentSourceView = 'list';
         return;
       }
 
@@ -4134,7 +4415,13 @@ export class CommerceHubConnect extends LitElement {
     this.clearDeletePaymentSourceConfirmation();
     this.paymentSourceEditMode = false;
     this.paymentSourceView = 'list';
+    this.addLauncherActive = false;
     this.resetTransferFlow();
+    this.focusAfterUpdate(
+      '[data-action="open-add-payment-source"]',
+      '.payment-method-radio',
+      '[data-action="toggle-payment-source-edit-mode"]'
+    );
 
     if (refresh) {
       void this.refreshPaymentSourcesForList();
@@ -4195,7 +4482,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (source.verificationInfo?.status === 'VERIFIED') {
       this.selectedPaymentSourceId = sourceId;
-      this.paymentSourceView = 'selected';
+      this.paymentSourceView = 'list';
       return;
     }
 
@@ -4373,7 +4660,8 @@ export class CommerceHubConnect extends LitElement {
 
         this.resetRequiredInfo();
         this.pendingAction = undefined;
-        await this.attachPaymentSource(verifiedSourceId);
+        this.selectedPaymentSourceId = verifiedSourceId;
+        this.paymentSourceView = 'list';
         return;
       }
 
@@ -4706,12 +4994,6 @@ export class CommerceHubConnect extends LitElement {
             this.setInteractionResponseFromSdk(nextInteractionResponse);
             this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, resolvedBankSource);
             this.resetBankFlow();
-
-            if (resolvedBankSource.verificationInfo?.status === 'VERIFIED') {
-              await this.attachPaymentSource(paymentSourceId);
-              resolve();
-              return;
-            }
 
             this.showAddedPaymentSourceStatus(resolvedBankSource);
             resolve();
@@ -5379,14 +5661,14 @@ const resolvePaymentMethodsCopy = (
   const copy = designConfig?.copy?.paymentMethods;
 
   return {
-    title: copy?.title ?? 'Pay with',
+    title: copy?.title ?? 'Choose a payment method',
     subtitle: copy?.subtitle ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
     addCardTitle: copy?.addCardTitle ?? 'Add credit or debit card',
     addCardSubtitle: copy?.addCardSubtitle ?? '',
-    continueButton: copy?.continueButton ?? 'Confirm',
-    continuingButton: copy?.continuingButton ?? 'Confirming...',
+    continueButton: copy?.continueButton ?? 'Use selected method',
+    continuingButton: copy?.continuingButton ?? 'Saving...',
   };
 };
 
@@ -5761,14 +6043,27 @@ const resolveSelectedPaymentSourceId = (
     return undefined;
   }
 
+  const verifiedSources = paymentSources.filter(
+    (source) => source.verificationInfo?.status === 'VERIFIED'
+  );
+
   if (
     currentSelection &&
-    paymentSources.some((source) => source.id === currentSelection)
+    verifiedSources.some((source) => source.id === currentSelection)
   ) {
     return currentSelection;
   }
 
-  return interactionResponse?.selectedSource?.id;
+  const serverSelection = interactionResponse?.selectedSource?.id;
+
+  if (
+    serverSelection &&
+    verifiedSources.some((source) => source.id === serverSelection)
+  ) {
+    return serverSelection;
+  }
+
+  return verifiedSources[0]?.id;
 };
 
 const resolvePreferredPaymentSource = (
@@ -5814,14 +6109,6 @@ const isInteractionFeatureEnabled = (
   feature: InteractionFeature
 ): boolean => Boolean(interactionResponse?.features?.includes(feature));
 
-const areInteractionFeaturesEnabled = (
-  interactionResponse: InteractionResponse | undefined,
-  features: InteractionFeature[]
-): boolean =>
-  features.every((feature) =>
-    isInteractionFeatureEnabled(interactionResponse, feature)
-  );
-
 const isTransferOnlyFeatureEnabled = (
   interactionResponse?: InteractionResponse
 ): boolean =>
@@ -5830,15 +6117,6 @@ const isTransferOnlyFeatureEnabled = (
       !isInteractionFeatureEnabled(interactionResponse, 'ADD_ACCOUNT') &&
       !isInteractionFeatureEnabled(interactionResponse, 'SELECT')
   );
-
-const isAddSelectTransferFeatureEnabled = (
-  interactionResponse?: InteractionResponse
-): boolean =>
-  areInteractionFeaturesEnabled(interactionResponse, [
-    'ADD_ACCOUNT',
-    'SELECT',
-    'TRANSFER',
-  ]);
 
 const interactionResponseWithSelection = (
   current: InteractionResponse,
@@ -6115,6 +6393,30 @@ const paymentSourceActionLoadingOverlay = (
   }
 
   return undefined;
+};
+
+const flowActionLiveMessage = (action?: FlowActionName): string => {
+  switch (action) {
+    case 'attach-payment-source':
+      return 'Saving the selected payment method.';
+    case 'verify-payment-source':
+    case 'submit-required-info':
+      return 'Verifying the payment method.';
+    case 'delete-payment-source':
+      return 'Deleting the payment method.';
+    case 'verify-otp':
+      return 'Verifying the code.';
+    case 'resend-otp':
+      return 'Sending a new code.';
+    case 'save-card':
+      return 'Saving the card.';
+    case 'save-bank-account':
+      return 'Saving the bank account.';
+    case 'transfer':
+      return 'Submitting the transfer.';
+    default:
+      return '';
+  }
 };
 
 type BankOutcome = {

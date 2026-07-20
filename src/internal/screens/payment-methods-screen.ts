@@ -22,20 +22,12 @@ export const renderPaymentMethodsSkeletonScreen = (): TemplateResult => html`
 
 export const renderPaymentMethodsScreen = ({
   methods,
-  allowedTenderOptions,
-  canAddPaymentSources,
   canSelectPaymentSources,
   editing,
   actionPending,
   selectedPaymentSourceId,
   deleteConfirmationPaymentSourceId,
-  copy,
-  showTransferAction = false,
 }: PaymentMethodsScreenModel): TemplateResult => {
-  const hasAddPaymentActions =
-    canAddPaymentSources &&
-    (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
-
   return html`
     <div class="payment-flow">
       <div class="primitive-stack" aria-label="Payment methods">
@@ -55,39 +47,6 @@ export const renderPaymentMethodsScreen = ({
           )
         )}
       </div>
-      ${editing || !hasAddPaymentActions
-        ? ''
-        : html`
-            <div class="payment-action-links">
-              ${allowedTenderOptions.card
-                ? renderSourceAction({
-                    label: copy.addCardTitle,
-                    action: 'add-card',
-                    icon: 'card',
-                    variant: 'link',
-                    disabled: actionPending,
-                  })
-                : ''}
-              ${allowedTenderOptions.bankAccount
-                ? renderSourceAction({
-                    label: copy.addBankAccountTitle,
-                    action: 'add-bank-account',
-                    icon: 'bank',
-                    variant: 'link',
-                    disabled: actionPending,
-                  })
-                : ''}
-              ${showTransferAction
-                ? renderSourceAction({
-                    label: 'Transfer funds',
-                    action: 'open-transfer',
-                    icon: 'transfer',
-                    variant: 'link',
-                    disabled: actionPending,
-                  })
-                : ''}
-            </div>
-          `}
     </div>
   `;
 };
