@@ -110,7 +110,7 @@ const isPaymentMethodRowClickable = (method: PaymentMethod): boolean =>
   isPaymentMethodStatusClickable(method.status);
 
 const shouldRenderPaymentMethodStatus = (method: PaymentMethod): boolean =>
-  method.showVerificationStatus !== false && method.status !== 'verified';
+  method.showVerificationStatus !== false;
 
 const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
   const accountLabel =
@@ -123,14 +123,14 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
     <span class="payment-method-copy">
       <span class="payment-method-title-row">
         <span class="payment-method-title">${title}</span>
+        ${shouldRenderPaymentMethodStatus(method)
+          ? renderVerificationStatusBadge(method.status)
+          : ''}
       </span>
       ${shouldRenderMeta
         ? html`
             <span class="payment-method-meta-row">
               <span class="payment-method-meta">${accountLabel}</span>
-              ${shouldRenderPaymentMethodStatus(method)
-                ? renderVerificationStatusBadge(method.status)
-                : ''}
             </span>
           `
         : ''}
@@ -932,15 +932,27 @@ export const renderVerificationDetails = (
 export const renderTextLinkButton = ({
   label,
   action,
+  icon,
+  variant = 'default',
   disabled = false,
 }: TextLinkButtonOptions): TemplateResult => html`
   <button
-    class="text-link-button"
+    class=${joinClassNames(
+      'text-link-button',
+      `text-link-button-${variant}`,
+      icon && `text-link-button-${icon}`
+    )}
     type="button"
     data-action=${action}
     ?disabled=${disabled}
   >
-    ${label}
+    ${icon
+      ? html`<span
+          class=${`text-link-button-icon text-link-button-icon-${icon}`}
+          aria-hidden="true"
+        ></span>`
+      : ''}
+    <span>${label}</span>
   </button>
 `;
 
@@ -961,6 +973,7 @@ export const renderWidgetShell = ({
   headerAction,
   footer,
   width = 'default',
+  layout = 'default',
   ariaLabel = 'Commerce Hub Connect',
   closeAction = 'close',
   showClose = true,
@@ -973,6 +986,7 @@ export const renderWidgetShell = ({
     class=${joinClassNames(
       'widget-shell',
       width === 'wide' && 'widget-shell-wide',
+      layout === 'payment-methods' && 'widget-shell-payment-methods',
       busy && 'widget-shell-busy'
     )}
     part="shell"

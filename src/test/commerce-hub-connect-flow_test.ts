@@ -1164,7 +1164,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(
       getComputedStyle(el.shadowRoot!.querySelector<HTMLElement>('.otp-input')!)
         .minHeight,
-      '40px'
+      '44px'
     );
     assert.deepEqual(
       [
@@ -1403,10 +1403,13 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 4242'
+      'Visa ending 4242'
     );
     assert.notExists(rows[0].querySelector('.payment-method-status'));
-    assert.notExists(rows[0].querySelector('.verification-status-badge'));
+    assert.equal(
+      rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
+      'Ready'
+    );
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
     assert.notExists(rows[0].querySelector('.payment-method-status-icon'));
     assert.notExists(rows[0].querySelector('.payment-method-chevron'));
@@ -1416,7 +1419,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       rows[1].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 3210'
+      'Bank account ending 3210'
     );
     assert.exists(rows[1].querySelector('[data-payment-method-icon="bank"]'));
     assert.notExists(rows[1].querySelector('.payment-method-status'));
@@ -1432,7 +1435,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       rows[2].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 4444'
+      'Mastercard ending 4444'
     );
     assert.exists(
       rows[2].querySelector('[data-payment-method-icon="mastercard"]')
@@ -1452,13 +1455,13 @@ suite('commerce-hub-connect flow', () => {
       getComputedStyle(rows[1]).backgroundColor,
       'rgb(255, 255, 255)'
     );
-    assert.equal(getComputedStyle(rows[0]).paddingTop, '10px');
+    assert.equal(getComputedStyle(rows[0]).paddingTop, '9px');
     assert.equal(getComputedStyle(rows[0]).columnGap, '10px');
     assert.equal(
       getComputedStyle(
         rows[0].querySelector<HTMLElement>('.payment-method-title')!
       ).fontWeight,
-      '400'
+      '600'
     );
     assert.deepEqual(
       [
@@ -1739,7 +1742,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(getComputedStyle(shell).borderRadius, '8px');
     assert.equal(
       getComputedStyle(paymentMethod).borderTopColor,
-      getComputedStyle(shell).borderTopColor
+      'rgba(0, 0, 0, 0)'
     );
     assert.equal(
       getComputedStyle(paymentMethod).backgroundColor,
@@ -4073,7 +4076,7 @@ suite('commerce-hub-connect flow', () => {
           '.selected-payment-method .payment-method-meta'
         )
         ?.textContent?.trim(),
-      '•••• 4444'
+      'Mastercard ending 4444'
     );
   });
 
@@ -4520,7 +4523,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 4242'
+      'Visa ending 4242'
     );
   });
 
@@ -5156,7 +5159,7 @@ suite('commerce-hub-connect flow', () => {
           '.selected-payment-method .payment-method-meta'
         )
         ?.textContent?.trim(),
-      '•••• 1111'
+      'Visa ending 1111'
     );
     assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
   });
@@ -5902,7 +5905,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.payment-method-row .payment-method-meta')
         ?.textContent?.trim(),
-      '•••• ----'
+      'Bank account ending ----'
     );
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,

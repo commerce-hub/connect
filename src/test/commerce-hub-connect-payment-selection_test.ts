@@ -418,6 +418,9 @@ suite('commerce-hub-connect payment selection', () => {
     );
 
     assert.exists(el.shadowRoot!.querySelector('.payment-method-skeletons'));
+    assert.exists(
+      el.shadowRoot!.querySelector('.payment-method-toolbar-skeleton')
+    );
     assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
     assert.notInclude(el.shadowRoot!.textContent ?? '', 'Stale selected card');
 
@@ -622,7 +625,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       rows[3].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Wallet •••• 7890'
+      'Wallet ending 7890'
     );
     assert.exists(rows[3].querySelector('[data-payment-method-icon="native"]'));
     assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
@@ -1471,7 +1474,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 1111'
+      'Visa ending 1111'
     );
 
     await clickAction(el, 'open-add-payment-source');
@@ -1731,7 +1734,7 @@ suite('commerce-hub-connect payment selection', () => {
           '.selected-payment-method .payment-method-meta'
         )
         ?.textContent?.trim(),
-      '•••• 1111'
+      'Visa ending 1111'
     );
     assert.exists(el.shadowRoot!.querySelector('.selected-payment-method'));
   });
@@ -1978,7 +1981,7 @@ suite('commerce-hub-connect payment selection', () => {
           '.selected-payment-method .payment-method-meta'
         )
         ?.textContent?.trim(),
-      '•••• 1111'
+      'Visa ending 1111'
     );
   });
 

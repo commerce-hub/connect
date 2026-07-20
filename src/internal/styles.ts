@@ -24,16 +24,17 @@ export const primitiveStyles = css`
     --chc-warning-border: #fedf89;
     --chc-disabled-text: #ffffff;
     --chc-disabled-surface: #c5ccd8;
-    --chc-font-family: Inter, 'Segoe UI', Arial, sans-serif;
+    --chc-font-family: sohne-var, 'SF Pro Display', system-ui, -apple-system,
+      'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     --chc-radius-control: 0.5rem;
     --chc-radius-card: 0.5rem;
-    --chc-input-height: 2.5rem;
+    --chc-input-height: 2.75rem;
     --chc-font-weight: 400;
     --chc-divider: #ebeef2;
     --chc-focus-ring: rgba(83, 58, 253, 0.2);
-    --chc-motion-fast: 120ms;
-    --chc-motion-base: 180ms;
-    --chc-motion-slow: 240ms;
+    --chc-motion-fast: 150ms;
+    --chc-motion-base: 220ms;
+    --chc-motion-slow: 260ms;
     --chc-motion-provider: 300ms;
     --chc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
@@ -125,9 +126,9 @@ export const primitiveStyles = css`
   .widget-title {
     margin: 0;
     color: var(--chc-text);
-    font-size: 1.125rem;
-    font-weight: inherit;
-    letter-spacing: 0;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   .widget-header {
@@ -177,7 +178,7 @@ export const primitiveStyles = css`
   .widget-action-footer {
     display: grid;
     gap: 0.5rem;
-    padding: 0.625rem 0.875rem 0.875rem;
+    padding: 0.75rem 0.875rem;
     border-top: 0.0625rem solid var(--chc-border);
     background: var(--chc-surface);
   }
@@ -201,11 +202,168 @@ export const primitiveStyles = css`
     font-weight: 600;
   }
 
+  .widget-shell-payment-methods .widget-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.625rem;
+  }
+
+  .widget-shell-payment-methods .widget-title {
+    font-size: 1.375rem;
+    letter-spacing: -0.02em;
+  }
+
+  .widget-shell-payment-methods .widget-header-action,
+  .widget-shell-payment-methods .widget-toolbar {
+    width: 100%;
+  }
+
+  .payment-method-toolbar-skeleton {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .payment-method-toolbar-skeleton span {
+    min-height: 2.25rem;
+    display: block;
+    border-radius: var(--chc-radius-control);
+    background: var(--chc-border);
+    animation: chc-skeleton-shimmer var(--chc-motion-provider)
+      var(--chc-ease-standard) infinite alternate;
+  }
+
+  .widget-shell-payment-methods .widget-toolbar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .widget-shell-payment-methods .widget-toolbar .text-link-button {
+    width: 100%;
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+    letter-spacing: 0.02em;
+  }
+
+  .widget-shell-payment-methods .widget-toolbar .text-link-button-primary {
+    border-color: var(--chc-primary);
+    background: var(--chc-primary);
+    color: #fff;
+  }
+
+  .text-link-button-icon {
+    width: 1rem;
+    height: 1rem;
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .text-link-button-icon-add::before,
+  .text-link-button-icon-add::after {
+    content: '';
+    width: 0.6875rem;
+    height: 0.09375rem;
+    position: absolute;
+    border-radius: 999rem;
+    background: currentColor;
+  }
+
+  .text-link-button-icon-add::after {
+    transform: rotate(90deg);
+  }
+
+  .text-link-button-icon-edit {
+    border-bottom: 0.09375rem solid currentColor;
+    transform: rotate(-45deg) scale(0.8);
+  }
+
+  .text-link-button-icon-edit::before {
+    content: '';
+    width: 0.3125rem;
+    height: 0.75rem;
+    border: 0.09375rem solid currentColor;
+    border-radius: 0.125rem 0.125rem 0 0;
+  }
+
+  .text-link-button-icon-transfer::before,
+  .text-link-button-icon-transfer::after {
+    content: '→';
+    position: absolute;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .text-link-button-icon-transfer::after {
+    content: '←';
+    transform: translateY(0.3125rem);
+  }
+
+  .widget-shell-payment-methods .widget-content {
+    overflow: hidden;
+  }
+
+  .widget-shell-payment-methods .widget-content > .payment-flow,
+  .widget-shell-payment-methods .widget-content .primitive-stack {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .widget-shell-payment-methods .widget-content > .payment-flow {
+    display: grid;
+    align-content: start;
+  }
+
+  .widget-shell-payment-methods .payment-method-skeletons {
+    align-content: start;
+  }
+
+  .widget-shell-payment-methods .widget-content .primitive-stack {
+    display: block;
+    padding-top: 0.5rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
   .payment-method-radio {
     width: 1.125rem;
     height: 1.125rem;
     margin: 0;
+    display: grid;
+    appearance: none;
+    place-items: center;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: 999rem;
+    background: var(--chc-surface);
     cursor: pointer;
+  }
+
+  .payment-method-radio::before {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999rem;
+    background: var(--chc-primary);
+    opacity: 0;
+    transform: scale(0.65);
+    transition: opacity var(--chc-motion-fast) var(--chc-ease-emphasized),
+      transform var(--chc-motion-fast) var(--chc-ease-emphasized);
+  }
+
+  .payment-method-radio:checked {
+    border-color: var(--chc-primary);
+  }
+
+  .payment-method-radio:checked::before {
+    opacity: 1;
+    transform: scale(1);
   }
 
   .payment-method-row-radio:has(.payment-method-radio:focus-visible) {
@@ -528,7 +686,9 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-primary);
     border-radius: var(--chc-radius-control);
     padding: 0 1rem;
-    font-weight: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
       background-color var(--chc-motion-fast) var(--chc-ease-standard),
       transform var(--chc-motion-fast) var(--chc-ease-emphasized);
@@ -575,6 +735,10 @@ export const primitiveStyles = css`
   .button-primary {
     background: var(--chc-primary);
     color: #fff;
+  }
+
+  .widget-action-footer .button {
+    min-height: 2.5rem;
   }
 
   .button-secondary {
@@ -639,9 +803,10 @@ export const primitiveStyles = css`
   }
 
   .field-label {
-    color: var(--chc-text);
-    font-weight: inherit;
-    font-size: 0.875em;
+    color: var(--chc-copy);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
   }
 
   .field-label-row,
@@ -729,11 +894,7 @@ export const primitiveStyles = css`
     padding: 0.625rem 0.75rem;
     border: 0.0625rem solid var(--chc-border-strong);
     border-radius: var(--chc-radius-control);
-    background: color-mix(
-      in srgb,
-      var(--chc-soft-surface) 82%,
-      var(--chc-surface)
-    );
+    background: var(--chc-surface);
     transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
       box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
       background-color var(--chc-motion-fast) var(--chc-ease-standard);
@@ -799,11 +960,11 @@ export const primitiveStyles = css`
   .form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.625rem;
+    gap: 0.875rem;
   }
 
   .card-form-screen .form-grid {
-    gap: 0.75rem 0.625rem;
+    gap: 0.875rem;
   }
 
   .bank-account-jsonforms .jsonforms-layout-vertical {
@@ -987,26 +1148,27 @@ export const primitiveStyles = css`
   .selected-payment-method {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.375rem minmax(0, 1fr) auto;
     gap: 0.625rem;
     align-items: center;
     border-radius: var(--chc-radius-card);
-    padding: 0.625rem;
+    padding: 0.5625rem;
     background: var(--chc-payment-method-background);
     color: var(--chc-text);
     text-align: left;
-    border: 0.0625rem solid var(--chc-border);
+    border: 0.0625rem solid transparent;
   }
 
   .payment-method-row-action {
     transition: border-color var(--chc-motion-base) var(--chc-ease-standard),
       background-color var(--chc-motion-base) var(--chc-ease-standard),
-      box-shadow var(--chc-motion-base) var(--chc-ease-standard);
+      box-shadow var(--chc-motion-base) var(--chc-ease-standard),
+      transform var(--chc-motion-fast) var(--chc-ease-standard);
     cursor: pointer;
   }
 
   .payment-method-row-edit {
-    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.375rem minmax(0, 1fr) auto;
     cursor: default;
   }
 
@@ -1042,8 +1204,13 @@ export const primitiveStyles = css`
   }
 
   .payment-flow .selected-payment-method .payment-method-icon-chip {
-    width: 4rem;
-    height: 4rem;
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .payment-flow .selected-payment-method .payment-method-icon-image {
+    width: 2rem;
+    height: 2rem;
   }
 
   .payment-flow .selected-payment-method .payment-method-copy {
@@ -1051,23 +1218,17 @@ export const primitiveStyles = css`
   }
 
   .payment-method-row-selected {
-    border-color: color-mix(in srgb, var(--chc-primary) 24%, var(--chc-border));
-    background: color-mix(
-      in srgb,
-      var(--chc-primary) 4%,
-      var(--chc-payment-method-background)
-    );
+    border-color: var(--chc-primary);
+    background: var(--chc-soft-surface);
+    box-shadow: 0 0 0 0.0625rem
+      color-mix(in srgb, var(--chc-primary) 12%, transparent);
   }
 
   .payment-method-row-action:hover:not(:disabled),
   .payment-method-row-action:focus-visible {
-    border-color: var(--chc-border-strong);
-    background: color-mix(
-      in srgb,
-      var(--chc-payment-method-background) 88%,
-      var(--chc-soft-surface)
-    );
-    box-shadow: 0 0.5rem 1rem rgba(17, 24, 39, 0.05);
+    border-color: var(--chc-border);
+    background: var(--chc-soft-surface);
+    transform: translateY(-0.0625rem);
   }
 
   .payment-method-row-action:focus-visible {
@@ -1315,27 +1476,28 @@ export const primitiveStyles = css`
   }
 
   .payment-method-icon-chip {
-    width: 2.75rem;
-    height: 1.75rem;
+    width: 2.375rem;
+    height: 2.375rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    border: 0;
-    border-radius: 0;
-    color: var(--chc-primary);
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-card);
+    background: var(--chc-soft-surface);
+    color: var(--chc-text);
   }
 
   .payment-method-icon-image {
-    width: 2.75rem;
-    height: 1.75rem;
+    width: 1.375rem;
+    height: 1.375rem;
     display: block;
     object-fit: contain;
   }
 
   .payment-method-copy {
     display: grid;
-    gap: 0.25rem;
+    gap: 0.125rem;
     min-width: 0;
   }
 
@@ -1344,13 +1506,17 @@ export const primitiveStyles = css`
     display: block;
     overflow: hidden;
     color: var(--chc-text);
-    font-weight: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .payment-method-title-row {
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4375rem;
   }
 
   .payment-method-meta-row {
@@ -1369,7 +1535,8 @@ export const primitiveStyles = css`
     overflow: hidden;
     color: var(--chc-copy);
     text-overflow: ellipsis;
-    font-weight: inherit;
+    font-size: 0.8125rem;
+    font-weight: 400;
     white-space: nowrap;
   }
 
@@ -1384,10 +1551,15 @@ export const primitiveStyles = css`
     display: inline-flex;
     align-items: center;
     border: 0.0625rem solid;
-    border-radius: 999rem;
-    padding: 0.1875rem 0.5rem;
-    font-size: 0.75em;
-    font-weight: inherit;
+    flex: 0 0 auto;
+    border-color: var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    padding: 0.125rem 0.375rem;
+    background: var(--chc-surface);
+    color: var(--chc-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
   }
 
   .verification-status-label {
@@ -1397,21 +1569,21 @@ export const primitiveStyles = css`
   }
 
   .verification-status-badge-success {
-    border-color: var(--chc-success-border);
-    background: var(--chc-success-bg);
-    color: var(--chc-success);
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
   }
 
   .verification-status-badge-warning {
-    border-color: var(--chc-warning-border);
-    background: var(--chc-warning-bg);
-    color: var(--chc-warning);
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
   }
 
   .verification-status-badge-danger {
-    border-color: var(--chc-danger-border);
-    background: var(--chc-danger-bg);
-    color: var(--chc-danger);
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
   }
 
   .source-action {
@@ -2059,6 +2231,10 @@ export const primitiveStyles = css`
     cursor: pointer;
   }
 
+  .text-link-button:hover:not(:disabled) {
+    transform: translateY(-0.0625rem);
+  }
+
   .text-link-button:disabled {
     color: var(--chc-muted);
     cursor: not-allowed;
@@ -2066,7 +2242,7 @@ export const primitiveStyles = css`
 
   .payment-method-skeletons {
     display: grid;
-    gap: 0.625rem;
+    gap: 0;
   }
 
   .payment-method-skeleton-label {
@@ -2082,12 +2258,13 @@ export const primitiveStyles = css`
     width: 100%;
     min-height: 3.625rem;
     display: grid;
-    grid-template-columns: 2.25rem minmax(0, 1fr) 1rem;
+    grid-template-columns: 2.375rem minmax(0, 1fr) 1.125rem;
     gap: 0.625rem;
     align-items: center;
-    border: 0.0625rem solid var(--chc-border);
+    border: 0;
+    border-bottom: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
-    padding: 0.625rem;
+    padding: 0.5625rem;
     background: var(--chc-payment-method-background);
   }
 
@@ -2108,9 +2285,9 @@ export const primitiveStyles = css`
   }
 
   .payment-method-skeleton-icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 0.6875rem;
+    width: 2.375rem;
+    height: 2.375rem;
+    border-radius: var(--chc-radius-card);
   }
 
   .payment-method-skeleton-copy {

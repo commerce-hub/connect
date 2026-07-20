@@ -1020,6 +1020,16 @@ export class CommerceHubConnect extends LitElement {
     if (this.shouldRenderPaymentSourceRefreshSkeleton()) {
       return this.renderWidgetShell({
         title: copy.title,
+        layout: 'payment-methods',
+        headerAction: html`
+          <div
+            class="payment-method-toolbar-skeleton"
+            role="status"
+            aria-label="Loading payment method actions"
+          >
+            <span></span><span></span><span></span>
+          </div>
+        `,
         showClose: false,
         content: renderPaymentMethodsSkeletonScreen(),
       });
@@ -1050,12 +1060,15 @@ export class CommerceHubConnect extends LitElement {
             ${renderTextLinkButton({
               label: 'Edit',
               action: 'toggle-payment-source-edit-mode',
+              icon: 'edit',
               disabled: isPaymentSourceActionPending,
             })}
             ${canAddPaymentSources
               ? renderTextLinkButton({
                   label: 'Add',
                   action: 'open-add-payment-source',
+                  icon: 'add',
+                  variant: 'primary',
                   disabled: isPaymentSourceActionPending,
                 })
               : ''}
@@ -1063,6 +1076,7 @@ export class CommerceHubConnect extends LitElement {
               ? renderTextLinkButton({
                   label: 'Transfer',
                   action: 'open-transfer',
+                  icon: 'transfer',
                   disabled: isPaymentSourceActionPending,
                 })
               : ''}
@@ -1071,6 +1085,7 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: copy.title,
+      layout: 'payment-methods',
       headerAction: toolbar,
       showClose: false,
       busy:
@@ -5955,15 +5970,24 @@ const paymentSourceBrand = (source: PaymentSource): string => {
 
 const paymentSourceAccountLabel = (source: PaymentSource): string => {
   const last4 = paymentSourceLast4(source);
-  const masked = `•••• ${last4}`;
+
+  if (isCardPaymentSource(source)) {
+    return `${source.card?.network?.trim() || 'Card'} ending ${last4}`;
+  }
+
+  if (isBankPaymentSource(source)) {
+    return `${
+      source.bankAccount?.accountType?.trim() || 'Bank account'
+    } ending ${last4}`;
+  }
 
   if (isNativePaymentSource(source)) {
     const accountType = source.account?.productType?.trim();
 
-    return accountType ? `${accountType} ${masked}` : masked;
+    return `${accountType || 'Native account'} ending ${last4}`;
   }
 
-  return masked;
+  return `Card ending ${last4}`;
 };
 
 const paymentSourceLast4 = (source: PaymentSource): string => {

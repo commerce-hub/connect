@@ -448,6 +448,8 @@ export interface OutcomeShellOptions {
 export interface TextLinkButtonOptions {
   label: string;
   action: FlowActionName;
+  icon?: 'edit' | 'add' | 'transfer';
+  variant?: 'default' | 'primary';
   disabled?: boolean;
 }
 
@@ -463,6 +465,7 @@ export interface WidgetShellOptions {
   headerAction?: TemplateResult;
   footer?: TemplateResult;
   width?: 'default' | 'wide';
+  layout?: 'default' | 'payment-methods';
   ariaLabel?: string;
   closeAction?: string;
   showClose?: boolean;

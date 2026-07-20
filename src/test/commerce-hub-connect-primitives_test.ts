@@ -95,16 +95,18 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
 
-  test('inherits body typography while emphasizing toolbar and tender-tab controls', () => {
+  test('uses the POC typography hierarchy for headings, controls, and rows', () => {
     const hardCodedFontWeights =
       primitiveStyles.cssText.match(
         /(^|[^-])font-weight\s*:\s*(?:[0-9]+|bold|normal|bolder|lighter)/g
       ) ?? [];
 
     assert.notInclude(primitiveStyles.cssText, 'font: inherit');
-    assert.deepEqual(
-      hardCodedFontWeights.map((declaration) => declaration.trim()),
-      ['font-weight: 600', 'font-weight: 600']
+    assert.isAtLeast(hardCodedFontWeights.length, 6);
+    assert.isTrue(
+      hardCodedFontWeights.every((declaration) =>
+        ['font-weight: 400', 'font-weight: 600'].includes(declaration.trim())
+      )
     );
     assert.include(
       primitiveStyles.cssText,
@@ -167,7 +169,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, '.source-action-link:hover');
   });
 
-  test('renders payment method logos without chip chrome', async () => {
+  test('renders payment method logos in POC-style icon tiles', async () => {
     const interactionResponse: InteractionResponse = {
       status: 'PAYMENT_SOURCE_REQUESTED',
       features: [...TEST_INTERACTION_FEATURES],
@@ -202,10 +204,12 @@ suite('commerce-hub-connect primitives', () => {
     const imageStyle = getComputedStyle(image);
 
     assert.equal(chipStyle.paddingTop, '0px');
-    assert.equal(chipStyle.borderTopStyle, 'none');
-    assert.equal(chipStyle.backgroundColor, 'rgba(0, 0, 0, 0)');
-    assert.equal(imageStyle.width, '44px');
-    assert.equal(imageStyle.height, '28px');
+    assert.equal(chipStyle.borderTopStyle, 'solid');
+    assert.equal(chipStyle.backgroundColor, 'rgb(248, 250, 253)');
+    assert.equal(chipStyle.width, '38px');
+    assert.equal(chipStyle.height, '38px');
+    assert.equal(imageStyle.width, '22px');
+    assert.equal(imageStyle.height, '22px');
   });
 
   test('renders the framed shell with prototype tokens, toolbar, and action footer', async () => {
@@ -244,7 +248,10 @@ suite('commerce-hub-connect primitives', () => {
       getComputedStyle(el).getPropertyValue('--chc-copy').trim().toUpperCase(),
       '#50617A'
     );
-    assert.equal(getComputedStyle(el).fontFamily.includes('Inter'), true);
+    assert.equal(
+      getComputedStyle(el).fontFamily.includes('SF Pro Display'),
+      true
+    );
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-font-weight').trim(),
       '400'
@@ -260,10 +267,10 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(getComputedStyle(shell).borderRadius, '8px');
     assert.notEqual(getComputedStyle(shell).boxShadow, 'none');
     assert.equal(getComputedStyle(content).maxWidth, 'none');
-    assert.equal(getComputedStyle(content).overflowY, 'auto');
-    assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 18, 0.01);
-    assert.equal(getComputedStyle(title).fontWeight, '400');
-    assert.equal(getComputedStyle(paymentTitle).fontWeight, '400');
+    assert.equal(getComputedStyle(content).overflowY, 'hidden');
+    assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 22, 0.01);
+    assert.equal(getComputedStyle(title).fontWeight, '600');
+    assert.equal(getComputedStyle(paymentTitle).fontWeight, '600');
     assert.equal(
       getComputedStyle(
         el.shadowRoot!.querySelector<HTMLElement>(
@@ -384,12 +391,12 @@ suite('commerce-hub-connect primitives', () => {
       getComputedStyle(el).getPropertyValue('--chc-font-weight').trim(),
       '350'
     );
-    assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 18, 0.01);
-    assert.equal(getComputedStyle(title).fontWeight, '350');
-    assert.equal(getComputedStyle(paymentTitle).fontWeight, '350');
-    assert.equal(getComputedStyle(paymentTitle).fontSize, '20px');
+    assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 22, 0.01);
+    assert.equal(getComputedStyle(title).fontWeight, '600');
+    assert.equal(getComputedStyle(paymentTitle).fontWeight, '600');
+    assert.equal(getComputedStyle(paymentTitle).fontSize, '14px');
     assert.equal(getComputedStyle(toolbarButton).fontSize, '13px');
-    assert.equal(getComputedStyle(toolbarButton).minHeight, '32px');
+    assert.equal(getComputedStyle(toolbarButton).minHeight, '36px');
     assert.equal(getComputedStyle(toolbarButton).paddingTop, '0px');
     assert.equal(getComputedStyle(toolbarButton).paddingBottom, '0px');
     assert.equal(getComputedStyle(toolbarButton).fontWeight, '600');
@@ -472,7 +479,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 4242'
+      'Visa ending 4242'
     );
     const selectedRadio = rows[0].querySelector<HTMLInputElement>(
       '.payment-method-radio'
@@ -486,13 +493,16 @@ suite('commerce-hub-connect primitives', () => {
       getComputedStyle(
         rows[0].querySelector<HTMLElement>('.payment-method-icon-chip')!
       ).borderTopStyle,
-      'none'
+      'solid'
     );
     assert.exists(rows[0].querySelector('.payment-method-title-row'));
     assert.exists(rows[0].querySelector('.payment-method-meta-row'));
     assert.notExists(rows[0].querySelector('.payment-method-status'));
     assert.notExists(rows[0].querySelector('.verification-status-icon'));
-    assert.notExists(rows[0].querySelector('.verification-status-badge'));
+    assert.equal(
+      rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
+      'Ready'
+    );
     assert.notExists(rows[0].querySelector('.payment-method-chevron'));
     assert.equal(
       rows[1].querySelector('.payment-method-title')?.textContent?.trim(),
@@ -500,7 +510,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[1].querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 3210'
+      'Bank account ending 3210'
     );
     assert.exists(rows[1].querySelector('.payment-method-title-row'));
     assert.exists(rows[1].querySelector('.payment-method-meta-row'));
@@ -520,7 +530,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[2].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Wallet •••• 7890'
+      'Wallet ending 7890'
     );
     assert.exists(rows[2].querySelector('[data-payment-method-icon="native"]'));
     const nativeRadio = rows[2].querySelector<HTMLInputElement>(
@@ -613,7 +623,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 3210'
+      'Bank account ending 3210'
     );
   });
 
@@ -651,7 +661,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      '•••• 3210'
+      'Bank account ending 3210'
     );
   });
 
@@ -1089,9 +1099,9 @@ suite('commerce-hub-connect primitives', () => {
   });
 
   test('declares framed-shell motion, narrow-layout, and reduced-motion overrides', () => {
-    assert.include(primitiveStyles.cssText, '--chc-motion-fast: 120ms');
-    assert.include(primitiveStyles.cssText, '--chc-motion-base: 180ms');
-    assert.include(primitiveStyles.cssText, '--chc-motion-slow: 240ms');
+    assert.include(primitiveStyles.cssText, '--chc-motion-fast: 150ms');
+    assert.include(primitiveStyles.cssText, '--chc-motion-base: 220ms');
+    assert.include(primitiveStyles.cssText, '--chc-motion-slow: 260ms');
     assert.include(primitiveStyles.cssText, '--chc-motion-provider: 300ms');
     assert.include(
       primitiveStyles.cssText,
@@ -1133,7 +1143,7 @@ suite('commerce-hub-connect primitives', () => {
 
     assert.equal(otpInputStyles.fontWeight, '400');
     assert.equal(otpInputStyles.fontSize, '16px');
-    assert.equal(otpInputStyles.minHeight, '40px');
+    assert.equal(otpInputStyles.minHeight, '44px');
     assert.equal(otpInputStyles.borderRadius, '10px');
   });
 
@@ -1272,7 +1282,7 @@ suite('commerce-hub-connect primitives', () => {
       'not-verified'
     );
     assert.notExists(row.querySelector('.payment-method-status-icon'));
-    assert.equal(getComputedStyle(copy).rowGap, '4px');
+    assert.equal(getComputedStyle(copy).rowGap, '2px');
     assert.equal(
       getComputedStyle(row.querySelector<HTMLElement>('.payment-method-title')!)
         .display,
@@ -1322,7 +1332,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(row.disabled, false);
   });
 
-  test('right-aligns status badges consistently when chevrons are hidden', async () => {
+  test('keeps status badges beside titles regardless of trailing controls', async () => {
     const root = await renderHarness(html`
       <style>
         ${primitiveStyles.cssText}
@@ -1359,10 +1369,15 @@ suite('commerce-hub-connect primitives', () => {
 
     assert.exists(rows[0].querySelector('.payment-method-chevron'));
     assert.notExists(rows[1].querySelector('.payment-method-chevron'));
-    assert.closeTo(
-      clickableBadge.getBoundingClientRect().right,
-      staticBadge.getBoundingClientRect().right,
-      0.5
+    assert.equal(
+      clickableBadge.parentElement?.classList.contains(
+        'payment-method-title-row'
+      ),
+      true
+    );
+    assert.equal(
+      staticBadge.parentElement?.classList.contains('payment-method-title-row'),
+      true
     );
     assert.equal(
       getComputedStyle(
@@ -1566,8 +1581,11 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(selectedMethod.querySelector('.payment-method-title-row'));
     assert.exists(selectedMethod.querySelector('.payment-method-meta-row'));
     assert.notExists(selectedMethod.querySelector('.payment-method-status'));
-    assert.notExists(
-      selectedMethod.querySelector('.verification-status-badge')
+    assert.equal(
+      selectedMethod
+        .querySelector('.verification-status-badge')
+        ?.textContent?.trim(),
+      'Ready'
     );
     assert.notExists(selectedMethod.querySelector('.payment-method-chevron'));
     assert.notExists(selectedMethod.querySelector('.verification-status-icon'));
