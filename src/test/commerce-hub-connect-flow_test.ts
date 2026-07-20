@@ -2345,11 +2345,20 @@ suite('commerce-hub-connect flow', () => {
       'Connect your bank'
     );
     assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
-    assert.equal(
-      el
-        .shadowRoot!.querySelector('[data-action="add-ach-manually"]')
-        ?.textContent?.trim(),
-      'Connect another way'
+    const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
+    const manualAction = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="add-ach-manually"]'
+    )!;
+    assert.equal(manualAction.textContent?.trim(), 'Connect another way');
+    assert.exists(manualAction.closest('.widget-action-footer'));
+    assert.notExists(manualAction.closest('.widget-content'));
+    assert.isAtLeast(
+      manualAction.getBoundingClientRect().top,
+      shell.getBoundingClientRect().top
+    );
+    assert.isAtMost(
+      manualAction.getBoundingClientRect().bottom,
+      shell.getBoundingClientRect().bottom
     );
 
     await clickAction(el, 'add-ach-manually');

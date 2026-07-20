@@ -2001,20 +2001,18 @@ export class CommerceHubConnect extends LitElement {
             helper: 'Securely opening your bank connection, please wait.',
           })
         : undefined,
-      content: html`
-        <div class="bank-provider-flow">
-          ${renderProviderFrame({
-            containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
-            loading: this.bankLinkLoading,
-            loadingLabel: 'Connecting to your bank',
+      content: renderProviderFrame({
+        containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
+        loading: this.bankLinkLoading,
+        loadingLabel: 'Connecting to your bank',
+      }),
+      footer: html`
+        <div class="bank-provider-manual-link">
+          ${renderTextLinkButton({
+            label: 'Connect another way',
+            action: 'add-ach-manually',
+            disabled: this.bankLinkLoading,
           })}
-          <div class="bank-provider-manual-link">
-            ${renderTextLinkButton({
-              label: 'Connect another way',
-              action: 'add-ach-manually',
-              disabled: this.bankLinkLoading,
-            })}
-          </div>
         </div>
       `,
     });

@@ -1953,11 +1953,6 @@ export const primitiveStyles = css`
     min-height: 31.25rem;
   }
 
-  .bank-provider-flow {
-    display: grid;
-    gap: 0.875rem;
-  }
-
   .bank-provider-manual-link {
     display: flex;
     justify-content: center;
