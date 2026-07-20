@@ -5,6 +5,7 @@ import {
   createBankAccountEncryptionState,
   formatBankAccountDraftFieldValue,
   isBankAccountDraftReady,
+  legacyBankAccountFormSchema,
   maskSensitiveDisplayValue,
   normalizeBankAccountDraftForValidation,
   resolveBankAccountPayloadFieldValue,
@@ -194,11 +195,11 @@ suite('form state models', () => {
       ),
       accountNumber: formatBankAccountDraftFieldValue(
         'accountNumber',
-        '987654321012345678'
+        '987654321xxx'
       ),
       confirmAccountNumber: formatBankAccountDraftFieldValue(
         'confirmAccountNumber',
-        '987654321012345678'
+        '987654321xxx'
       ),
     };
     const encryption = createBankAccountEncryptionState();
@@ -261,6 +262,39 @@ suite('form state models', () => {
       accountNumber: 'Enter a 9-digit account number.',
       confirmAccountNumber: 'Account numbers must match.',
     });
+  });
+
+  test('fallback ACH fields accept any non-empty digit length', () => {
+    const draft = {
+      ...createBankAccountDraft(),
+      accountNickname: 'Household checking',
+      routingNumber: formatBankAccountDraftFieldValue('routingNumber', '12-34'),
+      accountNumber: formatBankAccountDraftFieldValue(
+        'accountNumber',
+        '1234 5678 9012'
+      ),
+      confirmAccountNumber: formatBankAccountDraftFieldValue(
+        'confirmAccountNumber',
+        '1234 5678 9012'
+      ),
+    };
+
+    assert.equal(draft.routingNumber, '1234');
+    assert.equal(draft.accountNumber, '123456789012');
+    assert.deepEqual(
+      validateBankAccountDraft(draft, legacyBankAccountFormSchema),
+      {}
+    );
+    assert.deepEqual(
+      validateBankAccountDraft(
+        {...draft, routingNumber: '', confirmAccountNumber: '1'},
+        legacyBankAccountFormSchema
+      ),
+      {
+        routingNumber: 'Enter a routing number.',
+        confirmAccountNumber: 'Account numbers must match.',
+      }
+    );
   });
 
   test('updates ACH state immutably and marks changed sensitive fields dirty', () => {
