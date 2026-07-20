@@ -3646,6 +3646,10 @@ export class CommerceHubConnect extends LitElement {
           accountNumberReEntered: encryptedAccountNumberReEntered,
           routingNumberEncrypted: encryptedRoutingNumber,
           accountNumberEncrypted: encryptedAccountNumber,
+          asset: {
+            type: 'CURRENCY',
+            id: 'USD',
+          },
         },
       };
       const verificationResponse =

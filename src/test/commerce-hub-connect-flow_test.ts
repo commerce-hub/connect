@@ -2957,6 +2957,10 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(sourceBody.name, 'Household checking');
     assert.equal(sourceBody.tenderType, 'BANK_ACCOUNT');
+    assert.deepEqual(sourceBody.bankAccount.asset, {
+      type: 'CURRENCY',
+      id: 'USD',
+    });
     assertSourceCreateHeaders(sourceRequest);
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
