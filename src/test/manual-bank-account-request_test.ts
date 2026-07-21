@@ -33,6 +33,7 @@ suite('manual bank account request', () => {
           address: {
             firstLine: '1 Main Street',
             city: 'Toronto',
+            state: 'ON',
             postCode: 'M5V 2T6',
             country: 'CA',
           },
@@ -44,6 +45,7 @@ suite('manual bank account request', () => {
         recipientNameOrAddress: 'Bob Bobson',
         street: '1 Main Street',
         city: 'Toronto',
+        state: 'ON',
         postalCode: 'M5V 2T6',
         country: 'CA',
       }

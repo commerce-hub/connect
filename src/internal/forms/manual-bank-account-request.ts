@@ -2,6 +2,7 @@ import type {components} from '../../generated/openapi.js';
 import type {ConfigInstrumentSchema} from './instrument-schema.js';
 
 type Address = components['schemas']['Address'];
+type ManualBankBillingAddress = Address & {state?: string};
 
 const CANADIAN_ROUTING_NUMBER = '1223';
 
@@ -60,7 +61,7 @@ const accountHolderType = (
 export const createManualBankBillingAddress = (
   data: Record<string, unknown>,
   id: string
-): Address => {
+): ManualBankBillingAddress => {
   const address = isRecord(data.address) ? data.address : {};
 
   return {
@@ -72,6 +73,7 @@ export const createManualBankBillingAddress = (
     ),
     street: formValue(address, 'firstLine'),
     city: formValue(address, 'city'),
+    state: formValue(address, 'state'),
     postalCode: formValue(address, 'postCode'),
     country: formValue(address, 'country'),
   };

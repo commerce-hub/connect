@@ -2594,7 +2594,25 @@ suite('commerce-hub-connect flow', () => {
       }
 
       if (pathname === '/party/configuration-inquiry') {
-        return bankAccountCountryConfigResponse([TEST_INSTRUMENT_SCHEMAS[0]]);
+        const canadianSchema = TEST_INSTRUMENT_SCHEMAS[0];
+
+        return bankAccountCountryConfigResponse([
+          {
+            ...canadianSchema,
+            properties: {
+              ...canadianSchema.properties,
+              'address.state': {
+                type: 'string',
+                title: 'Province',
+                minLength: 1,
+                'x-errorMessages': {
+                  required: 'Province is required',
+                },
+              },
+            },
+            required: [...canadianSchema.required, 'address.state'],
+          },
+        ]);
       }
 
       if (pathname === '/interaction/billing-address') {
@@ -2654,6 +2672,7 @@ suite('commerce-hub-connect flow', () => {
     await setBankField('accountHolderName', 'Bob Bobson');
     await setBankField('accountNumber', '0000026');
     await setBankField('address.city', 'Toronto');
+    await setBankField('address.state', 'ON');
     await setBankField('institutionNumber', '002');
     await setBankField('transitNumber', '12345');
     await waitForActionEnabled(el, 'save-bank-account');
@@ -2684,6 +2703,7 @@ suite('commerce-hub-connect flow', () => {
       recipientNameOrAddress: 'Bob Bobson',
       street: '',
       city: 'Toronto',
+      state: 'ON',
       postalCode: '',
       country: '',
     });
