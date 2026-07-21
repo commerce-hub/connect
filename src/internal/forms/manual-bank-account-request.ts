@@ -9,6 +9,7 @@ export type ManualBankAccountRequest = {
   id: string;
   name: string;
   billingAddressId: string;
+  productCode: string;
   tenderType: 'BANK_ACCOUNT';
   accountHolderType?: 'BUSINESS' | 'PERSONAL';
   bankAccount: components['schemas']['BankAccountDetail'];
@@ -130,6 +131,7 @@ export const createManualBankAccountRequest = (
     id,
     name: formValue(data, 'accountHolderName', 'accountNickname'),
     billingAddressId,
+    productCode: schema.productId,
     tenderType: 'BANK_ACCOUNT',
     ...(holderType ? {accountHolderType: holderType} : {}),
     bankAccount,

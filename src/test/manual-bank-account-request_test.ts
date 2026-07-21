@@ -69,6 +69,7 @@ suite('manual bank account request', () => {
         id: 'source-id',
         name: 'Williams Enterprises LLC',
         billingAddressId: 'billing-id',
+        productCode: 'ACH',
         tenderType: 'BANK_ACCOUNT',
         bankAccount: {
           bankName: 'Chase',
@@ -105,6 +106,7 @@ suite('manual bank account request', () => {
         id: 'source-id',
         name: 'Bob Bobson',
         billingAddressId: 'billing-id',
+        productCode: 'POLOCALBANK',
         tenderType: 'BANK_ACCOUNT',
         accountHolderType: 'PERSONAL',
         bankAccount: {
@@ -141,6 +143,7 @@ suite('manual bank account request', () => {
         id: 'source-id',
         name: 'Example Business',
         billingAddressId: 'billing-id',
+        productCode: 'POINTERAC',
         tenderType: 'BANK_ACCOUNT',
         accountHolderType: 'BUSINESS',
         bankAccount: {

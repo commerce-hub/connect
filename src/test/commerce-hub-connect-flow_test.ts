@@ -2677,6 +2677,7 @@ suite('commerce-hub-connect flow', () => {
       id: sourceBody.id,
       name: 'Bob Bobson',
       billingAddressId: 'billing-bank-1',
+      productCode: 'POLOCALBANK',
       tenderType: 'BANK_ACCOUNT',
       accountHolderType: 'BUSINESS',
       bankAccount: {
@@ -2956,6 +2957,7 @@ suite('commerce-hub-connect flow', () => {
       '123456789012'
     );
     assert.equal(sourceBody.name, 'Household checking');
+    assert.equal(sourceBody.productCode, 'POACH');
     assert.equal(sourceBody.tenderType, 'BANK_ACCOUNT');
     assert.deepEqual(sourceBody.bankAccount.asset, {
       type: 'CURRENCY',

@@ -3636,6 +3636,7 @@ export class CommerceHubConnect extends LitElement {
       const bankAccountSource: BankAccountSourcePayload = {
         id: '',
         tenderType: 'BANK_ACCOUNT',
+        productCode: 'POACH',
         name: resolveBankAccountSourceName(
           this.legacyBankAccountDraft.accountNickname,
           displayAccountNumber
