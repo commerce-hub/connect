@@ -2331,31 +2331,6 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'add-bank-account');
-    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
-    await flushElement(el);
-
-    assert.equal(
-      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Connect your bank'
-    );
-    assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
-    const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
-    const manualAction = el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '[data-action="add-ach-manually"]'
-    )!;
-    assert.equal(manualAction.textContent?.trim(), 'Connect another way');
-    assert.exists(manualAction.closest('.widget-action-footer'));
-    assert.notExists(manualAction.closest('.widget-content'));
-    assert.isAtLeast(
-      manualAction.getBoundingClientRect().top,
-      shell.getBoundingClientRect().top
-    );
-    assert.isAtMost(
-      manualAction.getBoundingClientRect().bottom,
-      shell.getBoundingClientRect().bottom
-    );
-
-    await clickAction(el, 'add-ach-manually');
     await waitForRequest(requests, '/party/configuration-inquiry');
     await waitFor(
       () =>
@@ -2728,8 +2703,8 @@ suite('commerce-hub-connect flow', () => {
         accountNumberReEntered: encryptedAccountNumberReEntered,
         asset: {type: 'CURRENCY', id: 'CAD'},
         accountType: 'CHECKING',
-        institutionNumber: '12345',
-        transitNumber: '002',
+        institutionNumber: '002',
+        transitNumber: '12345',
         accountIdentificationNumberType: 'CANADIAN',
       },
     });

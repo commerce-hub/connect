@@ -84,7 +84,7 @@ suite('manual bank account request', () => {
     );
   });
 
-  test('creates a Canadian request with the sample number placement', () => {
+  test('creates a Canadian request with institution and transit numbers', () => {
     assert.deepEqual(
       createManualBankAccountRequest(
         {
@@ -112,8 +112,8 @@ suite('manual bank account request', () => {
         bankAccount: {
           accountType: 'CHECKING',
           routingNumber: '1223',
-          institutionNumber: '12345',
-          transitNumber: '002',
+          institutionNumber: '002',
+          transitNumber: '12345',
           accountNumber: '00026',
           accountNumberReEntered: '00026',
           accountIdentificationNumberType: 'CANADIAN',

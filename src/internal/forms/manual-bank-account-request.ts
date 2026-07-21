@@ -104,8 +104,8 @@ export const createManualBankAccountRequest = (
   } else if (canadian) {
     bankAccount.accountType = 'CHECKING';
     bankAccount.routingNumber = CANADIAN_ROUTING_NUMBER;
-    bankAccount.institutionNumber = formValue(data, 'transitNumber');
-    bankAccount.transitNumber = formValue(data, 'institutionNumber');
+    bankAccount.institutionNumber = formValue(data, 'institutionNumber');
+    bankAccount.transitNumber = formValue(data, 'transitNumber');
     bankAccount.accountIdentificationNumberType = 'CANADIAN';
   } else {
     const bankName = formValue(data, 'bankName');
