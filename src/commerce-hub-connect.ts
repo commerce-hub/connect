@@ -1839,7 +1839,7 @@ export class CommerceHubConnect extends LitElement {
       title: 'Select an instrument schema',
       headerAction: renderTextLinkButton({
         label: 'Back',
-        action: 'back-to-bank-provider',
+        action: this.manualBankAccountExitAction(),
         disabled: true,
       }),
       showClose: false,
@@ -1858,7 +1858,7 @@ export class CommerceHubConnect extends LitElement {
       title: 'Select an instrument schema',
       headerAction: renderTextLinkButton({
         label: 'Back',
-        action: 'back-to-bank-provider',
+        action: this.manualBankAccountExitAction(),
       }),
       showClose: false,
       showDivider: false,
@@ -1886,7 +1886,7 @@ export class CommerceHubConnect extends LitElement {
       title: 'Select an instrument schema',
       headerAction: renderTextLinkButton({
         label: 'Back',
-        action: 'back-to-bank-provider',
+        action: this.manualBankAccountExitAction(),
       }),
       showClose: false,
       showDivider: false,
@@ -1946,7 +1946,7 @@ export class CommerceHubConnect extends LitElement {
         action:
           this.bankAccountInstrumentSchemas.length > 1
             ? 'back-to-instrument-schema-selection'
-            : 'back-to-bank-provider',
+            : this.manualBankAccountExitAction(),
       }),
       showClose: false,
       showDivider: false,
@@ -1992,7 +1992,7 @@ export class CommerceHubConnect extends LitElement {
       title: 'Enter bank details',
       headerAction: renderTextLinkButton({
         label: 'Back',
-        action: 'back-to-bank-provider',
+        action: this.manualBankAccountExitAction(),
         disabled: isSaving,
       }),
       showClose: false,
@@ -2243,9 +2243,18 @@ export class CommerceHubConnect extends LitElement {
       action === 'add-bank-account' ||
       action === 'use-bank-account-instead' ||
       action === 'retry-bank-provider' ||
-      action === 'back-to-bank-provider' ||
       action === 'use-different-bank-account'
     ) {
+      this.paymentSourceEditMode = false;
+      this.paymentSourceView = 'list';
+      this.resetCardFlow();
+      this.resetRequiredInfo();
+      this.resetBankFlow();
+      void this.startBankAccountFlow();
+      return;
+    }
+
+    if (action === 'back-to-bank-provider') {
       this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
@@ -2942,6 +2951,12 @@ export class CommerceHubConnect extends LitElement {
       this.bankAccountConfigError = apiErrorMessage(cause);
       this.bankFlowScreen = 'manual-config-error';
     }
+  }
+
+  private manualBankAccountExitAction(): FlowActionName {
+    return isUsaInteractionCountry(this.interactionResponse?.country)
+      ? 'back-to-bank-provider'
+      : 'back-to-payment-methods';
   }
 
   private isCurrentManualBankAccountConfigRequest(
@@ -4589,6 +4604,15 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
+  private async startBankAccountFlow() {
+    if (isUsaInteractionCountry(this.interactionResponse?.country)) {
+      await this.startPayByBankFlow();
+      return;
+    }
+
+    await this.showManualBankAccountScreen();
+  }
+
   private isCurrentPayByBankProviderRequest(
     requestToken: number,
     interactionId: string
@@ -5564,6 +5588,12 @@ const allowedTenderOptionsFromInteractionResponse = (
     bankAccount: allowedTenderTypes.includes('BANK_ACCOUNT'),
     nativeAccount: allowedTenderTypes.includes('NATIVE_ACCOUNT'),
   };
+};
+
+const isUsaInteractionCountry = (country?: string): boolean => {
+  const normalizedCountry = country?.trim().toUpperCase();
+
+  return normalizedCountry === 'US' || normalizedCountry === 'USA';
 };
 
 const paymentSourceToPaymentMethod = (
