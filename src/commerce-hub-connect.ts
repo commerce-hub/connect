@@ -3186,6 +3186,11 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (isUsaInteractionCountry(country)) {
+      this.initializeLegacyManualBankAccountScreen();
+      return;
+    }
+
     try {
       const configResponse = await this.fetchManualBankAccountCountryConfig(
         interactionId,
@@ -5229,7 +5234,7 @@ export class CommerceHubConnect extends LitElement {
         },
         body: JSON.stringify({
           configurationType: 'COUNTRY_TENDER',
-          country,
+          country: country === 'USA' ? 'AAA' : country,
         }),
         credentials: 'include',
       }

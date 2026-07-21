@@ -2840,9 +2840,8 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('missing and empty instrument schemas use the bundled legacy ACH form', async () => {
+  test('USA manual bank entry skips config inquiry and uses the bundled legacy ACH form', async () => {
     const requests: CapturedRequest[] = [];
-    let configAttempt = 0;
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
     paymentSdkWindow.PaymentSDK = {
@@ -2875,19 +2874,6 @@ suite('commerce-hub-connect flow', () => {
         );
       }
 
-      if (pathname === '/party/configuration-inquiry') {
-        configAttempt += 1;
-
-        if (configAttempt === 1) {
-          return new Response(
-            JSON.stringify({configurationType: 'COUNTRY_TENDER'}),
-            {status: 200, headers: {'Content-Type': 'application/json'}}
-          );
-        }
-
-        return bankAccountCountryConfigResponse([]);
-      }
-
       if (pathname === '/interaction/source/ach') {
         return new Response(
           JSON.stringify({sourceId: 'bank-legacy-1', status: 'UNDER_REVIEW'}),
@@ -2904,7 +2890,7 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      country: 'US',
+      country: 'USA',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
@@ -2915,7 +2901,7 @@ suite('commerce-hub-connect flow', () => {
     await clickAction(el, 'add-ach-manually');
     await waitFor(
       () => Boolean(el.shadowRoot!.querySelector('#ach-routing-number')),
-      'missing schemas did not open the legacy form'
+      'USA manual entry did not open the legacy form'
     );
 
     assert.exists(el.shadowRoot!.querySelector('#ach-account-nickname'));
@@ -2934,12 +2920,13 @@ suite('commerce-hub-connect flow', () => {
     );
     await clickAction(el, 'add-ach-manually');
     await waitFor(
-      () => configAttempt === 2,
-      'empty schema configuration was not requested'
-    );
-    await waitFor(
       () => Boolean(el.shadowRoot!.querySelector('#ach-routing-number')),
-      'empty schemas did not open the legacy form'
+      'USA manual entry did not reopen the legacy form'
+    );
+
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/party/configuration-inquiry'
     );
 
     await setFieldValue(el, 'ach-account-nickname', 'Household checking');
@@ -2998,14 +2985,6 @@ suite('commerce-hub-connect flow', () => {
   test('manual schema selection blocks and retries failed and malformed responses', async () => {
     const requests: CapturedRequest[] = [];
     let configAttempt = 0;
-    let initConfig: TestPaymentSdkInitConfiguration | undefined;
-
-    paymentSdkWindow.PaymentSDK = {
-      init: (configuration) => {
-        initConfig = configuration;
-      },
-      destroy: () => undefined,
-    };
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
       const pathname = new URL(request.url).pathname;
@@ -3083,15 +3062,12 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      country: 'US',
+      country: 'CA',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
 
     await clickAction(el, 'add-bank-account');
-    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
-    await flushElement(el);
-    await clickAction(el, 'add-ach-manually');
 
     for (let expectedAttempt = 1; expectedAttempt <= 2; expectedAttempt += 1) {
       await waitFor(
@@ -3109,7 +3085,7 @@ suite('commerce-hub-connect flow', () => {
         el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
       );
       assert.exists(
-        el.shadowRoot!.querySelector('[data-action="back-to-bank-provider"]')
+        el.shadowRoot!.querySelector('[data-action="back-to-payment-methods"]')
       );
       assert.exists(
         el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
@@ -3137,18 +3113,8 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('a singleton instrument schema opens its form and Back returns to the bank provider', async () => {
+  test('a singleton non-USA instrument schema opens its form', async () => {
     const requests: CapturedRequest[] = [];
-    let initConfig: TestPaymentSdkInitConfiguration | undefined;
-    let initCount = 0;
-
-    paymentSdkWindow.PaymentSDK = {
-      init: (configuration) => {
-        initConfig = configuration;
-        initCount += 1;
-      },
-      destroy: () => undefined,
-    };
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
       const pathname = new URL(request.url).pathname;
@@ -3186,15 +3152,12 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      country: 'USA',
+      country: 'CA',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
 
     await clickAction(el, 'add-bank-account');
-    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
-    await flushElement(el);
-    await clickAction(el, 'add-ach-manually');
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
@@ -3206,7 +3169,7 @@ suite('commerce-hub-connect flow', () => {
       (request) =>
         new URL(request.url).pathname === '/party/configuration-inquiry'
     )!;
-    assertPartyCountryTenderConfigRequest(configRequest, 'USA');
+    assertPartyCountryTenderConfigRequest(configRequest, 'CA');
     assert.exists(
       el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
     );
@@ -3220,19 +3183,12 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('[data-action="save-ach-manual"]')
     );
 
-    await clickAction(el, 'back-to-bank-provider');
-    await waitFor(
-      () => initCount === 2,
-      'PaymentSDK.init was not called again'
-    );
-    await flushElement(el);
+    await clickAction(el, 'back-to-payment-methods');
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Connect your bank'
+      'Add payment method'
     );
-    assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
-    assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
     assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),
       '/form.json'
@@ -3242,14 +3198,6 @@ suite('commerce-hub-connect flow', () => {
   test('manual instrument schema inquiry ignores a stale response after the interaction changes', async () => {
     const requests: CapturedRequest[] = [];
     const pendingConfig = deferredResponse();
-    let initConfig: TestPaymentSdkInitConfiguration | undefined;
-
-    paymentSdkWindow.PaymentSDK = {
-      init: (configuration) => {
-        initConfig = configuration;
-      },
-      destroy: () => undefined,
-    };
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
       const pathname = new URL(request.url).pathname;
@@ -3287,15 +3235,12 @@ suite('commerce-hub-connect flow', () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
-      country: 'US',
+      country: 'CA',
       allowedTenderTypes: ['BANK_ACCOUNT'],
       paymentSources: [],
     });
 
     await clickAction(el, 'add-bank-account');
-    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
-    await flushElement(el);
-    await clickAction(el, 'add-ach-manually');
     await waitForRequest(requests, '/party/configuration-inquiry');
 
     el.interactionResponse = {
