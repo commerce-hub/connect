@@ -53,43 +53,25 @@ export const legacyBankAccountFormSchema: BankAccountFormSchema = {
       type: 'string',
       description: 'Please enter the routing number',
       title: 'Routing number',
-      minLength: 9,
-      maxLength: 9,
-      pattern: '^[0-9]{9}$',
       'x-errorMessages': {
         required: 'Enter a routing number.',
-        minLength: 'Enter a 9-digit routing number.',
-        maxLength: 'Enter a 9-digit routing number.',
-        pattern: 'Enter a 9-digit routing number.',
       },
     },
     accountNumber: {
       type: 'string',
       description: 'Please enter the account number',
       title: 'Account number',
-      minLength: 9,
-      maxLength: 9,
-      pattern: '^[0-9]{9}$',
       'x-errorMessages': {
         required: 'Enter an account number.',
-        minLength: 'Enter a 9-digit account number.',
-        maxLength: 'Enter a 9-digit account number.',
-        pattern: 'Enter a 9-digit account number.',
       },
     },
     confirmAccountNumber: {
       type: 'string',
       description: 'Confirm the account number',
       title: 'Confirm account number',
-      minLength: 9,
-      maxLength: 9,
-      pattern: '^[0-9]{9}$',
       'x-equalsField': 'accountNumber',
       'x-errorMessages': {
         required: 'Confirm the account number.',
-        minLength: 'Enter a 9-digit account number.',
-        maxLength: 'Enter a 9-digit account number.',
-        pattern: 'Enter a 9-digit account number.',
         equals: 'Account numbers must match.',
       },
     },
@@ -199,12 +181,8 @@ export const formatBankAccountDraftFieldValue = (
   field: keyof BankAccountDraft,
   value: string
 ): string => {
-  if (field === 'routingNumber') {
-    return normalizeBankAccountNumber(value).slice(0, 9);
-  }
-
-  if (field === 'accountNumber' || field === 'confirmAccountNumber') {
-    return normalizeBankAccountNumber(value).slice(0, 9);
+  if (isSensitiveBankAccountField(field)) {
+    return normalizeBankAccountNumber(value);
   }
 
   return value;

@@ -2685,6 +2685,7 @@ suite('commerce-hub-connect flow', () => {
       id: sourceBody.id,
       name: 'Bob Bobson',
       billingAddressId: 'billing-bank-1',
+      productCode: 'POLOCALBANK',
       tenderType: 'BANK_ACCOUNT',
       accountHolderType: 'BUSINESS',
       bankAccount: {
@@ -2925,9 +2926,9 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await setFieldValue(el, 'ach-account-nickname', 'Household checking');
-    await setFieldValue(el, 'ach-routing-number', '021000021');
-    await setFieldValue(el, 'ach-account-number', '123456789');
-    await setFieldValue(el, 'ach-account-number-confirm', '123456789');
+    await setFieldValue(el, 'ach-routing-number', '1223');
+    await setFieldValue(el, 'ach-account-number', '123456789012');
+    await setFieldValue(el, 'ach-account-number-confirm', '123456789012');
     await blurField(el, 'ach-routing-number');
     await blurField(el, 'ach-account-number');
     await blurField(el, 'ach-account-number-confirm');
@@ -2936,7 +2937,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(
       el.shadowRoot!.querySelector<HTMLInputElement>('#ach-account-number')
         ?.value,
-      '•••••6789'
+      '••••••••9012'
     );
 
     await clickAction(el, 'save-bank-account');
@@ -2957,13 +2958,14 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       await decryptSourceValue(sourceBody.bankAccount.routingNumber),
-      '021000021'
+      '1223'
     );
     assert.equal(
       await decryptSourceValue(sourceBody.bankAccount.accountNumber),
-      '123456789'
+      '123456789012'
     );
     assert.equal(sourceBody.name, 'Household checking');
+    assert.equal(sourceBody.productCode, 'POACH');
     assert.equal(sourceBody.tenderType, 'BANK_ACCOUNT');
     assert.deepEqual(sourceBody.bankAccount.asset, {
       type: 'CURRENCY',
