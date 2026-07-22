@@ -3,9 +3,11 @@ import {assert} from '@open-wc/testing';
 import Ajv from 'ajv';
 
 import {
+  createBankBillingAddressUiSchema,
   createInstrumentSchemaErrorTranslator,
   createInstrumentSchemaInitialData,
   createInstrumentSchemaUiSchema,
+  instrumentSchemaWithoutAddress,
   normalizeInstrumentSchema,
   usableInstrumentSchemas,
   type ConfigInstrumentSchema,
@@ -198,6 +200,62 @@ suite('instrument schema adapter', () => {
         {type: 'Control', scope: '#/properties/address/properties/country'},
       ],
     });
+  });
+
+  test('places bank billing address and its fields after account number', () => {
+    const billingAddressScope = '#/properties/__bankBillingAddress';
+
+    assert.deepEqual(
+      createBankBillingAddressUiSchema(
+        createInstrumentSchemaUiSchema(canadianSchema()),
+        billingAddressScope
+      ),
+      {
+        type: 'VerticalLayout',
+        elements: [
+          {type: 'Control', scope: '#/properties/accountHolderName'},
+          {type: 'Control', scope: '#/properties/accountNumber'},
+          {type: 'Control', scope: billingAddressScope},
+          {type: 'Control', scope: '#/properties/address/properties/city'},
+          {type: 'Control', scope: '#/properties/address/properties/country'},
+        ],
+      }
+    );
+  });
+
+  test('removes only address validation without mutating the normalized schema', () => {
+    const raw = canadianSchema();
+    raw.properties.institutionNumber = {
+      type: 'string',
+      title: 'Institution number',
+      'x-errorMessages': {required: 'Institution number is required'},
+    };
+    raw.properties.transitNumber = {
+      type: 'string',
+      title: 'Transit number',
+      'x-errorMessages': {required: 'Transit number is required'},
+    };
+    raw.required.push('institutionNumber', 'transitNumber');
+    const original = structuredClone(raw);
+
+    const withoutAddress = instrumentSchemaWithoutAddress(raw);
+
+    assert.deepEqual(raw, original);
+    assert.isFalse(
+      Object.keys(withoutAddress.properties).some(
+        (path) => path === 'address' || path.startsWith('address.')
+      )
+    );
+    assert.sameMembers(withoutAddress.required ?? [], [
+      'accountHolderName',
+      'accountNumber',
+      'institutionNumber',
+      'transitNumber',
+    ]);
+    assert.containsAllKeys(withoutAddress.properties, [
+      'institutionNumber',
+      'transitNumber',
+    ]);
   });
 
   test('initializes dotted-path parents without populating form fields', () => {

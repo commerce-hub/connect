@@ -252,6 +252,62 @@ export const normalizeInstrumentSchema = (
   return normalized as JsonSchema;
 };
 
+export const instrumentSchemaWithoutAddress = (
+  schema: ConfigInstrumentSchema
+): ConfigInstrumentSchema => {
+  const properties = Object.fromEntries(
+    Object.entries(schema.properties).filter(
+      ([path]) => path !== 'address' && !path.startsWith('address.')
+    )
+  );
+  const required = schema.required.filter(
+    (path) => path !== 'address' && !path.startsWith('address.')
+  );
+
+  return {
+    ...schema,
+    properties,
+    required,
+  };
+};
+
+export const createBankBillingAddressUiSchema = (
+  uiSchema: UISchemaElement,
+  billingAddressScope: string
+): UISchemaElement => {
+  const layout = uiSchema as UISchemaElement & {
+    elements?: UISchemaElement[];
+  };
+  const elements = layout.elements ?? [];
+  const scopeOf = (element: UISchemaElement) =>
+    (element as {scope?: string}).scope ?? '';
+  const addressControls = elements.filter((element) =>
+    scopeOf(element).startsWith('#/properties/address/')
+  );
+  const bankControls = elements.filter(
+    (element) => !addressControls.includes(element)
+  );
+  const accountNumberIndex = bankControls.findIndex((element) =>
+    scopeOf(element).endsWith('/accountNumber')
+  );
+  const insertionIndex =
+    accountNumberIndex >= 0 ? accountNumberIndex + 1 : bankControls.length;
+  const billingAddressControl = {
+    type: 'Control',
+    scope: billingAddressScope,
+  } as UISchemaElement;
+
+  return {
+    ...layout,
+    elements: [
+      ...bankControls.slice(0, insertionIndex),
+      billingAddressControl,
+      ...addressControls,
+      ...bankControls.slice(insertionIndex),
+    ],
+  };
+};
+
 export const createInstrumentSchemaInitialData = (
   schema: ConfigInstrumentSchema
 ): Record<string, unknown> => {

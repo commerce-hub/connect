@@ -36,11 +36,17 @@ import {
   validateBankAccountDraft,
 } from './internal/forms/bank-account-form-state.js';
 import {bankAccountDraftErrorsToJsonFormsErrors} from './internal/forms/bank-account-jsonforms.js';
-import {bankAccountJsonFormsRenderers} from './internal/forms/bank-account-jsonforms-renderers.js';
 import {
+  BANK_BILLING_ADDRESS_CONTROL_SCOPE,
+  bankAccountJsonFormsRenderers,
+  bankBillingAddressJsonFormsRenderers,
+} from './internal/forms/bank-account-jsonforms-renderers.js';
+import {
+  createBankBillingAddressUiSchema,
   createInstrumentSchemaErrorTranslator,
   createInstrumentSchemaInitialData,
   createInstrumentSchemaUiSchema,
+  instrumentSchemaWithoutAddress,
   normalizeInstrumentSchema,
   usableInstrumentSchemas,
   type ConfigInstrumentSchema,
@@ -393,6 +399,7 @@ const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NO_INSTRUMENT_SCHEMAS_ERROR =
   'No instrument schemas are available for this country. Try again.';
+const BANK_BILLING_ADDRESS_PROPERTY = '__bankBillingAddress';
 const LEGACY_BANK_ACCOUNT_UI_SCHEMA = generateDefaultUISchema(
   legacyBankAccountFormSchema as JsonSchema,
   'VerticalLayout'
@@ -616,6 +623,12 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private bankAccountFormValid = false;
+
+  @state()
+  private bankBillingAddressValue = '';
+
+  @state()
+  private bankBillingAddressSelectorExpanded = false;
 
   @state()
   private bankAccountSubmitError?: string;
@@ -2122,7 +2135,6 @@ export class CommerceHubConnect extends LitElement {
     }
 
     const isSaving = this.pendingAction === 'save-bank-account';
-
     return this.renderWidgetShell({
       title: 'Enter bank details',
       headerAction: renderTextLinkButton({
@@ -2145,6 +2157,11 @@ export class CommerceHubConnect extends LitElement {
             .uischema=${bankAccountFormUiSchema}
             .data=${this.bankAccountFormData}
             .i18n=${this.bankAccountFormI18n}
+            .renderers=${bankBillingAddressJsonFormsRenderers}
+            .config=${{
+              billingAddressTemplate:
+                this.renderBankBillingAddressControl(isSaving),
+            }}
             .readonly=${isSaving}
             .validationMode=${'ValidateAndShow'}
             @data-change=${this.handleBankAccountFormDataChange}
@@ -2167,6 +2184,53 @@ export class CommerceHubConnect extends LitElement {
           </div>
         </form>
       `,
+    });
+  }
+
+  private renderBankBillingAddressControl(isSaving: boolean): TemplateResult {
+    const billingAddressOptions = [
+      ...this.billingAddresses.map((address) => ({
+        value: address.id ?? '',
+        label: billingAddressLabel(address),
+      })),
+      {
+        value: NEW_BILLING_ADDRESS_VALUE,
+        label: 'Add new billing address',
+      },
+    ];
+    const selectedBillingAddress = this.billingAddresses.find(
+      (address) => address.id === this.bankBillingAddressValue
+    );
+
+    if (selectedBillingAddress && !this.bankBillingAddressSelectorExpanded) {
+      return html`
+        <div class="billing-address-summary field field-full">
+          <div class="billing-address-summary-heading">
+            <span class="billing-address-summary-label field-label"
+              >Billing address</span
+            >
+            ${renderTextLinkButton({
+              label: 'Change',
+              action: 'change-bank-billing-address',
+              disabled: isSaving,
+            })}
+          </div>
+          <p class="billing-address-summary-value">
+            ${billingAddressLabel(selectedBillingAddress)}
+          </p>
+        </div>
+      `;
+    }
+
+    return renderSelectField({
+      id: 'bank-billing-address',
+      name: 'bankBillingAddress',
+      label: 'Billing address',
+      value: this.bankBillingAddressValue,
+      options: billingAddressOptions,
+      span: 'full',
+      variant: 'card-form',
+      disabled: isSaving,
     });
   }
 
@@ -2531,6 +2595,11 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'change-bank-billing-address') {
+      this.bankBillingAddressSelectorExpanded = true;
+      return;
+    }
+
     if (action === 'save-card') {
       void this.saveCard();
       return;
@@ -2799,6 +2868,19 @@ export class CommerceHubConnect extends LitElement {
     if (instrumentSchemaInput) {
       this.selectedBankAccountInstrumentSchemaCode =
         instrumentSchemaInput.dataset.instrumentSchemaCode;
+      return;
+    }
+
+    const bankBillingAddressSelect = event
+      .composedPath()
+      .find(
+        (item): item is HTMLSelectElement =>
+          item instanceof HTMLSelectElement &&
+          item.name === 'bankBillingAddress'
+      );
+
+    if (bankBillingAddressSelect) {
+      this.updateBankBillingAddress(bankBillingAddressSelect.value);
       return;
     }
 
@@ -3291,21 +3373,108 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    const formSchema = normalizeInstrumentSchema(selectedSchema);
-
+    this.reconcileBankBillingAddressSelection();
     this.manualBankAccountFormMode = 'instrument-schema';
     this.bankFlowScreen = 'manual';
-    this.bankAccountFormSchema = formSchema;
-    this.bankAccountFormUiSchema =
-      createInstrumentSchemaUiSchema(selectedSchema);
-    this.bankAccountFormData =
-      createInstrumentSchemaInitialData(selectedSchema);
-    this.bankAccountFormValid = false;
+    this.configureManualBankAccountForm(selectedSchema, true);
     this.bankAccountSubmitError = undefined;
     this.bankAccountFormI18n = {
       translateError: createInstrumentSchemaErrorTranslator(selectedSchema),
     };
     this.bankAccountConfigError = undefined;
+  }
+
+  private configureManualBankAccountForm(
+    selectedSchema: ConfigInstrumentSchema,
+    resetData: boolean
+  ) {
+    const isNewBillingAddress =
+      this.bankBillingAddressValue === NEW_BILLING_ADDRESS_VALUE;
+    const formInstrumentSchema = isNewBillingAddress
+      ? selectedSchema
+      : instrumentSchemaWithoutAddress(selectedSchema);
+    const initialData = createInstrumentSchemaInitialData(formInstrumentSchema);
+
+    this.bankAccountFormSchema = this.instrumentSchemaWithBillingAddressControl(
+      normalizeInstrumentSchema(formInstrumentSchema)
+    );
+    this.bankAccountFormUiSchema = createBankBillingAddressUiSchema(
+      createInstrumentSchemaUiSchema(formInstrumentSchema),
+      BANK_BILLING_ADDRESS_CONTROL_SCOPE
+    );
+    this.bankAccountFormData = resetData
+      ? {
+          ...initialData,
+          [BANK_BILLING_ADDRESS_PROPERTY]: this.bankBillingAddressValue,
+        }
+      : {
+          ...initialData,
+          ...this.bankAccountFormData,
+          [BANK_BILLING_ADDRESS_PROPERTY]: this.bankBillingAddressValue,
+        };
+    this.bankAccountFormValid = false;
+  }
+
+  private instrumentSchemaWithBillingAddressControl(
+    schema: JsonSchema
+  ): JsonSchema {
+    return {
+      ...schema,
+      properties: {
+        ...(schema.properties ?? {}),
+        [BANK_BILLING_ADDRESS_PROPERTY]: {
+          type: 'string',
+          title: 'Billing address',
+        },
+      },
+    } as JsonSchema;
+  }
+
+  private updateBankBillingAddress(value: string) {
+    const isValidValue =
+      value === NEW_BILLING_ADDRESS_VALUE ||
+      this.billingAddresses.some((address) => address.id === value);
+
+    if (!isValidValue) {
+      return;
+    }
+
+    this.bankBillingAddressValue = value;
+    this.bankBillingAddressSelectorExpanded =
+      value === NEW_BILLING_ADDRESS_VALUE;
+    this.bankAccountSubmitError = undefined;
+
+    const selectedSchema = this.bankAccountInstrumentSchemas.find(
+      (schema) =>
+        schema.bavSupportedCode === this.selectedBankAccountInstrumentSchemaCode
+    );
+
+    if (
+      selectedSchema &&
+      this.manualBankAccountFormMode === 'instrument-schema'
+    ) {
+      this.configureManualBankAccountForm(selectedSchema, false);
+    }
+  }
+
+  private reconcileBankBillingAddressSelection() {
+    if (this.bankBillingAddressValue === NEW_BILLING_ADDRESS_VALUE) {
+      this.bankBillingAddressSelectorExpanded = true;
+      return;
+    }
+
+    const selectedAddressExists = this.billingAddresses.some(
+      (address) => address.id === this.bankBillingAddressValue
+    );
+
+    if (selectedAddressExists) {
+      return;
+    }
+
+    this.bankBillingAddressValue =
+      this.billingAddresses[0]?.id ?? NEW_BILLING_ADDRESS_VALUE;
+    this.bankBillingAddressSelectorExpanded =
+      this.bankBillingAddressValue === NEW_BILLING_ADDRESS_VALUE;
   }
 
   private initializeLegacyManualBankAccountScreen() {
@@ -3785,26 +3954,9 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountSubmitError = undefined;
 
     try {
-      const billingAddress = createManualBankBillingAddress(
-        this.bankAccountFormData,
-        createRandomUuid()
+      const billingAddressId = await this.resolveManualBankBillingAddressId(
+        interactionId
       );
-      const billingAddressResponse =
-        await this.requestCommerceHubJson<BillingAddressResponse>(
-          '/interaction/billing-address',
-          interactionId,
-          {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(billingAddress),
-            credentials: 'include',
-          }
-        );
-      const billingAddressId = billingAddressResponse.value?.trim();
-
-      if (!billingAddressId) {
-        throw new Error('The billing address response did not include an id.');
-      }
 
       const bankSource = createManualBankAccountRequest(
         this.bankAccountFormData,
@@ -4138,6 +4290,45 @@ export class CommerceHubConnect extends LitElement {
 
     const billingAddress = billingAddressFromCardDraft(draft);
 
+    const response = await this.requestCommerceHubJson<BillingAddressResponse>(
+      '/interaction/billing-address',
+      interactionId,
+      {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(billingAddress),
+        credentials: 'include',
+      }
+    );
+    const billingAddressId = response.value?.trim();
+
+    if (!billingAddressId) {
+      throw new Error('The billing address response did not include an id.');
+    }
+
+    return billingAddressId;
+  }
+
+  private async resolveManualBankBillingAddressId(
+    interactionId: string
+  ): Promise<string> {
+    if (this.bankBillingAddressValue !== NEW_BILLING_ADDRESS_VALUE) {
+      const savedAddress = this.billingAddresses.find(
+        (address) => address.id === this.bankBillingAddressValue
+      );
+      const savedAddressId = savedAddress?.id?.trim();
+
+      if (!savedAddressId) {
+        throw new Error('Select a billing address.');
+      }
+
+      return savedAddressId;
+    }
+
+    const billingAddress = createManualBankBillingAddress(
+      this.bankAccountFormData,
+      createRandomUuid()
+    );
     const response = await this.requestCommerceHubJson<BillingAddressResponse>(
       '/interaction/billing-address',
       interactionId,
@@ -5147,6 +5338,19 @@ export class CommerceHubConnect extends LitElement {
     );
     this.billingAddressSelectorExpanded =
       this.cardDraft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE;
+    this.reconcileBankBillingAddressSelection();
+
+    const selectedSchema = this.bankAccountInstrumentSchemas.find(
+      (schema) =>
+        schema.bavSupportedCode === this.selectedBankAccountInstrumentSchemaCode
+    );
+
+    if (
+      selectedSchema &&
+      this.manualBankAccountFormMode === 'instrument-schema'
+    ) {
+      this.configureManualBankAccountForm(selectedSchema, false);
+    }
   }
 
   private async finalizePayByBankSession(
@@ -5249,6 +5453,8 @@ export class CommerceHubConnect extends LitElement {
     this.bankLinkLoading = false;
     this.bankAccountInstrumentSchemas = [];
     this.selectedBankAccountInstrumentSchemaCode = undefined;
+    this.bankBillingAddressValue = '';
+    this.bankBillingAddressSelectorExpanded = false;
     this.clearManualBankAccountForm();
     this.bankAccountConfigError = undefined;
     this.removePayByBankProviderContainer();
