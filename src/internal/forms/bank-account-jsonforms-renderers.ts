@@ -4,7 +4,7 @@ import {
   litRenderers,
   type LitJsonFormsRendererRegistryEntry,
 } from '../jsonforms-lit/index.js';
-import {html} from 'lit';
+import {html, type TemplateResult} from 'lit';
 import {customElement} from 'lit/decorators.js';
 import {ifDefined} from 'lit/directives/if-defined.js';
 
@@ -21,7 +21,11 @@ type BankAccountJsonFormsConfig = {
   errors: BankAccountDraftErrors;
   encryption: BankAccountEncryptionState;
   disabled: boolean;
+  billingAddressTemplate?: TemplateResult;
 };
+
+export const BANK_BILLING_ADDRESS_CONTROL_SCOPE =
+  '#/properties/__bankBillingAddress';
 
 const bankAccountFieldIds: Record<keyof BankAccountDraft, string> = {
   accountNickname: 'ach-account-nickname',
@@ -58,7 +62,9 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
       return html``;
     }
 
-    const config = props.config as Partial<BankAccountJsonFormsConfig> | undefined;
+    const config = props.config as
+      | Partial<BankAccountJsonFormsConfig>
+      | undefined;
     const draft = config?.draft;
     const encryption = config?.encryption;
     const value = draft?.[field] ?? props.data ?? '';
@@ -80,7 +86,10 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
 
     return html`
       <div class=${fieldClasses.join(' ')}>
-        <label class="field-label field-label-card-form" for=${bankAccountFieldIds[field]}>
+        <label
+          class="field-label field-label-card-form"
+          for=${bankAccountFieldIds[field]}
+        >
           ${props.label}
         </label>
         <div class="field-control field-control-card-form">
@@ -108,7 +117,10 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
         </div>
         ${error
           ? html`
-              <p class="field-error" id=${`${bankAccountFieldIds[field]}-error`}>
+              <p
+                class="field-error"
+                id=${`${bankAccountFieldIds[field]}-error`}
+              >
                 ${error}
               </p>
             `
@@ -118,9 +130,29 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
   }
 }
 
-export const bankAccountJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] =
+@customElement('commerce-hub-bank-billing-address-control')
+export class CommerceHubBankBillingAddressControl extends JsonFormsControl {
+  protected override render() {
+    const config = this.controlProps?.config as
+      | Partial<BankAccountJsonFormsConfig>
+      | undefined;
+
+    return config?.billingAddressTemplate ?? html``;
+  }
+}
+
+export const bankBillingAddressJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] =
   [
     ...litRenderers,
+    {
+      tester: rankWith(20, scopeEndsWith('__bankBillingAddress')),
+      renderer: 'commerce-hub-bank-billing-address-control',
+    },
+  ];
+
+export const bankAccountJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] =
+  [
+    ...bankBillingAddressJsonFormsRenderers,
     {
       tester: rankWith(10, scopeEndsWith('accountNickname')),
       renderer: 'commerce-hub-bank-account-control',
@@ -142,5 +174,6 @@ export const bankAccountJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] 
 declare global {
   interface HTMLElementTagNameMap {
     'commerce-hub-bank-account-control': CommerceHubBankAccountControl;
+    'commerce-hub-bank-billing-address-control': CommerceHubBankBillingAddressControl;
   }
 }

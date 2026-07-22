@@ -80,6 +80,7 @@ export type FlowActionName =
   | 'back-to-instrument-schema-selection'
   | 'add-card'
   | 'change-billing-address'
+  | 'change-bank-billing-address'
   | 'save-card'
   | 'use-bank-account-instead'
   | 'edit-card-details'
