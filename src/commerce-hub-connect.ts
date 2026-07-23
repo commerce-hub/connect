@@ -52,6 +52,14 @@ import {
   type ConfigInstrumentSchema,
 } from './internal/forms/instrument-schema.js';
 import {
+  instrumentSchemaAccountTypeOptions,
+  instrumentSchemaCurrencyOptions,
+  instrumentSchemaPaymentTypeOptions,
+  resolveInstrumentSchema,
+  selectableInstrumentSchemas,
+  type InstrumentSchemaAccountType,
+} from './internal/forms/instrument-schema-selection.js';
+import {
   createManualBankAccountRequest,
   createManualBankBillingAddress,
   encryptManualBankAccountRequest,
@@ -611,6 +619,15 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private selectedBankAccountInstrumentSchemaCode?: string;
+
+  @state()
+  private selectedBankCurrencyCode = '';
+
+  @state()
+  private selectedBankAccountType: InstrumentSchemaAccountType | '' = '';
+
+  @state()
+  private selectedBankPaymentType = '';
 
   @state()
   private bankAccountFormSchema?: JsonSchema;
@@ -2033,7 +2050,7 @@ export class CommerceHubConnect extends LitElement {
 
   private renderManualBankAccountConfigLoadingScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Select an instrument schema',
+      title: 'Select bank account type',
       headerAction: renderTextLinkButton({
         label: 'Back',
         action: this.manualBankAccountExitAction(),
@@ -2052,7 +2069,7 @@ export class CommerceHubConnect extends LitElement {
 
   private renderManualBankAccountConfigErrorScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Select an instrument schema',
+      title: 'Select bank account type',
       headerAction: renderTextLinkButton({
         label: 'Back',
         action: this.manualBankAccountExitAction(),
@@ -2079,8 +2096,26 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderManualBankAccountSchemaSelectionScreen(): TemplateResult {
+    const selections = selectableInstrumentSchemas(
+      this.bankAccountInstrumentSchemas
+    );
+    const currencyOptions = instrumentSchemaCurrencyOptions(selections);
+    const accountTypeOptions = this.selectedBankCurrencyCode
+      ? instrumentSchemaAccountTypeOptions(
+          selections,
+          this.selectedBankCurrencyCode
+        )
+      : [];
+    const paymentTypeOptions = this.selectedBankAccountType
+      ? instrumentSchemaPaymentTypeOptions(
+          selections,
+          this.selectedBankCurrencyCode,
+          this.selectedBankAccountType
+        )
+      : [];
+
     return this.renderWidgetShell({
-      title: 'Select an instrument schema',
+      title: 'Select bank account type',
       headerAction: renderTextLinkButton({
         label: 'Back',
         action: this.manualBankAccountExitAction(),
@@ -2088,28 +2123,47 @@ export class CommerceHubConnect extends LitElement {
       showClose: false,
       showDivider: false,
       content: html`
-        <div class="instrument-schema-selection">
-          <fieldset
-            class="instrument-schema-options"
-            aria-label="Instrument schemas"
-          >
-            <legend>Available instrument schemas</legend>
-            ${this.bankAccountInstrumentSchemas.map(
-              (schema) => html`
-                <label class="instrument-schema-option">
-                  <input
-                    type="radio"
-                    name="instrument-schema"
-                    value=${schema.bavSupportedCode}
-                    data-instrument-schema-code=${schema.bavSupportedCode}
-                    .checked=${this.selectedBankAccountInstrumentSchemaCode ===
-                    schema.bavSupportedCode}
-                  />
-                  <span>${schema.bavSupportedCode}</span>
-                </label>
-              `
-            )}
-          </fieldset>
+        <div class="instrument-schema-selection payment-flow card-form-screen">
+          ${renderSelectField({
+            id: 'instrument-schema-currency',
+            name: 'instrumentSchemaCurrency',
+            label: 'Currency',
+            value: this.selectedBankCurrencyCode,
+            options: [
+              {value: '', label: 'Select currency'},
+              ...currencyOptions,
+            ],
+            span: 'full',
+            variant: 'card-form',
+          })}
+          ${this.selectedBankCurrencyCode
+            ? renderSelectField({
+                id: 'instrument-schema-account-type',
+                name: 'instrumentSchemaAccountType',
+                label: 'Account type',
+                value: this.selectedBankAccountType,
+                options: [
+                  {value: '', label: 'Select account type'},
+                  ...accountTypeOptions,
+                ],
+                span: 'full',
+                variant: 'card-form',
+              })
+            : ''}
+          ${this.selectedBankAccountType
+            ? renderSelectField({
+                id: 'instrument-schema-payment-type',
+                name: 'instrumentSchemaPaymentType',
+                label: 'Payment type',
+                value: this.selectedBankPaymentType,
+                options: [
+                  {value: '', label: 'Select payment type'},
+                  ...paymentTypeOptions,
+                ],
+                span: 'full',
+                variant: 'card-form',
+              })
+            : ''}
           <div class="primitive-footer card-form-primary">
             ${renderButton({
               label: 'Continue',
@@ -2139,10 +2193,7 @@ export class CommerceHubConnect extends LitElement {
       title: 'Enter bank details',
       headerAction: renderTextLinkButton({
         label: 'Back',
-        action:
-          this.bankAccountInstrumentSchemas.length > 1
-            ? 'back-to-instrument-schema-selection'
-            : this.manualBankAccountExitAction(),
+        action: 'back-to-instrument-schema-selection',
       }),
       showClose: false,
       showDivider: false,
@@ -2856,18 +2907,46 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    const instrumentSchemaInput = event
+    const instrumentSchemaSelect = event
       .composedPath()
       .find(
-        (item): item is HTMLInputElement =>
-          item instanceof HTMLInputElement &&
-          item.name === 'instrument-schema' &&
-          Boolean(item.dataset.instrumentSchemaCode)
+        (item): item is HTMLSelectElement =>
+          item instanceof HTMLSelectElement &&
+          [
+            'instrumentSchemaCurrency',
+            'instrumentSchemaAccountType',
+            'instrumentSchemaPaymentType',
+          ].includes(item.name)
       );
 
-    if (instrumentSchemaInput) {
-      this.selectedBankAccountInstrumentSchemaCode =
-        instrumentSchemaInput.dataset.instrumentSchemaCode;
+    if (instrumentSchemaSelect?.name === 'instrumentSchemaCurrency') {
+      this.selectedBankCurrencyCode = instrumentSchemaSelect.value;
+      this.selectedBankAccountType = '';
+      this.selectedBankPaymentType = '';
+      this.selectedBankAccountInstrumentSchemaCode = undefined;
+      return;
+    }
+
+    if (instrumentSchemaSelect?.name === 'instrumentSchemaAccountType') {
+      this.selectedBankAccountType =
+        instrumentSchemaSelect.value === 'BUSINESS' ||
+        instrumentSchemaSelect.value === 'PERSONAL'
+          ? instrumentSchemaSelect.value
+          : '';
+      this.selectedBankPaymentType = '';
+      this.selectedBankAccountInstrumentSchemaCode = undefined;
+      return;
+    }
+
+    if (instrumentSchemaSelect?.name === 'instrumentSchemaPaymentType') {
+      this.selectedBankPaymentType = instrumentSchemaSelect.value;
+      const schema = resolveInstrumentSchema(
+        selectableInstrumentSchemas(this.bankAccountInstrumentSchemas),
+        this.selectedBankCurrencyCode,
+        this.selectedBankAccountType,
+        this.selectedBankPaymentType
+      );
+      this.selectedBankAccountInstrumentSchemaCode = schema?.bavSupportedCode;
       return;
     }
 
@@ -3306,7 +3385,10 @@ export class CommerceHubConnect extends LitElement {
 
       const instrumentSchemas = usableInstrumentSchemas(rawInstrumentSchemas);
 
-      if (instrumentSchemas.length === 0) {
+      if (
+        instrumentSchemas.length === 0 ||
+        selectableInstrumentSchemas(instrumentSchemas).length === 0
+      ) {
         this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
         this.bankFlowScreen = 'manual-config-error';
         return;
@@ -3314,14 +3396,6 @@ export class CommerceHubConnect extends LitElement {
 
       this.bankAccountInstrumentSchemas = instrumentSchemas;
       this.bankAccountConfigError = undefined;
-
-      if (instrumentSchemas.length === 1) {
-        this.selectedBankAccountInstrumentSchemaCode =
-          instrumentSchemas[0].bavSupportedCode;
-        this.initializeManualBankAccountScreen();
-        return;
-      }
-
       this.bankFlowScreen = 'manual-schema-selection';
     } catch (cause) {
       if (
@@ -5453,6 +5527,9 @@ export class CommerceHubConnect extends LitElement {
     this.bankLinkLoading = false;
     this.bankAccountInstrumentSchemas = [];
     this.selectedBankAccountInstrumentSchemaCode = undefined;
+    this.selectedBankCurrencyCode = '';
+    this.selectedBankAccountType = '';
+    this.selectedBankPaymentType = '';
     this.bankBillingAddressValue = '';
     this.bankBillingAddressSelectorExpanded = false;
     this.clearManualBankAccountForm();

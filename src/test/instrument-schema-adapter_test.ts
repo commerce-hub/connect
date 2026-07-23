@@ -190,7 +190,7 @@ suite('instrument schema adapter', () => {
     assert.equal(emptyPattern.pattern, '^(?:)$');
   });
 
-  test('creates leaf controls for dotted properties in response order', () => {
+  test('creates leaf controls for dotted properties', () => {
     assert.deepEqual(createInstrumentSchemaUiSchema(canadianSchema()), {
       type: 'VerticalLayout',
       elements: [
@@ -202,12 +202,47 @@ suite('instrument schema adapter', () => {
     });
   });
 
-  test('places bank billing address and its fields after account number', () => {
+  test('orders bank details before address fields in postal order', () => {
+    const raw = canadianSchema();
+    const genericProperty = raw.properties.accountHolderName;
+
+    raw.properties = {
+      'address.city': raw.properties['address.city'],
+      transitNumber: genericProperty,
+      'address.country': raw.properties['address.country'],
+      accountHolderName: genericProperty,
+      'address.firstLine': genericProperty,
+      accountNumber: raw.properties.accountNumber,
+      'address.postCode': genericProperty,
+      institutionNumber: genericProperty,
+      'address.state': genericProperty,
+    };
+
+    assert.deepEqual(createInstrumentSchemaUiSchema(raw), {
+      type: 'VerticalLayout',
+      elements: [
+        {type: 'Control', scope: '#/properties/accountHolderName'},
+        {type: 'Control', scope: '#/properties/accountNumber'},
+        {type: 'Control', scope: '#/properties/institutionNumber'},
+        {type: 'Control', scope: '#/properties/transitNumber'},
+        {type: 'Control', scope: '#/properties/address/properties/firstLine'},
+        {type: 'Control', scope: '#/properties/address/properties/city'},
+        {type: 'Control', scope: '#/properties/address/properties/state'},
+        {type: 'Control', scope: '#/properties/address/properties/postCode'},
+        {type: 'Control', scope: '#/properties/address/properties/country'},
+      ],
+    });
+  });
+
+  test('places bank billing address after bank details', () => {
     const billingAddressScope = '#/properties/__bankBillingAddress';
+    const raw = canadianSchema();
+    raw.properties.institutionNumber = raw.properties.accountHolderName;
+    raw.properties.transitNumber = raw.properties.accountHolderName;
 
     assert.deepEqual(
       createBankBillingAddressUiSchema(
-        createInstrumentSchemaUiSchema(canadianSchema()),
+        createInstrumentSchemaUiSchema(raw),
         billingAddressScope
       ),
       {
@@ -215,6 +250,8 @@ suite('instrument schema adapter', () => {
         elements: [
           {type: 'Control', scope: '#/properties/accountHolderName'},
           {type: 'Control', scope: '#/properties/accountNumber'},
+          {type: 'Control', scope: '#/properties/institutionNumber'},
+          {type: 'Control', scope: '#/properties/transitNumber'},
           {type: 'Control', scope: billingAddressScope},
           {type: 'Control', scope: '#/properties/address/properties/city'},
           {type: 'Control', scope: '#/properties/address/properties/country'},

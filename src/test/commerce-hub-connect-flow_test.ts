@@ -191,8 +191,15 @@ const TEST_INSTRUMENT_SCHEMAS = [
   },
 ] as const;
 
+const TEST_CASCADING_INSTRUMENT_SCHEMAS = [
+  TEST_INSTRUMENT_SCHEMAS[0],
+  {...TEST_INSTRUMENT_SCHEMAS[0], bavSupportedCode: 'CAD-Canadian-P'},
+  TEST_INSTRUMENT_SCHEMAS[1],
+  {...TEST_INSTRUMENT_SCHEMAS[1], bavSupportedCode: 'CAD-Interac-P'},
+] as const;
+
 const bankAccountCountryConfigResponse = (
-  instrumentSchemas: unknown = TEST_INSTRUMENT_SCHEMAS
+  instrumentSchemas: unknown = TEST_CASCADING_INSTRUMENT_SCHEMAS
 ): Response =>
   new Response(
     JSON.stringify({
@@ -2335,7 +2342,7 @@ suite('commerce-hub-connect flow', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Select an instrument schema',
+        'Select bank account type',
       'instrument schema chooser did not load'
     );
 
@@ -2345,22 +2352,20 @@ suite('commerce-hub-connect flow', () => {
     )!;
     assertPartyCountryTenderConfigRequest(configRequest, 'GBR');
 
-    const radios = [
-      ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
-        'input[name="instrument-schema"]'
-      ),
-    ];
+    const currencySelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#instrument-schema-currency'
+    )!;
+    assert.exists(currencySelect);
     assert.deepEqual(
-      radios.map((radio) => radio.value),
-      ['CAD-Canadian-B', 'CAD-Interac-B']
+      [...currencySelect.options].map((option) => option.textContent?.trim()),
+      ['Select currency', 'Canadian Dollar']
     );
-    assert.deepEqual(
-      radios.map((radio) => radio.dataset.instrumentSchemaCode),
-      ['CAD-Canadian-B', 'CAD-Interac-B']
+    assert.notExists(
+      el.shadowRoot!.querySelector('#instrument-schema-account-type')
     );
-    assert.isTrue(radios.every((radio) => !radio.checked));
-    assert.include(el.shadowRoot!.textContent, 'CAD-Canadian-B');
-    assert.include(el.shadowRoot!.textContent, 'CAD-Interac-B');
+    assert.notExists(
+      el.shadowRoot!.querySelector('#instrument-schema-payment-type')
+    );
 
     const continueButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '[data-action="select-instrument-schema"]'
@@ -2370,7 +2375,41 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
     );
 
-    radios[0].click();
+    currencySelect.value = 'CAD';
+    currencySelect.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+
+    const accountTypeSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#instrument-schema-account-type'
+    )!;
+    assert.deepEqual(
+      [...accountTypeSelect.options].map((option) =>
+        option.textContent?.trim()
+      ),
+      ['Select account type', 'Business', 'Personal']
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('#instrument-schema-payment-type')
+    );
+    assert.isTrue(continueButton.disabled);
+
+    accountTypeSelect.value = 'BUSINESS';
+    accountTypeSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+
+    const paymentTypeSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#instrument-schema-payment-type'
+    )!;
+    assert.deepEqual(
+      [...paymentTypeSelect.options].map((option) =>
+        option.textContent?.trim()
+      ),
+      ['Select payment type', 'Canadian', 'Interac']
+    );
+    assert.isTrue(continueButton.disabled);
+
+    paymentTypeSelect.value = 'Canadian';
+    paymentTypeSelect.dispatchEvent(new Event('change', {bubbles: true}));
     await flushElement(el);
 
     assert.isFalse(continueButton.disabled);
@@ -2447,16 +2486,28 @@ suite('commerce-hub-connect flow', () => {
 
     await clickAction(el, 'back-to-instrument-schema-selection');
 
-    const retainedRadios = [
-      ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
-        'input[name="instrument-schema"]'
-      ),
-    ];
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Select an instrument schema'
+      'Select bank account type'
     );
-    assert.isTrue(retainedRadios[0].checked);
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>(
+        '#instrument-schema-currency'
+      )?.value,
+      'CAD'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>(
+        '#instrument-schema-account-type'
+      )?.value,
+      'BUSINESS'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>(
+        '#instrument-schema-payment-type'
+      )?.value,
+      'Canadian'
+    );
     assert.notExists(
       el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
     );
@@ -2470,10 +2521,32 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'back-to-instrument-schema-selection');
-    const interacRadio = el.shadowRoot!.querySelector<HTMLInputElement>(
-      'input[value="CAD-Interac-B"]'
+    const retainedAccountType = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#instrument-schema-account-type'
     )!;
-    interacRadio.click();
+    retainedAccountType.value = 'PERSONAL';
+    retainedAccountType.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLSelectElement>(
+        '#instrument-schema-payment-type'
+      )?.value,
+      ''
+    );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="select-instrument-schema"]'
+      )!.disabled
+    );
+
+    retainedAccountType.value = 'BUSINESS';
+    retainedAccountType.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+    const retainedPaymentType = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#instrument-schema-payment-type'
+    )!;
+    retainedPaymentType.value = 'Interac';
+    retainedPaymentType.dispatchEvent(new Event('change', {bubbles: true}));
     await flushElement(el);
     await clickAction(el, 'select-instrument-schema');
 
@@ -3101,7 +3174,7 @@ suite('commerce-hub-connect flow', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Select an instrument schema',
+        'Select bank account type',
       'valid configuration retry did not show the chooser'
     );
     assert.lengthOf(
@@ -3113,7 +3186,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('a singleton non-USA instrument schema opens its form', async () => {
+  test('a singleton non-USA instrument schema still requires explicit choices', async () => {
     const requests: CapturedRequest[] = [];
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
@@ -3161,8 +3234,8 @@ suite('commerce-hub-connect flow', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Enter bank details',
-      'singleton schema form did not load'
+        'Select bank account type',
+      'singleton schema chooser did not load'
     );
 
     const configRequest = requests.find(
@@ -3170,19 +3243,43 @@ suite('commerce-hub-connect flow', () => {
         new URL(request.url).pathname === '/party/configuration-inquiry'
     )!;
     assertPartyCountryTenderConfigRequest(configRequest, 'CA');
+    const currencySelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#instrument-schema-currency'
+    )!;
+    const continueButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="select-instrument-schema"]'
+    )!;
+    assert.isTrue(continueButton.disabled);
+    currencySelect.value = 'CAD';
+    currencySelect.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+    assert.isTrue(continueButton.disabled);
+
+    const accountTypeSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#instrument-schema-account-type'
+    )!;
+    accountTypeSelect.value = 'BUSINESS';
+    accountTypeSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+    assert.isTrue(continueButton.disabled);
+
+    const paymentTypeSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '#instrument-schema-payment-type'
+    )!;
+    paymentTypeSelect.value = 'Canadian';
+    paymentTypeSelect.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
+    assert.isFalse(continueButton.disabled);
+
+    await clickAction(el, 'select-instrument-schema');
     assert.exists(
       el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
-    );
-    assert.notExists(
-      el.shadowRoot!.querySelector('input[name="instrument-schema"]')
-    );
-    assert.notExists(
-      el.shadowRoot!.querySelector('[data-action="select-instrument-schema"]')
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="save-ach-manual"]')
     );
 
+    await clickAction(el, 'back-to-instrument-schema-selection');
     await clickAction(el, 'back-to-payment-methods');
 
     assert.equal(

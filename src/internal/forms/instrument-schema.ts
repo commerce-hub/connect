@@ -287,11 +287,6 @@ export const createBankBillingAddressUiSchema = (
   const bankControls = elements.filter(
     (element) => !addressControls.includes(element)
   );
-  const accountNumberIndex = bankControls.findIndex((element) =>
-    scopeOf(element).endsWith('/accountNumber')
-  );
-  const insertionIndex =
-    accountNumberIndex >= 0 ? accountNumberIndex + 1 : bankControls.length;
   const billingAddressControl = {
     type: 'Control',
     scope: billingAddressScope,
@@ -299,12 +294,7 @@ export const createBankBillingAddressUiSchema = (
 
   return {
     ...layout,
-    elements: [
-      ...bankControls.slice(0, insertionIndex),
-      billingAddressControl,
-      ...addressControls,
-      ...bankControls.slice(insertionIndex),
-    ],
+    elements: [...bankControls, billingAddressControl, ...addressControls],
   };
 };
 
@@ -333,6 +323,35 @@ export const createInstrumentSchemaInitialData = (
 const encodeJsonPointerSegment = (segment: string): string =>
   segment.replace(/~/gu, '~0').replace(/\//gu, '~1');
 
+const instrumentPropertyOrder = new Map<string, number>([
+  ['accountHolderName', 0],
+  ['accountNumber', 1],
+  ['institutionNumber', 2],
+  ['transitNumber', 3],
+  ['interacAccount', 4],
+  ['address.firstLine', 100],
+  ['address.city', 101],
+  ['address.state', 102],
+  ['address.postCode', 103],
+  ['address.country', 104],
+]);
+
+const instrumentPropertyRank = (path: string): number =>
+  instrumentPropertyOrder.get(path) ??
+  (path === 'address' || path.startsWith('address.') ? 200 : 50);
+
+const orderedInstrumentPropertyPaths = (
+  schema: ConfigInstrumentSchema
+): string[] =>
+  Object.keys(schema.properties)
+    .map((path, index) => ({path, index}))
+    .sort(
+      (left, right) =>
+        instrumentPropertyRank(left.path) -
+          instrumentPropertyRank(right.path) || left.index - right.index
+    )
+    .map(({path}) => path);
+
 export const createInstrumentSchemaUiSchema = (
   schema: ConfigInstrumentSchema
 ): UISchemaElement => {
@@ -340,7 +359,7 @@ export const createInstrumentSchemaUiSchema = (
 
   return {
     type: 'VerticalLayout',
-    elements: Object.keys(schema.properties).map((path) => ({
+    elements: orderedInstrumentPropertyPaths(schema).map((path) => ({
       type: 'Control',
       scope: `#/properties/${splitPropertyPath(path)
         .map(encodeJsonPointerSegment)
