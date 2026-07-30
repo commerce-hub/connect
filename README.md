@@ -55,12 +55,13 @@ request. The SDK owns the browser widget once the host passes an
    merchant response as the completed source.
 
 Verified saved methods use radio controls. **Use selected method** remains
-disabled until a method is selected, then attaches that source before emitting
-`onSelect`. When adding is available, **Add payment method** sits beside the
-selection action. If card and bank account are both allowed, it opens a bottom
-sheet with separate **Credit or debit card** and **Bank account** choices; a
-single allowed type opens its entry flow directly. The same bottom-sheet
-behavior applies to `ADD_ACCOUNT`-only flows.
+disabled until a method is selected, then attaches that source, emits
+`onSelect`, and keeps the saved-method list visible with that source selected.
+When adding is available, **Add payment method** sits beside the selection
+action. If card and bank account are both allowed, it opens a bottom sheet with
+separate **Credit or debit card** and **Bank account** choices; a single allowed
+type opens its entry flow directly. The same bottom-sheet behavior applies to
+`ADD_ACCOUNT`-only flows.
 
 ```ts
 import 'commerce-hub-connect-sdk';

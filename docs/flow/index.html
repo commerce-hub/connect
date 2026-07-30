@@ -50,10 +50,11 @@ property as an HTML attribute.</p>
 state for payment methods, selected source, billing addresses, and status.
 Host-provided <code>paymentSources</code> are not rendered as authoritative saved methods.</p>
 <p>Verified saved methods render as radio choices. The <strong>Use selected method</strong>
-button is enabled after a choice is made and attaches that source before
-emitting <code>onSelect</code>. <strong>Add payment method</strong> opens a modal bottom sheet with
-<strong>Credit or debit card</strong> and <strong>Bank account</strong> options when both are allowed. If
-only one type is allowed, the widget opens that flow directly.
+button is enabled after a choice is made, attaches that source, emits
+<code>onSelect</code>, and keeps the saved-method list visible with that source selected.
+<strong>Add payment method</strong> opens a modal bottom sheet with <strong>Credit or debit card</strong>
+and <strong>Bank account</strong> options when both are allowed. If only one type is allowed,
+the widget opens that flow directly.
 The same bottom-sheet behavior applies to <code>ADD_ACCOUNT</code>-only interactions.</p>
 <p>The widget always sends <code>interactionResponse.interactionId</code> as the
 <code>x-interaction-id</code> header for SDK-managed CommerceHub calls. When

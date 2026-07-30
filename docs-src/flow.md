@@ -65,10 +65,11 @@ state for payment methods, selected source, billing addresses, and status.
 Host-provided `paymentSources` are not rendered as authoritative saved methods.
 
 Verified saved methods render as radio choices. The **Use selected method**
-button is enabled after a choice is made and attaches that source before
-emitting `onSelect`. **Add payment method** opens a modal bottom sheet with
-**Credit or debit card** and **Bank account** options when both are allowed. If
-only one type is allowed, the widget opens that flow directly.
+button is enabled after a choice is made, attaches that source, emits
+`onSelect`, and keeps the saved-method list visible with that source selected.
+**Add payment method** opens a modal bottom sheet with **Credit or debit card**
+and **Bank account** options when both are allowed. If only one type is allowed,
+the widget opens that flow directly.
 The same bottom-sheet behavior applies to `ADD_ACCOUNT`-only interactions.
 
 The widget always sends `interactionResponse.interactionId` as the
