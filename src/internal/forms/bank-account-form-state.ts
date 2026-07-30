@@ -420,6 +420,14 @@ export const isBankAccountDraftReady = (
   );
 };
 
+export const hasRequiredBankAccountDraftValues = (
+  draft: BankAccountDraft,
+  schema: BankAccountFormSchema
+): boolean =>
+  (schema.required ?? []).every(
+    (field) => !isBankAccountFormField(field) || Boolean(draft[field].trim())
+  );
+
 export const buildBankAccountEncryptionErrorMessage = (
   field: SensitiveBankAccountField
 ): string =>

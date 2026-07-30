@@ -198,6 +198,29 @@ export const isCardDraftReady = (
   Object.keys(validateCardDraft(normalizeCardDraft(draft))).length === 0 &&
   Object.keys(validateCardEncryptionReadiness(draft, encryption)).length === 0;
 
+export const hasRequiredCardDraftValues = (draft: CardDraft): boolean => {
+  const requiredValues = [
+    draft.name,
+    draft.fullName,
+    draft.cardNumber,
+    draft.expirationDate,
+    draft.cvv,
+    draft.billingAddressValue,
+  ];
+
+  if (draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE) {
+    requiredValues.push(
+      draft.country,
+      draft.addressLine1,
+      draft.city,
+      draft.state,
+      draft.zip
+    );
+  }
+
+  return requiredValues.every((value) => Boolean(value.trim()));
+};
+
 export const validateSensitiveCardField = (
   field: SensitiveCardField,
   value: string

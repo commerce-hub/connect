@@ -2523,23 +2523,19 @@ suite('commerce-hub-connect payment selection', () => {
     radio.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
     await flushElement(el);
     await clickAction(el, 'attach-payment-source');
-    await waitFor(
-      () => {
-        const selectedRadio =
-          el.shadowRoot!.querySelector<HTMLInputElement>(
-            '.payment-method-radio:checked'
-          );
+    await waitFor(() => {
+      const selectedRadio = el.shadowRoot!.querySelector<HTMLInputElement>(
+        '.payment-method-radio:checked'
+      );
 
-        return (
-          successEvents.length === 1 &&
-          el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-            'Payment methods' &&
-          selectedRadio?.value === 'card-1' &&
-          el.shadowRoot!.activeElement === selectedRadio
-        );
-      },
-      'payment method list did not remain active after selection'
-    );
+      return (
+        successEvents.length === 1 &&
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+          'Payment methods' &&
+        selectedRadio?.value === 'card-1' &&
+        el.shadowRoot!.activeElement === selectedRadio
+      );
+    }, 'payment method list did not remain active after selection');
 
     assert.deepEqual(
       requests.map(
@@ -2551,9 +2547,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(successEvents[0].detail.id, 'card-1');
     assert.lengthOf(legacySuccessEvents, 0);
     assert.lengthOf(errorEvents, 0);
-    assert.notExists(
-      el.shadowRoot!.querySelector('.selected-payment-method')
-    );
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Payment methods'
@@ -3573,12 +3567,13 @@ suite('commerce-hub-connect payment selection', () => {
       ]
     );
     assert.isTrue(transferButton!.disabled);
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
 
     fromSelect!.value = 'bank-1';
     fromSelect!.dispatchEvent(new Event('change', {bubbles: true}));
-    toSelect!.value = 'native-account-1';
+    toSelect!.value = 'bank-1';
     toSelect!.dispatchEvent(new Event('change', {bubbles: true}));
-    amountInput!.value = '25.75';
+    amountInput!.value = '-1';
     amountInput!.dispatchEvent(new Event('input', {bubbles: true}));
     await flushElement(el);
 
@@ -3587,6 +3582,37 @@ suite('commerce-hub-connect payment selection', () => {
         '[data-action="transfer"]'
       )!.disabled
     );
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    await clickAction(el, 'transfer');
+
+    assert.include(
+      el.shadowRoot!.textContent,
+      'Select a different destination account.'
+    );
+    assert.include(
+      el.shadowRoot!.textContent,
+      'Enter an amount greater than zero.'
+    );
+
+    toSelect!.value = 'native-account-1';
+    toSelect!.dispatchEvent(new Event('change', {bubbles: true}));
+    amountInput!.value = '25.75';
+    amountInput!.dispatchEvent(new Event('input', {bubbles: true}));
+    await flushElement(el);
+
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    amountInput!.value = '';
+    amountInput!.dispatchEvent(new Event('input', {bubbles: true}));
+    await flushElement(el);
+
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="transfer"]'
+      )!.disabled
+    );
+    assert.include(el.shadowRoot!.textContent, 'Enter an amount.');
   });
 
   test('reviews transfer details before posting selected accounts amount USD currency and auth headers', async () => {

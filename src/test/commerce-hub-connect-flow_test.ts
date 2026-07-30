@@ -1261,6 +1261,11 @@ suite('commerce-hub-connect flow', () => {
         ?.textContent?.trim(),
       'Verify'
     );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        'button[data-action="verify-otp"]'
+      )!.disabled
+    );
     assert.exists(
       el.shadowRoot!.querySelector(
         'button[data-action="verify-otp"] .button-icon-check'
@@ -1350,6 +1355,17 @@ suite('commerce-hub-connect flow', () => {
         .shadowRoot!.querySelector('button[data-action="verify-otp"]')
         ?.textContent?.trim(),
       'Try again'
+    );
+
+    await setOtpDigit(el, 0, '6');
+
+    assert.equal(el.interactionResponse?.status, 'OTP_VALIDATION_PENDING');
+    assert.notExists(el.shadowRoot!.querySelector('[role="alert"]'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('button[data-action="verify-otp"]')
+        ?.textContent?.trim(),
+      'Verify'
     );
   });
 
@@ -2114,6 +2130,92 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('card validation stays hidden until Save and clears while editing', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-card');
+
+    const saveButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="save-card"]'
+    )!;
+
+    assert.isTrue(saveButton.disabled);
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    await setFieldValue(el, 'card-label', 'x');
+    await setFieldValue(el, 'name-on-card', 'x');
+    await setFieldValue(el, 'card-number', '1');
+    await setFieldValue(el, 'expiration-date', '1');
+    await setFieldValue(el, 'card-cvv', '1');
+    await setSelectValue(el, 'billing-country', 'US');
+    await setFieldValue(el, 'billing-address-line-1', 'x');
+    await setFieldValue(el, 'billing-city', 'x');
+    await setSelectValue(el, 'billing-state', 'WI');
+    await setFieldValue(el, 'billing-zip', 'x');
+
+    assert.isFalse(saveButton.disabled);
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    await clickAction(el, 'save-card');
+
+    assert.exists(el.shadowRoot!.querySelector('.field-error'));
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/card'
+    );
+
+    await setFieldValue(el, 'billing-zip', '53045');
+    assert.notExists(
+      el
+        .shadowRoot!.querySelector('#billing-zip')
+        ?.closest('.field')
+        ?.querySelector('.field-error')
+    );
+
+    await setFieldValue(el, 'billing-address-line-1', '');
+    assert.isTrue(saveButton.disabled);
+    assert.include(
+      el
+        .shadowRoot!.querySelector('#billing-address-line-1')
+        ?.closest('.field')
+        ?.querySelector('.field-error')?.textContent ?? '',
+      'Enter an address.'
+    );
+
+    await setFieldValue(el, 'card-number', '');
+    await blurField(el, 'card-number');
+    assert.include(
+      el
+        .shadowRoot!.querySelector('#card-number')
+        ?.closest('.field')
+        ?.querySelector('.field-error')?.textContent ?? '',
+      'Enter a valid card number.'
+    );
+  });
+
   test('shows a collapsed billing address summary when a saved address is selected', async () => {
     window.fetch = async (input: RequestInfo | URL) => {
       const request = input instanceof Request ? input : new Request(input);
@@ -2533,14 +2635,40 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="save-ach-manual"]')
     );
-    assert.include(el.shadowRoot!.textContent, 'City is required');
+    const saveBankAccountButton =
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="save-bank-account"]'
+      )!;
+
+    assert.isTrue(saveBankAccountButton.disabled);
+    assert.notInclude(el.shadowRoot!.textContent, 'City is required');
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    const setSchemaBankField = async (name: string, value: string) => {
+      const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+        `input[name="${name}"]`
+      )!;
+
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await flushElement(el);
+    };
 
     const accountNumber = el.shadowRoot!.querySelector<HTMLInputElement>(
       'input[name="accountNumber"]'
     )!;
-    accountNumber.value = 'abc';
-    accountNumber.dispatchEvent(new InputEvent('input', {bubbles: true}));
-    await flushElement(el);
+
+    await setSchemaBankField('accountHolderName', 'x');
+    await setSchemaBankField('accountNumber', 'abc');
+    await setSchemaBankField('address.city', 'x');
+    await setSchemaBankField('institutionNumber', 'x');
+    await setSchemaBankField('transitNumber', 'x');
+
+    assert.isFalse(saveBankAccountButton.disabled);
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    await clickAction(el, 'save-bank-account');
+
     assert.include(el.shadowRoot!.textContent, 'Enter a valid account number');
     assert.equal(accountNumber.getAttribute('aria-invalid'), 'true');
     assert.exists(
@@ -2552,9 +2680,21 @@ suite('commerce-hub-connect flow', () => {
     const accountHolderName = el.shadowRoot!.querySelector<HTMLInputElement>(
       'input[name="accountHolderName"]'
     )!;
-    accountHolderName.value = 'Draft account holder';
-    accountHolderName.dispatchEvent(new InputEvent('input', {bubbles: true}));
-    await flushElement(el);
+
+    await setSchemaBankField('accountHolderName', 'Draft account holder');
+    assert.equal(accountHolderName.getAttribute('aria-invalid'), 'false');
+    assert.notInclude(
+      el.shadowRoot!.textContent,
+      'Must be at least 3 characters'
+    );
+
+    await setSchemaBankField('address.city', '');
+    assert.isTrue(saveBankAccountButton.disabled);
+    assert.include(el.shadowRoot!.textContent, 'City is required');
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/ach'
+    );
 
     await clickAction(el, 'back-to-instrument-schema-selection');
 
@@ -2664,6 +2804,87 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Add payment method'
     );
+  });
+
+  test('legacy bank validation stays hidden until Save and clears while editing', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([]);
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CA',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Enter bank details',
+      'legacy bank form did not render'
+    );
+
+    const saveButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="save-bank-account"]'
+    )!;
+    const setLegacyBankField = async (name: string, value: string) => {
+      const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+        `input[name="${name}"]`
+      )!;
+
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await flushElement(el);
+    };
+
+    assert.isTrue(saveButton.disabled);
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    await setLegacyBankField('accountNickname', 'Account');
+    await setLegacyBankField('routingNumber', '1');
+    await setLegacyBankField('accountNumber', '2');
+    await setLegacyBankField('confirmAccountNumber', '3');
+
+    assert.isFalse(saveButton.disabled);
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    await clickAction(el, 'save-bank-account');
+
+    assert.include(el.shadowRoot!.textContent, 'Account numbers must match');
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/ach'
+    );
+
+    await setLegacyBankField('confirmAccountNumber', '2');
+    assert.notInclude(el.shadowRoot!.textContent, 'Account numbers must match');
+
+    await setLegacyBankField('routingNumber', '');
+    assert.isTrue(saveButton.disabled);
+    assert.include(el.shadowRoot!.textContent, 'Enter a routing number');
   });
 
   test('missing bank country opens the manual configuration error', async () => {
@@ -6335,12 +6556,13 @@ suite('commerce-hub-connect flow', () => {
     assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
-  test('Connect your bank required-info Verify enables when only optional information is provided', async () => {
+  test('Connect your bank required-info Verify requires every mandatory document', async () => {
     const {el} = await completePayByBankFlow({
       finalizedStatus: 'NOT_VERIFIED',
       verificationStatus: 'REQUIRE_INFO',
       verificationDocs: [
         {docType: 'BANK_STATEMENT', mandatory: true},
+        {docType: 'BANK_LETTER', mandatory: true},
         {docType: 'DRIVER_LICENSE_PHOTO', mandatory: false},
       ],
     });
@@ -6350,12 +6572,29 @@ suite('commerce-hub-connect flow', () => {
     const optionalUploadRow = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '[data-required-info-requirement="optional"] .upload-row'
     )!;
+    const requiredUploadRows = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '[data-required-info-requirement="required"] .upload-row'
+      ),
+    ];
 
     assert.equal(verifyButton.disabled, true);
 
     optionalUploadRow.click();
     await flushElement(el);
     await selectRequiredInfoFile(el, 'driver-license.pdf');
+
+    assert.equal(verifyButton.disabled, true);
+
+    requiredUploadRows[0].click();
+    await flushElement(el);
+    await selectRequiredInfoFile(el, 'bank-statement.pdf');
+
+    assert.equal(verifyButton.disabled, true);
+
+    requiredUploadRows[1].click();
+    await flushElement(el);
+    await selectRequiredInfoFile(el, 'bank-letter.pdf');
 
     assert.equal(verifyButton.disabled, false);
   });
@@ -6623,6 +6862,54 @@ suite('commerce-hub-connect flow', () => {
           new URL(request.url).pathname ===
           '/interaction/source/bank-new/attach'
       )
+    );
+  });
+
+  test('required-info SSN validation stays hidden until Verify and clears while editing', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'NOT_VERIFIED',
+      verificationStatus: 'REQUIRE_INFO',
+      verificationDocs: [{docType: 'SOCIAL_SECURITY_NUMBER', mandatory: true}],
+    });
+    const verifyButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '.primitive-footer button[data-action="submit-required-info"]'
+    )!;
+    const requestCountBeforeEntry = requests.length;
+
+    assert.isTrue(verifyButton.disabled);
+    assert.notExists(
+      el.shadowRoot!.querySelector('.required-info-ssn-document .field-error')
+    );
+
+    await setRequiredInfoSsnSegments(el, ['1', '', '']);
+
+    assert.isFalse(verifyButton.disabled);
+    assert.notExists(
+      el.shadowRoot!.querySelector('.required-info-ssn-document .field-error')
+    );
+
+    await clickAction(el, 'submit-required-info');
+
+    assert.include(
+      el.shadowRoot!.querySelector('.required-info-ssn-document .field-error')
+        ?.textContent ?? '',
+      'Enter a 9-digit Social Security number.'
+    );
+    assert.lengthOf(requests, requestCountBeforeEntry);
+
+    await setRequiredInfoSsnSegments(el, ['123', '45', '6789']);
+
+    assert.notExists(
+      el.shadowRoot!.querySelector('.required-info-ssn-document .field-error')
+    );
+
+    await setRequiredInfoSsnSegments(el, ['', '', '']);
+
+    assert.isTrue(verifyButton.disabled);
+    assert.include(
+      el.shadowRoot!.querySelector('.required-info-ssn-document .field-error')
+        ?.textContent ?? '',
+      'Enter a Social Security number.'
     );
   });
 

@@ -6,6 +6,7 @@ import {
 } from '@jsonforms/core';
 import {LitElement, html, type PropertyValues, type TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
+import {ifDefined} from 'lit/directives/if-defined.js';
 
 import type {components as ConfigComponents} from './generated/config-openapi.js';
 import type {components} from './generated/openapi.js';
@@ -21,7 +22,7 @@ import {
   buildBankAccountEncryptionErrorMessage,
   createBankAccountDraft,
   createBankAccountEncryptionState,
-  isBankAccountDraftReady,
+  hasRequiredBankAccountDraftValues,
   isEncryptedBankAccountDisplayValue,
   isSensitiveBankAccountField,
   legacyBankAccountFormSchema,
@@ -46,6 +47,7 @@ import {
   createInstrumentSchemaErrorTranslator,
   createInstrumentSchemaInitialData,
   createInstrumentSchemaUiSchema,
+  hasRequiredJsonSchemaValues,
   instrumentSchemaWithoutAddress,
   normalizeInstrumentSchema,
   usableInstrumentSchemas,
@@ -75,7 +77,7 @@ import {
   createCardEncryptionState,
   detectCardNetwork,
   formatCardDraftFieldValue,
-  isCardDraftReady,
+  hasRequiredCardDraftValues,
   isSensitiveCardField,
   normalizeCardDraft,
   normalizeCardNumber,
@@ -104,11 +106,13 @@ import {
   requiredInfoSsnSegments,
   storeRequiredInfoFile,
   storeRequiredInfoValue,
+  validateRequiredInfoSsn,
 } from './internal/forms/required-info-form-state.js';
 import {
   TRANSFER_CURRENCY,
   createTransferDraft,
   formatTransferAmountForReview,
+  hasRequiredTransferDraftValues,
   isTransferDraftReady,
   normalizeTransferDraft,
   validateTransferDraft,
@@ -645,6 +649,9 @@ export class CommerceHubConnect extends LitElement {
   private bankAccountFormValid = false;
 
   @state()
+  private bankAccountValidationAttempted = false;
+
+  @state()
   private bankBillingAddressValue = '';
 
   @state()
@@ -681,6 +688,9 @@ export class CommerceHubConnect extends LitElement {
   private transferDraftErrors: TransferDraftErrors = {};
 
   @state()
+  private transferValidationAttempted = false;
+
+  @state()
   private transferSubmitError?: string;
 
   @state()
@@ -701,6 +711,9 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private cardDraftErrors: CardDraftErrors = {};
+
+  @state()
+  private cardValidationAttempted = false;
 
   @state()
   private cardEncryption: CardEncryptionState = createCardEncryptionState();
@@ -751,6 +764,9 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private requiredInfoSubmitError?: string;
+
+  @state()
+  private requiredInfoValidationAttempted = false;
 
   private requiredInfoFiles: RequiredInfoFiles = {};
 
@@ -1431,12 +1447,14 @@ export class CommerceHubConnect extends LitElement {
                 const currentValue = isRequiredInfoTextDoc(doc)
                   ? this.requiredInfoValues[key]
                   : this.requiredInfoFileNames[key];
+                const error = this.visibleRequiredInfoError(doc, index);
 
                 if (isRequiredInfoTextDoc(doc)) {
                   return renderRequiredInfoTextField({
                     doc,
                     key,
                     value: currentValue ?? '',
+                    error,
                   });
                 }
 
@@ -1462,6 +1480,15 @@ export class CommerceHubConnect extends LitElement {
                       action: 'open-required-info-file-picker',
                       disabled: isSubmitting,
                     })}
+                    ${error
+                      ? html`<p
+                          class="field-error"
+                          id=${`required-info-${key}-error`}
+                          role="alert"
+                        >
+                          ${error}
+                        </p>`
+                      : ''}
                   </div>
                 `;
               })}
@@ -1634,7 +1661,9 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               dataField: 'fromSourceId',
               dataFieldScope: 'transfer',
-              error: this.transferDraftErrors.fromSourceId,
+              error: this.transferValidationAttempted
+                ? this.transferDraftErrors.fromSourceId
+                : undefined,
               disabled: isSubmitting,
             }),
             renderSelectField({
@@ -1647,7 +1676,9 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               dataField: 'toSourceId',
               dataFieldScope: 'transfer',
-              error: this.transferDraftErrors.toSourceId,
+              error: this.transferValidationAttempted
+                ? this.transferDraftErrors.toSourceId
+                : undefined,
               disabled: isSubmitting,
             }),
             renderTextField({
@@ -1659,7 +1690,9 @@ export class CommerceHubConnect extends LitElement {
               inputmode: 'decimal',
               dataField: 'amount',
               dataFieldScope: 'transfer',
-              error: this.transferDraftErrors.amount,
+              error: this.transferValidationAttempted
+                ? this.transferDraftErrors.amount
+                : undefined,
               disabled: isSubmitting,
             }),
           ])}
@@ -1672,7 +1705,7 @@ export class CommerceHubConnect extends LitElement {
                 loading: isSubmitting,
                 disabled:
                   isSubmitting ||
-                  !isTransferDraftReady(this.transferDraft, transferSources),
+                  !hasRequiredTransferDraftValues(this.transferDraft),
               })}
             </div>
           </div>
@@ -1796,7 +1829,7 @@ export class CommerceHubConnect extends LitElement {
           span: 'full',
           variant: 'card-form',
           dataField: 'billingAddressValue',
-          error: this.cardDraftErrors.billingAddressValue,
+          error: this.visibleCardDraftError('billingAddressValue'),
           disabled: isSaving,
         })
       );
@@ -1813,7 +1846,7 @@ export class CommerceHubConnect extends LitElement {
           span: 'full',
           variant: 'card-form',
           dataField: 'country',
-          error: this.cardDraftErrors.country,
+          error: this.visibleCardDraftError('country'),
           disabled: isSaving,
         }),
         renderTextField({
@@ -1826,7 +1859,7 @@ export class CommerceHubConnect extends LitElement {
           variant: 'card-form',
           autocomplete: 'address-line1',
           dataField: 'addressLine1',
-          error: this.cardDraftErrors.addressLine1,
+          error: this.visibleCardDraftError('addressLine1'),
           disabled: isSaving,
         }),
         renderTextField({
@@ -1839,7 +1872,7 @@ export class CommerceHubConnect extends LitElement {
           variant: 'card-form',
           autocomplete: 'address-line2',
           dataField: 'addressLine2',
-          error: this.cardDraftErrors.addressLine2,
+          error: this.visibleCardDraftError('addressLine2'),
           disabled: isSaving,
         }),
         renderTextField({
@@ -1851,7 +1884,7 @@ export class CommerceHubConnect extends LitElement {
           variant: 'card-form',
           autocomplete: 'address-level2',
           dataField: 'city',
-          error: this.cardDraftErrors.city,
+          error: this.visibleCardDraftError('city'),
           disabled: isSaving,
         }),
         renderSelectField({
@@ -1863,7 +1896,7 @@ export class CommerceHubConnect extends LitElement {
           span: 'full',
           variant: 'card-form',
           dataField: 'state',
-          error: this.cardDraftErrors.state,
+          error: this.visibleCardDraftError('state'),
           disabled: isSaving,
         }),
         renderTextField({
@@ -1877,7 +1910,7 @@ export class CommerceHubConnect extends LitElement {
           autocomplete: 'postal-code',
           inputmode: 'numeric',
           dataField: 'zip',
-          error: this.cardDraftErrors.zip,
+          error: this.visibleCardDraftError('zip'),
           disabled: isSaving,
         })
       );
@@ -1914,7 +1947,7 @@ export class CommerceHubConnect extends LitElement {
               span: 'full',
               variant: 'card-form',
               dataField: 'name',
-              error: this.cardDraftErrors.name,
+              error: this.visibleCardDraftError('name'),
               disabled: isSaving,
             }),
             renderTextField({
@@ -1928,7 +1961,7 @@ export class CommerceHubConnect extends LitElement {
               autocomplete: 'cc-number',
               inputmode: 'numeric',
               dataField: 'cardNumber',
-              error: this.cardDraftErrors.cardNumber,
+              error: this.visibleCardDraftError('cardNumber'),
               disabled: isSaving,
             }),
             renderTextField({
@@ -1941,7 +1974,7 @@ export class CommerceHubConnect extends LitElement {
               autocomplete: 'cc-exp',
               inputmode: 'numeric',
               dataField: 'expirationDate',
-              error: this.cardDraftErrors.expirationDate,
+              error: this.visibleCardDraftError('expirationDate'),
               disabled: isSaving,
             }),
             renderTextField({
@@ -1954,7 +1987,7 @@ export class CommerceHubConnect extends LitElement {
               autocomplete: 'cc-csc',
               inputmode: 'numeric',
               dataField: 'cvv',
-              error: this.cardDraftErrors.cvv,
+              error: this.visibleCardDraftError('cvv'),
               disabled: isSaving,
             }),
             renderTextField({
@@ -1967,7 +2000,7 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               autocomplete: 'cc-name',
               dataField: 'fullName',
-              error: this.cardDraftErrors.fullName,
+              error: this.visibleCardDraftError('fullName'),
               disabled: isSaving,
             }),
             ...billingAddressFields,
@@ -1982,7 +2015,7 @@ export class CommerceHubConnect extends LitElement {
                 disabled:
                   isSaving ||
                   isEncrypting ||
-                  !isCardDraftReady(this.cardDraft, this.cardEncryption),
+                  !hasRequiredCardDraftValues(this.cardDraft),
               })}
             </div>
           </div>
@@ -2202,7 +2235,9 @@ export class CommerceHubConnect extends LitElement {
                 this.renderBankBillingAddressControl(isSaving),
             }}
             .readonly=${isSaving}
-            .validationMode=${'ValidateAndShow'}
+            .validationMode=${this.bankAccountValidationAttempted
+              ? 'ValidateAndShow'
+              : 'ValidateAndHide'}
             @data-change=${this.handleBankAccountFormDataChange}
             @errors-change=${this.handleBankAccountFormErrorsChange}
           ></commerce-hub-bank-account-jsonforms>
@@ -2218,7 +2253,12 @@ export class CommerceHubConnect extends LitElement {
               action: 'save-bank-account',
               type: 'submit',
               loading: isSaving,
-              disabled: !this.bankAccountFormValid || isSaving,
+              disabled:
+                isSaving ||
+                !hasRequiredJsonSchemaValues(
+                  bankAccountFormSchema,
+                  this.bankAccountFormData
+                ),
             })}
           </div>
         </form>
@@ -2312,14 +2352,20 @@ export class CommerceHubConnect extends LitElement {
             .readonly=${isSaving}
             .config=${{
               draft: this.legacyBankAccountDraft,
-              errors: this.legacyBankAccountDraftErrors,
+              errors: this.bankAccountValidationAttempted
+                ? this.legacyBankAccountDraftErrors
+                : {},
               encryption: this.legacyBankAccountEncryption,
               disabled: isSaving,
             }}
-            .additionalErrors=${bankAccountDraftErrorsToJsonFormsErrors(
-              this.legacyBankAccountDraftErrors
-            )}
-            .validationMode=${'ValidateAndShow'}
+            .additionalErrors=${this.bankAccountValidationAttempted
+              ? bankAccountDraftErrorsToJsonFormsErrors(
+                  this.legacyBankAccountDraftErrors
+                )
+              : []}
+            .validationMode=${this.bankAccountValidationAttempted
+              ? 'ValidateAndShow'
+              : 'ValidateAndHide'}
           ></commerce-hub-bank-account-jsonforms>
           <div class="primitive-footer card-form-primary">
             ${renderButton({
@@ -2330,9 +2376,8 @@ export class CommerceHubConnect extends LitElement {
               disabled:
                 isSaving ||
                 isEncrypting ||
-                !isBankAccountDraftReady(
+                !hasRequiredBankAccountDraftValues(
                   this.legacyBankAccountDraft,
-                  this.legacyBankAccountEncryption,
                   legacyBankAccountFormSchema
                 ),
             })}
@@ -3331,6 +3376,13 @@ export class CommerceHubConnect extends LitElement {
   private syncOtpValueFromInputs(inputs = this.getOtpInputs()) {
     this.otpValue = normalizeOtpValue(inputs.map((item) => item.value));
     this.otpErrorMessage = undefined;
+
+    if (this.interactionResponse?.status === 'OTP_VALIDATION_FAILED') {
+      this.setInteractionResponseFromSdk({
+        ...this.interactionResponse,
+        status: 'OTP_VALIDATION_PENDING',
+      });
+    }
   }
 
   private writeOtpDigits(
@@ -3517,6 +3569,7 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.bankAccountValidationAttempted = false;
     this.reconcileBankBillingAddressSelection();
     this.manualBankAccountFormMode = 'instrument-schema';
     this.bankFlowScreen = 'manual';
@@ -3622,6 +3675,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private initializeLegacyManualBankAccountScreen() {
+    this.bankAccountValidationAttempted = false;
     this.manualBankAccountFormMode = 'legacy';
     this.bankFlowScreen = 'manual';
     this.legacyBankAccountDraft = createBankAccountDraft();
@@ -3633,6 +3687,7 @@ export class CommerceHubConnect extends LitElement {
 
   private clearManualBankAccountForm() {
     this.manualBankAccountFormMode = undefined;
+    this.bankAccountValidationAttempted = false;
     this.bankAccountFormSchema = undefined;
     this.bankAccountFormUiSchema = undefined;
     this.bankAccountFormData = {};
@@ -3660,6 +3715,12 @@ export class CommerceHubConnect extends LitElement {
     this.transferSubmitSuccess = false;
   }
 
+  private visibleCardDraftError(field: keyof CardDraft): string | undefined {
+    return this.cardValidationAttempted
+      ? this.cardDraftErrors[field]
+      : undefined;
+  }
+
   private updateLegacyBankAccountDraftField(
     field: keyof BankAccountDraft,
     value: string
@@ -3685,11 +3746,12 @@ export class CommerceHubConnect extends LitElement {
 
   private updateCardDraftField(field: CardDraftTextField, value: string) {
     const formattedValue = formatCardDraftFieldValue(field, value);
-
-    this.cardDraft = {
+    const nextDraft = {
       ...this.cardDraft,
       [field]: formattedValue,
     };
+
+    this.cardDraft = nextDraft;
 
     if (field === 'billingAddressValue') {
       this.billingAddressSelectorExpanded =
@@ -3697,6 +3759,17 @@ export class CommerceHubConnect extends LitElement {
     }
 
     this.cardSubmitError = undefined;
+
+    if (this.cardValidationAttempted) {
+      const fieldError = validateCardDraft(normalizeCardDraft(nextDraft))[
+        field
+      ];
+      const nextErrors = omitCardDraftError(this.cardDraftErrors, field);
+
+      this.cardDraftErrors = fieldError
+        ? {...nextErrors, [field]: fieldError}
+        : nextErrors;
+    }
 
     if (isSensitiveCardField(field)) {
       this.cardEncryption = {
@@ -3719,7 +3792,12 @@ export class CommerceHubConnect extends LitElement {
     const validationError = validateSensitiveCardField(field, value);
 
     if (!normalizedValue) {
-      this.cardDraftErrors = omitCardDraftError(this.cardDraftErrors, field);
+      const nextErrors = omitCardDraftError(this.cardDraftErrors, field);
+
+      this.cardDraftErrors =
+        this.cardValidationAttempted && validationError
+          ? {...nextErrors, [field]: validationError}
+          : nextErrors;
       this.cardEncryption = {
         ...this.cardEncryption,
         [field]: createCardEncryptionFieldState(),
@@ -3948,6 +4026,8 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.cardValidationAttempted = true;
+
     const normalizedDraft = normalizeCardDraft(this.cardDraft);
     const errors = {
       ...validateCardDraft(normalizedDraft),
@@ -4048,6 +4128,7 @@ export class CommerceHubConnect extends LitElement {
       this.cardFlowScreen = undefined;
       this.cardDraft = createCardDraft();
       this.cardDraftErrors = {};
+      this.cardValidationAttempted = false;
       this.cardEncryption = createCardEncryptionState();
       this.cardSubmitError = undefined;
       this.setInteractionResponseFromSdk(nextInteractionResponse);
@@ -4068,10 +4149,13 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (
-      this.pendingAction === 'save-bank-account' ||
-      !this.bankAccountFormValid
-    ) {
+    if (this.pendingAction === 'save-bank-account') {
+      return;
+    }
+
+    this.bankAccountValidationAttempted = true;
+
+    if (!this.bankAccountFormValid) {
       return;
     }
 
@@ -4162,6 +4246,8 @@ export class CommerceHubConnect extends LitElement {
     if (!interactionId || this.manualBankAccountFormMode !== 'legacy') {
       return;
     }
+
+    this.bankAccountValidationAttempted = true;
 
     const normalizedDraft = normalizeBankAccountDraftForValidation(
       this.legacyBankAccountDraft,
@@ -4340,6 +4426,8 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.transferValidationAttempted = true;
+
     const transferSources = transferPaymentSourcesFromInteractionResponse(
       this.interactionResponse
     );
@@ -4415,6 +4503,7 @@ export class CommerceHubConnect extends LitElement {
         );
 
       this.transferFlowScreen = 'form';
+      this.transferValidationAttempted = false;
       this.transferSubmitSuccess = true;
       this.emitSdkEvent(ON_TRANSFER_EVENT, transaction);
     } catch (cause) {
@@ -4908,6 +4997,7 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoFileNames = {};
     this.requiredInfoFiles = {};
     this.requiredInfoSubmitError = undefined;
+    this.requiredInfoValidationAttempted = false;
     this.pendingRequiredInfoDocKey = undefined;
   }
 
@@ -4917,6 +5007,7 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoFileNames = {};
     this.requiredInfoFiles = {};
     this.requiredInfoSubmitError = undefined;
+    this.requiredInfoValidationAttempted = false;
     this.pendingRequiredInfoDocKey = undefined;
   }
 
@@ -4968,15 +5059,48 @@ export class CommerceHubConnect extends LitElement {
       return false;
     }
 
-    return requiredInfoDocs(source).some((doc, index) => {
-      const key = requiredInfoDocKey(doc, index);
+    const docs = requiredInfoDocs(source);
+    const mandatoryEntries = docs
+      .map((doc, index) => ({doc, index}))
+      .filter(({doc}) => isRequiredInfoDocMandatory(doc));
 
-      if (isRequiredInfoTextDoc(doc)) {
-        return hasRequiredInfoTextValue(this.requiredInfoValues, key);
-      }
+    if (mandatoryEntries.length > 0) {
+      return mandatoryEntries.every(({doc, index}) =>
+        this.hasRequiredInfoValue(doc, index)
+      );
+    }
 
-      return hasRequiredInfoFile(this.requiredInfoFiles, key);
-    });
+    return docs.some((doc, index) => this.hasRequiredInfoValue(doc, index));
+  }
+
+  private visibleRequiredInfoError(
+    doc: RequiredInfoDoc,
+    index: number
+  ): string | undefined {
+    return this.requiredInfoValidationAttempted
+      ? this.requiredInfoValidationError(doc, index)
+      : undefined;
+  }
+
+  private requiredInfoValidationError(
+    doc: RequiredInfoDoc,
+    index: number
+  ): string | undefined {
+    const hasValue = this.hasRequiredInfoValue(doc, index);
+
+    if (!hasValue) {
+      return isRequiredInfoDocMandatory(doc)
+        ? requiredInfoMissingValueMessage(doc)
+        : undefined;
+    }
+
+    if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
+      return validateRequiredInfoSsn(
+        this.requiredInfoValues[requiredInfoDocKey(doc, index)] ?? ''
+      );
+    }
+
+    return undefined;
   }
 
   private async submitRequiredInfo() {
@@ -4989,6 +5113,17 @@ export class CommerceHubConnect extends LitElement {
     const sourceId = source?.id?.trim();
 
     if (!interactionId || !source || !sourceId) {
+      return;
+    }
+
+    this.requiredInfoValidationAttempted = true;
+
+    if (
+      requiredInfoDocs(source).some((doc, index) =>
+        Boolean(this.requiredInfoValidationError(doc, index))
+      )
+    ) {
+      this.requiredInfoSubmitError = undefined;
       return;
     }
 
@@ -5073,6 +5208,7 @@ export class CommerceHubConnect extends LitElement {
         this.requiredInfoValues = {};
         this.requiredInfoFileNames = {};
         this.requiredInfoFiles = {};
+        this.requiredInfoValidationAttempted = false;
         return;
       }
 
@@ -5100,7 +5236,9 @@ export class CommerceHubConnect extends LitElement {
       .map((doc, index) => ({doc, index}))
       .filter(
         ({doc, index}) =>
-          (required ? doc.mandatory === true : doc.mandatory !== true) &&
+          (required
+            ? isRequiredInfoDocMandatory(doc)
+            : !isRequiredInfoDocMandatory(doc)) &&
           this.hasRequiredInfoValue(doc, index)
       );
   }
@@ -5649,6 +5787,7 @@ export class CommerceHubConnect extends LitElement {
     this.cardFlowScreen = undefined;
     this.cardDraft = createCardDraft();
     this.cardDraftErrors = {};
+    this.cardValidationAttempted = false;
     this.cardEncryption = createCardEncryptionState();
     this.cardSubmitError = undefined;
     this.billingAddressSelectorExpanded = false;
@@ -5659,6 +5798,7 @@ export class CommerceHubConnect extends LitElement {
     this.transferFlowScreen = 'form';
     this.transferDraft = createTransferDraft();
     this.transferDraftErrors = {};
+    this.transferValidationAttempted = false;
     this.transferSubmitError = undefined;
     this.transferSubmitSuccess = false;
   }
@@ -7073,16 +7213,19 @@ const renderRequiredInfoTextField = ({
   doc,
   key,
   value,
+  error,
 }: {
   doc: RequiredInfoDoc;
   key: string;
   value: string;
+  error?: string;
 }): TemplateResult => {
   if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
-    return renderRequiredInfoSsnField({doc, key, value});
+    return renderRequiredInfoSsnField({doc, key, value, error});
   }
 
   const id = `required-info-${key}`;
+  const errorId = `${id}-error`;
 
   return html`
     <div
@@ -7107,7 +7250,12 @@ const renderRequiredInfoTextField = ({
           inputmode=${requiredInfoTextInputMode(doc)}
           data-required-info-doc-key=${key}
           aria-label=${requiredInfoDocLabel(doc)}
+          aria-invalid=${error ? 'true' : 'false'}
+          aria-describedby=${ifDefined(error ? errorId : undefined)}
         />
+        ${error
+          ? html`<p class="field-error" id=${errorId} role="alert">${error}</p>`
+          : ''}
       </div>
     </div>
   `;
@@ -7117,14 +7265,17 @@ const renderRequiredInfoSsnField = ({
   doc,
   key,
   value,
+  error,
 }: {
   doc: RequiredInfoDoc;
   key: string;
   value: string;
+  error?: string;
 }): TemplateResult => {
   const label = requiredInfoDocLabel(doc);
   const segments = requiredInfoSsnSegments(value);
   const id = `required-info-${key}-ssn-0`;
+  const errorId = `required-info-${key}-error`;
 
   return html`
     <div
@@ -7159,10 +7310,15 @@ const renderRequiredInfoSsnField = ({
                 data-required-info-doc-key=${key}
                 data-required-info-ssn-segment=${String(index)}
                 aria-label=${`${label} part ${index + 1}`}
+                aria-invalid=${error ? 'true' : 'false'}
+                aria-describedby=${ifDefined(error ? errorId : undefined)}
               />
             `
           )}
         </div>
+        ${error
+          ? html`<p class="field-error" id=${errorId} role="alert">${error}</p>`
+          : ''}
       </div>
     </div>
   `;
@@ -7194,6 +7350,18 @@ const requiredInfoDocLabel = (doc: RequiredInfoDoc): string => {
   }
 
   return 'Required document';
+};
+
+const requiredInfoMissingValueMessage = (doc: RequiredInfoDoc): string => {
+  const label = requiredInfoDocLabel(doc);
+
+  if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
+    return 'Enter a Social Security number.';
+  }
+
+  return isRequiredInfoTextDoc(doc)
+    ? `Enter a ${label.toLowerCase()}.`
+    : `Choose a ${label.toLowerCase()}.`;
 };
 
 const requiredInfoSourceTypeLabel = (source: PaymentSource): string => {

@@ -252,6 +252,28 @@ export const normalizeInstrumentSchema = (
   return normalized as JsonSchema;
 };
 
+export const hasRequiredJsonSchemaValues = (
+  schema: JsonSchema,
+  data: unknown
+): boolean => {
+  if (!isRecord(data)) {
+    return (schema.required?.length ?? 0) === 0;
+  }
+
+  return (schema.required ?? []).every((key) => {
+    const value = data[key];
+    const property = schema.properties?.[key];
+
+    if (isRecord(property) && property.type === 'object') {
+      return hasRequiredJsonSchemaValues(property as JsonSchema, value);
+    }
+
+    return typeof value === 'string'
+      ? Boolean(value.trim())
+      : value !== undefined && value !== null;
+  });
+};
+
 export const instrumentSchemaWithoutAddress = (
   schema: ConfigInstrumentSchema
 ): ConfigInstrumentSchema => {
