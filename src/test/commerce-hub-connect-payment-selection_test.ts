@@ -2524,8 +2524,21 @@ suite('commerce-hub-connect payment selection', () => {
     await flushElement(el);
     await clickAction(el, 'attach-payment-source');
     await waitFor(
-      () => Boolean(el.shadowRoot!.querySelector('.selected-payment-method')),
-      'selected payment summary did not render'
+      () => {
+        const selectedRadio =
+          el.shadowRoot!.querySelector<HTMLInputElement>(
+            '.payment-method-radio:checked'
+          );
+
+        return (
+          successEvents.length === 1 &&
+          el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+            'Payment methods' &&
+          selectedRadio?.value === 'card-1' &&
+          el.shadowRoot!.activeElement === selectedRadio
+        );
+      },
+      'payment method list did not remain active after selection'
     );
 
     assert.deepEqual(
@@ -2538,9 +2551,12 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(successEvents[0].detail.id, 'card-1');
     assert.lengthOf(legacySuccessEvents, 0);
     assert.lengthOf(errorEvents, 0);
+    assert.notExists(
+      el.shadowRoot!.querySelector('.selected-payment-method')
+    );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Payment method saved'
+      'Payment methods'
     );
   });
 

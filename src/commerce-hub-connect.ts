@@ -4617,9 +4617,9 @@ export class CommerceHubConnect extends LitElement {
         return;
       }
 
-      this.paymentSourceView = 'selected';
+      this.paymentSourceView = 'list';
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
-      this.focusAfterUpdate('[data-action="change-payment-source"]');
+      this.focusAfterUpdate('.payment-method-radio:checked');
     } catch (cause) {
       this.paymentSourceView = 'list';
       this.attachmentError =
