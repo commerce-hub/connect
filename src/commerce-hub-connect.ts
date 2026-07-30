@@ -3422,11 +3422,6 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (isUsaInteractionCountry(country)) {
-      this.initializeLegacyManualBankAccountScreen();
-      return;
-    }
-
     try {
       const configResponse = await this.fetchManualBankAccountCountryConfig(
         interactionId,
