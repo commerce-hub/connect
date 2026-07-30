@@ -103,8 +103,8 @@ test('builds stable dependent options and resolves only exact unique schemas', a
   assert.deepEqual(
     instrumentSchemaPaymentTypeOptions(selections, 'CAD', 'BUSINESS'),
     [
-      {value: 'Canadian', label: 'Canadian'},
-      {value: 'Interac', label: 'Interac'},
+      {value: 'Canadian', label: 'POLOCALBANK'},
+      {value: 'Interac', label: 'POINTERAC'},
     ]
   );
   assert.equal(
