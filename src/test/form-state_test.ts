@@ -140,6 +140,8 @@ suite('form state models', () => {
     assert.equal(draft.cardNumber, '4111 1111 1111 1111');
     assert.equal(draft.expirationDate, '04 / 30');
     assert.equal(draft.cvv, '1234');
+    assert.notProperty(createCardDraft(), 'markAsDefault');
+    assert.notProperty(normalizedDraft, 'markAsDefault');
     assert.deepEqual(parseExpirationDate(draft.expirationDate), {
       month: '04',
       year: '2030',

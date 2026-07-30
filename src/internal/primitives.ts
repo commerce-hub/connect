@@ -101,10 +101,7 @@ export const renderVerificationStatusBadge = (
 
 const isPaymentMethodStatusClickable = (
   status: PaymentMethod['status']
-): boolean =>
-  status === 'verified' ||
-  status === 'require-info' ||
-  status === 'not-verified';
+): boolean => status === 'require-info' || status === 'not-verified';
 
 const isPaymentMethodRowClickable = (method: PaymentMethod): boolean =>
   isPaymentMethodStatusClickable(method.status);
@@ -178,56 +175,31 @@ const renderPaymentMethodTrailingContent = (
 const renderPaymentMethodDeleteAction = (
   paymentMethodId: string,
   paymentMethodLabel: string,
-  disabled = false,
-  confirmingDelete = false
+  disabled = false
 ): TemplateResult => {
   const deleteLabel = `Delete ${paymentMethodLabel}`;
-
-  if (confirmingDelete) {
-    return html`
-      <span class="payment-method-delete-action">
-        <span class="payment-method-delete-confirmation-group">
-          <span class="payment-method-delete-confirmation" role="status"
-            >Remove this payment method?</span
-          >
-          <span class="payment-method-delete-confirmation-controls">
-            <button
-              class="payment-method-delete-confirm-button"
-              type="button"
-              aria-label=${`Cancel deleting ${paymentMethodLabel}`}
-              data-action="cancel-delete-payment-source"
-              data-payment-method-id=${paymentMethodId}
-              ?disabled=${disabled}
-            >
-              Cancel
-            </button>
-            <button
-              class="payment-method-delete-confirm-button payment-method-delete-confirm-button-danger"
-              type="button"
-              aria-label=${deleteLabel}
-              data-action="delete-payment-source"
-              data-payment-method-id=${paymentMethodId}
-              ?disabled=${disabled}
-            >
-              Delete
-            </button>
-          </span>
-        </span>
-      </span>
-    `;
-  }
 
   return html`
     <span class="payment-method-delete-action">
       <button
-        class="payment-method-delete-button"
+        class="payment-method-delete-confirm-button payment-method-delete-confirm-button-danger"
         type="button"
         aria-label=${deleteLabel}
         data-action="delete-payment-source"
         data-payment-method-id=${paymentMethodId}
         ?disabled=${disabled}
       >
-        <span class="payment-method-delete-icon" aria-hidden="true"></span>
+        <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+        <svg
+          class="payment-method-delete-action-icon"
+          viewBox="0 0 640 640"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"
+          ></path>
+        </svg>
       </button>
     </span>
   `;
@@ -247,6 +219,136 @@ const renderPaymentMethodContent = (
   </span>
   ${renderPaymentMethodCopy(method)} ${trailingContent}
 `;
+
+const renderPaymentMethodMain = (
+  method: PaymentMethod,
+  clickable = isPaymentMethodRowClickable(method)
+): TemplateResult => {
+  const content = renderPaymentMethodContent(
+    method,
+    renderPaymentMethodTrailingContent(method, clickable)
+  );
+
+  if (clickable) {
+    return html`
+      <button
+        class="payment-method-row-main payment-method-row-main-action"
+        type="button"
+        data-action="verify-payment-source"
+        data-payment-method-id=${method.id}
+        ?disabled=${method.disabled}
+      >
+        ${content}
+      </button>
+    `;
+  }
+
+  return html`<span class="payment-method-row-main">${content}</span>`;
+};
+
+const renderSelectablePaymentMethodMain = (
+  method: PaymentMethod,
+  selected: boolean
+): TemplateResult => html`
+  <label
+    class="payment-method-row-main payment-method-row-main-action payment-method-row-main-radio"
+  >
+    <input
+      class="payment-method-radio"
+      type="radio"
+      name="payment-method"
+      value=${method.id}
+      data-payment-method-radio="true"
+      aria-label=${`Select ${method.label}`}
+      .checked=${selected}
+      ?disabled=${method.disabled}
+    />
+    ${renderPaymentMethodContent(
+      method,
+      html`<span class="payment-method-trailing">
+        ${renderPaymentMethodBalance(method)}
+      </span>`
+    )}
+  </label>
+`;
+
+const renderPaymentMethodOverflowAction = (
+  method: PaymentMethod,
+  {
+    menuOpen,
+    menuPlacement,
+    showMarkAsDefault,
+  }: {
+    menuOpen: boolean;
+    menuPlacement: 'above' | 'below';
+    showMarkAsDefault: boolean;
+  }
+): TemplateResult => {
+  const menuId = `payment-method-menu-${method.id}`;
+
+  return html`
+    <span class="payment-method-overflow">
+      ${method.isDefault
+        ? html`<span class="payment-method-default-label">Default</span>`
+        : ''}
+      <button
+        class="payment-method-overflow-button"
+        type="button"
+        aria-label=${`More actions for ${method.label}`}
+        aria-haspopup="true"
+        aria-expanded=${menuOpen ? 'true' : 'false'}
+        aria-controls=${menuId}
+        data-action="toggle-payment-source-menu"
+        data-payment-method-id=${method.id}
+        ?disabled=${method.disabled}
+      >
+        <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+        <svg viewBox="0 0 640 640" aria-hidden="true">
+          <path
+            d="M320 208C289.1 208 264 182.9 264 152C264 121.1 289.1 96 320 96C350.9 96 376 121.1 376 152C376 182.9 350.9 208 320 208zM320 432C350.9 432 376 457.1 376 488C376 518.9 350.9 544 320 544C289.1 544 264 518.9 264 488C264 457.1 289.1 432 320 432zM376 320C376 350.9 350.9 376 320 376C289.1 376 264 350.9 264 320C264 289.1 289.1 264 320 264C350.9 264 376 289.1 376 320z"
+          ></path>
+        </svg>
+      </button>
+      ${menuOpen
+        ? html`
+            <span
+              class=${joinClassNames(
+                'payment-method-menu',
+                menuPlacement === 'above' && 'payment-method-menu-above'
+              )}
+              id=${menuId}
+              role="menu"
+            >
+              ${showMarkAsDefault &&
+              !method.isDefault &&
+              method.status === 'verified'
+                ? html`
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-action="mark-payment-source-default"
+                      data-payment-method-id=${method.id}
+                      ?disabled=${method.disabled}
+                    >
+                      Mark as default
+                    </button>
+                  `
+                : ''}
+              <button
+                type="button"
+                role="menuitem"
+                data-action="delete-payment-source"
+                data-payment-method-id=${method.id}
+                ?disabled=${method.disabled}
+              >
+                Delete
+              </button>
+            </span>
+          `
+        : ''}
+    </span>
+  `;
+};
 
 export const renderButton = ({
   label,
@@ -272,6 +374,20 @@ export const renderButton = ({
     <span class="button-content">
       ${loading
         ? html`<span class="button-spinner" aria-hidden="true"></span>`
+        : icon === 'plus'
+        ? html`
+            <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+            <svg
+              class="button-icon button-icon-plus"
+              viewBox="0 0 640 640"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z"
+              ></path>
+            </svg>
+          `
         : icon
         ? html`
             <span
@@ -525,20 +641,25 @@ export const renderPaymentMethodRow = (
     balanceLoading,
     last4,
     showVerificationStatus,
+    isDefault,
     disabled = false,
   }: PaymentMethod,
   {
-    variant = 'default',
     deleteDisabled = false,
     confirmingDelete = false,
+    menuOpen = false,
+    menuPlacement = 'below',
     selected = false,
-    selectable = true,
+    selectable = false,
+    showMarkAsDefault = false,
   }: {
-    variant?: 'default' | 'edit';
     deleteDisabled?: boolean;
     confirmingDelete?: boolean;
+    menuOpen?: boolean;
+    menuPlacement?: 'above' | 'below';
     selected?: boolean;
     selectable?: boolean;
+    showMarkAsDefault?: boolean;
   } = {}
 ): TemplateResult => {
   const method: PaymentMethod = {
@@ -553,103 +674,54 @@ export const renderPaymentMethodRow = (
     balanceLoading,
     last4,
     showVerificationStatus,
+    isDefault,
     disabled,
   };
 
-  if (variant === 'edit') {
-    const editMethod = {...method, showVerificationStatus: false};
-
+  if (confirmingDelete) {
     return html`
       <div
         class=${joinClassNames(
           'payment-method-row',
           'payment-method-row-edit',
-          confirmingDelete && 'payment-method-row-delete-confirming'
+          'payment-method-row-delete-confirming'
         )}
         part="payment-method-row"
         aria-label=${label}
         data-payment-method-id=${id}
       >
-        ${renderPaymentMethodContent(
-          editMethod,
-          renderPaymentMethodDeleteAction(
-            id,
-            label,
-            deleteDisabled,
-            confirmingDelete
-          )
-        )}
+        ${renderPaymentMethodMain(method, false)}
+        ${renderPaymentMethodDeleteAction(id, label, deleteDisabled)}
       </div>
     `;
   }
 
-  if (selectable && isPaymentMethodRowClickable(method)) {
-    if (status === 'verified') {
-      return html`
-        <label
-          class=${joinClassNames(
-            'payment-method-row',
-            'payment-method-row-action',
-            'payment-method-row-radio',
-            selected && 'payment-method-row-selected'
-          )}
-          part="payment-method-row"
-          data-payment-method-id=${id}
-        >
-          ${renderPaymentMethodContent(
-            method,
-            html`<span class="payment-method-trailing">
-              ${renderPaymentMethodBalance(method)}
-              <input
-                class="payment-method-radio"
-                type="radio"
-                name="payment-method"
-                value=${id}
-                data-payment-method-radio="true"
-                aria-label=${`Select ${label}`}
-                .checked=${selected}
-                ?disabled=${disabled}
-              />
-            </span>`
-          )}
-        </label>
-      `;
-    }
-
-    return html`
-      <button
-        class=${joinClassNames(
-          'payment-method-row',
-          'payment-method-row-action',
-          selected && 'payment-method-row-selected'
-        )}
-        part="payment-method-row"
-        type="button"
-        aria-disabled=${disabled ? 'true' : 'false'}
-        data-action="verify-payment-source"
-        data-payment-method-id=${id}
-        ?disabled=${disabled}
-      >
-        ${renderPaymentMethodContent(
-          method,
-          renderPaymentMethodTrailingContent(method, true)
-        )}
-      </button>
-    `;
-  }
+  const rendersRadio = selectable && status === 'verified';
 
   return html`
     <div
-      class=${joinClassNames('payment-method-row', 'payment-method-row-static')}
+      class=${joinClassNames(
+        'payment-method-row',
+        rendersRadio || isPaymentMethodRowClickable(method)
+          ? 'payment-method-row-action'
+          : 'payment-method-row-static',
+        rendersRadio && 'payment-method-row-radio',
+        selected && rendersRadio && 'payment-method-row-selected',
+        menuOpen && 'payment-method-row-menu-open'
+      )}
       part="payment-method-row"
       aria-label=${label}
-      aria-disabled="true"
+      aria-disabled=${disabled ? 'true' : 'false'}
       data-payment-method-id=${id}
     >
-      ${renderPaymentMethodContent(
-        method,
-        renderPaymentMethodTrailingContent(method, false)
-      )}
+      ${rendersRadio
+        ? renderSelectablePaymentMethodMain(method, selected)
+        : renderPaymentMethodMain(method)}
+      ${renderPaymentMethodOverflowAction(method, {
+        menuOpen,
+        menuPlacement,
+        showMarkAsDefault,
+      })}
     </div>
   `;
 };
@@ -946,7 +1018,21 @@ export const renderTextLinkButton = ({
     data-action=${action}
     ?disabled=${disabled}
   >
-    ${icon
+    ${icon === 'edit'
+      ? html`
+          <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+          <svg
+            class="text-link-button-icon text-link-button-icon-edit"
+            viewBox="0 0 640 640"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              d="M535.6 85.7C513.7 63.8 478.3 63.8 456.4 85.7L432 110.1L529.9 208L554.3 183.6C576.2 161.7 576.2 126.3 554.3 104.4L535.6 85.7zM236.4 305.7C230.3 311.8 225.6 319.3 222.9 327.6L193.3 416.4C190.4 425 192.7 434.5 199.1 441C205.5 447.5 215 449.7 223.7 446.8L312.5 417.2C320.7 414.5 328.2 409.8 334.4 403.7L496 241.9L398.1 144L236.4 305.7zM160 128C107 128 64 171 64 224L64 480C64 533 107 576 160 576L416 576C469 576 512 533 512 480L512 384C512 366.3 497.7 352 480 352C462.3 352 448 366.3 448 384L448 480C448 497.7 433.7 512 416 512L160 512C142.3 512 128 497.7 128 480L128 224C128 206.3 142.3 192 160 192L256 192C273.7 192 288 177.7 288 160C288 142.3 273.7 128 256 128L160 128z"
+            ></path>
+          </svg>
+        `
+      : icon
       ? html`<span
           class=${`text-link-button-icon text-link-button-icon-${icon}`}
           aria-hidden="true"
@@ -970,6 +1056,9 @@ export const renderWidgetShell = ({
   title,
   subtitle,
   content,
+  backAction,
+  backDisabled = false,
+  titleAction,
   headerAction,
   footer,
   width = 'default',
@@ -1006,9 +1095,37 @@ export const renderWidgetShell = ({
         `
       : ''}
     <div class="widget-header" part="header">
-      <div class="widget-heading">
-        <h2 class="widget-title" part="title">${title}</h2>
-        ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
+      <div class="widget-heading-row">
+        ${backAction
+          ? html`
+              <button
+                class="widget-back-button"
+                type="button"
+                aria-label="Back"
+                data-action=${backAction}
+                ?disabled=${backDisabled}
+              >
+                <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+                <svg
+                  class="widget-back-icon"
+                  viewBox="0 0 640 640"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M201.4 297.4C188.9 309.9 188.9 330.2 201.4 342.7L361.4 502.7C373.9 515.2 394.2 515.2 406.7 502.7C419.2 490.2 419.2 469.9 406.7 457.4L269.3 320L406.6 182.6C419.1 170.1 419.1 149.8 406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3L201.3 297.3z"
+                  ></path>
+                </svg>
+              </button>
+            `
+          : ''}
+        <div class="widget-heading">
+          <h2 class="widget-title" part="title">${title}</h2>
+          ${subtitle ? html`<p class="widget-subtitle">${subtitle}</p>` : ''}
+        </div>
+        ${titleAction
+          ? html`<div class="widget-title-action">${titleAction}</div>`
+          : ''}
       </div>
       ${headerAction
         ? html`<div class="widget-header-action">${headerAction}</div>`

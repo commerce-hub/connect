@@ -60,12 +60,13 @@ export type FlowActionName =
   | 'resend-otp'
   | 'attach-payment-source'
   | 'open-add-payment-source'
+  | 'close-add-payment-source'
   | 'retry-interaction-refresh'
   | 'change-payment-source'
-  | 'toggle-payment-source-edit-mode'
+  | 'toggle-payment-source-menu'
+  | 'mark-payment-source-default'
   | 'verify-payment-source'
   | 'delete-payment-source'
-  | 'cancel-delete-payment-source'
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
   | 'open-transfer'
@@ -115,6 +116,8 @@ export type CardDraft = {
   state: string;
   zip: string;
 };
+
+export type CardDraftTextField = keyof CardDraft;
 
 export type BankAccountDraft = {
   accountNickname: string;
@@ -237,9 +240,10 @@ export interface PaymentMethodsScreenModel {
   allowedTenderOptions: AllowedTenderOptions;
   canAddPaymentSources: boolean;
   canSelectPaymentSources: boolean;
-  editing: boolean;
   actionPending: boolean;
   selectedPaymentSourceId?: string;
+  openPaymentSourceMenuId?: string;
+  paymentSourceMenuPlacement?: 'above' | 'below';
   deleteConfirmationPaymentSourceId?: string;
   copy: PaymentMethodsScreenCopy;
   showTransferAction?: boolean;
@@ -257,7 +261,7 @@ export type ButtonVariant = 'primary' | 'secondary';
 
 export type ButtonType = 'button' | 'submit' | 'reset';
 
-export type ButtonIcon = 'check' | 'arrow-right';
+export type ButtonIcon = 'check' | 'arrow-right' | 'plus';
 
 export type FieldVariant = 'default' | 'card-form';
 
@@ -382,6 +386,7 @@ export interface PaymentMethod {
   last4: string;
   status: PaymentMethodStatus;
   showVerificationStatus?: boolean;
+  isDefault?: boolean;
   disabled?: boolean;
 }
 
@@ -450,7 +455,7 @@ export interface TextLinkButtonOptions {
   label: string;
   action: FlowActionName;
   icon?: 'edit' | 'add' | 'transfer';
-  variant?: 'default' | 'primary';
+  variant?: 'default' | 'primary' | 'secondary';
   disabled?: boolean;
 }
 
@@ -463,6 +468,9 @@ export interface WidgetShellOptions {
   title: string;
   subtitle?: string;
   content: TemplateResult;
+  backAction?: FlowActionName;
+  backDisabled?: boolean;
+  titleAction?: TemplateResult;
   headerAction?: TemplateResult;
   footer?: TemplateResult;
   width?: 'default' | 'wide';

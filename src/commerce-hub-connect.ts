@@ -152,6 +152,7 @@ import type {
   BankAccountEncryptionState,
   CardDraft,
   CardDraftErrors,
+  CardDraftTextField,
   CardEncryptionState,
   FlowActionName,
   InteractionFeature,
@@ -348,8 +349,10 @@ type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
 type TransferFlowScreen = 'form' | 'confirm';
+type PaymentSourceAttachmentIntent = 'select' | 'mark-default';
 type PaymentSourceToPaymentMethodOptions = {
   selected?: boolean;
+  isDefault?: boolean;
   nativeBalances?: NativeAccountBalanceMap;
   nativeBalanceLoadingSourceIds?: readonly string[];
 };
@@ -492,7 +495,7 @@ const DEFAULT_PAY_BY_BANK_OPTIONS = {
   paymentSdkUrl:
     'https://connect-qa.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js',
 } satisfies Required<DesignConfigPayByBank>;
-const DELETE_CONFIRMATION_TIMEOUT_MS = 5000;
+const DELETE_CONFIRMATION_TIMEOUT_MS = 10000;
 
 /**
  * CommerceHub Connect Web SDK widget shell.
@@ -715,7 +718,10 @@ export class CommerceHubConnect extends LitElement {
   private paymentSourceView?: 'list' | 'selected';
 
   @state()
-  private paymentSourceEditMode = false;
+  private openPaymentSourceMenuId?: string;
+
+  @state()
+  private paymentSourceMenuPlacement: 'above' | 'below' = 'below';
 
   @state()
   private addLauncherActive = false;
@@ -769,7 +775,7 @@ export class CommerceHubConnect extends LitElement {
       ) {
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
-        this.paymentSourceEditMode = false;
+        this.openPaymentSourceMenuId = undefined;
         this.interactionRefresh.reset({requestUpdate: false});
         this.nativeBalance.reset({requestUpdate: false});
         this.billingAddresses = [];
@@ -783,7 +789,7 @@ export class CommerceHubConnect extends LitElement {
         !this.interactionResponse.paymentSources?.length &&
         !this.interactionResponse.selectedSource
       ) {
-        this.paymentSourceEditMode = false;
+        this.openPaymentSourceMenuId = undefined;
       }
 
       this.syncBillingAddressesFromInteractionResponse(
@@ -817,6 +823,7 @@ export class CommerceHubConnect extends LitElement {
   override render() {
     return html`
       <div
+        class="widget-frame"
         @click=${this.handleClick}
         @submit=${this.handleSubmit}
         @input=${this.handleInput}
@@ -831,6 +838,7 @@ export class CommerceHubConnect extends LitElement {
           >${flowActionLiveMessage(this.pendingAction)}</span
         >
         ${this.renderCurrentScreen()}
+        ${this.addLauncherActive ? this.renderAddPaymentSourceSheet() : ''}
       </div>
     `;
   }
@@ -901,10 +909,6 @@ export class CommerceHubConnect extends LitElement {
 
     if (this.bankFlowScreen === 'provider') {
       return this.renderBankProviderScreen();
-    }
-
-    if (this.addLauncherActive) {
-      return this.renderAddPaymentSourceLauncher();
     }
 
     if (this.bankFlowScreen === 'outcome') {
@@ -1044,9 +1048,6 @@ export class CommerceHubConnect extends LitElement {
       this.pendingAction === 'attach-payment-source' ||
       this.pendingAction === 'verify-payment-source' ||
       this.pendingAction === 'delete-payment-source';
-    const isEditingPaymentSources =
-      this.paymentSourceEditMode && paymentMethods.length > 0;
-
     if (this.shouldRenderPaymentSourceRefreshSkeleton()) {
       return this.renderWidgetShell({
         title: copy.title,
@@ -1079,163 +1080,179 @@ export class CommerceHubConnect extends LitElement {
 
     this.queueNativeAccountBalanceRefresh();
 
-    const toolbar = isEditingPaymentSources
-      ? renderTextLinkButton({
-          label: 'Done',
-          action: 'toggle-payment-source-edit-mode',
-          disabled: isPaymentSourceActionPending,
-        })
-      : html`
+    const toolbar = showTransferAction
+      ? html`
           <div class="widget-toolbar" aria-label="Payment method actions">
             ${renderTextLinkButton({
-              label: 'Edit',
-              action: 'toggle-payment-source-edit-mode',
-              icon: 'edit',
+              label: 'Transfer',
+              action: 'open-transfer',
+              icon: 'transfer',
               disabled: isPaymentSourceActionPending,
             })}
-            ${canAddPaymentSources
-              ? renderTextLinkButton({
-                  label: 'Add',
-                  action: 'open-add-payment-source',
-                  icon: 'add',
-                  variant: 'primary',
-                  disabled: isPaymentSourceActionPending,
-                })
-              : ''}
-            ${showTransferAction
-              ? renderTextLinkButton({
-                  label: 'Transfer',
-                  action: 'open-transfer',
-                  icon: 'transfer',
-                  disabled: isPaymentSourceActionPending,
-                })
-              : ''}
           </div>
-        `;
+        `
+      : undefined;
 
     return this.renderWidgetShell({
       title: copy.title,
       layout: 'payment-methods',
       headerAction: toolbar,
       showClose: false,
-      busy:
-        isPaymentSourceActionPending &&
-        this.pendingAction !== 'attach-payment-source',
-      overlay:
-        this.pendingAction === 'attach-payment-source'
-          ? undefined
-          : paymentSourceActionLoadingOverlay(this.pendingAction),
-      content: renderPaymentMethodsScreenContent({
-        status: 'PAYMENT_SOURCE_REQUESTED',
-        methods: paymentMethods,
-        allowedTenderOptions,
-        canAddPaymentSources,
-        canSelectPaymentSources,
-        editing: isEditingPaymentSources,
-        actionPending: isPaymentSourceActionPending,
-        selectedPaymentSourceId: this.selectedPaymentSourceId,
-        deleteConfirmationPaymentSourceId:
-          this.deleteConfirmationPaymentSourceId,
-        copy,
-        showTransferAction,
-      }),
+      busy: isPaymentSourceActionPending,
+      overlay: paymentSourceActionLoadingOverlay(this.pendingAction),
+      content: html`
+        ${this.attachmentError
+          ? renderAlert({
+              variant: 'danger',
+              message: this.attachmentError,
+            })
+          : ''}
+        ${renderPaymentMethodsScreenContent({
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          methods: paymentMethods,
+          allowedTenderOptions,
+          canAddPaymentSources,
+          canSelectPaymentSources,
+          actionPending: isPaymentSourceActionPending,
+          selectedPaymentSourceId: this.selectedPaymentSourceId,
+          openPaymentSourceMenuId: this.openPaymentSourceMenuId,
+          paymentSourceMenuPlacement: this.paymentSourceMenuPlacement,
+          deleteConfirmationPaymentSourceId:
+            this.deleteConfirmationPaymentSourceId,
+          copy,
+          showTransferAction,
+        })}
+      `,
       footer:
-        isEditingPaymentSources || !canSelectPaymentSources
-          ? undefined
-          : html`
-              ${this.attachmentError
-                ? renderAlert({
-                    variant: 'danger',
-                    message: this.attachmentError,
-                  })
-                : ''}
-              ${renderButton({
-                label:
-                  this.pendingAction === 'attach-payment-source'
-                    ? copy.continuingButton
-                    : copy.continueButton,
-                action: 'attach-payment-source',
-                loading: this.pendingAction === 'attach-payment-source',
-                disabled:
-                  !this.selectedPaymentSourceId ||
-                  this.pendingAction === 'attach-payment-source',
-              })}
-            `,
+        canAddPaymentSources || canSelectPaymentSources
+          ? html`
+              <div
+                class="payment-method-add-footer"
+                aria-label="Payment method actions"
+              >
+                ${canSelectPaymentSources
+                  ? renderButton({
+                      label:
+                        this.pendingAction === 'attach-payment-source'
+                          ? copy.continuingButton
+                          : copy.continueButton,
+                      action: 'attach-payment-source',
+                      loading: this.pendingAction === 'attach-payment-source',
+                      disabled:
+                        !this.selectedPaymentSourceId ||
+                        isPaymentSourceActionPending,
+                    })
+                  : ''}
+                ${canAddPaymentSources
+                  ? renderButton({
+                      label: 'Add payment method',
+                      action: 'open-add-payment-source',
+                      icon: 'plus',
+                      variant: 'secondary',
+                      disabled: isPaymentSourceActionPending,
+                    })
+                  : ''}
+              </div>
+            `
+          : undefined,
     });
   }
 
-  private renderAddPaymentSourceLauncher(): TemplateResult {
+  private renderAddPaymentSourceSheet(): TemplateResult {
     const allowed = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
     );
 
-    return this.renderWidgetShell({
-      title: 'Add a payment method',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-payment-methods',
-      }),
-      showClose: false,
-      content: html`
-        <div class="add-method-launcher">
-          <p class="launcher-copy">Choose the type of payment method to add.</p>
-          <div
-            class="tender-tabs"
-            role="tablist"
-            aria-label="Payment method type"
-          >
+    return html`
+      <div class="add-payment-sheet-layer">
+        <div
+          class="add-payment-sheet-backdrop"
+          data-action="close-add-payment-source"
+          aria-hidden="true"
+        ></div>
+        <section
+          class="add-payment-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-payment-sheet-title"
+        >
+          <div class="add-payment-sheet-header">
+            <h2 class="add-payment-sheet-title" id="add-payment-sheet-title">
+              Add payment method
+            </h2>
+            <button
+              class="add-payment-sheet-close"
+              type="button"
+              data-action="close-add-payment-source"
+              aria-label="Close add payment method"
+            >
+              <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+              <svg viewBox="0 0 640 640" aria-hidden="true" focusable="false">
+                <path
+                  d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+          <div class="add-payment-sheet-options">
             ${allowed.card
-              ? html`<button
-                  class="tender-tab"
-                  id="add-card-tab"
-                  type="button"
-                  role="tab"
-                  aria-controls="add-card-tab-panel"
-                  aria-selected="true"
-                  tabindex="0"
-                  data-action="add-card"
-                >
-                  Card
-                </button>`
+              ? this.renderAddPaymentSourceOption({
+                  action: 'add-card',
+                  title: 'Credit or debit card',
+                  subtitle: 'Add your card details',
+                  icon: 'card',
+                })
               : ''}
             ${allowed.bankAccount
-              ? html`<button
-                  class="tender-tab"
-                  id="add-bank-account-tab"
-                  type="button"
-                  role="tab"
-                  aria-controls="add-bank-account-tab-panel"
-                  aria-selected="false"
-                  tabindex="-1"
-                  data-action="add-bank-account"
-                >
-                  Bank
-                </button>`
+              ? this.renderAddPaymentSourceOption({
+                  action: 'add-bank-account',
+                  title: 'Bank account',
+                  subtitle: 'Connect or enter an account',
+                  icon: 'bank',
+                })
               : ''}
           </div>
-          ${allowed.card
-            ? html`<div
-                class="screen-reader-status"
-                id="add-card-tab-panel"
-                role="tabpanel"
-                aria-labelledby="add-card-tab"
-              >
-                Add a card.
-              </div>`
-            : ''}
-          ${allowed.bankAccount
-            ? html`<div
-                id="add-bank-account-tab-panel"
-                role="tabpanel"
-                aria-labelledby="add-bank-account-tab"
-                hidden
-              >
-                Add a bank account.
-              </div>`
-            : ''}
-        </div>
-      `,
-    });
+        </section>
+      </div>
+    `;
+  }
+
+  private renderAddPaymentSourceOption({
+    action,
+    title,
+    subtitle,
+    icon,
+  }: {
+    action: 'add-card' | 'add-bank-account';
+    title: string;
+    subtitle: string;
+    icon: 'card' | 'bank';
+  }): TemplateResult {
+    return html`
+      <button
+        class="add-payment-sheet-option"
+        type="button"
+        data-action=${action}
+      >
+        <span class="add-payment-sheet-icon" aria-hidden="true">
+          <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+          <svg viewBox="0 0 640 640" focusable="false">
+            <path
+              d=${icon === 'card'
+                ? 'M64 192L64 224L576 224L576 192C576 156.7 547.3 128 512 128L128 128C92.7 128 64 156.7 64 192zM64 272L64 448C64 483.3 92.7 512 128 512L512 512C547.3 512 576 483.3 576 448L576 272L64 272zM128 424C128 410.7 138.7 400 152 400L200 400C213.3 400 224 410.7 224 424C224 437.3 213.3 448 200 448L152 448C138.7 448 128 437.3 128 424zM272 424C272 410.7 282.7 400 296 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L296 448C282.7 448 272 437.3 272 424z'
+                : 'M335.9 84.2C326.1 78.6 314 78.6 304.1 84.2L80.1 212.2C67.5 219.4 61.3 234.2 65 248.2C68.7 262.2 81.5 272 96 272L128 272L128 480L128 480L76.8 518.4C68.7 524.4 64 533.9 64 544C64 561.7 78.3 576 96 576L544 576C561.7 576 576 561.7 576 544C576 533.9 571.3 524.4 563.2 518.4L512 480L512 272L544 272C558.5 272 571.2 262.2 574.9 248.2C578.6 234.2 572.4 219.4 559.8 212.2L335.8 84.2zM464 272L464 480L400 480L400 272L464 272zM352 272L352 480L288 480L288 272L352 272zM240 272L240 480L176 480L176 272L240 272zM320 160C337.7 160 352 174.3 352 192C352 209.7 337.7 224 320 224C302.3 224 288 209.7 288 192C288 174.3 302.3 160 320 160z'}
+            ></path>
+          </svg>
+        </span>
+        <span class="add-payment-sheet-option-copy">
+          <span class="add-payment-sheet-option-title">${title}</span>
+          <span class="add-payment-sheet-option-subtitle">${subtitle}</span>
+        </span>
+        <span class="add-payment-sheet-option-chevron" aria-hidden="true"
+          >›</span
+        >
+      </button>
+    `;
   }
 
   private renderPaymentSourceRefreshErrorScreen(): TemplateResult {
@@ -1339,11 +1356,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: outcome.title,
-      headerAction: showHeaderBack
-        ? renderTextLinkButton({
-            label: 'Back',
-            action: 'done-payment-source-verification',
-          })
+      backAction: showHeaderBack
+        ? 'done-payment-source-verification'
         : undefined,
       showClose: false,
       showDivider: false,
@@ -1383,11 +1397,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Complete account verification',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-payment-methods',
-        disabled: isSubmitting,
-      }),
+      backAction: 'back-to-payment-methods',
+      backDisabled: isSubmitting,
       showClose: false,
       showDivider: false,
       busy: isSubmitting,
@@ -1530,18 +1541,15 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse
     );
     const isSubmitting = this.pendingAction === 'transfer';
-    const headerAction = this.transferFlowActive
-      ? renderTextLinkButton({
-          label: 'Back',
-          action: 'back-to-payment-methods',
-          disabled: isSubmitting,
-        })
+    const backAction = this.transferFlowActive
+      ? 'back-to-payment-methods'
       : undefined;
 
     if (transferSources.length < 2) {
       return this.renderWidgetShell({
         title: 'Transfer funds',
-        headerAction,
+        backAction,
+        backDisabled: isSubmitting,
         showClose: false,
         showDivider: false,
         content: html`
@@ -1587,7 +1595,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Transfer funds',
-      headerAction,
+      backAction,
+      backDisabled: isSubmitting,
       showClose: false,
       showDivider: false,
       busy: isSubmitting,
@@ -1680,11 +1689,8 @@ export class CommerceHubConnect extends LitElement {
   ): TemplateResult {
     return this.renderWidgetShell({
       title: 'Confirm transfer',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'edit-transfer',
-        disabled: isSubmitting,
-      }),
+      backAction: 'edit-transfer',
+      backDisabled: isSubmitting,
       showClose: false,
       showDivider: false,
       busy: isSubmitting,
@@ -1879,11 +1885,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Add card',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-payment-methods',
-        disabled: isSaving,
-      }),
+      backAction: 'back-to-payment-methods',
+      backDisabled: isSaving,
       showClose: false,
       showDivider: false,
       busy: isSaving,
@@ -2017,11 +2020,8 @@ export class CommerceHubConnect extends LitElement {
   private renderBankProviderScreen(): TemplateResult {
     return this.renderWidgetShell({
       title: 'Connect your bank',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-payment-methods',
-        disabled: this.bankLinkLoading,
-      }),
+      backAction: 'back-to-payment-methods',
+      backDisabled: this.bankLinkLoading,
       showClose: false,
       showDivider: false,
       busy: this.bankLinkLoading,
@@ -2051,11 +2051,8 @@ export class CommerceHubConnect extends LitElement {
   private renderManualBankAccountConfigLoadingScreen(): TemplateResult {
     return this.renderWidgetShell({
       title: 'Select bank account type',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: this.manualBankAccountExitAction(),
-        disabled: true,
-      }),
+      backAction: this.manualBankAccountExitAction(),
+      backDisabled: true,
       showClose: false,
       showDivider: false,
       busy: true,
@@ -2070,10 +2067,7 @@ export class CommerceHubConnect extends LitElement {
   private renderManualBankAccountConfigErrorScreen(): TemplateResult {
     return this.renderWidgetShell({
       title: 'Select bank account type',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: this.manualBankAccountExitAction(),
-      }),
+      backAction: this.manualBankAccountExitAction(),
       showClose: false,
       showDivider: false,
       content: html`
@@ -2116,10 +2110,7 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Select bank account type',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: this.manualBankAccountExitAction(),
-      }),
+      backAction: this.manualBankAccountExitAction(),
       showClose: false,
       showDivider: false,
       content: html`
@@ -2191,10 +2182,7 @@ export class CommerceHubConnect extends LitElement {
     const isSaving = this.pendingAction === 'save-bank-account';
     return this.renderWidgetShell({
       title: 'Enter bank details',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-instrument-schema-selection',
-      }),
+      backAction: 'back-to-instrument-schema-selection',
       showClose: false,
       showDivider: false,
       content: html`
@@ -2293,11 +2281,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Enter bank details',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: this.manualBankAccountExitAction(),
-        disabled: isSaving,
-      }),
+      backAction: this.manualBankAccountExitAction(),
+      backDisabled: isSaving,
       showClose: false,
       showDivider: false,
       busy: isSaving,
@@ -2440,6 +2425,50 @@ export class CommerceHubConnect extends LitElement {
     const paymentMethodId = findDatasetValue(event, 'paymentMethodId');
 
     if (!action) {
+      const clickedInsidePaymentSourceMenu = event
+        .composedPath()
+        .some(
+          (item) =>
+            item instanceof HTMLElement &&
+            item.classList.contains('payment-method-overflow')
+        );
+
+      if (this.openPaymentSourceMenuId && !clickedInsidePaymentSourceMenu) {
+        this.openPaymentSourceMenuId = undefined;
+      }
+      return;
+    }
+
+    if (action === 'toggle-payment-source-menu') {
+      if (paymentMethodId) {
+        const openingMenu = this.openPaymentSourceMenuId !== paymentMethodId;
+        const trigger = event
+          .composedPath()
+          .find(
+            (item): item is HTMLElement =>
+              item instanceof HTMLElement &&
+              item.dataset.action === 'toggle-payment-source-menu'
+          );
+
+        this.clearDeletePaymentSourceConfirmation();
+        this.paymentSourceMenuPlacement =
+          openingMenu && this.shouldOpenPaymentSourceMenuAbove(trigger)
+            ? 'above'
+            : 'below';
+        this.openPaymentSourceMenuId = openingMenu
+          ? paymentMethodId
+          : undefined;
+      }
+      return;
+    }
+
+    this.openPaymentSourceMenuId = undefined;
+
+    if (action === 'mark-payment-source-default') {
+      if (paymentMethodId) {
+        this.clearDeletePaymentSourceConfirmation();
+        void this.attachPaymentSource(paymentMethodId, 'mark-default');
+      }
       return;
     }
 
@@ -2448,7 +2477,6 @@ export class CommerceHubConnect extends LitElement {
 
       if (sourceId) {
         this.clearDeletePaymentSourceConfirmation();
-        this.paymentSourceEditMode = false;
         void this.attachPaymentSource(sourceId);
       }
       return;
@@ -2458,16 +2486,20 @@ export class CommerceHubConnect extends LitElement {
       const allowed = allowedTenderOptionsFromInteractionResponse(
         this.interactionResponse
       );
-
       this.attachmentError = undefined;
       if (allowed.card && allowed.bankAccount) {
         this.addLauncherActive = true;
-        this.focusAfterUpdate('.tender-tab');
+        this.focusAfterUpdate('[data-action="close-add-payment-source"]');
       } else if (allowed.card) {
         void this.showAddCardScreen();
       } else if (allowed.bankAccount) {
-        void this.startPayByBankFlow();
+        void this.startBankAccountFlow();
       }
+      return;
+    }
+
+    if (action === 'close-add-payment-source') {
+      this.closeAddPaymentSourceSheet();
       return;
     }
 
@@ -2482,16 +2514,9 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (action === 'toggle-payment-source-edit-mode') {
-      this.clearDeletePaymentSourceConfirmation();
-      this.paymentSourceEditMode = !this.paymentSourceEditMode;
-      return;
-    }
-
     if (action === 'verify-payment-source') {
       if (paymentMethodId) {
         this.clearDeletePaymentSourceConfirmation();
-        this.paymentSourceEditMode = false;
         void this.verifySavedPaymentSource(paymentMethodId);
       }
       return;
@@ -2501,11 +2526,6 @@ export class CommerceHubConnect extends LitElement {
       if (paymentMethodId) {
         void this.deletePaymentSource(paymentMethodId);
       }
-      return;
-    }
-
-    if (action === 'cancel-delete-payment-source') {
-      this.clearDeletePaymentSourceConfirmation();
       return;
     }
 
@@ -2531,7 +2551,6 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'open-transfer') {
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetBankFlow();
@@ -2589,7 +2608,6 @@ export class CommerceHubConnect extends LitElement {
       action === 'use-different-bank-account'
     ) {
       this.addLauncherActive = false;
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
@@ -2599,7 +2617,6 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'back-to-bank-provider') {
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
@@ -2609,7 +2626,6 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'add-ach-manually') {
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
@@ -2634,7 +2650,6 @@ export class CommerceHubConnect extends LitElement {
 
     if (action === 'add-card') {
       this.addLauncherActive = false;
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetRequiredInfo();
       void this.showAddCardScreen();
@@ -2686,7 +2701,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (cardInput) {
       this.updateCardDraftField(
-        cardInput.dataset.cardField as keyof CardDraft,
+        cardInput.dataset.cardField as CardDraftTextField,
         cardInput.value
       );
       return;
@@ -2780,6 +2795,66 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleKeyDown = (event: KeyboardEvent) => {
+    if (
+      event.key === 'Escape' &&
+      this.openPaymentSourceMenuId &&
+      !this.pendingAction
+    ) {
+      const paymentMethodId = this.openPaymentSourceMenuId;
+
+      event.preventDefault();
+      this.openPaymentSourceMenuId = undefined;
+      void this.updateComplete.then(() => {
+        this.renderRoot
+          .querySelector<HTMLButtonElement>(
+            `[data-action="toggle-payment-source-menu"][data-payment-method-id="${CSS.escape(
+              paymentMethodId
+            )}"]`
+          )
+          ?.focus();
+      });
+      return;
+    }
+
+    if (this.addLauncherActive && event.key === 'Tab') {
+      const focusableElements = [
+        ...this.renderRoot.querySelectorAll<HTMLButtonElement>(
+          '.add-payment-sheet button:not(:disabled)'
+        ),
+      ];
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = this.shadowRoot?.activeElement;
+
+      if (!firstElement || !lastElement) {
+        return;
+      }
+
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      } else if (
+        !focusableElements.includes(activeElement as HTMLButtonElement)
+      ) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+      return;
+    }
+
+    if (
+      this.addLauncherActive &&
+      event.key === 'Escape' &&
+      !this.pendingAction
+    ) {
+      event.preventDefault();
+      this.closeAddPaymentSourceSheet();
+      return;
+    }
+
     if (event.key === 'Escape' && !this.pendingAction) {
       if (
         this.addLauncherActive ||
@@ -2986,7 +3061,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (cardSelect) {
       this.updateCardDraftField(
-        cardSelect.dataset.cardField as keyof CardDraft,
+        cardSelect.dataset.cardField as CardDraftTextField,
         cardSelect.value
       );
       return;
@@ -3613,7 +3688,7 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountSubmitError = undefined;
   }
 
-  private updateCardDraftField(field: keyof CardDraft, value: string) {
+  private updateCardDraftField(field: CardDraftTextField, value: string) {
     const formattedValue = formatCardDraftFieldValue(field, value);
 
     this.cardDraft = {
@@ -4493,7 +4568,10 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private async attachPaymentSource(paymentSourceId: string) {
+  private async attachPaymentSource(
+    paymentSourceId: string,
+    intent: PaymentSourceAttachmentIntent = 'select'
+  ) {
     if (this.pendingAction === 'attach-payment-source') {
       return;
     }
@@ -4538,6 +4616,12 @@ export class CommerceHubConnect extends LitElement {
 
       this.selectedPaymentSourceId = attachedSource.id;
       this.setInteractionResponseFromSdk(refreshedInteractionResponse);
+
+      if (intent === 'mark-default') {
+        this.paymentSourceView = 'list';
+        return;
+      }
+
       this.paymentSourceView = 'selected';
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
       this.focusAfterUpdate('[data-action="change-payment-source"]');
@@ -4664,10 +4748,6 @@ export class CommerceHubConnect extends LitElement {
         paymentSourceId
       );
 
-      if (!nextInteractionResponse.paymentSources?.length) {
-        this.paymentSourceEditMode = false;
-      }
-
       this.setInteractionResponseFromSdk(nextInteractionResponse);
       this.emitSdkEvent(ON_DELETE_PAYMENT_METHOD_EVENT, paymentSourceId);
     } catch (cause) {
@@ -4716,19 +4796,44 @@ export class CommerceHubConnect extends LitElement {
 
   private showPaymentSourceList({refresh = false}: {refresh?: boolean} = {}) {
     this.clearDeletePaymentSourceConfirmation();
-    this.paymentSourceEditMode = false;
+    this.openPaymentSourceMenuId = undefined;
     this.paymentSourceView = 'list';
     this.addLauncherActive = false;
     this.resetTransferFlow();
     this.focusAfterUpdate(
       '[data-action="open-add-payment-source"]',
-      '.payment-method-radio',
-      '[data-action="toggle-payment-source-edit-mode"]'
+      '[data-action="toggle-payment-source-menu"]'
     );
 
     if (refresh) {
       void this.refreshPaymentSourcesForList();
     }
+  }
+
+  private shouldOpenPaymentSourceMenuAbove(trigger?: HTMLElement): boolean {
+    const list = trigger?.closest<HTMLElement>('.primitive-stack');
+    const row = trigger?.closest<HTMLElement>('.payment-method-row');
+
+    if (!list || !row) {
+      return false;
+    }
+
+    const listBounds = list.getBoundingClientRect();
+    const rowBounds = row.getBoundingClientRect();
+    const rootFontSize =
+      Number.parseFloat(getComputedStyle(this).fontSize) || 16;
+    const estimatedMenuHeight = rootFontSize * 6;
+    const availableBelow = listBounds.bottom - rowBounds.bottom;
+    const availableAbove = rowBounds.top - listBounds.top;
+
+    return (
+      availableBelow < estimatedMenuHeight && availableAbove > availableBelow
+    );
+  }
+
+  private closeAddPaymentSourceSheet() {
+    this.addLauncherActive = false;
+    this.focusAfterUpdate('[data-action="open-add-payment-source"]');
   }
 
   private async refreshPaymentSourcesForList() {
@@ -5383,7 +5488,8 @@ export class CommerceHubConnect extends LitElement {
   private interactionRefreshOptions() {
     return {
       getCurrentInteractionResponse: () => this.interactionResponse,
-      getSelectedPaymentSourceId: () => this.selectedPaymentSourceId,
+      getSelectedPaymentSourceId: () =>
+        this.interactionResponse?.selectedSource?.id,
       requestInteraction: (interactionId: string) =>
         this.createSdkClient(interactionId)
           .GET('/interaction')
@@ -5512,7 +5618,7 @@ export class CommerceHubConnect extends LitElement {
         },
         body: JSON.stringify({
           configurationType: 'COUNTRY_TENDER',
-          country: country === 'USA' ? 'AAA' : country,
+          country,
         }),
         credentials: 'include',
       }
@@ -5991,7 +6097,7 @@ const resolvePaymentMethodsCopy = (
   const copy = designConfig?.copy?.paymentMethods;
 
   return {
-    title: copy?.title ?? 'Choose a payment method',
+    title: copy?.title ?? 'Payment methods',
     subtitle: copy?.subtitle ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
@@ -6145,6 +6251,7 @@ const paymentMethodsFromInteractionResponse = (
         paymentSourceToPaymentMethod(selectedSource, {
           ...options,
           selected: true,
+          isDefault: interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED',
         }),
       ];
     }
@@ -6152,8 +6259,16 @@ const paymentMethodsFromInteractionResponse = (
     return [];
   }
 
+  const selectedSourceId =
+    interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED'
+      ? interactionResponse.selectedSource?.id
+      : undefined;
+
   return paymentSources.map((source) =>
-    paymentSourceToPaymentMethod(source, options)
+    paymentSourceToPaymentMethod(source, {
+      ...options,
+      isDefault: Boolean(selectedSourceId && source.id === selectedSourceId),
+    })
   );
 };
 
@@ -6183,6 +6298,7 @@ const paymentSourceToPaymentMethod = (
   source: PaymentSource,
   {
     selected = false,
+    isDefault = false,
     nativeBalances = {},
     nativeBalanceLoadingSourceIds = [],
   }: PaymentSourceToPaymentMethodOptions = {}
@@ -6211,6 +6327,7 @@ const paymentSourceToPaymentMethod = (
       source.verificationInfo?.status
     ),
     showVerificationStatus: Boolean(source.verificationInfo?.status),
+    isDefault,
   };
 };
 

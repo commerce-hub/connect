@@ -2,6 +2,7 @@ import type {components} from '../../generated/openapi.js';
 import type {
   CardDraft,
   CardDraftErrors,
+  CardDraftTextField,
   CardEncryptionState,
   CardFieldEncryptionState,
   SensitiveCardField,
@@ -53,7 +54,7 @@ export const normalizeSensitiveCardFieldValue = (
   field === 'cardNumber' ? normalizeCardNumber(value) : normalizeCvv(value);
 
 export const formatCardDraftFieldValue = (
-  field: keyof CardDraft,
+  field: CardDraftTextField,
   value: string
 ): string => {
   if (field === 'cardNumber') {

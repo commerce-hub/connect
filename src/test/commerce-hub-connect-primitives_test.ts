@@ -112,7 +112,7 @@ suite('commerce-hub-connect primitives', () => {
       primitiveStyles.cssText,
       '.widget-toolbar .text-link-button'
     );
-    assert.include(primitiveStyles.cssText, '.tender-tab');
+    assert.include(primitiveStyles.cssText, '.add-payment-sheet-option');
   });
 
   test('uses rem units in shared styles instead of px sizing tokens', () => {
@@ -212,7 +212,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(imageStyle.height, '22px');
   });
 
-  test('renders the framed shell with prototype tokens, toolbar, and action footer', async () => {
+  test('renders the framed shell with row actions and an explicit add footer', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
         .interactionResponse=${createStyleInteractionResponse()}
@@ -227,11 +227,9 @@ suite('commerce-hub-connect primitives', () => {
     const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
     const content =
       el.shadowRoot!.querySelector<HTMLElement>('.widget-content')!;
-    const actionFooter = el.shadowRoot!.querySelector<HTMLElement>(
-      '.widget-action-footer'
+    const addFooter = el.shadowRoot!.querySelector<HTMLElement>(
+      '.payment-method-add-footer'
     )!;
-    const toolbar =
-      el.shadowRoot!.querySelector<HTMLElement>('.widget-toolbar')!;
 
     assert.equal(
       getComputedStyle(el)
@@ -271,24 +269,23 @@ suite('commerce-hub-connect primitives', () => {
     assert.closeTo(parseFloat(getComputedStyle(title).fontSize), 22, 0.01);
     assert.equal(getComputedStyle(title).fontWeight, '600');
     assert.equal(getComputedStyle(paymentTitle).fontWeight, '600');
-    assert.equal(
-      getComputedStyle(
-        el.shadowRoot!.querySelector<HTMLElement>(
-          '.widget-header-action .text-link-button'
-        )!
-      ).borderTopStyle,
-      'solid'
-    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
     assert.deepEqual(
-      [...toolbar.querySelectorAll('button')].map((button) =>
-        button.textContent?.trim()
-      ),
-      ['Edit', 'Add']
+      [...addFooter.querySelectorAll('button')].map((button) => [
+        button.dataset.action,
+        button.textContent?.trim(),
+      ]),
+      [
+        ['attach-payment-source', 'Use selected method'],
+        ['open-add-payment-source', 'Add payment method'],
+      ]
     );
-    assert.equal(actionFooter.getAttribute('part'), 'footer');
-    assert.equal(
-      actionFooter.querySelector('button')?.textContent?.trim(),
-      'Use selected method'
+    assert.exists(el.shadowRoot!.querySelector('.widget-action-footer'));
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll(
+        '[data-action="toggle-payment-source-menu"]'
+      ),
+      1
     );
     assert.notExists(el.shadowRoot!.querySelector('.powered-by-footer'));
   });
@@ -375,12 +372,12 @@ suite('commerce-hub-connect primitives', () => {
     const paymentTitle = el.shadowRoot!.querySelector<HTMLElement>(
       '.payment-method-title'
     )!;
-    const toolbarButton = el.shadowRoot!.querySelector<HTMLElement>(
-      '.widget-toolbar .text-link-button'
+    const addButton = el.shadowRoot!.querySelector<HTMLElement>(
+      '.payment-method-add-footer .button'
     )!;
     const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
-    const actionFooter = el.shadowRoot!.querySelector<HTMLElement>(
-      '.widget-action-footer'
+    const overflowButton = el.shadowRoot!.querySelector<HTMLElement>(
+      '.payment-method-overflow-button'
     )!;
 
     assert.equal(
@@ -395,12 +392,13 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(getComputedStyle(title).fontWeight, '600');
     assert.equal(getComputedStyle(paymentTitle).fontWeight, '600');
     assert.equal(getComputedStyle(paymentTitle).fontSize, '14px');
-    assert.equal(getComputedStyle(toolbarButton).fontSize, '13px');
-    assert.equal(getComputedStyle(toolbarButton).minHeight, '36px');
-    assert.equal(getComputedStyle(toolbarButton).paddingTop, '0px');
-    assert.equal(getComputedStyle(toolbarButton).paddingBottom, '0px');
-    assert.equal(getComputedStyle(toolbarButton).fontWeight, '600');
-    assert.equal(getComputedStyle(actionFooter).fontSize, '20px');
+    assert.equal(getComputedStyle(addButton).fontSize, '13px');
+    assert.equal(getComputedStyle(addButton).minHeight, '40px');
+    assert.equal(getComputedStyle(addButton).paddingTop, '0px');
+    assert.equal(getComputedStyle(addButton).paddingBottom, '0px');
+    assert.equal(getComputedStyle(addButton).fontWeight, '600');
+    assert.equal(getComputedStyle(overflowButton).width, '44px');
+    assert.equal(getComputedStyle(overflowButton).height, '44px');
     assert.equal(getComputedStyle(shell).backgroundColor, 'rgb(244, 247, 251)');
     assert.equal(getComputedStyle(shell).paddingTop, '32px');
     assert.equal(getComputedStyle(shell).paddingRight, '20px');
@@ -481,13 +479,11 @@ suite('commerce-hub-connect primitives', () => {
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
       'Visa ending 4242'
     );
-    const selectedRadio = rows[0].querySelector<HTMLInputElement>(
-      '.payment-method-radio'
-    )!;
-    assert.exists(selectedRadio);
-    assert.equal(selectedRadio.checked, true);
-    assert.equal(selectedRadio.getAttribute('type'), 'radio');
-    assert.equal(selectedRadio.getAttribute('name'), 'payment-method');
+    assert.exists(rows[0].querySelector('.payment-method-radio'));
+    assert.notExists(rows[0].querySelector('.payment-method-default-label'));
+    assert.exists(
+      rows[0].querySelector('[data-action="toggle-payment-source-menu"]')
+    );
     assert.exists(rows[0].querySelector('[data-payment-method-icon="visa"]'));
     assert.equal(
       getComputedStyle(
@@ -533,11 +529,10 @@ suite('commerce-hub-connect primitives', () => {
       'Wallet ending 7890'
     );
     assert.exists(rows[2].querySelector('[data-payment-method-icon="native"]'));
-    const nativeRadio = rows[2].querySelector<HTMLInputElement>(
-      '.payment-method-radio'
-    )!;
-    assert.exists(nativeRadio);
-    assert.equal(nativeRadio.checked, false);
+    assert.exists(rows[2].querySelector('.payment-method-radio'));
+    assert.exists(
+      rows[2].querySelector('[data-action="toggle-payment-source-menu"]')
+    );
   });
 
   test('maps card brands to credit-card-payment-icons logo assets', () => {
@@ -982,7 +977,7 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
-  test('renders internal payment-method screen modules for loading, list, edit, and empty states', async () => {
+  test('renders internal payment-method screen modules for loading, list, delete-ready, and empty states', async () => {
     const method: PaymentMethod = {
       id: 'card-1',
       label: 'Corporate Visa',
@@ -1015,14 +1010,14 @@ suite('commerce-hub-connect primitives', () => {
           },
           canAddPaymentSources: true,
           canSelectPaymentSources: true,
-          editing: false,
           actionPending: false,
           selectedPaymentSourceId: 'card-1',
+          openPaymentSourceMenuId: 'card-1',
           copy,
           showTransferAction: true,
         })}
       </div>
-      <div data-screen="edit">
+      <div data-screen="delete-ready">
         ${renderPaymentMethodsScreen({
           status: 'PAYMENT_SOURCE_REQUESTED',
           methods: [method],
@@ -1033,7 +1028,6 @@ suite('commerce-hub-connect primitives', () => {
           },
           canAddPaymentSources: true,
           canSelectPaymentSources: true,
-          editing: true,
           actionPending: false,
           deleteConfirmationPaymentSourceId: 'card-1',
           copy,
@@ -1063,7 +1057,9 @@ suite('commerce-hub-connect primitives', () => {
     `);
 
     const listScreen = root.querySelector<HTMLElement>('[data-screen="list"]')!;
-    const editScreen = root.querySelector<HTMLElement>('[data-screen="edit"]')!;
+    const deleteReadyScreen = root.querySelector<HTMLElement>(
+      '[data-screen="delete-ready"]'
+    )!;
     const emptyScreen = root.querySelector<HTMLElement>(
       '[data-screen="empty"]'
     )!;
@@ -1071,12 +1067,8 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(
       root.querySelector('[data-screen="loading"] .payment-method-skeletons')
     );
-    assert.exists(listScreen.querySelector('.payment-method-row-selected'));
-    assert.equal(
-      listScreen.querySelector<HTMLInputElement>('.payment-method-radio')
-        ?.checked,
-      true
-    );
+    assert.exists(listScreen.querySelector('[role="menu"]'));
+    assert.exists(listScreen.querySelector('.payment-method-radio:checked'));
     assert.notExists(listScreen.querySelector('.payment-action-links'));
     assert.deepEqual(
       [
@@ -1086,11 +1078,13 @@ suite('commerce-hub-connect primitives', () => {
       ].map((item) => item.textContent?.trim()),
       ['Add card', 'Connect bank', 'Transfer funds']
     );
-    assert.equal(
-      editScreen
-        .querySelector('.payment-method-delete-confirmation')
-        ?.textContent?.trim(),
-      'Remove this payment method?'
+    assert.notExists(
+      deleteReadyScreen.querySelector('.payment-method-delete-confirmation')
+    );
+    assert.exists(
+      deleteReadyScreen.querySelector(
+        '[data-action="delete-payment-source"] .payment-method-delete-action-icon'
+      )
     );
     assert.equal(
       emptyScreen.querySelector('.empty-state-message')?.textContent?.trim(),
@@ -1102,6 +1096,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, '--chc-motion-fast: 150ms');
     assert.include(primitiveStyles.cssText, '--chc-motion-base: 220ms');
     assert.include(primitiveStyles.cssText, '--chc-motion-slow: 260ms');
+    assert.include(primitiveStyles.cssText, '--chc-motion-sheet: 300ms');
     assert.include(primitiveStyles.cssText, '--chc-motion-provider: 300ms');
     assert.include(
       primitiveStyles.cssText,
@@ -1114,6 +1109,12 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, '@keyframes chc-spinner-rotate');
     assert.include(primitiveStyles.cssText, '@keyframes chc-loading-dot');
     assert.include(primitiveStyles.cssText, '@keyframes chc-shell-enter');
+    assert.include(primitiveStyles.cssText, '@keyframes chc-sheet-enter');
+    assert.include(
+      primitiveStyles.cssText,
+      'animation: chc-sheet-enter var(--chc-motion-sheet)'
+    );
+    assert.include(primitiveStyles.cssText, 'transform: translateY(100%)');
     assert.include(primitiveStyles.cssText, '@media (max-width: 26.25rem)');
     assert.include(primitiveStyles.cssText, 'width: calc(100vw - 1rem)');
     assert.include(
@@ -1181,11 +1182,16 @@ suite('commerce-hub-connect primitives', () => {
     const row = root.querySelector<HTMLElement>(
       '[data-payment-method-id="bank-1"]'
     )!;
-    const radio = row.querySelector<HTMLInputElement>('.payment-method-radio')!;
-    assert.equal(row.tagName, 'LABEL');
-    assert.exists(radio);
-    assert.equal(radio.disabled, true);
-    assert.equal(radio.getAttribute('aria-label'), 'Select James Anderson');
+    const overflowButton = row.querySelector<HTMLButtonElement>(
+      '[data-action="toggle-payment-source-menu"]'
+    )!;
+    assert.equal(row.tagName, 'DIV');
+    assert.notExists(row.querySelector('.payment-method-radio'));
+    assert.isTrue(overflowButton.disabled);
+    assert.equal(
+      overflowButton.getAttribute('aria-label'),
+      'More actions for James Anderson'
+    );
     assert.notExists(
       row?.querySelector('[data-action="verify-payment-source"]')
     );
@@ -1268,8 +1274,11 @@ suite('commerce-hub-connect primitives', () => {
       row.querySelector('.payment-method-meta')?.textContent?.trim(),
       '•••• 3210'
     );
-    assert.equal(row.tagName, 'BUTTON');
-    assert.equal(row.dataset.action, 'verify-payment-source');
+    const verifyButton = row.querySelector<HTMLButtonElement>(
+      '[data-action="verify-payment-source"]'
+    )!;
+    assert.equal(row.tagName, 'DIV');
+    assert.equal(verifyButton.tagName, 'BUTTON');
     assert.equal(row.dataset.paymentMethodId, 'bank-1');
     assert.notExists(row.querySelector('.payment-method-radio'));
     assert.notExists(row.querySelector('.payment-method-status'));
@@ -1314,13 +1323,16 @@ suite('commerce-hub-connect primitives', () => {
       ${renderPaymentMethodRow(method)}
     `);
 
-    const row = root.querySelector<HTMLButtonElement>('.payment-method-row')!;
+    const row = root.querySelector<HTMLElement>('.payment-method-row')!;
+    const verifyButton = row.querySelector<HTMLButtonElement>(
+      '[data-action="verify-payment-source"]'
+    )!;
     const statusBadge = row.querySelector<HTMLElement>(
       '.verification-status-badge'
     )!;
 
-    assert.equal(row.tagName, 'BUTTON');
-    assert.equal(row.dataset.action, 'verify-payment-source');
+    assert.equal(row.tagName, 'DIV');
+    assert.equal(verifyButton.tagName, 'BUTTON');
     assert.equal(row.dataset.paymentMethodId, 'bank-1');
     assert.equal(statusBadge.textContent?.trim(), 'Needs info');
     assert.equal(
@@ -1329,7 +1341,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.notExists(row.querySelector('.payment-method-status-icon'));
     assert.exists(row.querySelector('.payment-method-chevron'));
-    assert.equal(row.disabled, false);
+    assert.equal(verifyButton.disabled, false);
   });
 
   test('keeps status badges beside titles regardless of trailing controls', async () => {
@@ -1430,44 +1442,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(row.querySelector('.payment-method-chevron'));
   });
 
-  test('renders edit-mode delete controls with a 44px touch target', async () => {
-    const method: PaymentMethod = {
-      id: 'card-1',
-      label: 'Corporate Visa',
-      accountLabel: '•••• 1111',
-      type: 'card',
-      brand: 'Visa',
-      last4: '1111',
-      status: 'verified',
-    };
-
-    const root = await renderHarness(
-      html`
-        <style>
-          ${primitiveStyles.cssText}
-        </style>
-        ${renderPaymentMethodRow(method, {variant: 'edit'})}
-      `
-    );
-
-    const deleteButton = root.querySelector<HTMLButtonElement>(
-      '[data-action="delete-payment-source"]'
-    )!;
-    const deleteIcon = deleteButton.querySelector<HTMLElement>(
-      '.payment-method-delete-icon'
-    )!;
-    const deleteButtonStyles = getComputedStyle(deleteButton);
-    const deleteIconStyles = getComputedStyle(deleteIcon);
-
-    assert.equal(deleteButtonStyles.width, '44px');
-    assert.equal(deleteButtonStyles.height, '44px');
-    assert.equal(deleteIconStyles.width, '20px');
-    assert.equal(deleteIconStyles.height, '20px');
-    assert.notExists(root.querySelector('.payment-method-status'));
-    assert.notExists(root.querySelector('.verification-status-icon'));
-  });
-
-  test('renders edit-mode inline delete confirmation controls', async () => {
+  test('renders payment details with one red delete action', async () => {
     const method: PaymentMethod = {
       id: 'card-1',
       label: 'Corporate Visa',
@@ -1484,69 +1459,45 @@ suite('commerce-hub-connect primitives', () => {
           ${primitiveStyles.cssText}
         </style>
         ${renderPaymentMethodRow(method, {
-          variant: 'edit',
           confirmingDelete: true,
         })}
       `
     );
 
-    const cancelButton = root.querySelector<HTMLButtonElement>(
-      '[data-action="cancel-delete-payment-source"]'
-    )!;
     const deleteButton = root.querySelector<HTMLButtonElement>(
       '[data-action="delete-payment-source"]'
     )!;
 
-    assert.equal(
-      root
-        .querySelector('.payment-method-delete-confirmation')
-        ?.textContent?.trim(),
-      'Remove this payment method?'
+    assert.notExists(root.querySelector('.payment-method-delete-confirmation'));
+    assert.notExists(
+      root.querySelector('[data-action="cancel-delete-payment-source"]')
     );
-    assert.equal(cancelButton.textContent?.trim(), 'Cancel');
-    assert.equal(deleteButton.textContent?.trim(), 'Delete');
     assert.equal(
-      cancelButton.dataset.paymentMethodId,
-      deleteButton.dataset.paymentMethodId
+      root.querySelector('.payment-method-title')?.textContent?.trim(),
+      'Corporate Visa'
     );
+    assert.equal(
+      root.querySelector('.payment-method-meta')?.textContent?.trim(),
+      '•••• 1111'
+    );
+    const deleteIcon = deleteButton.querySelector<SVGElement>(
+      '.payment-method-delete-action-icon'
+    )!;
+
+    assert.equal(deleteButton.textContent?.trim(), '');
     assert.equal(
       deleteButton.getAttribute('aria-label'),
       'Delete Corporate Visa'
     );
-    assert.equal(getComputedStyle(cancelButton).minHeight, '40px');
-    assert.equal(getComputedStyle(deleteButton).minHeight, '40px');
-  });
-
-  test('keeps edit-mode rows focused on delete actions without inline verification badges', async () => {
-    const method: PaymentMethod = {
-      id: 'bank-1',
-      label: 'Operating account',
-      type: 'bank',
-      brand: 'Commerce National Bank',
-      last4: '3210',
-      status: 'under-review',
-    };
-
-    const root = await renderHarness(
-      html`
-        <style>
-          ${primitiveStyles.cssText}
-        </style>
-        ${renderPaymentMethodRow(method, {variant: 'edit'})}
-      `
-    );
-
+    assert.equal(deleteIcon.getAttribute('viewBox'), '0 0 640 640');
+    assert.equal(deleteIcon.getAttribute('aria-hidden'), 'true');
     assert.equal(
-      root.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Commerce National Bank •••• 3210'
+      deleteIcon.querySelector('path')?.getAttribute('d'),
+      'M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z'
     );
-    assert.exists(root.querySelector('.payment-method-title-row'));
-    assert.exists(root.querySelector('.payment-method-meta-row'));
-    assert.exists(root.querySelector('[data-action="delete-payment-source"]'));
-    assert.notExists(root.querySelector('.payment-method-status'));
-    assert.notExists(root.querySelector('.verification-status-badge'));
-    assert.notExists(root.querySelector('.payment-method-status-icon'));
-    assert.notExists(root.querySelector('.payment-method-chevron'));
+    assert.equal(getComputedStyle(deleteButton).minHeight, '40px');
+    assert.equal(getComputedStyle(deleteButton).width, '40px');
+    assert.equal(getComputedStyle(deleteButton).color, 'rgb(255, 255, 255)');
   });
 
   test('renders a selected payment method summary without radio or chevron controls', async () => {
@@ -1684,6 +1635,59 @@ suite('commerce-hub-connect primitives', () => {
         .querySelector('[data-action="use-different-bank-account"]')
         ?.textContent?.trim(),
       'Use a different account'
+    );
+  });
+
+  test('renders an accessible icon-only back control before the heading', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderWidgetShell({
+        title: 'Add card',
+        backAction: 'back-to-payment-methods',
+        backDisabled: true,
+        showClose: false,
+        content: html`<span>Card form</span>`,
+      })}
+    `);
+
+    const headingRow = root.querySelector<HTMLElement>('.widget-heading-row')!;
+    const backButton = headingRow.querySelector<HTMLButtonElement>(
+      '.widget-back-button'
+    )!;
+    const heading = headingRow.querySelector<HTMLElement>('.widget-heading')!;
+    const icon = backButton.querySelector<SVGElement>('.widget-back-icon')!;
+    const iconPath = icon.querySelector('path')!;
+    const content = root.querySelector<HTMLElement>('.widget-content')!;
+    const backButtonStyles = getComputedStyle(backButton);
+
+    assert.equal(backButton.getAttribute('aria-label'), 'Back');
+    assert.equal(
+      backButton.getAttribute('data-action'),
+      'back-to-payment-methods'
+    );
+    assert.equal(backButton.textContent?.trim(), '');
+    assert.isTrue(backButton.disabled);
+    assert.equal(icon.getAttribute('aria-hidden'), 'true');
+    assert.equal(icon.getAttribute('viewBox'), '0 0 640 640');
+    assert.equal(
+      iconPath.getAttribute('d'),
+      'M201.4 297.4C188.9 309.9 188.9 330.2 201.4 342.7L361.4 502.7C373.9 515.2 394.2 515.2 406.7 502.7C419.2 490.2 419.2 469.9 406.7 457.4L269.3 320L406.6 182.6C419.1 170.1 419.1 149.8 406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3L201.3 297.3z'
+    );
+    assert.equal(getComputedStyle(icon).fill, backButtonStyles.color);
+    assert.equal(getComputedStyle(icon).stroke, 'none');
+    assert.strictEqual(backButton.nextElementSibling, heading);
+    assert.equal(getComputedStyle(backButton).width, '44px');
+    assert.equal(getComputedStyle(backButton).height, '44px');
+    assert.equal(backButtonStyles.marginTop, '-8px');
+    assert.equal(backButtonStyles.marginRight, '0px');
+    assert.equal(backButtonStyles.marginBottom, '-8px');
+    assert.equal(backButtonStyles.marginLeft, '0px');
+    assert.closeTo(
+      backButton.getBoundingClientRect().left,
+      content.getBoundingClientRect().left,
+      0.01
     );
   });
 
