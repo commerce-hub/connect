@@ -32,7 +32,6 @@ const designConfig: DesignConfig = {
     },
     paymentMethods: {
       title: 'Choose payment method',
-      continueButton: 'Use selected method',
     },
     noSavedPaymentMethods: {
       title: 'Add payment method',
