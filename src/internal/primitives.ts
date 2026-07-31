@@ -63,10 +63,11 @@ type VerificationStatusPresentation = {
 };
 
 const paymentMethodStatusPresentation = (
-  status: PaymentMethod['status']
+  status: PaymentMethod['status'],
+  label?: string
 ): VerificationStatusPresentation => {
   if (status === 'verified') {
-    return {label: 'Ready', tone: 'success'};
+    return {label: label ?? 'Ready', tone: 'success'};
   }
 
   if (status === 'under-review') {
@@ -85,9 +86,10 @@ const paymentMethodStatusPresentation = (
 };
 
 export const renderVerificationStatusBadge = (
-  status: PaymentMethod['status']
+  status: PaymentMethod['status'],
+  label?: string
 ): TemplateResult => {
-  const presentation = paymentMethodStatusPresentation(status);
+  const presentation = paymentMethodStatusPresentation(status, label);
 
   return html`
     <span
@@ -109,6 +111,9 @@ const isPaymentMethodRowClickable = (method: PaymentMethod): boolean =>
 const shouldRenderPaymentMethodStatus = (method: PaymentMethod): boolean =>
   method.showVerificationStatus !== false;
 
+const isPaymentMethodSelectionEligible = (method: PaymentMethod): boolean =>
+  method.selectionEligible ?? method.status === 'verified';
+
 const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
   const accountLabel =
     normalizeCopyValue(method.accountLabel) ??
@@ -121,7 +126,10 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
       <span class="payment-method-title-row">
         <span class="payment-method-title">${title}</span>
         ${shouldRenderPaymentMethodStatus(method)
-          ? renderVerificationStatusBadge(method.status)
+          ? renderVerificationStatusBadge(
+              method.status,
+              method.verificationLabel
+            )
           : ''}
       </span>
       ${shouldRenderMeta
@@ -321,7 +329,7 @@ const renderPaymentMethodOverflowAction = (
             >
               ${showMarkAsDefault &&
               !method.isDefault &&
-              method.status === 'verified'
+              isPaymentMethodSelectionEligible(method)
                 ? html`
                     <button
                       type="button"
@@ -341,7 +349,7 @@ const renderPaymentMethodOverflowAction = (
                 data-payment-method-id=${method.id}
                 ?disabled=${method.disabled}
               >
-                Delete
+                Remove
               </button>
             </span>
           `
@@ -641,6 +649,8 @@ export const renderPaymentMethodRow = (
     balanceLoading,
     last4,
     showVerificationStatus,
+    verificationLabel,
+    selectionEligible,
     isDefault,
     disabled = false,
   }: PaymentMethod,
@@ -674,6 +684,8 @@ export const renderPaymentMethodRow = (
     balanceLoading,
     last4,
     showVerificationStatus,
+    verificationLabel,
+    selectionEligible,
     isDefault,
     disabled,
   };
@@ -696,7 +708,7 @@ export const renderPaymentMethodRow = (
     `;
   }
 
-  const rendersRadio = selectable && status === 'verified';
+  const rendersRadio = selectable && isPaymentMethodSelectionEligible(method);
 
   return html`
     <div
@@ -738,6 +750,8 @@ export const renderSelectedPaymentMethod = ({
   balanceLoading,
   last4,
   showVerificationStatus,
+  verificationLabel,
+  selectionEligible,
 }: PaymentMethod): TemplateResult => {
   const method: PaymentMethod = {
     id,
@@ -751,6 +765,8 @@ export const renderSelectedPaymentMethod = ({
     balanceLoading,
     last4,
     showVerificationStatus,
+    verificationLabel,
+    selectionEligible,
   };
 
   return html`

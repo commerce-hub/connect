@@ -295,10 +295,48 @@ suite('instrument schema adapter', () => {
     ]);
   });
 
-  test('initializes dotted-path parents without populating form fields', () => {
+  test('initializes dotted-path parents and only prefills address.country from the interaction', () => {
+    assert.deepEqual(
+      createInstrumentSchemaInitialData(canadianSchema(), ' USA '),
+      {
+        address: {country: 'USA'},
+      }
+    );
+    assert.deepEqual(
+      createInstrumentSchemaInitialData(
+        {
+          ...canadianSchema(),
+          properties: {
+            ...canadianSchema().properties,
+            country: canadianSchema().properties['address.country'],
+          },
+        },
+        'USA'
+      ),
+      {
+        address: {country: 'USA'},
+      }
+    );
     assert.deepEqual(createInstrumentSchemaInitialData(canadianSchema()), {
       address: {},
     });
+    assert.deepEqual(createInstrumentSchemaInitialData(canadianSchema(), ' '), {
+      address: {},
+    });
+  });
+
+  test('makes only interaction-prefilled address.country read-only', () => {
+    const prefilled = normalizeInstrumentSchema(canadianSchema(), 'USA');
+    const prefilledCountry = schemaProperties(
+      schemaProperties(prefilled).address
+    ).country;
+    const editable = normalizeInstrumentSchema(canadianSchema());
+    const editableCountry = schemaProperties(
+      schemaProperties(editable).address
+    ).country;
+
+    assert.equal((prefilledCountry as Record<string, unknown>).readOnly, true);
+    assert.notProperty(editableCountry as Record<string, unknown>, 'readOnly');
   });
 
   test('rejects prototype-polluting property paths', () => {

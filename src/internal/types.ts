@@ -4,6 +4,13 @@ import type {components} from '../generated/openapi.js';
 
 type GeneratedInteractionResponse =
   components['schemas']['InteractionResponse'];
+type GeneratedPaymentSource = NonNullable<
+  GeneratedInteractionResponse['paymentSources']
+>[number];
+type GeneratedBankPaymentSource = Extract<
+  GeneratedPaymentSource,
+  {tenderType: 'BankAccount'}
+>;
 type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
 export type InteractionStatus =
   | GeneratedInteractionResponse['status']
@@ -30,17 +37,26 @@ export interface InteractionOAuth {
   status?: string;
 }
 
+export interface PaymentSourceRecipient {
+  id?: string;
+  status?: string;
+}
+
+export type PaymentSource =
+  | Exclude<GeneratedPaymentSource, GeneratedBankPaymentSource>
+  | (GeneratedBankPaymentSource & {
+      recipient?: PaymentSourceRecipient;
+    });
+
 export type InteractionResponse = Omit<
   GeneratedInteractionResponse,
-  'status'
+  'status' | 'paymentSources' | 'selectedSource'
 > & {
   status?: InteractionStatus;
+  paymentSources?: PaymentSource[];
+  selectedSource?: PaymentSource;
   oauth?: InteractionOAuth;
 };
-
-export type PaymentSource = NonNullable<
-  InteractionResponse['paymentSources']
->[number];
 
 export type NativePaymentSource = Extract<
   PaymentSource,
@@ -386,6 +402,8 @@ export interface PaymentMethod {
   last4: string;
   status: PaymentMethodStatus;
   showVerificationStatus?: boolean;
+  verificationLabel?: string;
+  selectionEligible?: boolean;
   isDefault?: boolean;
   disabled?: boolean;
 }

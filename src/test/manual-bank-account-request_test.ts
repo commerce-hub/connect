@@ -2,8 +2,10 @@ import {assert} from '@open-wc/testing';
 
 import type {ConfigInstrumentSchema} from '../internal/forms/instrument-schema.js';
 import {
+  createConfigDrivenBankAccountRequest,
   createManualBankAccountRequest,
   createManualBankBillingAddress,
+  encryptConfigDrivenBankAccountRequest,
   encryptManualBankAccountRequest,
 } from '../internal/forms/manual-bank-account-request.js';
 
@@ -24,6 +26,125 @@ const schema = (
 suite('manual bank account request', () => {
   const encryptValue = async (value: string): Promise<string> =>
     `encrypted:${value}`;
+
+  test('creates a config-driven v2 request with configured new-address values', () => {
+    assert.deepEqual(
+      createConfigDrivenBankAccountRequest({
+        data: {
+          accountHolderName: 'Bob Bobson',
+          accountNumber: '0000026',
+          institutionNumber: '002',
+          transitNumber: '12345',
+          address: {city: 'Toronto', country: 'CA'},
+          __bankBillingAddress: '__new__',
+        },
+        schema: schema({
+          bavSupportedCode: 'CAD-Canadian-B',
+          productId: 'POLOCALBANK',
+          countryCode: 'CA',
+          currencyCode: 'CAD',
+        }),
+        addressSelection: {kind: 'new'},
+        id: 'source-id',
+      }) as Record<string, unknown>,
+      {
+        accountHolderName: 'Bob Bobson',
+        accountNumber: '0000026',
+        institutionNumber: '002',
+        transitNumber: '12345',
+        address: {city: 'Toronto', country: 'CA'},
+        id: 'source-id',
+        name: 'Bob Bobson',
+        tenderType: 'BANK_ACCOUNT',
+        bavSupportedCode: 'CAD-Canadian-B',
+        productId: 'POLOCALBANK',
+        countryCode: 'CA',
+        currencyCode: 'CAD',
+      }
+    );
+  });
+
+  test('replaces stale address data with an existing address id without mutating form data', () => {
+    const data = {
+      accountHolderName: 'Ada Lovelace',
+      accountNumber: '12345678',
+      bankAccountType: 'SAVINGS',
+      address: {city: 'Old city', country: 'US'},
+      __bankBillingAddress: 'address-existing',
+    };
+    const original = structuredClone(data);
+
+    const request = createConfigDrivenBankAccountRequest({
+      data,
+      schema: schema({bavSupportedCode: 'USD-ACH-P'}),
+      addressSelection: {kind: 'existing', id: 'address-existing'},
+      id: 'source-id',
+    });
+
+    assert.deepEqual(request.address, {id: 'address-existing'});
+    assert.notProperty(request, 'accountType');
+    assert.equal(request.bankAccountType, 'SAVINGS');
+    assert.notProperty(request, '__bankBillingAddress');
+    assert.deepEqual(data, original);
+  });
+
+  test('encrypts a configured bsbCode without adding a routingCode alias', async () => {
+    const request = createConfigDrivenBankAccountRequest({
+      data: {
+        accountHolderName: 'Ada Lovelace',
+        accountNumber: '12345678',
+        bsbCode: '112312111',
+        accountType: 'CHECKING',
+      },
+      schema: schema({bavSupportedCode: 'USD-American-B'}),
+      addressSelection: {kind: 'new'},
+      id: 'source-id',
+    });
+    const encrypted = await encryptConfigDrivenBankAccountRequest(
+      request,
+      encryptValue
+    );
+
+    assert.equal(request.bavSupportedCode, 'USD-American-B');
+    assert.equal(request.accountType, 'CHECKING');
+    assert.equal(request.bsbCode, '112312111');
+    assert.equal(encrypted.bsbCode, 'encrypted:112312111');
+    assert.notProperty(encrypted, 'routingCode');
+  });
+
+  test('encrypts only the sensitive config-driven v2 fields without legacy aliases', async () => {
+    const request = createConfigDrivenBankAccountRequest({
+      data: {
+        accountHolderName: 'Ada Lovelace',
+        accountNumber: '12345678',
+        routingCode: '021000021',
+        interacAccount: 'ada@example.com',
+        sortCode: '12-34-56',
+        address: {city: 'New York'},
+        __bankBillingAddress: '__new__',
+      },
+      schema: schema({bavSupportedCode: 'USD-ACH-P'}),
+      addressSelection: {kind: 'new'},
+      id: 'source-id',
+    });
+    const original = structuredClone(request);
+
+    const encrypted = await encryptConfigDrivenBankAccountRequest(
+      request,
+      encryptValue
+    );
+
+    assert.equal(encrypted.accountNumber, 'encrypted:12345678');
+    assert.equal(encrypted.accountNumberReEntered, encrypted.accountNumber);
+    assert.equal(encrypted.routingCode, 'encrypted:021000021');
+    assert.equal(encrypted.interacAccount, 'encrypted:ada@example.com');
+    assert.equal(encrypted.sortCode, '12-34-56');
+    assert.deepEqual(encrypted.address, {city: 'New York'});
+    assert.notProperty(encrypted, 'accountNumberEncrypted');
+    assert.notProperty(encrypted, 'routingNumberEncrypted');
+    assert.notProperty(encrypted, 'bankAccount');
+    assert.deepEqual(request, original);
+  });
 
   test('maps configured address fields to a billing address', () => {
     assert.deepEqual(

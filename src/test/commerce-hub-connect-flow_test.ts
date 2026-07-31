@@ -1762,7 +1762,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('[data-action="delete-payment-source"]')
         ?.textContent?.trim(),
-      'Delete'
+      'Remove'
     );
     assert.exists(
       el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
@@ -2093,6 +2093,11 @@ suite('commerce-hub-connect flow', () => {
       true
     );
     assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#card-number')?.type,
+      'password',
+      'card number should be visually masked'
+    );
+    assert.equal(
       el
         .shadowRoot!.querySelector('#name-on-card')
         ?.closest('.field')
@@ -2112,6 +2117,11 @@ suite('commerce-hub-connect flow', () => {
         ?.closest('.field')
         ?.classList.contains('field-full'),
       false
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#card-cvv')?.type,
+      'password',
+      'CVC should be visually masked'
     );
     const backButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.widget-back-button[data-action="back-to-payment-methods"]'
@@ -2887,6 +2897,105 @@ suite('commerce-hub-connect flow', () => {
     assert.include(el.shadowRoot!.textContent, 'Enter a routing number');
   });
 
+  test('legacy bank fallback still creates a source through the original ACH endpoint', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([]);
+      }
+
+      if (pathname === '/interaction/source/ach') {
+        return new Response(
+          JSON.stringify({
+            sourceId: 'legacy-bank-1',
+            status: 'UNDER_REVIEW',
+          }),
+          {status: 201, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CA',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+    const {addPaymentMethodEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'add-bank-account');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Enter bank details',
+      'legacy bank form did not render'
+    );
+
+    for (const [name, value] of [
+      ['accountNickname', 'Household checking'],
+      ['routingNumber', '021000021'],
+      ['accountNumber', '12345678'],
+      ['confirmAccountNumber', '12345678'],
+    ] as const) {
+      const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+        `input[name="${name}"]`
+      )!;
+
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await flushElement(el);
+    }
+
+    await waitForActionEnabled(el, 'save-bank-account');
+    await clickAction(el, 'save-bank-account');
+    await waitForRequest(requests, '/interaction/source/ach');
+    await waitFor(
+      () => addPaymentMethodEvents.length === 1,
+      'legacy bank source event was not emitted'
+    );
+
+    const sourceRequest = requests.find(
+      (request) => new URL(request.url).pathname === '/interaction/source/ach'
+    )!;
+    const sourceBody = JSON.parse(sourceRequest.bodyText);
+
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/v2/ach'
+    );
+    assert.equal(sourceBody.productCode, 'POACH');
+    assert.equal(sourceBody.tenderType, 'BANK_ACCOUNT');
+    assert.equal(
+      await decryptSourceValue(sourceBody.bankAccount.routingNumber),
+      '021000021'
+    );
+    assert.equal(
+      await decryptSourceValue(sourceBody.bankAccount.accountNumber),
+      '12345678'
+    );
+    assert.equal(sourceBody.bankAccount.asset.id, 'USD');
+    assertSourceCreateHeaders(sourceRequest);
+    assert.equal(addPaymentMethodEvents[0].detail.id, 'legacy-bank-1');
+  });
+
   test('missing bank country opens the manual configuration error', async () => {
     const requests: CapturedRequest[] = [];
 
@@ -2975,26 +3084,30 @@ suite('commerce-hub-connect flow', () => {
                   required: 'Province is required',
                 },
               },
+              'address.country': {
+                type: 'string',
+                title: 'Country',
+                'x-errorMessages': {
+                  required: 'Country is required',
+                },
+              },
             },
-            required: [...canadianSchema.required, 'address.state'],
+            required: [
+              ...canadianSchema.required,
+              'address.state',
+              'address.country',
+            ],
           },
         ]);
       }
 
-      if (pathname === '/interaction/billing-address') {
-        return new Response(JSON.stringify({value: 'billing-bank-1'}), {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
-      }
-
-      if (pathname === '/interaction/source/ach') {
+      if (pathname === '/interaction/source/v2/ach') {
         return new Response(
           JSON.stringify({
             sourceId: 'bank-created-1',
             status: 'UNDER_REVIEW',
           }),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
+          {status: 201, headers: {'Content-Type': 'application/json'}}
         );
       }
 
@@ -3019,6 +3132,12 @@ suite('commerce-hub-connect flow', () => {
     const saveButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       'button[data-action="save-bank-account"]'
     )!;
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>(
+        'input[name="address.country"]'
+      )?.value,
+      'CA'
+    );
     assert.isTrue(saveButton.disabled);
 
     const setBankField = async (name: string, value: string) => {
@@ -3039,65 +3158,49 @@ suite('commerce-hub-connect flow', () => {
     await setBankField('transitNumber', '12345');
     await waitForActionEnabled(el, 'save-bank-account');
     await clickAction(el, 'save-bank-account');
-    await waitForRequest(requests, '/interaction/source/ach');
+    await waitForRequest(requests, '/interaction/source/v2/ach');
     await waitFor(
       () => addPaymentMethodEvents.length === 1,
       'manual bank source event was not emitted'
     );
 
-    const addressRequest = requests.find(
-      (request) =>
-        new URL(request.url).pathname === '/interaction/billing-address'
-    )!;
     const sourceRequest = requests.find(
-      (request) => new URL(request.url).pathname === '/interaction/source/ach'
+      (request) =>
+        new URL(request.url).pathname === '/interaction/source/v2/ach'
     )!;
-    const addressBody = JSON.parse(addressRequest.bodyText);
     const sourceBody = JSON.parse(sourceRequest.bodyText);
-    const encryptedAccountNumber = sourceBody.bankAccount.accountNumber;
-    const encryptedAccountNumberReEntered =
-      sourceBody.bankAccount.accountNumberReEntered;
-    const encryptedRoutingNumber = sourceBody.bankAccount.routingNumber;
+    const encryptedAccountNumber = sourceBody.accountNumber;
 
-    assert.match(addressBody.id, /^[0-9a-f-]{36}$/u);
-    assert.deepEqual(addressBody, {
-      id: addressBody.id,
-      recipientNameOrAddress: 'Bob Bobson',
-      street: '',
-      city: 'Toronto',
-      state: 'ON',
-      postalCode: '',
-      country: '',
-    });
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/billing-address'
+    );
+    assert.equal(
+      new URL(sourceRequest.url).searchParams.get('currencyCode'),
+      'CAD'
+    );
     assert.match(sourceBody.id, /^[0-9a-f-]{36}$/u);
     assert.deepEqual(sourceBody, {
+      accountHolderName: 'Bob Bobson',
+      accountNumber: encryptedAccountNumber,
+      accountNumberReEntered: encryptedAccountNumber,
+      address: {city: 'Toronto', state: 'ON', country: 'CA'},
+      institutionNumber: '002',
+      transitNumber: '12345',
       id: sourceBody.id,
       name: 'Bob Bobson',
-      billingAddressId: 'billing-bank-1',
-      productCode: 'POLOCALBANK',
       tenderType: 'BANK_ACCOUNT',
-      accountHolderType: 'BUSINESS',
-      bankAccount: {
-        routingNumber: encryptedRoutingNumber,
-        routingNumberEncrypted: encryptedRoutingNumber,
-        accountNumber: encryptedAccountNumber,
-        accountNumberEncrypted: encryptedAccountNumber,
-        accountNumberReEntered: encryptedAccountNumberReEntered,
-        asset: {type: 'CURRENCY', id: 'CAD'},
-        accountType: 'CHECKING',
-        institutionNumber: '002',
-        transitNumber: '12345',
-        accountIdentificationNumberType: 'CANADIAN',
-      },
+      bavSupportedCode: 'CAD-Canadian-B',
+      productId: 'POLOCALBANK',
+      countryCode: 'CA',
+      currencyCode: 'CAD',
     });
     assert.equal(await decryptSourceValue(encryptedAccountNumber), '0000026');
-    assert.equal(await decryptSourceValue(encryptedRoutingNumber), '1223');
-    assert.equal(
-      await decryptSourceValue(encryptedAccountNumberReEntered),
-      '0000026'
-    );
-    assert.notEqual(encryptedAccountNumber, encryptedAccountNumberReEntered);
     assert.notInclude(sourceRequest.bodyText, '0000026');
+    assert.notInclude(sourceRequest.bodyText, '__bankBillingAddress');
+    assert.notProperty(sourceBody, 'bankAccount');
+    assert.notProperty(sourceBody, 'billingAddressId');
+    assert.notProperty(sourceBody, 'productCode');
     assertSourceCreateHeaders(sourceRequest);
     const emittedBankSource = addPaymentMethodEvents[0].detail as Extract<
       PaymentSource,
@@ -3105,11 +3208,254 @@ suite('commerce-hub-connect flow', () => {
     >;
 
     assert.equal(emittedBankSource.id, 'bank-created-1');
+    assert.equal(emittedBankSource.accountHolderType, 'BUSINESS');
     assert.equal(emittedBankSource.bankAccount?.accountNumber, '0026');
     assert.notInclude(JSON.stringify(emittedBankSource), '0000026');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Bank account pending review'
+    );
+  });
+
+  test('schema-driven ACH v2 replaces stale address data and resolves an empty create response', async () => {
+    const requests: CapturedRequest[] = [];
+    let createdSourceId = '';
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([TEST_INSTRUMENT_SCHEMAS[0]]);
+      }
+
+      if (pathname === '/interaction/source/v2/ach') {
+        createdSourceId = JSON.parse(bodyText).id;
+        return new Response(undefined, {
+          status: 201,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (pathname === '/interaction') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            paymentSources: [
+              {
+                id: createdSourceId,
+                tenderType: 'BankAccount',
+                name: 'Bob Bobson',
+                verificationInfo: {status: 'VERIFIED'},
+                recipient: {
+                  id: 'recipient-pending-1',
+                  status: 'PENDING',
+                },
+                bankAccount: {
+                  accountNumber: '0000026',
+                  asset: {type: 'CURRENCY', id: 'CAD'},
+                  country: 'CA',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CA',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+      billerAddress: savedBillingAddressResponse().billerAddress,
+    });
+    const {addPaymentMethodEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'add-bank-account');
+    await selectCanadianBusinessBankSchema(el);
+    await clickAction(el, 'change-bank-billing-address');
+    await setSelectValue(el, 'bank-billing-address', '__new__');
+
+    for (const [name, value] of [
+      ['accountHolderName', 'Bob Bobson'],
+      ['accountNumber', '0000026'],
+      ['address.city', 'Stale city'],
+      ['institutionNumber', '002'],
+      ['transitNumber', '12345'],
+    ] as const) {
+      const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+        `input[name="${name}"]`
+      )!;
+
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await flushElement(el);
+    }
+
+    await setSelectValue(el, 'bank-billing-address', 'billing-1');
+    assert.notExists(
+      el.shadowRoot!.querySelector('input[name="address.city"]')
+    );
+    await waitForActionEnabled(el, 'save-bank-account');
+    await clickAction(el, 'save-bank-account');
+    await waitFor(
+      () => addPaymentMethodEvents.length === 1,
+      'empty ACH v2 response was not resolved through interaction refresh'
+    );
+
+    const sourceRequest = requests.find(
+      (request) =>
+        new URL(request.url).pathname === '/interaction/source/v2/ach'
+    )!;
+    const sourceBody = JSON.parse(sourceRequest.bodyText);
+
+    assert.deepEqual(sourceBody.address, {id: 'billing-1'});
+    assert.notInclude(sourceRequest.bodyText, 'Stale city');
+    assert.include(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      'GET /interaction'
+    );
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/billing-address'
+    );
+    assert.equal(addPaymentMethodEvents[0].detail.id, createdSourceId);
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.verification-status-badge')
+        ?.textContent?.trim(),
+      'Verified'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.payment-method-radio'));
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="attach-payment-source"]'
+      )!.disabled
+    );
+  });
+
+  test('schema-driven ACH v2 rejects an uncorrelated source after an empty create response', async () => {
+    const requests: CapturedRequest[] = [];
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([TEST_INSTRUMENT_SCHEMAS[0]]);
+      }
+
+      if (pathname === '/interaction/source/v2/ach') {
+        return new Response(undefined, {
+          status: 201,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (pathname === '/interaction') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            paymentSources: [
+              {
+                id: 'unrelated-bank-source',
+                tenderType: 'BankAccount',
+                name: 'Different account',
+                verificationInfo: {status: 'UNDER_REVIEW'},
+                bankAccount: {
+                  accountNumber: '9999',
+                  asset: {type: 'CURRENCY', id: 'CAD'},
+                  country: 'CA',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CA',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+    const {addPaymentMethodEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'add-bank-account');
+    await selectCanadianBusinessBankSchema(el);
+
+    for (const [name, value] of [
+      ['accountHolderName', 'Bob Bobson'],
+      ['accountNumber', '0000026'],
+      ['address.city', 'Toronto'],
+      ['institutionNumber', '002'],
+      ['transitNumber', '12345'],
+    ] as const) {
+      const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+        `input[name="${name}"]`
+      )!;
+
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await flushElement(el);
+    }
+
+    await waitForActionEnabled(el, 'save-bank-account');
+    await clickAction(el, 'save-bank-account');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.alert-danger')?.textContent?.trim() ===
+        'The bank account was created but could not be resolved from the interaction.',
+      'uncorrelated ACH v2 source did not produce a submission error'
+    );
+
+    assert.lengthOf(addPaymentMethodEvents, 0);
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Enter bank details'
+    );
+    assert.include(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      'GET /interaction'
     );
   });
 
@@ -3196,6 +3542,10 @@ suite('commerce-hub-connect flow', () => {
       requests.map((request) => new URL(request.url).pathname),
       '/interaction/source/ach'
     );
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/source/v2/ach'
+    );
   });
 
   test('US manual bank entry loads its USD schema before creating an ACH source', async () => {
@@ -3235,8 +3585,8 @@ suite('commerce-hub-connect flow', () => {
       if (pathname === '/party/configuration-inquiry') {
         return bankAccountCountryConfigResponse([
           {
-            bavSupportedCode: 'USD-ACH-P',
-            productId: 'ACH',
+            bavSupportedCode: 'USD-American-P',
+            productId: 'POLOCALBANK',
             countryCode: 'US',
             currencyCode: 'USD',
             currencyName: 'US Dollar',
@@ -3250,7 +3600,7 @@ suite('commerce-hub-connect flow', () => {
                   required: 'Account nickname is required',
                 },
               },
-              routingNumber: {
+              bsbCode: {
                 type: 'string',
                 title: 'Routing number',
                 pattern: '$re$\\d{9}$re$',
@@ -3268,37 +3618,36 @@ suite('commerce-hub-connect flow', () => {
                   minLength: 'Account number is too short',
                 },
               },
-              confirmAccountNumber: {
+              bankAccountType: {
                 type: 'string',
-                title: 'Confirm account number',
-                minLength: 4,
+                title: 'Bank account type',
                 'x-errorMessages': {
-                  required: 'Confirm account number is required',
-                  minLength: 'Account number is too short',
+                  required: 'Bank account type is required',
+                },
+              },
+              'address.country': {
+                type: 'string',
+                title: 'Country',
+                'x-errorMessages': {
+                  required: 'Country is required',
                 },
               },
             },
             required: [
               'accountNickname',
-              'routingNumber',
+              'bsbCode',
               'accountNumber',
-              'confirmAccountNumber',
+              'bankAccountType',
+              'address.country',
             ],
           },
         ]);
       }
 
-      if (pathname === '/interaction/billing-address') {
-        return new Response(JSON.stringify({value: 'billing-us-1'}), {
-          status: 200,
-          headers: {'Content-Type': 'application/json'},
-        });
-      }
-
-      if (pathname === '/interaction/source/ach') {
+      if (pathname === '/interaction/source/v2/ach') {
         return new Response(
           JSON.stringify({sourceId: 'bank-us-1', status: 'UNDER_REVIEW'}),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
+          {status: 201, headers: {'Content-Type': 'application/json'}}
         );
       }
 
@@ -3354,7 +3703,7 @@ suite('commerce-hub-connect flow', () => {
     const paymentTypeSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
       '#instrument-schema-payment-type'
     )!;
-    paymentTypeSelect.value = 'ACH';
+    paymentTypeSelect.value = 'American';
     paymentTypeSelect.dispatchEvent(new Event('change', {bubbles: true}));
     await flushElement(el);
     await clickAction(el, 'select-instrument-schema');
@@ -3363,12 +3712,17 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
     );
     assert.notExists(el.shadowRoot!.querySelector('#ach-routing-number'));
+    const countryInput = el.shadowRoot!.querySelector<HTMLInputElement>(
+      'input[name="address.country"]'
+    )!;
+    assert.equal(countryInput.value, 'USA');
+    assert.isTrue(countryInput.disabled);
 
     for (const [name, value] of [
       ['accountNickname', 'Household checking'],
-      ['routingNumber', '051034492'],
+      ['bsbCode', '051034492'],
       ['accountNumber', '123456789012'],
-      ['confirmAccountNumber', '123456789012'],
+      ['bankAccountType', 'SAVINGS'],
     ] as const) {
       const input = el.shadowRoot!.querySelector<HTMLInputElement>(
         `input[name="${name}"]`
@@ -3381,38 +3735,51 @@ suite('commerce-hub-connect flow', () => {
 
     await waitForActionEnabled(el, 'save-bank-account');
     await clickAction(el, 'save-bank-account');
-    await waitForRequest(requests, '/interaction/source/ach');
+    await waitForRequest(requests, '/interaction/source/v2/ach');
     await waitFor(
       () => addPaymentMethodEvents.length === 1,
       'US bank source event was not emitted'
     );
 
     const sourceRequest = requests.find(
-      (request) => new URL(request.url).pathname === '/interaction/source/ach'
+      (request) =>
+        new URL(request.url).pathname === '/interaction/source/v2/ach'
     )!;
     const sourceBody = JSON.parse(sourceRequest.bodyText);
 
-    assert.include(
+    assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),
       '/interaction/billing-address'
     );
+    assert.equal(await decryptSourceValue(sourceBody.bsbCode), '051034492');
+    assert.notInclude(sourceRequest.bodyText, '051034492');
+    assert.notProperty(sourceBody, 'routingCode');
     assert.equal(
-      await decryptSourceValue(sourceBody.bankAccount.routingNumber),
-      '051034492'
-    );
-    assert.equal(
-      await decryptSourceValue(sourceBody.bankAccount.accountNumber),
+      await decryptSourceValue(sourceBody.accountNumber),
       '123456789012'
     );
+    assert.equal(sourceBody.accountNumberReEntered, sourceBody.accountNumber);
+    assert.equal(
+      new URL(sourceRequest.url).searchParams.get('currencyCode'),
+      'USD'
+    );
     assert.equal(sourceBody.name, 'Household checking');
-    assert.equal(sourceBody.billingAddressId, 'billing-us-1');
-    assert.equal(sourceBody.productCode, 'ACH');
+    assert.notProperty(sourceBody, 'accountType');
+    assert.equal(sourceBody.bankAccountType, 'SAVINGS');
+    assert.deepEqual(sourceBody.address, {country: 'USA'});
+    assert.equal(sourceBody.bavSupportedCode, 'USD-American-P');
+    assert.equal(sourceBody.productId, 'POLOCALBANK');
     assert.equal(sourceBody.tenderType, 'BANK_ACCOUNT');
-    assert.equal(sourceBody.bankAccount.country, 'USA');
-    assert.deepEqual(sourceBody.bankAccount.asset, {
-      type: 'CURRENCY',
-      id: 'USD',
-    });
+    assert.equal(sourceBody.countryCode, 'US');
+    assert.equal(sourceBody.currencyCode, 'USD');
+    const emittedUsBankSource = addPaymentMethodEvents[0].detail as Extract<
+      PaymentSource,
+      {tenderType: 'BankAccount'}
+    >;
+
+    assert.equal(emittedUsBankSource.accountHolderType, 'PERSONAL');
+    assert.notProperty(sourceBody, 'bankAccount');
+    assert.notProperty(sourceBody, 'billingAddressId');
     assertSourceCreateHeaders(sourceRequest);
     assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),

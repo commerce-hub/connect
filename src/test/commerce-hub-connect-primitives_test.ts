@@ -95,6 +95,19 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
 
+  test('visually distinguishes disabled config-driven bank fields', () => {
+    assert.include(
+      primitiveStyles.cssText,
+      '.bank-account-jsonforms .jsonforms-control input:disabled'
+    );
+    assert.include(primitiveStyles.cssText, 'background: color-mix(');
+    assert.include(primitiveStyles.cssText, 'var(--chc-soft-surface) 85%');
+    assert.include(primitiveStyles.cssText, 'var(--chc-border-strong)');
+    assert.include(primitiveStyles.cssText, 'color: var(--chc-muted)');
+    assert.include(primitiveStyles.cssText, 'cursor: not-allowed');
+    assert.include(primitiveStyles.cssText, 'opacity: 1');
+  });
+
   test('uses the POC typography hierarchy for headings, controls, and rows', () => {
     const hardCodedFontWeights =
       primitiveStyles.cssText.match(
@@ -1342,6 +1355,29 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(row.querySelector('.payment-method-status-icon'));
     assert.exists(row.querySelector('.payment-method-chevron'));
     assert.equal(verifyButton.disabled, false);
+  });
+
+  test('uses explicit verified recipient presentation without a selection radio', async () => {
+    const root = await renderHarness(
+      renderPaymentMethodRow(
+        {
+          id: 'bank-recipient-pending',
+          label: 'Pending recipient bank',
+          brand: 'Bank account',
+          last4: '3333',
+          status: 'verified',
+          verificationLabel: 'Verified',
+          selectionEligible: false,
+        },
+        {selectable: true}
+      )
+    );
+
+    assert.equal(
+      root.querySelector('.verification-status-badge')?.textContent?.trim(),
+      'Verified'
+    );
+    assert.notExists(root.querySelector('.payment-method-radio'));
   });
 
   test('keeps status badges beside titles regardless of trailing controls', async () => {

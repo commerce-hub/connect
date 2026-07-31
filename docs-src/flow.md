@@ -160,7 +160,7 @@ selection. Marking a saved source as default attaches it and updates the
 **Default** badge, but does not emit `onSelect` or complete host-owned checkout
 work. New-card forms do not include a default-selection control. A saved method
 can be removed from its
-overflow menu: the first **Delete** selection reveals a red **Delete** action
+overflow menu: the first **Remove** selection reveals a red **Delete** action
 on the row for 10 seconds, and activating that action removes the method.
 
 ## 5. Configure production behavior

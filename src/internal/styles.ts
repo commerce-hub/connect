@@ -1242,6 +1242,18 @@ export const primitiveStyles = css`
     box-shadow: 0 0 0 0.25rem var(--chc-focus-ring);
   }
 
+  .bank-account-jsonforms .jsonforms-control input:disabled {
+    border-color: var(--chc-border);
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 85%,
+      var(--chc-border-strong)
+    );
+    color: var(--chc-muted);
+    cursor: not-allowed;
+    opacity: 1;
+  }
+
   .bank-account-jsonforms .jsonforms-description {
     color: var(--chc-muted);
     font-size: 0.875em;

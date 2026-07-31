@@ -24,7 +24,9 @@ type NormalizedInstrumentSchema = {
   required?: string[];
 };
 
-type NormalizedInstrumentSchemaProperty = ConfigInstrumentSchemaProperty;
+type NormalizedInstrumentSchemaProperty = ConfigInstrumentSchemaProperty & {
+  readOnly?: boolean;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -34,6 +36,14 @@ const hasOwn = (value: object, key: PropertyKey): boolean =>
 
 const isNonBlankString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
+
+const trimmedInteractionCountry = (
+  interactionCountry: string | undefined
+): string | undefined => {
+  const trimmed = interactionCountry?.trim();
+
+  return trimmed ? trimmed : undefined;
+};
 
 const isOptionalNonNegativeInteger = (value: unknown): boolean =>
   value === undefined ||
@@ -175,7 +185,8 @@ const createObjectSchema = (): NormalizedInstrumentSchema => ({
 });
 
 const normalizeProperty = (
-  property: ConfigInstrumentSchemaProperty
+  property: ConfigInstrumentSchemaProperty,
+  readOnly = false
 ): NormalizedInstrumentSchemaProperty => {
   const normalized: NormalizedInstrumentSchemaProperty = {
     type: 'string',
@@ -192,6 +203,9 @@ const normalizeProperty = (
   if (property.pattern !== undefined) {
     normalized.pattern = normalizePattern(property.pattern);
   }
+  if (readOnly) {
+    normalized.readOnly = true;
+  }
 
   return normalized;
 };
@@ -199,7 +213,8 @@ const normalizeProperty = (
 const addProperty = (
   root: NormalizedInstrumentSchema,
   path: string[],
-  property: ConfigInstrumentSchemaProperty
+  property: ConfigInstrumentSchemaProperty,
+  readOnly = false
 ): void => {
   let parent = root;
 
@@ -213,7 +228,10 @@ const addProperty = (
     parent = child as NormalizedInstrumentSchema;
   }
 
-  parent.properties[path[path.length - 1]] = normalizeProperty(property);
+  parent.properties[path[path.length - 1]] = normalizeProperty(
+    property,
+    readOnly
+  );
 };
 
 const addRequiredPath = (
@@ -235,14 +253,21 @@ const addRequiredPath = (
 };
 
 export const normalizeInstrumentSchema = (
-  schema: ConfigInstrumentSchema
+  schema: ConfigInstrumentSchema,
+  interactionCountry?: string
 ): JsonSchema => {
   assertValidPropertyPaths(schema);
 
   const normalized = createObjectSchema();
+  const country = trimmedInteractionCountry(interactionCountry);
 
   for (const [path, property] of Object.entries(schema.properties)) {
-    addProperty(normalized, splitPropertyPath(path), property);
+    addProperty(
+      normalized,
+      splitPropertyPath(path),
+      property,
+      path === 'address.country' && country !== undefined
+    );
   }
 
   for (const path of schema.required) {
@@ -321,7 +346,8 @@ export const createBankBillingAddressUiSchema = (
 };
 
 export const createInstrumentSchemaInitialData = (
-  schema: ConfigInstrumentSchema
+  schema: ConfigInstrumentSchema,
+  interactionCountry?: string
 ): Record<string, unknown> => {
   assertValidPropertyPaths(schema);
 
@@ -337,6 +363,15 @@ export const createInstrumentSchemaInitialData = (
       parent[segment] = child;
       parent = child;
     }
+  }
+
+  const country = trimmedInteractionCountry(interactionCountry);
+
+  if (hasOwn(schema.properties, 'address.country') && country !== undefined) {
+    const address = isRecord(data.address) ? data.address : {};
+
+    address.country = country;
+    data.address = address;
   }
 
   return data;

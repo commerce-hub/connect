@@ -17,6 +17,7 @@ import {
 } from './internal/api-client.js';
 import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
 import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
+import {parseCommerceHubResponseBody} from './internal/commerce-hub-response.js';
 import {
   bankAccountFieldLastFour,
   buildBankAccountEncryptionErrorMessage,
@@ -62,10 +63,11 @@ import {
   type InstrumentSchemaAccountType,
 } from './internal/forms/instrument-schema-selection.js';
 import {
-  createManualBankAccountRequest,
-  createManualBankBillingAddress,
-  encryptManualBankAccountRequest,
-  type ManualBankAccountRequest,
+  BANK_BILLING_ADDRESS_FORM_PROPERTY,
+  accountHolderTypeFromBavSupportedCode,
+  createConfigDrivenBankAccountRequest,
+  encryptConfigDrivenBankAccountRequest,
+  type ConfigDrivenBankAccountRequest,
 } from './internal/forms/manual-bank-account-request.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
@@ -121,6 +123,10 @@ import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from './internal/payment-method-icons.js';
+import {
+  isPaymentSourceSelectionEligible,
+  paymentSourceVerificationLabel,
+} from './internal/payment-source-selection.js';
 import {encryptSourceValue} from './internal/source-encryption.js';
 import {primitiveStyles} from './internal/styles.js';
 import {
@@ -200,6 +206,7 @@ export type {
   InteractionOAuth,
   InteractionResponse,
   PaymentSource,
+  PaymentSourceRecipient,
 } from './internal/types.js';
 export type {
   components as MerchantComponents,
@@ -414,7 +421,6 @@ const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NO_INSTRUMENT_SCHEMAS_ERROR =
   'No instrument schemas are available for this country. Try again.';
-const BANK_BILLING_ADDRESS_PROPERTY = '__bankBillingAddress';
 const LEGACY_BANK_ACCOUNT_UI_SCHEMA = generateDefaultUISchema(
   legacyBankAccountFormSchema as JsonSchema,
   'VerticalLayout'
@@ -1164,7 +1170,6 @@ export class CommerceHubConnect extends LitElement {
                       label: 'Add payment method',
                       action: 'open-add-payment-source',
                       icon: 'plus',
-                      variant: 'secondary',
                       disabled: isPaymentSourceActionPending,
                     })
                   : ''}
@@ -1956,6 +1961,7 @@ export class CommerceHubConnect extends LitElement {
               label: 'Card number',
               value: this.cardDraft.cardNumber,
               placeholder: '1234 1234 1234 1234',
+              type: 'password',
               span: 'full',
               variant: 'card-form',
               autocomplete: 'cc-number',
@@ -1983,6 +1989,7 @@ export class CommerceHubConnect extends LitElement {
               label: 'CVC',
               value: this.cardDraft.cvv,
               placeholder: '3 or 4 digits',
+              type: 'password',
               variant: 'card-form',
               autocomplete: 'cc-csc',
               inputmode: 'numeric',
@@ -3590,10 +3597,14 @@ export class CommerceHubConnect extends LitElement {
     const formInstrumentSchema = isNewBillingAddress
       ? selectedSchema
       : instrumentSchemaWithoutAddress(selectedSchema);
-    const initialData = createInstrumentSchemaInitialData(formInstrumentSchema);
+    const interactionCountry = this.interactionResponse?.country;
+    const initialData = createInstrumentSchemaInitialData(
+      formInstrumentSchema,
+      interactionCountry
+    );
 
     this.bankAccountFormSchema = this.instrumentSchemaWithBillingAddressControl(
-      normalizeInstrumentSchema(formInstrumentSchema)
+      normalizeInstrumentSchema(formInstrumentSchema, interactionCountry)
     );
     this.bankAccountFormUiSchema = createBankBillingAddressUiSchema(
       createInstrumentSchemaUiSchema(formInstrumentSchema),
@@ -3602,12 +3613,12 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountFormData = resetData
       ? {
           ...initialData,
-          [BANK_BILLING_ADDRESS_PROPERTY]: this.bankBillingAddressValue,
+          [BANK_BILLING_ADDRESS_FORM_PROPERTY]: this.bankBillingAddressValue,
         }
       : {
           ...initialData,
           ...this.bankAccountFormData,
-          [BANK_BILLING_ADDRESS_PROPERTY]: this.bankBillingAddressValue,
+          [BANK_BILLING_ADDRESS_FORM_PROPERTY]: this.bankBillingAddressValue,
         };
     this.bankAccountFormValid = false;
   }
@@ -3619,7 +3630,7 @@ export class CommerceHubConnect extends LitElement {
       ...schema,
       properties: {
         ...(schema.properties ?? {}),
-        [BANK_BILLING_ADDRESS_PROPERTY]: {
+        [BANK_BILLING_ADDRESS_FORM_PROPERTY]: {
           type: 'string',
           title: 'Billing address',
         },
@@ -4182,43 +4193,46 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountSubmitError = undefined;
 
     try {
-      const billingAddressId = await this.resolveManualBankBillingAddressId(
-        interactionId
-      );
-
-      const bankSource = createManualBankAccountRequest(
-        this.bankAccountFormData,
-        selectedSchema,
-        billingAddressId,
-        createRandomUuid()
-      );
-      const encryptedBankSource = await encryptManualBankAccountRequest(
+      const bankSource = createConfigDrivenBankAccountRequest({
+        data: this.bankAccountFormData,
+        schema: selectedSchema,
+        addressSelection:
+          this.bankBillingAddressValue === NEW_BILLING_ADDRESS_VALUE
+            ? {kind: 'new'}
+            : {kind: 'existing', id: this.bankBillingAddressValue},
+        id: createRandomUuid(),
+      });
+      const encryptedBankSource = await encryptConfigDrivenBankAccountRequest(
         bankSource,
         (value) => encryptSourceValue(value, sourceCreateContext.publicKey)
       );
-      const verificationResponse =
-        await this.requestCommerceHubJson<VerificationResponse>(
-          '/interaction/source/ach',
-          interactionId,
-          {
-            method: 'POST',
-            headers: this.createSourceCreateHeaders(
-              interactionId,
-              sourceCreateContext,
-              {'Content-Type': 'application/json'}
-            ),
-            body: JSON.stringify(encryptedBankSource),
-            credentials: 'include',
-          }
-        );
-      sourceIdFromVerificationResponse(
-        verificationResponse,
-        'The bank account creation response did not include a source id.'
+      const creationResponse = await this.requestCommerceHubJson<unknown>(
+        `/interaction/source/v2/ach?currencyCode=${encodeURIComponent(
+          bankSource.currencyCode
+        )}`,
+        interactionId,
+        {
+          method: 'POST',
+          headers: this.createSourceCreateHeaders(
+            interactionId,
+            sourceCreateContext,
+            {'Content-Type': 'application/json'}
+          ),
+          body: JSON.stringify(encryptedBankSource),
+          credentials: 'include',
+        }
       );
-      const createdSource = this.sourceWithVerificationResponse(
-        bankPaymentSourceFromManualRequest(bankSource),
-        verificationResponse
-      ) as BankPaymentSource & {id: string};
+      const verificationResponse =
+        verificationResponseFromUnknown(creationResponse);
+      const createdSource = verificationResponse
+        ? (this.sourceWithVerificationResponse(
+            bankPaymentSourceFromConfigDrivenRequest(bankSource),
+            verificationResponse
+          ) as BankPaymentSource & {id: string})
+        : await this.resolveConfigDrivenBankSourceFromInteraction(
+            interactionId,
+            bankSource
+          );
       const nextInteractionResponse = this.interactionResponseWithAddedSource(
         interactionId,
         createdSource
@@ -4234,6 +4248,39 @@ export class CommerceHubConnect extends LitElement {
     } finally {
       this.pendingAction = undefined;
     }
+  }
+
+  private async resolveConfigDrivenBankSourceFromInteraction(
+    interactionId: string,
+    request: ConfigDrivenBankAccountRequest
+  ): Promise<BankPaymentSource & {id: string}> {
+    const refreshedInteraction = await this.fetchInteraction(interactionId);
+    const bankSources = (refreshedInteraction.paymentSources ?? []).filter(
+      isBankPaymentSource
+    );
+    const refreshedSource = bankSources.find(
+      (source) => source.id?.trim() === request.id
+    );
+    const sourceId = refreshedSource?.id?.trim();
+
+    if (!refreshedSource || !sourceId) {
+      throw new Error(
+        'The bank account was created but could not be resolved from the interaction.'
+      );
+    }
+
+    const displaySource = bankPaymentSourceFromConfigDrivenRequest(request);
+
+    return {
+      ...refreshedSource,
+      ...displaySource,
+      id: sourceId,
+      verificationInfo: refreshedSource.verificationInfo,
+      bankAccount: {
+        ...refreshedSource.bankAccount,
+        ...displaySource.bankAccount,
+      },
+    };
   }
 
   private async saveLegacyManualBankAccount() {
@@ -4542,45 +4589,6 @@ export class CommerceHubConnect extends LitElement {
     return billingAddressId;
   }
 
-  private async resolveManualBankBillingAddressId(
-    interactionId: string
-  ): Promise<string> {
-    if (this.bankBillingAddressValue !== NEW_BILLING_ADDRESS_VALUE) {
-      const savedAddress = this.billingAddresses.find(
-        (address) => address.id === this.bankBillingAddressValue
-      );
-      const savedAddressId = savedAddress?.id?.trim();
-
-      if (!savedAddressId) {
-        throw new Error('Select a billing address.');
-      }
-
-      return savedAddressId;
-    }
-
-    const billingAddress = createManualBankBillingAddress(
-      this.bankAccountFormData,
-      createRandomUuid()
-    );
-    const response = await this.requestCommerceHubJson<BillingAddressResponse>(
-      '/interaction/billing-address',
-      interactionId,
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(billingAddress),
-        credentials: 'include',
-      }
-    );
-    const billingAddressId = response.value?.trim();
-
-    if (!billingAddressId) {
-      throw new Error('The billing address response did not include an id.');
-    }
-
-    return billingAddressId;
-  }
-
   private async verifyOtp() {
     if (this.pendingAction === 'verify-otp') {
       return;
@@ -4667,7 +4675,7 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (source.verificationInfo?.status !== 'VERIFIED') {
+    if (!isPaymentSourceSelectionEligible(source)) {
       return;
     }
 
@@ -4776,10 +4784,12 @@ export class CommerceHubConnect extends LitElement {
       }
 
       if (verifiedSource.verificationInfo?.status === 'VERIFIED') {
-        const verifiedSourceId = verifiedSource.id?.trim() || paymentSourceId;
-
         this.pendingAction = undefined;
-        this.selectedPaymentSourceId = verifiedSourceId;
+        this.selectedPaymentSourceId = isPaymentSourceSelectionEligible(
+          verifiedSource
+        )
+          ? verifiedSource.id?.trim() || paymentSourceId
+          : undefined;
         this.paymentSourceView = 'list';
         return;
       }
@@ -4973,7 +4983,9 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (source.verificationInfo?.status === 'VERIFIED') {
-      this.selectedPaymentSourceId = sourceId;
+      this.selectedPaymentSourceId = isPaymentSourceSelectionEligible(source)
+        ? sourceId
+        : undefined;
       this.paymentSourceView = 'list';
       return;
     }
@@ -5194,11 +5206,13 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(nextInteractionResponse);
 
       if (verifiedSource.verificationInfo?.status === 'VERIFIED') {
-        const verifiedSourceId = verifiedSource.id?.trim() || sourceId;
-
         this.resetRequiredInfo();
         this.pendingAction = undefined;
-        this.selectedPaymentSourceId = verifiedSourceId;
+        this.selectedPaymentSourceId = isPaymentSourceSelectionEligible(
+          verifiedSource
+        )
+          ? verifiedSource.id?.trim() || sourceId
+          : undefined;
         this.paymentSourceView = 'list';
         return;
       }
@@ -5720,13 +5734,7 @@ export class CommerceHubConnect extends LitElement {
       }
     );
     const response = await fetch(request);
-    const contentType = response.headers.get('content-type') ?? '';
-    const body =
-      response.status === 204
-        ? undefined
-        : contentType.includes('application/json')
-        ? await response.json()
-        : await response.text();
+    const body = await parseCommerceHubResponseBody(response);
 
     if (!response.ok) {
       throw new Error(apiErrorMessage(body) || response.statusText);
@@ -6137,22 +6145,41 @@ const bankPaymentSourceFromVerificationResponse = (
   bankAccount: {},
 });
 
-const bankPaymentSourceFromManualRequest = (
-  request: ManualBankAccountRequest
-): BankPaymentSource => ({
-  id: request.id,
-  name: request.name,
-  tenderType: 'BankAccount',
-  billingAddressId: request.billingAddressId,
-  accountHolderType: request.accountHolderType,
-  bankAccount: {
-    bankName: request.bankAccount.bankName,
-    accountType: request.bankAccount.accountType,
-    accountNumber: lastFour(request.bankAccount.accountNumber),
-    asset: request.bankAccount.asset,
-    country: request.bankAccount.country,
-  },
-});
+const configDrivenRequestString = (
+  request: ConfigDrivenBankAccountRequest,
+  field: string
+): string | undefined => {
+  const value = request[field];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+};
+
+const bankPaymentSourceFromConfigDrivenRequest = (
+  request: ConfigDrivenBankAccountRequest
+): BankPaymentSource => {
+  const bankName = configDrivenRequestString(request, 'bankName');
+  const bankAccountType = configDrivenRequestString(request, 'bankAccountType');
+  const accountNumber =
+    configDrivenRequestString(request, 'accountNumber') ??
+    configDrivenRequestString(request, 'interacAccount');
+  const accountHolderType = accountHolderTypeFromBavSupportedCode(
+    request.bavSupportedCode
+  );
+
+  return {
+    id: request.id,
+    name: request.name,
+    tenderType: 'BankAccount',
+    accountHolderType,
+    bankAccount: {
+      ...(bankName ? {bankName} : {}),
+      ...(bankAccountType ? {accountType: bankAccountType} : {}),
+      ...(accountNumber ? {accountNumber: lastFour(accountNumber)} : {}),
+      asset: {type: 'CURRENCY', id: request.currencyCode},
+      country: request.countryCode,
+    },
+  };
+};
 
 const bankPaymentSourceFromLegacyPayload = (
   source: BankAccountSourcePayload,
@@ -6183,6 +6210,18 @@ const sourceIdFromVerificationResponse = (
   }
 
   return sourceId;
+};
+
+const verificationResponseFromUnknown = (
+  value: unknown
+): VerificationResponse | undefined => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const response = value as VerificationResponse;
+
+  return response.sourceId?.trim() ? response : undefined;
 };
 
 const verificationInfoFromVerificationResponse = (
@@ -6462,6 +6501,8 @@ const paymentSourceToPaymentMethod = (
       source.verificationInfo?.status
     ),
     showVerificationStatus: Boolean(source.verificationInfo?.status),
+    verificationLabel: paymentSourceVerificationLabel(source),
+    selectionEligible: isPaymentSourceSelectionEligible(source),
     isDefault,
   };
 };
@@ -6641,7 +6682,7 @@ const resolveSelectedPaymentSourceId = (
   }
 
   const verifiedSources = paymentSources.filter(
-    (source) => source.verificationInfo?.status === 'VERIFIED'
+    isPaymentSourceSelectionEligible
   );
 
   if (
@@ -6924,7 +6965,7 @@ const upsertPaymentSources = (
 };
 
 const shouldPreselectAddedPaymentSource = (source: PaymentSource): boolean =>
-  source.verificationInfo?.status === 'VERIFIED';
+  isPaymentSourceSelectionEligible(source);
 
 type WidgetLoadingOverlayCopy = {
   title: string;
