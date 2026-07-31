@@ -17,4 +17,3 @@ Align payment-method actions and configuration-driven bank forms with the agreed
 ## Verification
 
 Cover button variants, visible copy, country prefill/editability, disabled styling, mandatory-field gating, and validation lifecycle without changing demo-app code.
-

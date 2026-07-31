@@ -24,4 +24,3 @@ Build the bank-account request from the selected configuration-inquiry instrumen
 4. Retain the legacy ACH path when no instrument schemas are available.
 5. Add request-shape, encryption, address, empty-response, and fallback regression tests.
 6. Update the generated SDK documentation and verify build, lint, and tests.
-

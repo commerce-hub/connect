@@ -25,4 +25,3 @@ Recipient absence intentionally preserves backward compatibility. Recipient read
 ## Design
 
 Centralize label and eligibility decisions in a pure helper. Use that helper for list rendering, initial/added-source preselection, attach guards, and post-verification selection. Expose an optional public `PaymentSourceRecipient` type without narrowing the service's open status string.
-

@@ -1,8 +1,8 @@
 # CommerceHub Connect Wallet SDK Architecture Assessment
 
-**Assessment date:** 24 July 2026  
-**Repository:** `commercehub-connect-wallet-sdk`  
-**Assessed version:** `0.9.9`, branch `feature/instrument-schema-update`, HEAD `12c6b3e`  
+**Assessment date:** 24 July 2026
+**Repository:** `commercehub-connect-wallet-sdk`
+**Assessed version:** `0.9.9`, branch `feature/instrument-schema-update`, HEAD `12c6b3e`
 **Audience:** SDK engineering, frontend architecture, API engineering, security, product, QA, and developer experience
 
 ## 1. Executive summary

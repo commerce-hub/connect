@@ -13,4 +13,3 @@ Prevent verified bank sources from being selected until a present recipient is p
 5. Keep all existing non-verified status labels and non-bank verified behavior unchanged.
 6. Add unit and browser-flow coverage for absent, provisioned, pending, blank, and non-bank recipient scenarios.
 7. Run build, lint, Node tests, browser tests where the environment permits, and a clean worktree diff audit.
-
