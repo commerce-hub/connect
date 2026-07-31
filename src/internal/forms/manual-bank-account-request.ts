@@ -6,6 +6,22 @@ type ManualBankBillingAddress = Address & {state?: string};
 
 const CANADIAN_ROUTING_NUMBER = '1223';
 
+export const BANK_BILLING_ADDRESS_FORM_PROPERTY = '__bankBillingAddress';
+
+export type ConfigDrivenAddressSelection =
+  | {kind: 'new'}
+  | {kind: 'existing'; id: string};
+
+export type ConfigDrivenBankAccountRequest = Record<string, unknown> & {
+  id: string;
+  name: string;
+  tenderType: 'BANK_ACCOUNT';
+  bavSupportedCode: string;
+  productId: string;
+  countryCode: string;
+  currencyCode: string;
+};
+
 export type ManualBankAccountRequest = {
   id: string;
   name: string;
@@ -17,6 +33,13 @@ export type ManualBankAccountRequest = {
 };
 
 export type SourceValueEncryptor = (value: string) => Promise<string>;
+
+const CONFIG_DRIVEN_ENCRYPTED_FIELDS = [
+  'accountNumber',
+  'routingCode',
+  'bsbCode',
+  'interacAccount',
+] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -37,6 +60,106 @@ const formValue = (
   }
 
   return '';
+};
+
+export const accountHolderTypeFromBavSupportedCode = (
+  bavSupportedCode: string
+): 'BUSINESS' | 'PERSONAL' => {
+  const suffix = /-([BP])$/u.exec(bavSupportedCode.trim())?.[1];
+
+  if (suffix === 'B') {
+    return 'BUSINESS';
+  }
+
+  if (suffix === 'P') {
+    return 'PERSONAL';
+  }
+
+  throw new Error(
+    'The selected instrument schema does not identify a business or personal account.'
+  );
+};
+
+export const createConfigDrivenBankAccountRequest = ({
+  data,
+  schema,
+  addressSelection,
+  id,
+}: {
+  data: Record<string, unknown>;
+  schema: ConfigInstrumentSchema;
+  addressSelection: ConfigDrivenAddressSelection;
+  id: string;
+}): ConfigDrivenBankAccountRequest => {
+  const requestId = id.trim();
+
+  if (!requestId) {
+    throw new Error('The bank account request requires an id.');
+  }
+
+  const configuredValues: Record<string, unknown> = {...data};
+  const configuredAddress = isRecord(data.address)
+    ? {...data.address}
+    : undefined;
+
+  delete configuredValues[BANK_BILLING_ADDRESS_FORM_PROPERTY];
+  delete configuredValues.accountNumberReEntered;
+
+  if (addressSelection.kind === 'existing') {
+    const addressId = addressSelection.id.trim();
+
+    if (!addressId) {
+      throw new Error('Select a billing address.');
+    }
+
+    configuredValues.address = {id: addressId};
+  } else if (configuredAddress) {
+    configuredValues.address = configuredAddress;
+  } else {
+    delete configuredValues.address;
+  }
+
+  return {
+    ...configuredValues,
+    id: requestId,
+    name: formValue(data, 'accountHolderName', 'accountNickname'),
+    tenderType: 'BANK_ACCOUNT',
+    bavSupportedCode: schema.bavSupportedCode.trim(),
+    productId: schema.productId.trim(),
+    countryCode: schema.countryCode.trim().toUpperCase(),
+    currencyCode: schema.currencyCode.trim().toUpperCase(),
+  };
+};
+
+export const encryptConfigDrivenBankAccountRequest = async (
+  request: ConfigDrivenBankAccountRequest,
+  encryptValue: SourceValueEncryptor
+): Promise<ConfigDrivenBankAccountRequest> => {
+  const encryptedEntries = await Promise.all(
+    CONFIG_DRIVEN_ENCRYPTED_FIELDS.flatMap((field) => {
+      const value = stringValue(request[field]);
+
+      return value
+        ? [
+            encryptValue(value).then((encryptedValue) => [
+              field,
+              encryptedValue,
+            ]),
+          ]
+        : [];
+    })
+  );
+  const encryptedValues = Object.fromEntries(encryptedEntries);
+  const encryptedAccountNumber = encryptedValues.accountNumber;
+
+  return {
+    ...request,
+    ...encryptedValues,
+    ...(typeof encryptedAccountNumber === 'string' &&
+    encryptedAccountNumber.trim()
+      ? {accountNumberReEntered: encryptedAccountNumber}
+      : {}),
+  };
 };
 
 const isInteracSchema = (schema: ConfigInstrumentSchema): boolean =>

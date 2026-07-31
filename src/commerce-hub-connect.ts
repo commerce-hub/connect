@@ -6,6 +6,7 @@ import {
 } from '@jsonforms/core';
 import {LitElement, html, type PropertyValues, type TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
+import {ifDefined} from 'lit/directives/if-defined.js';
 
 import type {components as ConfigComponents} from './generated/config-openapi.js';
 import type {components} from './generated/openapi.js';
@@ -16,12 +17,13 @@ import {
 } from './internal/api-client.js';
 import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
 import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
+import {parseCommerceHubResponseBody} from './internal/commerce-hub-response.js';
 import {
   bankAccountFieldLastFour,
   buildBankAccountEncryptionErrorMessage,
   createBankAccountDraft,
   createBankAccountEncryptionState,
-  isBankAccountDraftReady,
+  hasRequiredBankAccountDraftValues,
   isEncryptedBankAccountDisplayValue,
   isSensitiveBankAccountField,
   legacyBankAccountFormSchema,
@@ -46,16 +48,26 @@ import {
   createInstrumentSchemaErrorTranslator,
   createInstrumentSchemaInitialData,
   createInstrumentSchemaUiSchema,
+  hasRequiredJsonSchemaValues,
   instrumentSchemaWithoutAddress,
   normalizeInstrumentSchema,
   usableInstrumentSchemas,
   type ConfigInstrumentSchema,
 } from './internal/forms/instrument-schema.js';
 import {
-  createManualBankAccountRequest,
-  createManualBankBillingAddress,
-  encryptManualBankAccountRequest,
-  type ManualBankAccountRequest,
+  instrumentSchemaAccountTypeOptions,
+  instrumentSchemaCurrencyOptions,
+  instrumentSchemaPaymentTypeOptions,
+  resolveInstrumentSchema,
+  selectableInstrumentSchemas,
+  type InstrumentSchemaAccountType,
+} from './internal/forms/instrument-schema-selection.js';
+import {
+  BANK_BILLING_ADDRESS_FORM_PROPERTY,
+  accountHolderTypeFromBavSupportedCode,
+  createConfigDrivenBankAccountRequest,
+  encryptConfigDrivenBankAccountRequest,
+  type ConfigDrivenBankAccountRequest,
 } from './internal/forms/manual-bank-account-request.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
@@ -67,7 +79,7 @@ import {
   createCardEncryptionState,
   detectCardNetwork,
   formatCardDraftFieldValue,
-  isCardDraftReady,
+  hasRequiredCardDraftValues,
   isSensitiveCardField,
   normalizeCardDraft,
   normalizeCardNumber,
@@ -96,11 +108,13 @@ import {
   requiredInfoSsnSegments,
   storeRequiredInfoFile,
   storeRequiredInfoValue,
+  validateRequiredInfoSsn,
 } from './internal/forms/required-info-form-state.js';
 import {
   TRANSFER_CURRENCY,
   createTransferDraft,
   formatTransferAmountForReview,
+  hasRequiredTransferDraftValues,
   isTransferDraftReady,
   normalizeTransferDraft,
   validateTransferDraft,
@@ -109,6 +123,10 @@ import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from './internal/payment-method-icons.js';
+import {
+  isPaymentSourceSelectionEligible,
+  paymentSourceVerificationLabel,
+} from './internal/payment-source-selection.js';
 import {encryptSourceValue} from './internal/source-encryption.js';
 import {primitiveStyles} from './internal/styles.js';
 import {
@@ -144,6 +162,7 @@ import type {
   BankAccountEncryptionState,
   CardDraft,
   CardDraftErrors,
+  CardDraftTextField,
   CardEncryptionState,
   FlowActionName,
   InteractionFeature,
@@ -187,6 +206,7 @@ export type {
   InteractionOAuth,
   InteractionResponse,
   PaymentSource,
+  PaymentSourceRecipient,
 } from './internal/types.js';
 export type {
   components as MerchantComponents,
@@ -340,8 +360,10 @@ type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
 type TransferFlowScreen = 'form' | 'confirm';
+type PaymentSourceAttachmentIntent = 'select' | 'mark-default';
 type PaymentSourceToPaymentMethodOptions = {
   selected?: boolean;
+  isDefault?: boolean;
   nativeBalances?: NativeAccountBalanceMap;
   nativeBalanceLoadingSourceIds?: readonly string[];
 };
@@ -399,7 +421,6 @@ const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NO_INSTRUMENT_SCHEMAS_ERROR =
   'No instrument schemas are available for this country. Try again.';
-const BANK_BILLING_ADDRESS_PROPERTY = '__bankBillingAddress';
 const LEGACY_BANK_ACCOUNT_UI_SCHEMA = generateDefaultUISchema(
   legacyBankAccountFormSchema as JsonSchema,
   'VerticalLayout'
@@ -484,7 +505,7 @@ const DEFAULT_PAY_BY_BANK_OPTIONS = {
   paymentSdkUrl:
     'https://connect-qa.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js',
 } satisfies Required<DesignConfigPayByBank>;
-const DELETE_CONFIRMATION_TIMEOUT_MS = 5000;
+const DELETE_CONFIRMATION_TIMEOUT_MS = 10000;
 
 /**
  * CommerceHub Connect Web SDK widget shell.
@@ -613,6 +634,15 @@ export class CommerceHubConnect extends LitElement {
   private selectedBankAccountInstrumentSchemaCode?: string;
 
   @state()
+  private selectedBankCurrencyCode = '';
+
+  @state()
+  private selectedBankAccountType: InstrumentSchemaAccountType | '' = '';
+
+  @state()
+  private selectedBankPaymentType = '';
+
+  @state()
   private bankAccountFormSchema?: JsonSchema;
 
   @state()
@@ -623,6 +653,9 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private bankAccountFormValid = false;
+
+  @state()
+  private bankAccountValidationAttempted = false;
 
   @state()
   private bankBillingAddressValue = '';
@@ -661,6 +694,9 @@ export class CommerceHubConnect extends LitElement {
   private transferDraftErrors: TransferDraftErrors = {};
 
   @state()
+  private transferValidationAttempted = false;
+
+  @state()
   private transferSubmitError?: string;
 
   @state()
@@ -683,6 +719,9 @@ export class CommerceHubConnect extends LitElement {
   private cardDraftErrors: CardDraftErrors = {};
 
   @state()
+  private cardValidationAttempted = false;
+
+  @state()
   private cardEncryption: CardEncryptionState = createCardEncryptionState();
 
   @state()
@@ -698,7 +737,10 @@ export class CommerceHubConnect extends LitElement {
   private paymentSourceView?: 'list' | 'selected';
 
   @state()
-  private paymentSourceEditMode = false;
+  private openPaymentSourceMenuId?: string;
+
+  @state()
+  private paymentSourceMenuPlacement: 'above' | 'below' = 'below';
 
   @state()
   private addLauncherActive = false;
@@ -729,6 +771,9 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private requiredInfoSubmitError?: string;
 
+  @state()
+  private requiredInfoValidationAttempted = false;
+
   private requiredInfoFiles: RequiredInfoFiles = {};
 
   private pendingRequiredInfoDocKey?: string;
@@ -752,7 +797,7 @@ export class CommerceHubConnect extends LitElement {
       ) {
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
-        this.paymentSourceEditMode = false;
+        this.openPaymentSourceMenuId = undefined;
         this.interactionRefresh.reset({requestUpdate: false});
         this.nativeBalance.reset({requestUpdate: false});
         this.billingAddresses = [];
@@ -766,7 +811,7 @@ export class CommerceHubConnect extends LitElement {
         !this.interactionResponse.paymentSources?.length &&
         !this.interactionResponse.selectedSource
       ) {
-        this.paymentSourceEditMode = false;
+        this.openPaymentSourceMenuId = undefined;
       }
 
       this.syncBillingAddressesFromInteractionResponse(
@@ -800,6 +845,7 @@ export class CommerceHubConnect extends LitElement {
   override render() {
     return html`
       <div
+        class="widget-frame"
         @click=${this.handleClick}
         @submit=${this.handleSubmit}
         @input=${this.handleInput}
@@ -814,6 +860,7 @@ export class CommerceHubConnect extends LitElement {
           >${flowActionLiveMessage(this.pendingAction)}</span
         >
         ${this.renderCurrentScreen()}
+        ${this.addLauncherActive ? this.renderAddPaymentSourceSheet() : ''}
       </div>
     `;
   }
@@ -884,10 +931,6 @@ export class CommerceHubConnect extends LitElement {
 
     if (this.bankFlowScreen === 'provider') {
       return this.renderBankProviderScreen();
-    }
-
-    if (this.addLauncherActive) {
-      return this.renderAddPaymentSourceLauncher();
     }
 
     if (this.bankFlowScreen === 'outcome') {
@@ -1027,9 +1070,6 @@ export class CommerceHubConnect extends LitElement {
       this.pendingAction === 'attach-payment-source' ||
       this.pendingAction === 'verify-payment-source' ||
       this.pendingAction === 'delete-payment-source';
-    const isEditingPaymentSources =
-      this.paymentSourceEditMode && paymentMethods.length > 0;
-
     if (this.shouldRenderPaymentSourceRefreshSkeleton()) {
       return this.renderWidgetShell({
         title: copy.title,
@@ -1062,163 +1102,178 @@ export class CommerceHubConnect extends LitElement {
 
     this.queueNativeAccountBalanceRefresh();
 
-    const toolbar = isEditingPaymentSources
-      ? renderTextLinkButton({
-          label: 'Done',
-          action: 'toggle-payment-source-edit-mode',
-          disabled: isPaymentSourceActionPending,
-        })
-      : html`
+    const toolbar = showTransferAction
+      ? html`
           <div class="widget-toolbar" aria-label="Payment method actions">
             ${renderTextLinkButton({
-              label: 'Edit',
-              action: 'toggle-payment-source-edit-mode',
-              icon: 'edit',
+              label: 'Transfer',
+              action: 'open-transfer',
+              icon: 'transfer',
               disabled: isPaymentSourceActionPending,
             })}
-            ${canAddPaymentSources
-              ? renderTextLinkButton({
-                  label: 'Add',
-                  action: 'open-add-payment-source',
-                  icon: 'add',
-                  variant: 'primary',
-                  disabled: isPaymentSourceActionPending,
-                })
-              : ''}
-            ${showTransferAction
-              ? renderTextLinkButton({
-                  label: 'Transfer',
-                  action: 'open-transfer',
-                  icon: 'transfer',
-                  disabled: isPaymentSourceActionPending,
-                })
-              : ''}
           </div>
-        `;
+        `
+      : undefined;
 
     return this.renderWidgetShell({
       title: copy.title,
       layout: 'payment-methods',
       headerAction: toolbar,
       showClose: false,
-      busy:
-        isPaymentSourceActionPending &&
-        this.pendingAction !== 'attach-payment-source',
-      overlay:
-        this.pendingAction === 'attach-payment-source'
-          ? undefined
-          : paymentSourceActionLoadingOverlay(this.pendingAction),
-      content: renderPaymentMethodsScreenContent({
-        status: 'PAYMENT_SOURCE_REQUESTED',
-        methods: paymentMethods,
-        allowedTenderOptions,
-        canAddPaymentSources,
-        canSelectPaymentSources,
-        editing: isEditingPaymentSources,
-        actionPending: isPaymentSourceActionPending,
-        selectedPaymentSourceId: this.selectedPaymentSourceId,
-        deleteConfirmationPaymentSourceId:
-          this.deleteConfirmationPaymentSourceId,
-        copy,
-        showTransferAction,
-      }),
+      busy: isPaymentSourceActionPending,
+      overlay: paymentSourceActionLoadingOverlay(this.pendingAction),
+      content: html`
+        ${this.attachmentError
+          ? renderAlert({
+              variant: 'danger',
+              message: this.attachmentError,
+            })
+          : ''}
+        ${renderPaymentMethodsScreenContent({
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          methods: paymentMethods,
+          allowedTenderOptions,
+          canAddPaymentSources,
+          canSelectPaymentSources,
+          actionPending: isPaymentSourceActionPending,
+          selectedPaymentSourceId: this.selectedPaymentSourceId,
+          openPaymentSourceMenuId: this.openPaymentSourceMenuId,
+          paymentSourceMenuPlacement: this.paymentSourceMenuPlacement,
+          deleteConfirmationPaymentSourceId:
+            this.deleteConfirmationPaymentSourceId,
+          copy,
+          showTransferAction,
+        })}
+      `,
       footer:
-        isEditingPaymentSources || !canSelectPaymentSources
-          ? undefined
-          : html`
-              ${this.attachmentError
-                ? renderAlert({
-                    variant: 'danger',
-                    message: this.attachmentError,
-                  })
-                : ''}
-              ${renderButton({
-                label:
-                  this.pendingAction === 'attach-payment-source'
-                    ? copy.continuingButton
-                    : copy.continueButton,
-                action: 'attach-payment-source',
-                loading: this.pendingAction === 'attach-payment-source',
-                disabled:
-                  !this.selectedPaymentSourceId ||
-                  this.pendingAction === 'attach-payment-source',
-              })}
-            `,
+        canAddPaymentSources || canSelectPaymentSources
+          ? html`
+              <div
+                class="payment-method-add-footer"
+                aria-label="Payment method actions"
+              >
+                ${canSelectPaymentSources
+                  ? renderButton({
+                      label:
+                        this.pendingAction === 'attach-payment-source'
+                          ? copy.continuingButton
+                          : copy.continueButton,
+                      action: 'attach-payment-source',
+                      loading: this.pendingAction === 'attach-payment-source',
+                      disabled:
+                        !this.selectedPaymentSourceId ||
+                        isPaymentSourceActionPending,
+                    })
+                  : ''}
+                ${canAddPaymentSources
+                  ? renderButton({
+                      label: 'Add payment method',
+                      action: 'open-add-payment-source',
+                      icon: 'plus',
+                      disabled: isPaymentSourceActionPending,
+                    })
+                  : ''}
+              </div>
+            `
+          : undefined,
     });
   }
 
-  private renderAddPaymentSourceLauncher(): TemplateResult {
+  private renderAddPaymentSourceSheet(): TemplateResult {
     const allowed = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
     );
 
-    return this.renderWidgetShell({
-      title: 'Add a payment method',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-payment-methods',
-      }),
-      showClose: false,
-      content: html`
-        <div class="add-method-launcher">
-          <p class="launcher-copy">Choose the type of payment method to add.</p>
-          <div
-            class="tender-tabs"
-            role="tablist"
-            aria-label="Payment method type"
-          >
+    return html`
+      <div class="add-payment-sheet-layer">
+        <div
+          class="add-payment-sheet-backdrop"
+          data-action="close-add-payment-source"
+          aria-hidden="true"
+        ></div>
+        <section
+          class="add-payment-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-payment-sheet-title"
+        >
+          <div class="add-payment-sheet-header">
+            <h2 class="add-payment-sheet-title" id="add-payment-sheet-title">
+              Add payment method
+            </h2>
+            <button
+              class="add-payment-sheet-close"
+              type="button"
+              data-action="close-add-payment-source"
+              aria-label="Close add payment method"
+            >
+              <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+              <svg viewBox="0 0 640 640" aria-hidden="true" focusable="false">
+                <path
+                  d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+          <div class="add-payment-sheet-options">
             ${allowed.card
-              ? html`<button
-                  class="tender-tab"
-                  id="add-card-tab"
-                  type="button"
-                  role="tab"
-                  aria-controls="add-card-tab-panel"
-                  aria-selected="true"
-                  tabindex="0"
-                  data-action="add-card"
-                >
-                  Card
-                </button>`
+              ? this.renderAddPaymentSourceOption({
+                  action: 'add-card',
+                  title: 'Credit or debit card',
+                  subtitle: 'Add your card details',
+                  icon: 'card',
+                })
               : ''}
             ${allowed.bankAccount
-              ? html`<button
-                  class="tender-tab"
-                  id="add-bank-account-tab"
-                  type="button"
-                  role="tab"
-                  aria-controls="add-bank-account-tab-panel"
-                  aria-selected="false"
-                  tabindex="-1"
-                  data-action="add-bank-account"
-                >
-                  Bank
-                </button>`
+              ? this.renderAddPaymentSourceOption({
+                  action: 'add-bank-account',
+                  title: 'Bank account',
+                  subtitle: 'Connect or enter an account',
+                  icon: 'bank',
+                })
               : ''}
           </div>
-          ${allowed.card
-            ? html`<div
-                class="screen-reader-status"
-                id="add-card-tab-panel"
-                role="tabpanel"
-                aria-labelledby="add-card-tab"
-              >
-                Add a card.
-              </div>`
-            : ''}
-          ${allowed.bankAccount
-            ? html`<div
-                id="add-bank-account-tab-panel"
-                role="tabpanel"
-                aria-labelledby="add-bank-account-tab"
-                hidden
-              >
-                Add a bank account.
-              </div>`
-            : ''}
-        </div>
-      `,
-    });
+        </section>
+      </div>
+    `;
+  }
+
+  private renderAddPaymentSourceOption({
+    action,
+    title,
+    subtitle,
+    icon,
+  }: {
+    action: 'add-card' | 'add-bank-account';
+    title: string;
+    subtitle: string;
+    icon: 'card' | 'bank';
+  }): TemplateResult {
+    return html`
+      <button
+        class="add-payment-sheet-option"
+        type="button"
+        data-action=${action}
+      >
+        <span class="add-payment-sheet-icon" aria-hidden="true">
+          <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+          <svg viewBox="0 0 640 640" focusable="false">
+            <path
+              d=${icon === 'card'
+                ? 'M64 192L64 224L576 224L576 192C576 156.7 547.3 128 512 128L128 128C92.7 128 64 156.7 64 192zM64 272L64 448C64 483.3 92.7 512 128 512L512 512C547.3 512 576 483.3 576 448L576 272L64 272zM128 424C128 410.7 138.7 400 152 400L200 400C213.3 400 224 410.7 224 424C224 437.3 213.3 448 200 448L152 448C138.7 448 128 437.3 128 424zM272 424C272 410.7 282.7 400 296 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L296 448C282.7 448 272 437.3 272 424z'
+                : 'M335.9 84.2C326.1 78.6 314 78.6 304.1 84.2L80.1 212.2C67.5 219.4 61.3 234.2 65 248.2C68.7 262.2 81.5 272 96 272L128 272L128 480L128 480L76.8 518.4C68.7 524.4 64 533.9 64 544C64 561.7 78.3 576 96 576L544 576C561.7 576 576 561.7 576 544C576 533.9 571.3 524.4 563.2 518.4L512 480L512 272L544 272C558.5 272 571.2 262.2 574.9 248.2C578.6 234.2 572.4 219.4 559.8 212.2L335.8 84.2zM464 272L464 480L400 480L400 272L464 272zM352 272L352 480L288 480L288 272L352 272zM240 272L240 480L176 480L176 272L240 272zM320 160C337.7 160 352 174.3 352 192C352 209.7 337.7 224 320 224C302.3 224 288 209.7 288 192C288 174.3 302.3 160 320 160z'}
+            ></path>
+          </svg>
+        </span>
+        <span class="add-payment-sheet-option-copy">
+          <span class="add-payment-sheet-option-title">${title}</span>
+          <span class="add-payment-sheet-option-subtitle">${subtitle}</span>
+        </span>
+        <span class="add-payment-sheet-option-chevron" aria-hidden="true"
+          >›</span
+        >
+      </button>
+    `;
   }
 
   private renderPaymentSourceRefreshErrorScreen(): TemplateResult {
@@ -1322,11 +1377,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: outcome.title,
-      headerAction: showHeaderBack
-        ? renderTextLinkButton({
-            label: 'Back',
-            action: 'done-payment-source-verification',
-          })
+      backAction: showHeaderBack
+        ? 'done-payment-source-verification'
         : undefined,
       showClose: false,
       showDivider: false,
@@ -1366,11 +1418,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Complete account verification',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-payment-methods',
-        disabled: isSubmitting,
-      }),
+      backAction: 'back-to-payment-methods',
+      backDisabled: isSubmitting,
       showClose: false,
       showDivider: false,
       busy: isSubmitting,
@@ -1403,12 +1452,14 @@ export class CommerceHubConnect extends LitElement {
                 const currentValue = isRequiredInfoTextDoc(doc)
                   ? this.requiredInfoValues[key]
                   : this.requiredInfoFileNames[key];
+                const error = this.visibleRequiredInfoError(doc, index);
 
                 if (isRequiredInfoTextDoc(doc)) {
                   return renderRequiredInfoTextField({
                     doc,
                     key,
                     value: currentValue ?? '',
+                    error,
                   });
                 }
 
@@ -1434,6 +1485,15 @@ export class CommerceHubConnect extends LitElement {
                       action: 'open-required-info-file-picker',
                       disabled: isSubmitting,
                     })}
+                    ${error
+                      ? html`<p
+                          class="field-error"
+                          id=${`required-info-${key}-error`}
+                          role="alert"
+                        >
+                          ${error}
+                        </p>`
+                      : ''}
                   </div>
                 `;
               })}
@@ -1513,18 +1573,15 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse
     );
     const isSubmitting = this.pendingAction === 'transfer';
-    const headerAction = this.transferFlowActive
-      ? renderTextLinkButton({
-          label: 'Back',
-          action: 'back-to-payment-methods',
-          disabled: isSubmitting,
-        })
+    const backAction = this.transferFlowActive
+      ? 'back-to-payment-methods'
       : undefined;
 
     if (transferSources.length < 2) {
       return this.renderWidgetShell({
         title: 'Transfer funds',
-        headerAction,
+        backAction,
+        backDisabled: isSubmitting,
         showClose: false,
         showDivider: false,
         content: html`
@@ -1570,7 +1627,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Transfer funds',
-      headerAction,
+      backAction,
+      backDisabled: isSubmitting,
       showClose: false,
       showDivider: false,
       busy: isSubmitting,
@@ -1608,7 +1666,9 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               dataField: 'fromSourceId',
               dataFieldScope: 'transfer',
-              error: this.transferDraftErrors.fromSourceId,
+              error: this.transferValidationAttempted
+                ? this.transferDraftErrors.fromSourceId
+                : undefined,
               disabled: isSubmitting,
             }),
             renderSelectField({
@@ -1621,7 +1681,9 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               dataField: 'toSourceId',
               dataFieldScope: 'transfer',
-              error: this.transferDraftErrors.toSourceId,
+              error: this.transferValidationAttempted
+                ? this.transferDraftErrors.toSourceId
+                : undefined,
               disabled: isSubmitting,
             }),
             renderTextField({
@@ -1633,7 +1695,9 @@ export class CommerceHubConnect extends LitElement {
               inputmode: 'decimal',
               dataField: 'amount',
               dataFieldScope: 'transfer',
-              error: this.transferDraftErrors.amount,
+              error: this.transferValidationAttempted
+                ? this.transferDraftErrors.amount
+                : undefined,
               disabled: isSubmitting,
             }),
           ])}
@@ -1646,7 +1710,7 @@ export class CommerceHubConnect extends LitElement {
                 loading: isSubmitting,
                 disabled:
                   isSubmitting ||
-                  !isTransferDraftReady(this.transferDraft, transferSources),
+                  !hasRequiredTransferDraftValues(this.transferDraft),
               })}
             </div>
           </div>
@@ -1663,11 +1727,8 @@ export class CommerceHubConnect extends LitElement {
   ): TemplateResult {
     return this.renderWidgetShell({
       title: 'Confirm transfer',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'edit-transfer',
-        disabled: isSubmitting,
-      }),
+      backAction: 'edit-transfer',
+      backDisabled: isSubmitting,
       showClose: false,
       showDivider: false,
       busy: isSubmitting,
@@ -1773,7 +1834,7 @@ export class CommerceHubConnect extends LitElement {
           span: 'full',
           variant: 'card-form',
           dataField: 'billingAddressValue',
-          error: this.cardDraftErrors.billingAddressValue,
+          error: this.visibleCardDraftError('billingAddressValue'),
           disabled: isSaving,
         })
       );
@@ -1790,7 +1851,7 @@ export class CommerceHubConnect extends LitElement {
           span: 'full',
           variant: 'card-form',
           dataField: 'country',
-          error: this.cardDraftErrors.country,
+          error: this.visibleCardDraftError('country'),
           disabled: isSaving,
         }),
         renderTextField({
@@ -1803,7 +1864,7 @@ export class CommerceHubConnect extends LitElement {
           variant: 'card-form',
           autocomplete: 'address-line1',
           dataField: 'addressLine1',
-          error: this.cardDraftErrors.addressLine1,
+          error: this.visibleCardDraftError('addressLine1'),
           disabled: isSaving,
         }),
         renderTextField({
@@ -1816,7 +1877,7 @@ export class CommerceHubConnect extends LitElement {
           variant: 'card-form',
           autocomplete: 'address-line2',
           dataField: 'addressLine2',
-          error: this.cardDraftErrors.addressLine2,
+          error: this.visibleCardDraftError('addressLine2'),
           disabled: isSaving,
         }),
         renderTextField({
@@ -1828,7 +1889,7 @@ export class CommerceHubConnect extends LitElement {
           variant: 'card-form',
           autocomplete: 'address-level2',
           dataField: 'city',
-          error: this.cardDraftErrors.city,
+          error: this.visibleCardDraftError('city'),
           disabled: isSaving,
         }),
         renderSelectField({
@@ -1840,7 +1901,7 @@ export class CommerceHubConnect extends LitElement {
           span: 'full',
           variant: 'card-form',
           dataField: 'state',
-          error: this.cardDraftErrors.state,
+          error: this.visibleCardDraftError('state'),
           disabled: isSaving,
         }),
         renderTextField({
@@ -1854,7 +1915,7 @@ export class CommerceHubConnect extends LitElement {
           autocomplete: 'postal-code',
           inputmode: 'numeric',
           dataField: 'zip',
-          error: this.cardDraftErrors.zip,
+          error: this.visibleCardDraftError('zip'),
           disabled: isSaving,
         })
       );
@@ -1862,11 +1923,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Add card',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-payment-methods',
-        disabled: isSaving,
-      }),
+      backAction: 'back-to-payment-methods',
+      backDisabled: isSaving,
       showClose: false,
       showDivider: false,
       busy: isSaving,
@@ -1894,7 +1952,7 @@ export class CommerceHubConnect extends LitElement {
               span: 'full',
               variant: 'card-form',
               dataField: 'name',
-              error: this.cardDraftErrors.name,
+              error: this.visibleCardDraftError('name'),
               disabled: isSaving,
             }),
             renderTextField({
@@ -1908,7 +1966,7 @@ export class CommerceHubConnect extends LitElement {
               autocomplete: 'cc-number',
               inputmode: 'numeric',
               dataField: 'cardNumber',
-              error: this.cardDraftErrors.cardNumber,
+              error: this.visibleCardDraftError('cardNumber'),
               disabled: isSaving,
             }),
             renderTextField({
@@ -1921,7 +1979,7 @@ export class CommerceHubConnect extends LitElement {
               autocomplete: 'cc-exp',
               inputmode: 'numeric',
               dataField: 'expirationDate',
-              error: this.cardDraftErrors.expirationDate,
+              error: this.visibleCardDraftError('expirationDate'),
               disabled: isSaving,
             }),
             renderTextField({
@@ -1934,7 +1992,7 @@ export class CommerceHubConnect extends LitElement {
               autocomplete: 'cc-csc',
               inputmode: 'numeric',
               dataField: 'cvv',
-              error: this.cardDraftErrors.cvv,
+              error: this.visibleCardDraftError('cvv'),
               disabled: isSaving,
             }),
             renderTextField({
@@ -1947,7 +2005,7 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               autocomplete: 'cc-name',
               dataField: 'fullName',
-              error: this.cardDraftErrors.fullName,
+              error: this.visibleCardDraftError('fullName'),
               disabled: isSaving,
             }),
             ...billingAddressFields,
@@ -1962,7 +2020,7 @@ export class CommerceHubConnect extends LitElement {
                 disabled:
                   isSaving ||
                   isEncrypting ||
-                  !isCardDraftReady(this.cardDraft, this.cardEncryption),
+                  !hasRequiredCardDraftValues(this.cardDraft),
               })}
             </div>
           </div>
@@ -2000,11 +2058,8 @@ export class CommerceHubConnect extends LitElement {
   private renderBankProviderScreen(): TemplateResult {
     return this.renderWidgetShell({
       title: 'Connect your bank',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: 'back-to-payment-methods',
-        disabled: this.bankLinkLoading,
-      }),
+      backAction: 'back-to-payment-methods',
+      backDisabled: this.bankLinkLoading,
       showClose: false,
       showDivider: false,
       busy: this.bankLinkLoading,
@@ -2033,12 +2088,9 @@ export class CommerceHubConnect extends LitElement {
 
   private renderManualBankAccountConfigLoadingScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Select an instrument schema',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: this.manualBankAccountExitAction(),
-        disabled: true,
-      }),
+      title: 'Select bank account type',
+      backAction: this.manualBankAccountExitAction(),
+      backDisabled: true,
       showClose: false,
       showDivider: false,
       busy: true,
@@ -2052,11 +2104,8 @@ export class CommerceHubConnect extends LitElement {
 
   private renderManualBankAccountConfigErrorScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Select an instrument schema',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: this.manualBankAccountExitAction(),
-      }),
+      title: 'Select bank account type',
+      backAction: this.manualBankAccountExitAction(),
       showClose: false,
       showDivider: false,
       content: html`
@@ -2079,37 +2128,71 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderManualBankAccountSchemaSelectionScreen(): TemplateResult {
+    const selections = selectableInstrumentSchemas(
+      this.bankAccountInstrumentSchemas
+    );
+    const currencyOptions = instrumentSchemaCurrencyOptions(selections);
+    const accountTypeOptions = this.selectedBankCurrencyCode
+      ? instrumentSchemaAccountTypeOptions(
+          selections,
+          this.selectedBankCurrencyCode
+        )
+      : [];
+    const paymentTypeOptions = this.selectedBankAccountType
+      ? instrumentSchemaPaymentTypeOptions(
+          selections,
+          this.selectedBankCurrencyCode,
+          this.selectedBankAccountType
+        )
+      : [];
+
     return this.renderWidgetShell({
-      title: 'Select an instrument schema',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: this.manualBankAccountExitAction(),
-      }),
+      title: 'Select bank account type',
+      backAction: this.manualBankAccountExitAction(),
       showClose: false,
       showDivider: false,
       content: html`
-        <div class="instrument-schema-selection">
-          <fieldset
-            class="instrument-schema-options"
-            aria-label="Instrument schemas"
-          >
-            <legend>Available instrument schemas</legend>
-            ${this.bankAccountInstrumentSchemas.map(
-              (schema) => html`
-                <label class="instrument-schema-option">
-                  <input
-                    type="radio"
-                    name="instrument-schema"
-                    value=${schema.bavSupportedCode}
-                    data-instrument-schema-code=${schema.bavSupportedCode}
-                    .checked=${this.selectedBankAccountInstrumentSchemaCode ===
-                    schema.bavSupportedCode}
-                  />
-                  <span>${schema.bavSupportedCode}</span>
-                </label>
-              `
-            )}
-          </fieldset>
+        <div class="instrument-schema-selection payment-flow card-form-screen">
+          ${renderSelectField({
+            id: 'instrument-schema-currency',
+            name: 'instrumentSchemaCurrency',
+            label: 'Currency',
+            value: this.selectedBankCurrencyCode,
+            options: [
+              {value: '', label: 'Select currency'},
+              ...currencyOptions,
+            ],
+            span: 'full',
+            variant: 'card-form',
+          })}
+          ${this.selectedBankCurrencyCode
+            ? renderSelectField({
+                id: 'instrument-schema-account-type',
+                name: 'instrumentSchemaAccountType',
+                label: 'Account type',
+                value: this.selectedBankAccountType,
+                options: [
+                  {value: '', label: 'Select account type'},
+                  ...accountTypeOptions,
+                ],
+                span: 'full',
+                variant: 'card-form',
+              })
+            : ''}
+          ${this.selectedBankAccountType
+            ? renderSelectField({
+                id: 'instrument-schema-payment-type',
+                name: 'instrumentSchemaPaymentType',
+                label: 'Payment type',
+                value: this.selectedBankPaymentType,
+                options: [
+                  {value: '', label: 'Select payment type'},
+                  ...paymentTypeOptions,
+                ],
+                span: 'full',
+                variant: 'card-form',
+              })
+            : ''}
           <div class="primitive-footer card-form-primary">
             ${renderButton({
               label: 'Continue',
@@ -2137,13 +2220,7 @@ export class CommerceHubConnect extends LitElement {
     const isSaving = this.pendingAction === 'save-bank-account';
     return this.renderWidgetShell({
       title: 'Enter bank details',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action:
-          this.bankAccountInstrumentSchemas.length > 1
-            ? 'back-to-instrument-schema-selection'
-            : this.manualBankAccountExitAction(),
-      }),
+      backAction: 'back-to-instrument-schema-selection',
       showClose: false,
       showDivider: false,
       content: html`
@@ -2163,7 +2240,9 @@ export class CommerceHubConnect extends LitElement {
                 this.renderBankBillingAddressControl(isSaving),
             }}
             .readonly=${isSaving}
-            .validationMode=${'ValidateAndShow'}
+            .validationMode=${this.bankAccountValidationAttempted
+              ? 'ValidateAndShow'
+              : 'ValidateAndHide'}
             @data-change=${this.handleBankAccountFormDataChange}
             @errors-change=${this.handleBankAccountFormErrorsChange}
           ></commerce-hub-bank-account-jsonforms>
@@ -2179,7 +2258,12 @@ export class CommerceHubConnect extends LitElement {
               action: 'save-bank-account',
               type: 'submit',
               loading: isSaving,
-              disabled: !this.bankAccountFormValid || isSaving,
+              disabled:
+                isSaving ||
+                !hasRequiredJsonSchemaValues(
+                  bankAccountFormSchema,
+                  this.bankAccountFormData
+                ),
             })}
           </div>
         </form>
@@ -2242,11 +2326,8 @@ export class CommerceHubConnect extends LitElement {
 
     return this.renderWidgetShell({
       title: 'Enter bank details',
-      headerAction: renderTextLinkButton({
-        label: 'Back',
-        action: this.manualBankAccountExitAction(),
-        disabled: isSaving,
-      }),
+      backAction: this.manualBankAccountExitAction(),
+      backDisabled: isSaving,
       showClose: false,
       showDivider: false,
       busy: isSaving,
@@ -2276,14 +2357,20 @@ export class CommerceHubConnect extends LitElement {
             .readonly=${isSaving}
             .config=${{
               draft: this.legacyBankAccountDraft,
-              errors: this.legacyBankAccountDraftErrors,
+              errors: this.bankAccountValidationAttempted
+                ? this.legacyBankAccountDraftErrors
+                : {},
               encryption: this.legacyBankAccountEncryption,
               disabled: isSaving,
             }}
-            .additionalErrors=${bankAccountDraftErrorsToJsonFormsErrors(
-              this.legacyBankAccountDraftErrors
-            )}
-            .validationMode=${'ValidateAndShow'}
+            .additionalErrors=${this.bankAccountValidationAttempted
+              ? bankAccountDraftErrorsToJsonFormsErrors(
+                  this.legacyBankAccountDraftErrors
+                )
+              : []}
+            .validationMode=${this.bankAccountValidationAttempted
+              ? 'ValidateAndShow'
+              : 'ValidateAndHide'}
           ></commerce-hub-bank-account-jsonforms>
           <div class="primitive-footer card-form-primary">
             ${renderButton({
@@ -2294,9 +2381,8 @@ export class CommerceHubConnect extends LitElement {
               disabled:
                 isSaving ||
                 isEncrypting ||
-                !isBankAccountDraftReady(
+                !hasRequiredBankAccountDraftValues(
                   this.legacyBankAccountDraft,
-                  this.legacyBankAccountEncryption,
                   legacyBankAccountFormSchema
                 ),
             })}
@@ -2389,6 +2475,50 @@ export class CommerceHubConnect extends LitElement {
     const paymentMethodId = findDatasetValue(event, 'paymentMethodId');
 
     if (!action) {
+      const clickedInsidePaymentSourceMenu = event
+        .composedPath()
+        .some(
+          (item) =>
+            item instanceof HTMLElement &&
+            item.classList.contains('payment-method-overflow')
+        );
+
+      if (this.openPaymentSourceMenuId && !clickedInsidePaymentSourceMenu) {
+        this.openPaymentSourceMenuId = undefined;
+      }
+      return;
+    }
+
+    if (action === 'toggle-payment-source-menu') {
+      if (paymentMethodId) {
+        const openingMenu = this.openPaymentSourceMenuId !== paymentMethodId;
+        const trigger = event
+          .composedPath()
+          .find(
+            (item): item is HTMLElement =>
+              item instanceof HTMLElement &&
+              item.dataset.action === 'toggle-payment-source-menu'
+          );
+
+        this.clearDeletePaymentSourceConfirmation();
+        this.paymentSourceMenuPlacement =
+          openingMenu && this.shouldOpenPaymentSourceMenuAbove(trigger)
+            ? 'above'
+            : 'below';
+        this.openPaymentSourceMenuId = openingMenu
+          ? paymentMethodId
+          : undefined;
+      }
+      return;
+    }
+
+    this.openPaymentSourceMenuId = undefined;
+
+    if (action === 'mark-payment-source-default') {
+      if (paymentMethodId) {
+        this.clearDeletePaymentSourceConfirmation();
+        void this.attachPaymentSource(paymentMethodId, 'mark-default');
+      }
       return;
     }
 
@@ -2397,7 +2527,6 @@ export class CommerceHubConnect extends LitElement {
 
       if (sourceId) {
         this.clearDeletePaymentSourceConfirmation();
-        this.paymentSourceEditMode = false;
         void this.attachPaymentSource(sourceId);
       }
       return;
@@ -2407,16 +2536,20 @@ export class CommerceHubConnect extends LitElement {
       const allowed = allowedTenderOptionsFromInteractionResponse(
         this.interactionResponse
       );
-
       this.attachmentError = undefined;
       if (allowed.card && allowed.bankAccount) {
         this.addLauncherActive = true;
-        this.focusAfterUpdate('.tender-tab');
+        this.focusAfterUpdate('[data-action="close-add-payment-source"]');
       } else if (allowed.card) {
         void this.showAddCardScreen();
       } else if (allowed.bankAccount) {
-        void this.startPayByBankFlow();
+        void this.startBankAccountFlow();
       }
+      return;
+    }
+
+    if (action === 'close-add-payment-source') {
+      this.closeAddPaymentSourceSheet();
       return;
     }
 
@@ -2431,16 +2564,9 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (action === 'toggle-payment-source-edit-mode') {
-      this.clearDeletePaymentSourceConfirmation();
-      this.paymentSourceEditMode = !this.paymentSourceEditMode;
-      return;
-    }
-
     if (action === 'verify-payment-source') {
       if (paymentMethodId) {
         this.clearDeletePaymentSourceConfirmation();
-        this.paymentSourceEditMode = false;
         void this.verifySavedPaymentSource(paymentMethodId);
       }
       return;
@@ -2450,11 +2576,6 @@ export class CommerceHubConnect extends LitElement {
       if (paymentMethodId) {
         void this.deletePaymentSource(paymentMethodId);
       }
-      return;
-    }
-
-    if (action === 'cancel-delete-payment-source') {
-      this.clearDeletePaymentSourceConfirmation();
       return;
     }
 
@@ -2480,7 +2601,6 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'open-transfer') {
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetBankFlow();
@@ -2538,7 +2658,6 @@ export class CommerceHubConnect extends LitElement {
       action === 'use-different-bank-account'
     ) {
       this.addLauncherActive = false;
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
@@ -2548,7 +2667,6 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'back-to-bank-provider') {
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
@@ -2558,7 +2676,6 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'add-ach-manually') {
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();
@@ -2583,7 +2700,6 @@ export class CommerceHubConnect extends LitElement {
 
     if (action === 'add-card') {
       this.addLauncherActive = false;
-      this.paymentSourceEditMode = false;
       this.paymentSourceView = 'list';
       this.resetRequiredInfo();
       void this.showAddCardScreen();
@@ -2635,7 +2751,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (cardInput) {
       this.updateCardDraftField(
-        cardInput.dataset.cardField as keyof CardDraft,
+        cardInput.dataset.cardField as CardDraftTextField,
         cardInput.value
       );
       return;
@@ -2729,6 +2845,66 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleKeyDown = (event: KeyboardEvent) => {
+    if (
+      event.key === 'Escape' &&
+      this.openPaymentSourceMenuId &&
+      !this.pendingAction
+    ) {
+      const paymentMethodId = this.openPaymentSourceMenuId;
+
+      event.preventDefault();
+      this.openPaymentSourceMenuId = undefined;
+      void this.updateComplete.then(() => {
+        this.renderRoot
+          .querySelector<HTMLButtonElement>(
+            `[data-action="toggle-payment-source-menu"][data-payment-method-id="${CSS.escape(
+              paymentMethodId
+            )}"]`
+          )
+          ?.focus();
+      });
+      return;
+    }
+
+    if (this.addLauncherActive && event.key === 'Tab') {
+      const focusableElements = [
+        ...this.renderRoot.querySelectorAll<HTMLButtonElement>(
+          '.add-payment-sheet button:not(:disabled)'
+        ),
+      ];
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = this.shadowRoot?.activeElement;
+
+      if (!firstElement || !lastElement) {
+        return;
+      }
+
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      } else if (
+        !focusableElements.includes(activeElement as HTMLButtonElement)
+      ) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+      return;
+    }
+
+    if (
+      this.addLauncherActive &&
+      event.key === 'Escape' &&
+      !this.pendingAction
+    ) {
+      event.preventDefault();
+      this.closeAddPaymentSourceSheet();
+      return;
+    }
+
     if (event.key === 'Escape' && !this.pendingAction) {
       if (
         this.addLauncherActive ||
@@ -2856,18 +3032,46 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    const instrumentSchemaInput = event
+    const instrumentSchemaSelect = event
       .composedPath()
       .find(
-        (item): item is HTMLInputElement =>
-          item instanceof HTMLInputElement &&
-          item.name === 'instrument-schema' &&
-          Boolean(item.dataset.instrumentSchemaCode)
+        (item): item is HTMLSelectElement =>
+          item instanceof HTMLSelectElement &&
+          [
+            'instrumentSchemaCurrency',
+            'instrumentSchemaAccountType',
+            'instrumentSchemaPaymentType',
+          ].includes(item.name)
       );
 
-    if (instrumentSchemaInput) {
-      this.selectedBankAccountInstrumentSchemaCode =
-        instrumentSchemaInput.dataset.instrumentSchemaCode;
+    if (instrumentSchemaSelect?.name === 'instrumentSchemaCurrency') {
+      this.selectedBankCurrencyCode = instrumentSchemaSelect.value;
+      this.selectedBankAccountType = '';
+      this.selectedBankPaymentType = '';
+      this.selectedBankAccountInstrumentSchemaCode = undefined;
+      return;
+    }
+
+    if (instrumentSchemaSelect?.name === 'instrumentSchemaAccountType') {
+      this.selectedBankAccountType =
+        instrumentSchemaSelect.value === 'BUSINESS' ||
+        instrumentSchemaSelect.value === 'PERSONAL'
+          ? instrumentSchemaSelect.value
+          : '';
+      this.selectedBankPaymentType = '';
+      this.selectedBankAccountInstrumentSchemaCode = undefined;
+      return;
+    }
+
+    if (instrumentSchemaSelect?.name === 'instrumentSchemaPaymentType') {
+      this.selectedBankPaymentType = instrumentSchemaSelect.value;
+      const schema = resolveInstrumentSchema(
+        selectableInstrumentSchemas(this.bankAccountInstrumentSchemas),
+        this.selectedBankCurrencyCode,
+        this.selectedBankAccountType,
+        this.selectedBankPaymentType
+      );
+      this.selectedBankAccountInstrumentSchemaCode = schema?.bavSupportedCode;
       return;
     }
 
@@ -2907,7 +3111,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (cardSelect) {
       this.updateCardDraftField(
-        cardSelect.dataset.cardField as keyof CardDraft,
+        cardSelect.dataset.cardField as CardDraftTextField,
         cardSelect.value
       );
       return;
@@ -3177,6 +3381,13 @@ export class CommerceHubConnect extends LitElement {
   private syncOtpValueFromInputs(inputs = this.getOtpInputs()) {
     this.otpValue = normalizeOtpValue(inputs.map((item) => item.value));
     this.otpErrorMessage = undefined;
+
+    if (this.interactionResponse?.status === 'OTP_VALIDATION_FAILED') {
+      this.setInteractionResponseFromSdk({
+        ...this.interactionResponse,
+        status: 'OTP_VALIDATION_PENDING',
+      });
+    }
   }
 
   private writeOtpDigits(
@@ -3268,11 +3479,6 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (isUsaInteractionCountry(country)) {
-      this.initializeLegacyManualBankAccountScreen();
-      return;
-    }
-
     try {
       const configResponse = await this.fetchManualBankAccountCountryConfig(
         interactionId,
@@ -3306,7 +3512,10 @@ export class CommerceHubConnect extends LitElement {
 
       const instrumentSchemas = usableInstrumentSchemas(rawInstrumentSchemas);
 
-      if (instrumentSchemas.length === 0) {
+      if (
+        instrumentSchemas.length === 0 ||
+        selectableInstrumentSchemas(instrumentSchemas).length === 0
+      ) {
         this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
         this.bankFlowScreen = 'manual-config-error';
         return;
@@ -3314,14 +3523,6 @@ export class CommerceHubConnect extends LitElement {
 
       this.bankAccountInstrumentSchemas = instrumentSchemas;
       this.bankAccountConfigError = undefined;
-
-      if (instrumentSchemas.length === 1) {
-        this.selectedBankAccountInstrumentSchemaCode =
-          instrumentSchemas[0].bavSupportedCode;
-        this.initializeManualBankAccountScreen();
-        return;
-      }
-
       this.bankFlowScreen = 'manual-schema-selection';
     } catch (cause) {
       if (
@@ -3373,6 +3574,7 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.bankAccountValidationAttempted = false;
     this.reconcileBankBillingAddressSelection();
     this.manualBankAccountFormMode = 'instrument-schema';
     this.bankFlowScreen = 'manual';
@@ -3393,10 +3595,14 @@ export class CommerceHubConnect extends LitElement {
     const formInstrumentSchema = isNewBillingAddress
       ? selectedSchema
       : instrumentSchemaWithoutAddress(selectedSchema);
-    const initialData = createInstrumentSchemaInitialData(formInstrumentSchema);
+    const interactionCountry = this.interactionResponse?.country;
+    const initialData = createInstrumentSchemaInitialData(
+      formInstrumentSchema,
+      interactionCountry
+    );
 
     this.bankAccountFormSchema = this.instrumentSchemaWithBillingAddressControl(
-      normalizeInstrumentSchema(formInstrumentSchema)
+      normalizeInstrumentSchema(formInstrumentSchema, interactionCountry)
     );
     this.bankAccountFormUiSchema = createBankBillingAddressUiSchema(
       createInstrumentSchemaUiSchema(formInstrumentSchema),
@@ -3405,12 +3611,12 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountFormData = resetData
       ? {
           ...initialData,
-          [BANK_BILLING_ADDRESS_PROPERTY]: this.bankBillingAddressValue,
+          [BANK_BILLING_ADDRESS_FORM_PROPERTY]: this.bankBillingAddressValue,
         }
       : {
           ...initialData,
           ...this.bankAccountFormData,
-          [BANK_BILLING_ADDRESS_PROPERTY]: this.bankBillingAddressValue,
+          [BANK_BILLING_ADDRESS_FORM_PROPERTY]: this.bankBillingAddressValue,
         };
     this.bankAccountFormValid = false;
   }
@@ -3422,7 +3628,7 @@ export class CommerceHubConnect extends LitElement {
       ...schema,
       properties: {
         ...(schema.properties ?? {}),
-        [BANK_BILLING_ADDRESS_PROPERTY]: {
+        [BANK_BILLING_ADDRESS_FORM_PROPERTY]: {
           type: 'string',
           title: 'Billing address',
         },
@@ -3478,6 +3684,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private initializeLegacyManualBankAccountScreen() {
+    this.bankAccountValidationAttempted = false;
     this.manualBankAccountFormMode = 'legacy';
     this.bankFlowScreen = 'manual';
     this.legacyBankAccountDraft = createBankAccountDraft();
@@ -3489,6 +3696,7 @@ export class CommerceHubConnect extends LitElement {
 
   private clearManualBankAccountForm() {
     this.manualBankAccountFormMode = undefined;
+    this.bankAccountValidationAttempted = false;
     this.bankAccountFormSchema = undefined;
     this.bankAccountFormUiSchema = undefined;
     this.bankAccountFormData = {};
@@ -3516,6 +3724,12 @@ export class CommerceHubConnect extends LitElement {
     this.transferSubmitSuccess = false;
   }
 
+  private visibleCardDraftError(field: keyof CardDraft): string | undefined {
+    return this.cardValidationAttempted
+      ? this.cardDraftErrors[field]
+      : undefined;
+  }
+
   private updateLegacyBankAccountDraftField(
     field: keyof BankAccountDraft,
     value: string
@@ -3539,13 +3753,14 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountSubmitError = undefined;
   }
 
-  private updateCardDraftField(field: keyof CardDraft, value: string) {
+  private updateCardDraftField(field: CardDraftTextField, value: string) {
     const formattedValue = formatCardDraftFieldValue(field, value);
-
-    this.cardDraft = {
+    const nextDraft = {
       ...this.cardDraft,
       [field]: formattedValue,
     };
+
+    this.cardDraft = nextDraft;
 
     if (field === 'billingAddressValue') {
       this.billingAddressSelectorExpanded =
@@ -3553,6 +3768,17 @@ export class CommerceHubConnect extends LitElement {
     }
 
     this.cardSubmitError = undefined;
+
+    if (this.cardValidationAttempted) {
+      const fieldError = validateCardDraft(normalizeCardDraft(nextDraft))[
+        field
+      ];
+      const nextErrors = omitCardDraftError(this.cardDraftErrors, field);
+
+      this.cardDraftErrors = fieldError
+        ? {...nextErrors, [field]: fieldError}
+        : nextErrors;
+    }
 
     if (isSensitiveCardField(field)) {
       this.cardEncryption = {
@@ -3575,7 +3801,12 @@ export class CommerceHubConnect extends LitElement {
     const validationError = validateSensitiveCardField(field, value);
 
     if (!normalizedValue) {
-      this.cardDraftErrors = omitCardDraftError(this.cardDraftErrors, field);
+      const nextErrors = omitCardDraftError(this.cardDraftErrors, field);
+
+      this.cardDraftErrors =
+        this.cardValidationAttempted && validationError
+          ? {...nextErrors, [field]: validationError}
+          : nextErrors;
       this.cardEncryption = {
         ...this.cardEncryption,
         [field]: createCardEncryptionFieldState(),
@@ -3804,6 +4035,8 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.cardValidationAttempted = true;
+
     const normalizedDraft = normalizeCardDraft(this.cardDraft);
     const errors = {
       ...validateCardDraft(normalizedDraft),
@@ -3904,6 +4137,7 @@ export class CommerceHubConnect extends LitElement {
       this.cardFlowScreen = undefined;
       this.cardDraft = createCardDraft();
       this.cardDraftErrors = {};
+      this.cardValidationAttempted = false;
       this.cardEncryption = createCardEncryptionState();
       this.cardSubmitError = undefined;
       this.setInteractionResponseFromSdk(nextInteractionResponse);
@@ -3924,10 +4158,13 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (
-      this.pendingAction === 'save-bank-account' ||
-      !this.bankAccountFormValid
-    ) {
+    if (this.pendingAction === 'save-bank-account') {
+      return;
+    }
+
+    this.bankAccountValidationAttempted = true;
+
+    if (!this.bankAccountFormValid) {
       return;
     }
 
@@ -3954,43 +4191,46 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountSubmitError = undefined;
 
     try {
-      const billingAddressId = await this.resolveManualBankBillingAddressId(
-        interactionId
-      );
-
-      const bankSource = createManualBankAccountRequest(
-        this.bankAccountFormData,
-        selectedSchema,
-        billingAddressId,
-        createRandomUuid()
-      );
-      const encryptedBankSource = await encryptManualBankAccountRequest(
+      const bankSource = createConfigDrivenBankAccountRequest({
+        data: this.bankAccountFormData,
+        schema: selectedSchema,
+        addressSelection:
+          this.bankBillingAddressValue === NEW_BILLING_ADDRESS_VALUE
+            ? {kind: 'new'}
+            : {kind: 'existing', id: this.bankBillingAddressValue},
+        id: createRandomUuid(),
+      });
+      const encryptedBankSource = await encryptConfigDrivenBankAccountRequest(
         bankSource,
         (value) => encryptSourceValue(value, sourceCreateContext.publicKey)
       );
-      const verificationResponse =
-        await this.requestCommerceHubJson<VerificationResponse>(
-          '/interaction/source/ach',
-          interactionId,
-          {
-            method: 'POST',
-            headers: this.createSourceCreateHeaders(
-              interactionId,
-              sourceCreateContext,
-              {'Content-Type': 'application/json'}
-            ),
-            body: JSON.stringify(encryptedBankSource),
-            credentials: 'include',
-          }
-        );
-      sourceIdFromVerificationResponse(
-        verificationResponse,
-        'The bank account creation response did not include a source id.'
+      const creationResponse = await this.requestCommerceHubJson<unknown>(
+        `/interaction/source/v2/ach?currencyCode=${encodeURIComponent(
+          bankSource.currencyCode
+        )}`,
+        interactionId,
+        {
+          method: 'POST',
+          headers: this.createSourceCreateHeaders(
+            interactionId,
+            sourceCreateContext,
+            {'Content-Type': 'application/json'}
+          ),
+          body: JSON.stringify(encryptedBankSource),
+          credentials: 'include',
+        }
       );
-      const createdSource = this.sourceWithVerificationResponse(
-        bankPaymentSourceFromManualRequest(bankSource),
-        verificationResponse
-      ) as BankPaymentSource & {id: string};
+      const verificationResponse =
+        verificationResponseFromUnknown(creationResponse);
+      const createdSource = verificationResponse
+        ? (this.sourceWithVerificationResponse(
+            bankPaymentSourceFromConfigDrivenRequest(bankSource),
+            verificationResponse
+          ) as BankPaymentSource & {id: string})
+        : await this.resolveConfigDrivenBankSourceFromInteraction(
+            interactionId,
+            bankSource
+          );
       const nextInteractionResponse = this.interactionResponseWithAddedSource(
         interactionId,
         createdSource
@@ -4008,6 +4248,39 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
+  private async resolveConfigDrivenBankSourceFromInteraction(
+    interactionId: string,
+    request: ConfigDrivenBankAccountRequest
+  ): Promise<BankPaymentSource & {id: string}> {
+    const refreshedInteraction = await this.fetchInteraction(interactionId);
+    const bankSources = (refreshedInteraction.paymentSources ?? []).filter(
+      isBankPaymentSource
+    );
+    const refreshedSource = bankSources.find(
+      (source) => source.id?.trim() === request.id
+    );
+    const sourceId = refreshedSource?.id?.trim();
+
+    if (!refreshedSource || !sourceId) {
+      throw new Error(
+        'The bank account was created but could not be resolved from the interaction.'
+      );
+    }
+
+    const displaySource = bankPaymentSourceFromConfigDrivenRequest(request);
+
+    return {
+      ...refreshedSource,
+      ...displaySource,
+      id: sourceId,
+      verificationInfo: refreshedSource.verificationInfo,
+      bankAccount: {
+        ...refreshedSource.bankAccount,
+        ...displaySource.bankAccount,
+      },
+    };
+  }
+
   private async saveLegacyManualBankAccount() {
     if (this.pendingAction === 'save-bank-account') {
       return;
@@ -4018,6 +4291,8 @@ export class CommerceHubConnect extends LitElement {
     if (!interactionId || this.manualBankAccountFormMode !== 'legacy') {
       return;
     }
+
+    this.bankAccountValidationAttempted = true;
 
     const normalizedDraft = normalizeBankAccountDraftForValidation(
       this.legacyBankAccountDraft,
@@ -4196,6 +4471,8 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.transferValidationAttempted = true;
+
     const transferSources = transferPaymentSourcesFromInteractionResponse(
       this.interactionResponse
     );
@@ -4271,6 +4548,7 @@ export class CommerceHubConnect extends LitElement {
         );
 
       this.transferFlowScreen = 'form';
+      this.transferValidationAttempted = false;
       this.transferSubmitSuccess = true;
       this.emitSdkEvent(ON_TRANSFER_EVENT, transaction);
     } catch (cause) {
@@ -4290,45 +4568,6 @@ export class CommerceHubConnect extends LitElement {
 
     const billingAddress = billingAddressFromCardDraft(draft);
 
-    const response = await this.requestCommerceHubJson<BillingAddressResponse>(
-      '/interaction/billing-address',
-      interactionId,
-      {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(billingAddress),
-        credentials: 'include',
-      }
-    );
-    const billingAddressId = response.value?.trim();
-
-    if (!billingAddressId) {
-      throw new Error('The billing address response did not include an id.');
-    }
-
-    return billingAddressId;
-  }
-
-  private async resolveManualBankBillingAddressId(
-    interactionId: string
-  ): Promise<string> {
-    if (this.bankBillingAddressValue !== NEW_BILLING_ADDRESS_VALUE) {
-      const savedAddress = this.billingAddresses.find(
-        (address) => address.id === this.bankBillingAddressValue
-      );
-      const savedAddressId = savedAddress?.id?.trim();
-
-      if (!savedAddressId) {
-        throw new Error('Select a billing address.');
-      }
-
-      return savedAddressId;
-    }
-
-    const billingAddress = createManualBankBillingAddress(
-      this.bankAccountFormData,
-      createRandomUuid()
-    );
     const response = await this.requestCommerceHubJson<BillingAddressResponse>(
       '/interaction/billing-address',
       interactionId,
@@ -4419,7 +4658,10 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private async attachPaymentSource(paymentSourceId: string) {
+  private async attachPaymentSource(
+    paymentSourceId: string,
+    intent: PaymentSourceAttachmentIntent = 'select'
+  ) {
     if (this.pendingAction === 'attach-payment-source') {
       return;
     }
@@ -4431,7 +4673,7 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (source.verificationInfo?.status !== 'VERIFIED') {
+    if (!isPaymentSourceSelectionEligible(source)) {
       return;
     }
 
@@ -4464,9 +4706,15 @@ export class CommerceHubConnect extends LitElement {
 
       this.selectedPaymentSourceId = attachedSource.id;
       this.setInteractionResponseFromSdk(refreshedInteractionResponse);
-      this.paymentSourceView = 'selected';
+
+      if (intent === 'mark-default') {
+        this.paymentSourceView = 'list';
+        return;
+      }
+
+      this.paymentSourceView = 'list';
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
-      this.focusAfterUpdate('[data-action="change-payment-source"]');
+      this.focusAfterUpdate('.payment-method-radio:checked');
     } catch (cause) {
       this.paymentSourceView = 'list';
       this.attachmentError =
@@ -4534,10 +4782,12 @@ export class CommerceHubConnect extends LitElement {
       }
 
       if (verifiedSource.verificationInfo?.status === 'VERIFIED') {
-        const verifiedSourceId = verifiedSource.id?.trim() || paymentSourceId;
-
         this.pendingAction = undefined;
-        this.selectedPaymentSourceId = verifiedSourceId;
+        this.selectedPaymentSourceId = isPaymentSourceSelectionEligible(
+          verifiedSource
+        )
+          ? verifiedSource.id?.trim() || paymentSourceId
+          : undefined;
         this.paymentSourceView = 'list';
         return;
       }
@@ -4590,10 +4840,6 @@ export class CommerceHubConnect extends LitElement {
         paymentSourceId
       );
 
-      if (!nextInteractionResponse.paymentSources?.length) {
-        this.paymentSourceEditMode = false;
-      }
-
       this.setInteractionResponseFromSdk(nextInteractionResponse);
       this.emitSdkEvent(ON_DELETE_PAYMENT_METHOD_EVENT, paymentSourceId);
     } catch (cause) {
@@ -4642,19 +4888,44 @@ export class CommerceHubConnect extends LitElement {
 
   private showPaymentSourceList({refresh = false}: {refresh?: boolean} = {}) {
     this.clearDeletePaymentSourceConfirmation();
-    this.paymentSourceEditMode = false;
+    this.openPaymentSourceMenuId = undefined;
     this.paymentSourceView = 'list';
     this.addLauncherActive = false;
     this.resetTransferFlow();
     this.focusAfterUpdate(
       '[data-action="open-add-payment-source"]',
-      '.payment-method-radio',
-      '[data-action="toggle-payment-source-edit-mode"]'
+      '[data-action="toggle-payment-source-menu"]'
     );
 
     if (refresh) {
       void this.refreshPaymentSourcesForList();
     }
+  }
+
+  private shouldOpenPaymentSourceMenuAbove(trigger?: HTMLElement): boolean {
+    const list = trigger?.closest<HTMLElement>('.primitive-stack');
+    const row = trigger?.closest<HTMLElement>('.payment-method-row');
+
+    if (!list || !row) {
+      return false;
+    }
+
+    const listBounds = list.getBoundingClientRect();
+    const rowBounds = row.getBoundingClientRect();
+    const rootFontSize =
+      Number.parseFloat(getComputedStyle(this).fontSize) || 16;
+    const estimatedMenuHeight = rootFontSize * 6;
+    const availableBelow = listBounds.bottom - rowBounds.bottom;
+    const availableAbove = rowBounds.top - listBounds.top;
+
+    return (
+      availableBelow < estimatedMenuHeight && availableAbove > availableBelow
+    );
+  }
+
+  private closeAddPaymentSourceSheet() {
+    this.addLauncherActive = false;
+    this.focusAfterUpdate('[data-action="open-add-payment-source"]');
   }
 
   private async refreshPaymentSourcesForList() {
@@ -4710,7 +4981,9 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (source.verificationInfo?.status === 'VERIFIED') {
-      this.selectedPaymentSourceId = sourceId;
+      this.selectedPaymentSourceId = isPaymentSourceSelectionEligible(source)
+        ? sourceId
+        : undefined;
       this.paymentSourceView = 'list';
       return;
     }
@@ -4734,6 +5007,7 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoFileNames = {};
     this.requiredInfoFiles = {};
     this.requiredInfoSubmitError = undefined;
+    this.requiredInfoValidationAttempted = false;
     this.pendingRequiredInfoDocKey = undefined;
   }
 
@@ -4743,6 +5017,7 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoFileNames = {};
     this.requiredInfoFiles = {};
     this.requiredInfoSubmitError = undefined;
+    this.requiredInfoValidationAttempted = false;
     this.pendingRequiredInfoDocKey = undefined;
   }
 
@@ -4794,15 +5069,48 @@ export class CommerceHubConnect extends LitElement {
       return false;
     }
 
-    return requiredInfoDocs(source).some((doc, index) => {
-      const key = requiredInfoDocKey(doc, index);
+    const docs = requiredInfoDocs(source);
+    const mandatoryEntries = docs
+      .map((doc, index) => ({doc, index}))
+      .filter(({doc}) => isRequiredInfoDocMandatory(doc));
 
-      if (isRequiredInfoTextDoc(doc)) {
-        return hasRequiredInfoTextValue(this.requiredInfoValues, key);
-      }
+    if (mandatoryEntries.length > 0) {
+      return mandatoryEntries.every(({doc, index}) =>
+        this.hasRequiredInfoValue(doc, index)
+      );
+    }
 
-      return hasRequiredInfoFile(this.requiredInfoFiles, key);
-    });
+    return docs.some((doc, index) => this.hasRequiredInfoValue(doc, index));
+  }
+
+  private visibleRequiredInfoError(
+    doc: RequiredInfoDoc,
+    index: number
+  ): string | undefined {
+    return this.requiredInfoValidationAttempted
+      ? this.requiredInfoValidationError(doc, index)
+      : undefined;
+  }
+
+  private requiredInfoValidationError(
+    doc: RequiredInfoDoc,
+    index: number
+  ): string | undefined {
+    const hasValue = this.hasRequiredInfoValue(doc, index);
+
+    if (!hasValue) {
+      return isRequiredInfoDocMandatory(doc)
+        ? requiredInfoMissingValueMessage(doc)
+        : undefined;
+    }
+
+    if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
+      return validateRequiredInfoSsn(
+        this.requiredInfoValues[requiredInfoDocKey(doc, index)] ?? ''
+      );
+    }
+
+    return undefined;
   }
 
   private async submitRequiredInfo() {
@@ -4815,6 +5123,17 @@ export class CommerceHubConnect extends LitElement {
     const sourceId = source?.id?.trim();
 
     if (!interactionId || !source || !sourceId) {
+      return;
+    }
+
+    this.requiredInfoValidationAttempted = true;
+
+    if (
+      requiredInfoDocs(source).some((doc, index) =>
+        Boolean(this.requiredInfoValidationError(doc, index))
+      )
+    ) {
+      this.requiredInfoSubmitError = undefined;
       return;
     }
 
@@ -4885,11 +5204,13 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(nextInteractionResponse);
 
       if (verifiedSource.verificationInfo?.status === 'VERIFIED') {
-        const verifiedSourceId = verifiedSource.id?.trim() || sourceId;
-
         this.resetRequiredInfo();
         this.pendingAction = undefined;
-        this.selectedPaymentSourceId = verifiedSourceId;
+        this.selectedPaymentSourceId = isPaymentSourceSelectionEligible(
+          verifiedSource
+        )
+          ? verifiedSource.id?.trim() || sourceId
+          : undefined;
         this.paymentSourceView = 'list';
         return;
       }
@@ -4899,6 +5220,7 @@ export class CommerceHubConnect extends LitElement {
         this.requiredInfoValues = {};
         this.requiredInfoFileNames = {};
         this.requiredInfoFiles = {};
+        this.requiredInfoValidationAttempted = false;
         return;
       }
 
@@ -4926,7 +5248,9 @@ export class CommerceHubConnect extends LitElement {
       .map((doc, index) => ({doc, index}))
       .filter(
         ({doc, index}) =>
-          (required ? doc.mandatory === true : doc.mandatory !== true) &&
+          (required
+            ? isRequiredInfoDocMandatory(doc)
+            : !isRequiredInfoDocMandatory(doc)) &&
           this.hasRequiredInfoValue(doc, index)
       );
   }
@@ -5309,7 +5633,8 @@ export class CommerceHubConnect extends LitElement {
   private interactionRefreshOptions() {
     return {
       getCurrentInteractionResponse: () => this.interactionResponse,
-      getSelectedPaymentSourceId: () => this.selectedPaymentSourceId,
+      getSelectedPaymentSourceId: () =>
+        this.interactionResponse?.selectedSource?.id,
       requestInteraction: (interactionId: string) =>
         this.createSdkClient(interactionId)
           .GET('/interaction')
@@ -5407,13 +5732,7 @@ export class CommerceHubConnect extends LitElement {
       }
     );
     const response = await fetch(request);
-    const contentType = response.headers.get('content-type') ?? '';
-    const body =
-      response.status === 204
-        ? undefined
-        : contentType.includes('application/json')
-        ? await response.json()
-        : await response.text();
+    const body = await parseCommerceHubResponseBody(response);
 
     if (!response.ok) {
       throw new Error(apiErrorMessage(body) || response.statusText);
@@ -5438,7 +5757,7 @@ export class CommerceHubConnect extends LitElement {
         },
         body: JSON.stringify({
           configurationType: 'COUNTRY_TENDER',
-          country: country === 'USA' ? 'AAA' : country,
+          country,
         }),
         credentials: 'include',
       }
@@ -5453,6 +5772,9 @@ export class CommerceHubConnect extends LitElement {
     this.bankLinkLoading = false;
     this.bankAccountInstrumentSchemas = [];
     this.selectedBankAccountInstrumentSchemaCode = undefined;
+    this.selectedBankCurrencyCode = '';
+    this.selectedBankAccountType = '';
+    this.selectedBankPaymentType = '';
     this.bankBillingAddressValue = '';
     this.bankBillingAddressSelectorExpanded = false;
     this.clearManualBankAccountForm();
@@ -5471,6 +5793,7 @@ export class CommerceHubConnect extends LitElement {
     this.cardFlowScreen = undefined;
     this.cardDraft = createCardDraft();
     this.cardDraftErrors = {};
+    this.cardValidationAttempted = false;
     this.cardEncryption = createCardEncryptionState();
     this.cardSubmitError = undefined;
     this.billingAddressSelectorExpanded = false;
@@ -5481,6 +5804,7 @@ export class CommerceHubConnect extends LitElement {
     this.transferFlowScreen = 'form';
     this.transferDraft = createTransferDraft();
     this.transferDraftErrors = {};
+    this.transferValidationAttempted = false;
     this.transferSubmitError = undefined;
     this.transferSubmitSuccess = false;
   }
@@ -5819,22 +6143,41 @@ const bankPaymentSourceFromVerificationResponse = (
   bankAccount: {},
 });
 
-const bankPaymentSourceFromManualRequest = (
-  request: ManualBankAccountRequest
-): BankPaymentSource => ({
-  id: request.id,
-  name: request.name,
-  tenderType: 'BankAccount',
-  billingAddressId: request.billingAddressId,
-  accountHolderType: request.accountHolderType,
-  bankAccount: {
-    bankName: request.bankAccount.bankName,
-    accountType: request.bankAccount.accountType,
-    accountNumber: lastFour(request.bankAccount.accountNumber),
-    asset: request.bankAccount.asset,
-    country: request.bankAccount.country,
-  },
-});
+const configDrivenRequestString = (
+  request: ConfigDrivenBankAccountRequest,
+  field: string
+): string | undefined => {
+  const value = request[field];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+};
+
+const bankPaymentSourceFromConfigDrivenRequest = (
+  request: ConfigDrivenBankAccountRequest
+): BankPaymentSource => {
+  const bankName = configDrivenRequestString(request, 'bankName');
+  const bankAccountType = configDrivenRequestString(request, 'bankAccountType');
+  const accountNumber =
+    configDrivenRequestString(request, 'accountNumber') ??
+    configDrivenRequestString(request, 'interacAccount');
+  const accountHolderType = accountHolderTypeFromBavSupportedCode(
+    request.bavSupportedCode
+  );
+
+  return {
+    id: request.id,
+    name: request.name,
+    tenderType: 'BankAccount',
+    accountHolderType,
+    bankAccount: {
+      ...(bankName ? {bankName} : {}),
+      ...(bankAccountType ? {accountType: bankAccountType} : {}),
+      ...(accountNumber ? {accountNumber: lastFour(accountNumber)} : {}),
+      asset: {type: 'CURRENCY', id: request.currencyCode},
+      country: request.countryCode,
+    },
+  };
+};
 
 const bankPaymentSourceFromLegacyPayload = (
   source: BankAccountSourcePayload,
@@ -5865,6 +6208,18 @@ const sourceIdFromVerificationResponse = (
   }
 
   return sourceId;
+};
+
+const verificationResponseFromUnknown = (
+  value: unknown
+): VerificationResponse | undefined => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const response = value as VerificationResponse;
+
+  return response.sourceId?.trim() ? response : undefined;
 };
 
 const verificationInfoFromVerificationResponse = (
@@ -5914,7 +6269,7 @@ const resolvePaymentMethodsCopy = (
   const copy = designConfig?.copy?.paymentMethods;
 
   return {
-    title: copy?.title ?? 'Choose a payment method',
+    title: copy?.title ?? 'Payment methods',
     subtitle: copy?.subtitle ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
@@ -6068,6 +6423,7 @@ const paymentMethodsFromInteractionResponse = (
         paymentSourceToPaymentMethod(selectedSource, {
           ...options,
           selected: true,
+          isDefault: interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED',
         }),
       ];
     }
@@ -6075,8 +6431,16 @@ const paymentMethodsFromInteractionResponse = (
     return [];
   }
 
+  const selectedSourceId =
+    interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED'
+      ? interactionResponse.selectedSource?.id
+      : undefined;
+
   return paymentSources.map((source) =>
-    paymentSourceToPaymentMethod(source, options)
+    paymentSourceToPaymentMethod(source, {
+      ...options,
+      isDefault: Boolean(selectedSourceId && source.id === selectedSourceId),
+    })
   );
 };
 
@@ -6106,6 +6470,7 @@ const paymentSourceToPaymentMethod = (
   source: PaymentSource,
   {
     selected = false,
+    isDefault = false,
     nativeBalances = {},
     nativeBalanceLoadingSourceIds = [],
   }: PaymentSourceToPaymentMethodOptions = {}
@@ -6134,6 +6499,9 @@ const paymentSourceToPaymentMethod = (
       source.verificationInfo?.status
     ),
     showVerificationStatus: Boolean(source.verificationInfo?.status),
+    verificationLabel: paymentSourceVerificationLabel(source),
+    selectionEligible: isPaymentSourceSelectionEligible(source),
+    isDefault,
   };
 };
 
@@ -6312,7 +6680,7 @@ const resolveSelectedPaymentSourceId = (
   }
 
   const verifiedSources = paymentSources.filter(
-    (source) => source.verificationInfo?.status === 'VERIFIED'
+    isPaymentSourceSelectionEligible
   );
 
   if (
@@ -6595,7 +6963,7 @@ const upsertPaymentSources = (
 };
 
 const shouldPreselectAddedPaymentSource = (source: PaymentSource): boolean =>
-  source.verificationInfo?.status === 'VERIFIED';
+  isPaymentSourceSelectionEligible(source);
 
 type WidgetLoadingOverlayCopy = {
   title: string;
@@ -6884,16 +7252,19 @@ const renderRequiredInfoTextField = ({
   doc,
   key,
   value,
+  error,
 }: {
   doc: RequiredInfoDoc;
   key: string;
   value: string;
+  error?: string;
 }): TemplateResult => {
   if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
-    return renderRequiredInfoSsnField({doc, key, value});
+    return renderRequiredInfoSsnField({doc, key, value, error});
   }
 
   const id = `required-info-${key}`;
+  const errorId = `${id}-error`;
 
   return html`
     <div
@@ -6918,7 +7289,12 @@ const renderRequiredInfoTextField = ({
           inputmode=${requiredInfoTextInputMode(doc)}
           data-required-info-doc-key=${key}
           aria-label=${requiredInfoDocLabel(doc)}
+          aria-invalid=${error ? 'true' : 'false'}
+          aria-describedby=${ifDefined(error ? errorId : undefined)}
         />
+        ${error
+          ? html`<p class="field-error" id=${errorId} role="alert">${error}</p>`
+          : ''}
       </div>
     </div>
   `;
@@ -6928,14 +7304,17 @@ const renderRequiredInfoSsnField = ({
   doc,
   key,
   value,
+  error,
 }: {
   doc: RequiredInfoDoc;
   key: string;
   value: string;
+  error?: string;
 }): TemplateResult => {
   const label = requiredInfoDocLabel(doc);
   const segments = requiredInfoSsnSegments(value);
   const id = `required-info-${key}-ssn-0`;
+  const errorId = `required-info-${key}-error`;
 
   return html`
     <div
@@ -6970,10 +7349,15 @@ const renderRequiredInfoSsnField = ({
                 data-required-info-doc-key=${key}
                 data-required-info-ssn-segment=${String(index)}
                 aria-label=${`${label} part ${index + 1}`}
+                aria-invalid=${error ? 'true' : 'false'}
+                aria-describedby=${ifDefined(error ? errorId : undefined)}
               />
             `
           )}
         </div>
+        ${error
+          ? html`<p class="field-error" id=${errorId} role="alert">${error}</p>`
+          : ''}
       </div>
     </div>
   `;
@@ -7005,6 +7389,18 @@ const requiredInfoDocLabel = (doc: RequiredInfoDoc): string => {
   }
 
   return 'Required document';
+};
+
+const requiredInfoMissingValueMessage = (doc: RequiredInfoDoc): string => {
+  const label = requiredInfoDocLabel(doc);
+
+  if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
+    return 'Enter a Social Security number.';
+  }
+
+  return isRequiredInfoTextDoc(doc)
+    ? `Enter a ${label.toLowerCase()}.`
+    : `Choose a ${label.toLowerCase()}.`;
 };
 
 const requiredInfoSourceTypeLabel = (source: PaymentSource): string => {

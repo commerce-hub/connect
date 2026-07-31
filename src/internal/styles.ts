@@ -35,6 +35,7 @@ export const primitiveStyles = css`
     --chc-motion-fast: 150ms;
     --chc-motion-base: 220ms;
     --chc-motion-slow: 260ms;
+    --chc-motion-sheet: 300ms;
     --chc-motion-provider: 300ms;
     --chc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
@@ -45,6 +46,14 @@ export const primitiveStyles = css`
     font-family: var(--chc-font-family);
     font-size: 1rem;
     font-weight: var(--chc-font-weight);
+  }
+
+  .widget-frame {
+    width: fit-content;
+    position: relative;
+    display: inline-grid;
+    border-radius: 0.5rem;
+    vertical-align: top;
   }
 
   *,
@@ -63,6 +72,7 @@ export const primitiveStyles = css`
   }
 
   .widget-close,
+  .widget-back-button,
   .otp-resend,
   .button,
   .field-input,
@@ -144,6 +154,67 @@ export const primitiveStyles = css`
     min-width: 0;
   }
 
+  .widget-heading-row {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .widget-title-action {
+    flex: 0 0 auto;
+    align-self: center;
+    margin-left: auto;
+  }
+
+  .widget-title-action .text-link-button {
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .widget-header:has(.widget-back-button) {
+    padding-left: 0;
+  }
+
+  .widget-back-button {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: -0.5rem 0;
+    border: 0;
+    border-radius: 999rem;
+    background: transparent;
+    color: var(--chc-primary);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .widget-back-button:hover:not(:disabled) {
+    background: var(--chc-soft-surface);
+  }
+
+  .widget-back-button:focus-visible {
+    outline: 0.125rem solid var(--chc-focus-ring);
+    outline-offset: 0.125rem;
+  }
+
+  .widget-back-button:disabled {
+    color: var(--chc-disabled-text);
+    cursor: not-allowed;
+  }
+
+  .widget-back-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: currentColor;
+    stroke: none;
+  }
+
   .widget-header-action {
     flex: 0 0 auto;
   }
@@ -183,6 +254,207 @@ export const primitiveStyles = css`
     background: var(--chc-surface);
   }
 
+  .payment-method-add-footer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.5rem;
+  }
+
+  .payment-method-add-footer
+    .button-secondary[data-action='open-add-payment-source']:not(:disabled) {
+    border-color: var(--chc-primary);
+    background: var(--chc-surface);
+    color: var(--chc-primary);
+  }
+
+  .add-payment-sheet-layer {
+    position: absolute;
+    z-index: 20;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    padding: 0.75rem 0.75rem 0;
+  }
+
+  .add-payment-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.48);
+  }
+
+  .add-payment-sheet {
+    width: min(100%, 32rem);
+    max-height: calc(100% - 0.75rem);
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 1rem;
+    overflow: auto;
+    border: 0.0625rem solid var(--chc-border);
+    border-bottom: 0;
+    border-radius: 1.25rem 1.25rem 0 0;
+    padding: 1.25rem;
+    background: var(--chc-surface);
+    box-shadow: 0 -0.75rem 2.5rem rgba(15, 23, 42, 0.2);
+    transform-origin: bottom center;
+    animation: chc-sheet-enter var(--chc-motion-sheet)
+      var(--chc-ease-emphasized) both;
+  }
+
+  .add-payment-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .add-payment-sheet-title {
+    margin: 0;
+    color: var(--chc-text);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .add-payment-sheet-close {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-grid;
+    place-items: center;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: 999rem;
+    padding: 0;
+    background: var(--chc-soft-surface);
+    color: var(--chc-text);
+    cursor: pointer;
+  }
+
+  .add-payment-sheet-close svg {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+  }
+
+  .add-payment-sheet-options {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .add-payment-sheet-option {
+    width: 100%;
+    min-height: 4.5rem;
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) 1rem;
+    gap: 0.875rem;
+    align-items: center;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: 0.875rem;
+    padding: 0.75rem;
+    background: var(--chc-surface);
+    color: var(--chc-text);
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard),
+      transform var(--chc-motion-fast) var(--chc-ease-standard);
+  }
+
+  .add-payment-sheet-option:hover,
+  .add-payment-sheet-option:focus-visible {
+    border-color: var(--chc-primary);
+    background: color-mix(in srgb, var(--chc-primary) 4%, var(--chc-surface));
+    transform: translateY(-0.0625rem);
+  }
+
+  .add-payment-sheet-close:focus-visible,
+  .add-payment-sheet-option:focus-visible {
+    outline: 0.125rem solid var(--chc-focus-ring);
+    outline-offset: 0.125rem;
+  }
+
+  .add-payment-sheet-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--chc-primary) 10%, var(--chc-surface));
+    color: var(--chc-primary);
+  }
+
+  .add-payment-sheet-icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: currentColor;
+  }
+
+  .add-payment-sheet-option-copy {
+    min-width: 0;
+    display: grid;
+    gap: 0.1875rem;
+  }
+
+  .add-payment-sheet-option-title {
+    font-weight: 600;
+  }
+
+  .add-payment-sheet-option-subtitle {
+    color: var(--chc-copy);
+    font-size: 0.8125rem;
+  }
+
+  .add-payment-sheet-option-chevron {
+    color: var(--chc-muted);
+    font-size: 1.5rem;
+    justify-self: end;
+  }
+
+  .payment-method-radio {
+    width: 1.125rem;
+    height: 1.125rem;
+    margin: 0;
+    display: grid;
+    appearance: none;
+    place-items: center;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: 999rem;
+    background: var(--chc-surface);
+    cursor: pointer;
+  }
+
+  .payment-method-radio::before {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999rem;
+    background: var(--chc-primary);
+    opacity: 0;
+    transform: scale(0.65);
+    transition: opacity var(--chc-motion-fast) var(--chc-ease-emphasized),
+      transform var(--chc-motion-fast) var(--chc-ease-emphasized);
+  }
+
+  .payment-method-radio:checked {
+    border-color: var(--chc-primary);
+  }
+
+  .payment-method-radio:checked::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .payment-method-row-radio:has(.payment-method-radio:focus-visible) {
+    outline: 0.1875rem solid var(--chc-focus-ring);
+    outline-offset: 0.0625rem;
+  }
+
   .widget-toolbar {
     display: flex;
     align-items: center;
@@ -211,6 +483,11 @@ export const primitiveStyles = css`
   .widget-shell-payment-methods .widget-title {
     font-size: 1.375rem;
     letter-spacing: -0.02em;
+  }
+
+  .widget-shell-payment-methods .widget-heading-row {
+    width: 100%;
+    align-items: center;
   }
 
   .widget-shell-payment-methods .widget-header-action,
@@ -281,16 +558,7 @@ export const primitiveStyles = css`
   }
 
   .text-link-button-icon-edit {
-    border-bottom: 0.09375rem solid currentColor;
-    transform: rotate(-45deg) scale(0.8);
-  }
-
-  .text-link-button-icon-edit::before {
-    content: '';
-    width: 0.3125rem;
-    height: 0.75rem;
-    border: 0.09375rem solid currentColor;
-    border-radius: 0.125rem 0.125rem 0 0;
+    fill: currentColor;
   }
 
   .text-link-button-icon-transfer::before,
@@ -326,89 +594,37 @@ export const primitiveStyles = css`
   }
 
   .widget-shell-payment-methods .widget-content .primitive-stack {
-    display: block;
-    padding-top: 0.5rem;
+    position: relative;
+    display: grid;
+    gap: 0.0625rem;
+    padding: 0.5rem 0 3rem;
     overflow: auto;
     overscroll-behavior: contain;
+    isolation: isolate;
+    scroll-padding-bottom: 3rem;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 calc(100% - 1.5rem),
+      rgba(0, 0, 0, 0.55) 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 calc(100% - 1.5rem),
+      rgba(0, 0, 0, 0.55) 100%
+    );
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
   }
 
-  .payment-method-radio {
-    width: 1.125rem;
-    height: 1.125rem;
-    margin: 0;
-    display: grid;
-    appearance: none;
-    place-items: center;
-    border: 0.0625rem solid var(--chc-border);
-    border-radius: 999rem;
-    background: var(--chc-surface);
-    cursor: pointer;
-  }
-
-  .payment-method-radio::before {
-    content: '';
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 999rem;
-    background: var(--chc-primary);
-    opacity: 0;
-    transform: scale(0.65);
-    transition: opacity var(--chc-motion-fast) var(--chc-ease-emphasized),
-      transform var(--chc-motion-fast) var(--chc-ease-emphasized);
-  }
-
-  .payment-method-radio:checked {
-    border-color: var(--chc-primary);
-  }
-
-  .payment-method-radio:checked::before {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  .payment-method-row-radio:has(.payment-method-radio:focus-visible) {
-    outline: 0.1875rem solid var(--chc-focus-ring);
-    outline-offset: 0.0625rem;
-  }
-
-  .add-method-launcher {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .launcher-copy {
-    margin: 0;
-    color: var(--chc-copy);
-  }
-
-  .tender-tabs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
-  }
-
-  .tender-tab {
-    min-height: 4.5rem;
-    border: 0.0625rem solid var(--chc-border-strong);
-    border-radius: var(--chc-radius-control);
-    background: var(--chc-soft-surface);
-    color: var(--chc-text);
-    font-family: inherit;
-    font-size: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .tender-tab:hover,
-  .tender-tab:focus-visible {
-    border-color: var(--chc-primary);
-    outline: none;
-  }
-
-  .tender-tab[aria-selected='true'] {
-    border-color: var(--chc-primary);
-    background: var(--chc-primary);
-    color: #fff;
+  .widget-shell-payment-methods
+    .widget-content
+    .primitive-stack.primitive-stack-menu-open {
+    -webkit-mask: none;
+    mask: none;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 
   .primitive-stack {
@@ -711,6 +927,21 @@ export const primitiveStyles = css`
     font-size: 0.875em;
   }
 
+  .button-icon-plus {
+    width: 1.5em;
+    height: 1.5em;
+    flex: 0 0 auto;
+    fill: currentColor;
+  }
+
+  .button-content:has(.button-icon-plus) {
+    gap: 0.375rem;
+  }
+
+  .button-content:has(.button-icon-plus) .button-label {
+    white-space: nowrap;
+  }
+
   .button-spinner,
   .otp-resend-spinner {
     width: 1em;
@@ -1011,6 +1242,18 @@ export const primitiveStyles = css`
     box-shadow: 0 0 0 0.25rem var(--chc-focus-ring);
   }
 
+  .bank-account-jsonforms .jsonforms-control input:disabled {
+    border-color: var(--chc-border);
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 85%,
+      var(--chc-border-strong)
+    );
+    color: var(--chc-muted);
+    cursor: not-allowed;
+    opacity: 1;
+  }
+
   .bank-account-jsonforms .jsonforms-description {
     color: var(--chc-muted);
     font-size: 0.875em;
@@ -1148,7 +1391,6 @@ export const primitiveStyles = css`
   .selected-payment-method {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.375rem minmax(0, 1fr) auto;
     gap: 0.625rem;
     align-items: center;
     border-radius: var(--chc-radius-card);
@@ -1157,6 +1399,48 @@ export const primitiveStyles = css`
     color: var(--chc-text);
     text-align: left;
     border: 0.0625rem solid transparent;
+  }
+
+  .payment-method-row {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .payment-method-row-menu-open {
+    z-index: 5;
+  }
+
+  .selected-payment-method {
+    grid-template-columns: 2.375rem minmax(0, 1fr) auto;
+  }
+
+  .payment-method-row-main {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 2.375rem minmax(0, 1fr) auto;
+    gap: 0.625rem;
+    align-items: center;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-style: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    text-align: left;
+  }
+
+  .payment-method-row-main-radio {
+    grid-template-columns: 1.125rem 2.375rem minmax(0, 1fr) auto;
+  }
+
+  .payment-method-row-main-action {
+    cursor: pointer;
+  }
+
+  .payment-method-row-main-action:focus-visible {
+    outline: 0;
   }
 
   .payment-method-row-action {
@@ -1168,7 +1452,7 @@ export const primitiveStyles = css`
   }
 
   .payment-method-row-edit {
-    grid-template-columns: 2.375rem minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     cursor: default;
   }
 
@@ -1183,6 +1467,13 @@ export const primitiveStyles = css`
 
   .payment-method-row-static {
     cursor: default;
+  }
+
+  .payment-method-row-selected {
+    border-color: var(--chc-primary);
+    background: var(--chc-soft-surface);
+    box-shadow: 0 0 0 0.0625rem
+      color-mix(in srgb, var(--chc-primary) 12%, transparent);
   }
 
   .selected-payment-method {
@@ -1217,13 +1508,6 @@ export const primitiveStyles = css`
     justify-items: center;
   }
 
-  .payment-method-row-selected {
-    border-color: var(--chc-primary);
-    background: var(--chc-soft-surface);
-    box-shadow: 0 0 0 0.0625rem
-      color-mix(in srgb, var(--chc-primary) 12%, transparent);
-  }
-
   .payment-method-row-action:hover:not(:disabled),
   .payment-method-row-action:focus-visible {
     border-color: var(--chc-border);
@@ -1233,6 +1517,15 @@ export const primitiveStyles = css`
 
   .payment-method-row-action:focus-visible {
     outline: 0;
+  }
+
+  .payment-method-row-action:has(
+      .payment-method-row-main-action:focus-visible
+    ) {
+    border-color: var(--chc-border);
+    background: var(--chc-soft-surface);
+    outline: 0.125rem solid var(--chc-focus-ring);
+    outline-offset: 0.125rem;
   }
 
   .payment-method-row-action:disabled {
@@ -1260,6 +1553,105 @@ export const primitiveStyles = css`
     justify-content: flex-end;
     gap: 0.375rem;
     justify-self: end;
+  }
+
+  .payment-method-overflow {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    justify-self: end;
+  }
+
+  .payment-method-overflow-button {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-grid;
+    place-items: center;
+    border: 0;
+    border-radius: 0.75rem;
+    padding: 0;
+    background: transparent;
+    color: var(--chc-copy);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .payment-method-overflow-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: currentColor;
+  }
+
+  .payment-method-overflow-button:hover:not(:disabled),
+  .payment-method-overflow-button:focus-visible,
+  .payment-method-menu button:hover:not(:disabled),
+  .payment-method-menu button:focus-visible {
+    background: var(--chc-soft-surface);
+  }
+
+  .payment-method-overflow-button:focus-visible,
+  .payment-method-menu button:focus-visible {
+    outline: 0.125rem solid var(--chc-focus-ring);
+    outline-offset: 0.125rem;
+  }
+
+  .payment-method-overflow-button:disabled,
+  .payment-method-menu button:disabled {
+    color: var(--chc-muted);
+    cursor: not-allowed;
+  }
+
+  .payment-method-menu {
+    position: absolute;
+    z-index: 4;
+    top: calc(100% + 0.25rem);
+    right: 0;
+    min-width: 10rem;
+    display: grid;
+    gap: 0.125rem;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: 0.75rem;
+    padding: 0.375rem;
+    background: var(--chc-surface);
+    box-shadow: 0 0.625rem 1.5rem rgba(16, 24, 40, 0.16);
+  }
+
+  .payment-method-menu-above {
+    top: auto;
+    bottom: calc(100% + 0.25rem);
+  }
+
+  .payment-method-menu button {
+    min-height: 2.5rem;
+    border: 0;
+    border-radius: 0.5rem;
+    padding: 0 0.75rem;
+    background: transparent;
+    color: var(--chc-text);
+    font-family: inherit;
+    font-style: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .payment-method-default-label {
+    min-height: 1.5625rem;
+    display: inline-flex;
+    align-items: center;
+    border: 0.0625rem solid
+      color-mix(in srgb, var(--chc-primary) 28%, transparent);
+    border-radius: 999rem;
+    padding: 0.1875rem 0.5625rem;
+    background: color-mix(in srgb, var(--chc-primary) 8%, white);
+    color: var(--chc-primary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
   }
 
   .payment-method-balance {
@@ -1361,38 +1753,17 @@ export const primitiveStyles = css`
     gap: 0.5rem;
   }
 
-  .payment-method-delete-confirmation-group {
-    max-width: min(20rem, 54vw);
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .payment-method-delete-confirmation {
-    max-width: min(9rem, 28vw);
-    color: var(--chc-danger);
-    font-size: 0.75rem;
-    font-weight: inherit;
-    text-align: right;
-    white-space: normal;
-  }
-
-  .payment-method-delete-confirmation-controls {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-  }
-
   .payment-method-delete-confirm-button {
+    width: 2.5rem;
+    min-width: 2.5rem;
+    height: 2.5rem;
     min-height: 2.5rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border: 0.0625rem solid var(--chc-border-strong);
     border-radius: 0.625rem;
-    padding: 0 0.75rem;
+    padding: 0;
     background: var(--chc-surface);
     color: var(--chc-copy);
     font-family: inherit;
@@ -1442,37 +1813,10 @@ export const primitiveStyles = css`
     color: var(--chc-muted);
   }
 
-  .payment-method-delete-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-    position: relative;
-    display: inline-flex;
-  }
-
-  .payment-method-delete-icon::before,
-  .payment-method-delete-icon::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .payment-method-delete-icon::before {
-    top: 0.3125rem;
-    width: 0.75rem;
-    height: 0.6875rem;
-    border: 0.09375rem solid currentColor;
-    border-top: 0;
-    border-radius: 0 0 0.15625rem 0.15625rem;
-  }
-
-  .payment-method-delete-icon::after {
-    top: 0.1875rem;
-    width: 0.9375rem;
-    height: 0.125rem;
-    background: currentColor;
-    border-radius: 999rem;
-    box-shadow: 0 -0.21875rem 0 -0.03125rem currentColor;
+  .payment-method-delete-action-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    fill: currentColor;
   }
 
   .payment-method-icon-chip {
@@ -2235,6 +2579,21 @@ export const primitiveStyles = css`
     cursor: not-allowed;
   }
 
+  .text-link-button-secondary {
+    gap: 0.25rem;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    padding: 0 0.75rem;
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 82%,
+      var(--chc-surface)
+    );
+    color: var(--chc-primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
   .payment-method-skeletons {
     display: grid;
     gap: 0;
@@ -2343,6 +2702,16 @@ export const primitiveStyles = css`
     }
   }
 
+  @keyframes chc-sheet-enter {
+    from {
+      transform: translateY(100%);
+    }
+
+    to {
+      transform: none;
+    }
+  }
+
   .powered-by-footer {
     display: flex;
     justify-content: center;
@@ -2371,6 +2740,24 @@ export const primitiveStyles = css`
 
     .form-grid {
       grid-template-columns: minmax(0, 1fr);
+    }
+
+    .payment-method-add-footer {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .add-payment-sheet-layer {
+      padding: 0;
+    }
+
+    .add-payment-sheet {
+      width: 100%;
+      max-height: calc(100dvh - 1rem);
+      border-right: 0;
+      border-bottom: 0;
+      border-left: 0;
+      border-radius: 1.25rem 1.25rem 0 0;
+      padding: 1rem;
     }
 
     .widget-header {
@@ -2422,6 +2809,12 @@ export const primitiveStyles = css`
     .source-action-link,
     .payment-method-delete-button,
     .payment-method-delete-confirm-button {
+      transition: none;
+      animation: none;
+    }
+
+    .add-payment-sheet,
+    .add-payment-sheet-option {
       transition: none;
       animation: none;
     }

@@ -3,9 +3,9 @@ import {expect, test} from 'playwright/test';
 const desktopScenarios = [
   ['loading', 'loading'],
   ['payment method list', 'list'],
-  ['payment method edit mode', 'edit'],
+  ['payment method delete confirmation', 'delete-confirmation'],
   ['confirmed payment method', 'confirmed'],
-  ['add method launcher', 'add-launcher'],
+  ['add payment method sheet', 'add-launcher'],
   ['add card form', 'add-card'],
   ['add bank provider', 'add-bank-provider'],
   ['manual bank form', 'add-bank-manual'],

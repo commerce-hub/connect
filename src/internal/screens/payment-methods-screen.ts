@@ -22,15 +22,24 @@ export const renderPaymentMethodsSkeletonScreen = (): TemplateResult => html`
 
 export const renderPaymentMethodsScreen = ({
   methods,
+  canAddPaymentSources,
   canSelectPaymentSources,
-  editing,
   actionPending,
   selectedPaymentSourceId,
+  openPaymentSourceMenuId,
+  paymentSourceMenuPlacement = 'below',
   deleteConfirmationPaymentSourceId,
 }: PaymentMethodsScreenModel): TemplateResult => {
+  const menuOpen = Boolean(openPaymentSourceMenuId);
+
   return html`
     <div class="payment-flow">
-      <div class="primitive-stack" aria-label="Payment methods">
+      <div
+        class=${menuOpen
+          ? 'primitive-stack primitive-stack-menu-open'
+          : 'primitive-stack'}
+        aria-label="Payment methods"
+      >
         ${methods.map((method) =>
           renderPaymentMethodRow(
             {
@@ -38,11 +47,14 @@ export const renderPaymentMethodsScreen = ({
               disabled: method.disabled || actionPending,
             },
             {
-              variant: editing ? 'edit' : 'default',
               deleteDisabled: actionPending,
               confirmingDelete: method.id === deleteConfirmationPaymentSourceId,
+              menuOpen: method.id === openPaymentSourceMenuId,
+              menuPlacement: paymentSourceMenuPlacement,
               selected: method.id === selectedPaymentSourceId,
               selectable: canSelectPaymentSources,
+              showMarkAsDefault:
+                canSelectPaymentSources || canAddPaymentSources,
             }
           )
         )}

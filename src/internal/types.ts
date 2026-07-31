@@ -4,6 +4,13 @@ import type {components} from '../generated/openapi.js';
 
 type GeneratedInteractionResponse =
   components['schemas']['InteractionResponse'];
+type GeneratedPaymentSource = NonNullable<
+  GeneratedInteractionResponse['paymentSources']
+>[number];
+type GeneratedBankPaymentSource = Extract<
+  GeneratedPaymentSource,
+  {tenderType: 'BankAccount'}
+>;
 type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
 export type InteractionStatus =
   | GeneratedInteractionResponse['status']
@@ -30,17 +37,26 @@ export interface InteractionOAuth {
   status?: string;
 }
 
+export interface PaymentSourceRecipient {
+  id?: string;
+  status?: string;
+}
+
+export type PaymentSource =
+  | Exclude<GeneratedPaymentSource, GeneratedBankPaymentSource>
+  | (GeneratedBankPaymentSource & {
+      recipient?: PaymentSourceRecipient;
+    });
+
 export type InteractionResponse = Omit<
   GeneratedInteractionResponse,
-  'status'
+  'status' | 'paymentSources' | 'selectedSource'
 > & {
   status?: InteractionStatus;
+  paymentSources?: PaymentSource[];
+  selectedSource?: PaymentSource;
   oauth?: InteractionOAuth;
 };
-
-export type PaymentSource = NonNullable<
-  InteractionResponse['paymentSources']
->[number];
 
 export type NativePaymentSource = Extract<
   PaymentSource,
@@ -60,12 +76,13 @@ export type FlowActionName =
   | 'resend-otp'
   | 'attach-payment-source'
   | 'open-add-payment-source'
+  | 'close-add-payment-source'
   | 'retry-interaction-refresh'
   | 'change-payment-source'
-  | 'toggle-payment-source-edit-mode'
+  | 'toggle-payment-source-menu'
+  | 'mark-payment-source-default'
   | 'verify-payment-source'
   | 'delete-payment-source'
-  | 'cancel-delete-payment-source'
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
   | 'open-transfer'
@@ -115,6 +132,8 @@ export type CardDraft = {
   state: string;
   zip: string;
 };
+
+export type CardDraftTextField = keyof CardDraft;
 
 export type BankAccountDraft = {
   accountNickname: string;
@@ -237,9 +256,10 @@ export interface PaymentMethodsScreenModel {
   allowedTenderOptions: AllowedTenderOptions;
   canAddPaymentSources: boolean;
   canSelectPaymentSources: boolean;
-  editing: boolean;
   actionPending: boolean;
   selectedPaymentSourceId?: string;
+  openPaymentSourceMenuId?: string;
+  paymentSourceMenuPlacement?: 'above' | 'below';
   deleteConfirmationPaymentSourceId?: string;
   copy: PaymentMethodsScreenCopy;
   showTransferAction?: boolean;
@@ -257,7 +277,7 @@ export type ButtonVariant = 'primary' | 'secondary';
 
 export type ButtonType = 'button' | 'submit' | 'reset';
 
-export type ButtonIcon = 'check' | 'arrow-right';
+export type ButtonIcon = 'check' | 'arrow-right' | 'plus';
 
 export type FieldVariant = 'default' | 'card-form';
 
@@ -382,6 +402,9 @@ export interface PaymentMethod {
   last4: string;
   status: PaymentMethodStatus;
   showVerificationStatus?: boolean;
+  verificationLabel?: string;
+  selectionEligible?: boolean;
+  isDefault?: boolean;
   disabled?: boolean;
 }
 
@@ -450,7 +473,7 @@ export interface TextLinkButtonOptions {
   label: string;
   action: FlowActionName;
   icon?: 'edit' | 'add' | 'transfer';
-  variant?: 'default' | 'primary';
+  variant?: 'default' | 'primary' | 'secondary';
   disabled?: boolean;
 }
 
@@ -463,6 +486,9 @@ export interface WidgetShellOptions {
   title: string;
   subtitle?: string;
   content: TemplateResult;
+  backAction?: FlowActionName;
+  backDisabled?: boolean;
+  titleAction?: TemplateResult;
   headerAction?: TemplateResult;
   footer?: TemplateResult;
   width?: 'default' | 'wide';

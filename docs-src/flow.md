@@ -64,6 +64,14 @@ The widget uses the host-provided `InteractionResponse` as bootstrap data for
 state for payment methods, selected source, billing addresses, and status.
 Host-provided `paymentSources` are not rendered as authoritative saved methods.
 
+Verified saved methods render as radio choices. The **Use selected method**
+button is enabled after a choice is made, attaches that source, emits
+`onSelect`, and keeps the saved-method list visible with that source selected.
+**Add payment method** opens a modal bottom sheet with **Credit or debit card**
+and **Bank account** options when both are allowed. If only one type is allowed,
+the widget opens that flow directly.
+The same bottom-sheet behavior applies to `ADD_ACCOUNT`-only interactions.
+
 The widget always sends `interactionResponse.interactionId` as the
 `x-interaction-id` header for SDK-managed CommerceHub calls. When
 `interactionResponse.oauth.access_token` is present, it also sends
@@ -147,10 +155,13 @@ The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
 event for those states.
 
-Selecting a saved method only updates the draft radio selection. The attach
-request and `onSelect` event occur after the shopper activates **Use selected
-method**. Added and newly verified sources return to the list selected, but do
-not attach automatically.
+`onSelect` remains the completion boundary only for explicit payment-source
+selection. Marking a saved source as default attaches it and updates the
+**Default** badge, but does not emit `onSelect` or complete host-owned checkout
+work. New-card forms do not include a default-selection control. A saved method
+can be removed from its
+overflow menu: the first **Remove** selection reveals a red **Delete** action
+on the row for 10 seconds, and activating that action removes the method.
 
 ## 5. Configure production behavior
 

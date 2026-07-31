@@ -15,6 +15,21 @@ const settle = async (element: CommerceHubConnect) => {
   await element.updateComplete;
 };
 
+const waitFor = async (
+  predicate: () => boolean,
+  message = 'condition was not met'
+) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await nextFrame();
+
+    if (predicate()) {
+      return;
+    }
+  }
+
+  throw new Error(message);
+};
+
 const renderConnect = async (interactionResponse: InteractionResponse) => {
   const element = (await fixture(
     testingHtml`<commerce-hub-connect
@@ -130,7 +145,7 @@ suite('commerce-hub-connect accessibility', () => {
     assert.equal(requests[0].method, 'POST');
   });
 
-  test('Add launcher receives focus and Escape restores the methods toolbar', async () => {
+  test('sheet Add card focuses its form and Escape restores the methods list', async () => {
     window.fetch = async () =>
       new Response(JSON.stringify({}), {
         status: 200,
@@ -152,18 +167,33 @@ suite('commerce-hub-connect accessibility', () => {
         },
       ],
     });
+    await waitFor(
+      () =>
+        Boolean(
+          element.shadowRoot!.querySelector(
+            '[data-action="open-add-payment-source"]'
+          )
+        ),
+      'Add payment method action did not render'
+    );
     const add = element.shadowRoot!.querySelector<HTMLButtonElement>(
       '[data-action="open-add-payment-source"]'
     )!;
 
     add.click();
     await settle(element);
+    element
+      .shadowRoot!.querySelector<HTMLButtonElement>(
+        '.add-payment-sheet [data-action="add-card"]'
+      )!
+      .click();
+    await settle(element);
 
-    const firstTab =
-      element.shadowRoot!.querySelector<HTMLButtonElement>('.tender-tab')!;
-    assert.strictEqual(element.shadowRoot!.activeElement, firstTab);
+    const cardLabel =
+      element.shadowRoot!.querySelector<HTMLInputElement>('#card-label')!;
+    assert.strictEqual(element.shadowRoot!.activeElement, cardLabel);
 
-    firstTab.dispatchEvent(
+    cardLabel.dispatchEvent(
       new KeyboardEvent('keydown', {
         key: 'Escape',
         bubbles: true,
@@ -172,14 +202,15 @@ suite('commerce-hub-connect accessibility', () => {
     );
     await settle(element);
 
-    const restoredAdd = element.shadowRoot!.querySelector<HTMLButtonElement>(
-      '[data-action="open-add-payment-source"]'
-    );
-    assert.exists(restoredAdd);
-    assert.strictEqual(element.shadowRoot!.activeElement, restoredAdd);
+    const restoredMethodAction =
+      element.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="open-add-payment-source"]'
+      );
+    assert.exists(restoredMethodAction);
+    assert.strictEqual(element.shadowRoot!.activeElement, restoredMethodAction);
   });
 
-  test('Add launcher exposes one selected tab with associated panels and arrow activation', async () => {
+  test('Add payment method sheet traps focus and Escape restores the trigger', async () => {
     window.fetch = async () =>
       new Response(JSON.stringify({}), {
         status: 200,
@@ -188,7 +219,7 @@ suite('commerce-hub-connect accessibility', () => {
 
     const element = await renderConnect({
       status: 'PAYMENT_SOURCE_REQUESTED',
-      features: ['ADD_ACCOUNT'],
+      features: ['ADD_ACCOUNT', 'SELECT'],
       allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
       paymentSources: [],
     });
@@ -200,50 +231,90 @@ suite('commerce-hub-connect accessibility', () => {
       .click();
     await settle(element);
 
-    const tabs = [
-      ...element.shadowRoot!.querySelectorAll<HTMLButtonElement>('.tender-tab'),
-    ];
-    const [cardTab, bankTab] = tabs;
+    const addButton = element.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="open-add-payment-source"]'
+    )!;
+    const closeButton = element.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="close-add-payment-source"]'
+    )!;
+    const bankOption = element.shadowRoot!.querySelector<HTMLButtonElement>(
+      '.add-payment-sheet [data-action="add-bank-account"]'
+    )!;
 
-    assert.deepEqual(
-      tabs.map((tab) => [tab.getAttribute('aria-selected'), tab.tabIndex]),
-      [
-        ['true', 0],
-        ['false', -1],
-      ]
-    );
+    assert.strictEqual(element.shadowRoot!.activeElement, closeButton);
 
-    for (const tab of tabs) {
-      const panelId = tab.getAttribute('aria-controls');
-      const panel = element.shadowRoot!.getElementById(panelId!);
-
-      assert.isNotNull(panelId);
-      assert.equal(panel?.getAttribute('role'), 'tabpanel');
-      assert.equal(panel?.getAttribute('aria-labelledby'), tab.id);
-    }
-
-    assert.isFalse(
-      element.shadowRoot!.getElementById('add-card-tab-panel')!.hidden
-    );
-    assert.isTrue(
-      element.shadowRoot!.getElementById('add-bank-account-tab-panel')!.hidden
-    );
-
-    bankTab.focus();
-    bankTab.dispatchEvent(
+    bankOption.focus();
+    bankOption.dispatchEvent(
       new KeyboardEvent('keydown', {
-        key: 'ArrowLeft',
+        key: 'Tab',
+        bubbles: true,
+        composed: true,
+      })
+    );
+    await settle(element);
+    assert.strictEqual(element.shadowRoot!.activeElement, closeButton);
+
+    closeButton.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        composed: true,
+      })
+    );
+    await settle(element);
+    assert.strictEqual(element.shadowRoot!.activeElement, bankOption);
+
+    bankOption.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
         bubbles: true,
         composed: true,
       })
     );
     await settle(element);
 
-    assert.exists(
-      element.shadowRoot!.querySelector('form[data-submit-action="save-card"]')
-    );
-    assert.notExists(element.shadowRoot!.querySelector('.tender-tabs'));
-    assert.notStrictEqual(cardTab, bankTab);
+    assert.notExists(element.shadowRoot!.querySelector('.add-payment-sheet'));
+    assert.strictEqual(element.shadowRoot!.activeElement, addButton);
+  });
+
+  test('Add payment method sheet closes from its close button and backdrop', async () => {
+    window.fetch = async () =>
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+
+    const element = await renderConnect({
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['ADD_ACCOUNT', 'SELECT'],
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+    const openSheet = async () => {
+      element
+        .shadowRoot!.querySelector<HTMLButtonElement>(
+          '[data-action="open-add-payment-source"]'
+        )!
+        .click();
+      await settle(element);
+    };
+
+    await openSheet();
+    element
+      .shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="close-add-payment-source"]'
+      )!
+      .click();
+    await settle(element);
+    assert.notExists(element.shadowRoot!.querySelector('.add-payment-sheet'));
+
+    await openSheet();
+    element
+      .shadowRoot!.querySelector<HTMLElement>('.add-payment-sheet-backdrop')!
+      .click();
+    await settle(element);
+    assert.notExists(element.shadowRoot!.querySelector('.add-payment-sheet'));
   });
 
   test('Add is hidden when no supported add tender is allowed', async () => {
@@ -308,9 +379,7 @@ suite('commerce-hub-connect accessibility', () => {
     });
 
     element
-      .shadowRoot!.querySelector<HTMLButtonElement>(
-        '[data-action="open-add-payment-source"]'
-      )!
+      .shadowRoot!.querySelector<HTMLButtonElement>('[data-action="add-card"]')!
       .click();
     await settle(element);
 

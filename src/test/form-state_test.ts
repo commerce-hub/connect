@@ -4,6 +4,7 @@ import {
   createBankAccountDraft,
   createBankAccountEncryptionState,
   formatBankAccountDraftFieldValue,
+  hasRequiredBankAccountDraftValues,
   isBankAccountDraftReady,
   legacyBankAccountFormSchema,
   maskSensitiveDisplayValue,
@@ -19,6 +20,7 @@ import {
   createCardEncryptionState,
   detectCardNetwork,
   formatCardDraftFieldValue,
+  hasRequiredCardDraftValues,
   isCardDraftReady,
   normalizeCardDraft,
   parseExpirationDate,
@@ -26,6 +28,7 @@ import {
   validateCardDraft,
   validateCardEncryptionReadiness,
 } from '../internal/forms/card-form-state.js';
+import {hasRequiredJsonSchemaValues} from '../internal/forms/instrument-schema.js';
 import {
   OTP_LENGTH,
   normalizeOtpValue,
@@ -40,10 +43,12 @@ import {
   requiredInfoSsnSegments,
   storeRequiredInfoFile,
   storeRequiredInfoValue,
+  validateRequiredInfoSsn,
 } from '../internal/forms/required-info-form-state.js';
 import {
   createTransferDraft,
   formatTransferAmountForReview,
+  hasRequiredTransferDraftValues,
   isTransferDraftReady,
   normalizeTransferDraft,
   validateTransferDraft,
@@ -140,6 +145,8 @@ suite('form state models', () => {
     assert.equal(draft.cardNumber, '4111 1111 1111 1111');
     assert.equal(draft.expirationDate, '04 / 30');
     assert.equal(draft.cvv, '1234');
+    assert.notProperty(createCardDraft(), 'markAsDefault');
+    assert.notProperty(normalizedDraft, 'markAsDefault');
     assert.deepEqual(parseExpirationDate(draft.expirationDate), {
       month: '04',
       year: '2030',
@@ -183,6 +190,26 @@ suite('form state models', () => {
         cvv: 'Encrypt the CVC before saving.',
       }
     );
+  });
+
+  test('separates required card presence from card validity', () => {
+    const draft = {
+      ...createCardDraft(),
+      name: 'Card',
+      fullName: 'A',
+      cardNumber: '1',
+      expirationDate: '1',
+      cvv: '1',
+      country: 'US',
+      addressLine1: '1 Main',
+      city: 'Brookfield',
+      state: 'WI',
+      zip: 'x',
+    };
+
+    assert.isTrue(hasRequiredCardDraftValues(draft));
+    assert.isNotEmpty(validateCardDraft(draft));
+    assert.isFalse(hasRequiredCardDraftValues({...draft, fullName: '   '}));
   });
 
   test('formats, validates, masks, and resolves manual ACH fields', () => {
@@ -297,6 +324,26 @@ suite('form state models', () => {
     );
   });
 
+  test('checks required legacy bank values without validating formats', () => {
+    const draft = {
+      accountNickname: 'Account',
+      routingNumber: '1',
+      accountNumber: '2',
+      confirmAccountNumber: '3',
+    };
+
+    assert.isTrue(
+      hasRequiredBankAccountDraftValues(draft, bankAccountFormSchema)
+    );
+    assert.isNotEmpty(validateBankAccountDraft(draft, bankAccountFormSchema));
+    assert.isFalse(
+      hasRequiredBankAccountDraftValues(
+        {...draft, accountNumber: ''},
+        bankAccountFormSchema
+      )
+    );
+  });
+
   test('updates ACH state immutably and marks changed sensitive fields dirty', () => {
     const draft = createBankAccountDraft();
     const encryption = createBankAccountEncryptionState();
@@ -330,6 +377,46 @@ suite('form state models', () => {
     assert.deepEqual(validateTransferDraft({...draft, amount: '0'}, sources), {
       amount: 'Enter an amount greater than zero.',
     });
+  });
+
+  test('checks transfer presence independently from transfer validity', () => {
+    const draft = {
+      fromSourceId: 'same',
+      toSourceId: 'same',
+      amount: '-1',
+    };
+
+    assert.isTrue(hasRequiredTransferDraftValues(draft));
+    assert.isNotEmpty(validateTransferDraft(draft, [{id: 'same'}]));
+    assert.isFalse(hasRequiredTransferDraftValues({...draft, amount: ''}));
+  });
+
+  test('checks nested required JSON Schema values without format validation', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        accountNumber: {type: 'string', minLength: 4},
+        address: {
+          type: 'object',
+          properties: {city: {type: 'string'}},
+          required: ['city'],
+        },
+      },
+      required: ['accountNumber', 'address'],
+    };
+
+    assert.isTrue(
+      hasRequiredJsonSchemaValues(schema, {
+        accountNumber: '1',
+        address: {city: 'X'},
+      })
+    );
+    assert.isFalse(
+      hasRequiredJsonSchemaValues(schema, {
+        accountNumber: '1',
+        address: {city: '   '},
+      })
+    );
   });
 
   test('normalizes OTP input and distributes pasted digits', () => {
@@ -369,6 +456,11 @@ suite('form state models', () => {
       '6789',
     ]);
     assert.equal(requiredInfoSsnSegmentMaxLength(2), 4);
+    assert.equal(
+      validateRequiredInfoSsn('12345'),
+      'Enter a 9-digit Social Security number.'
+    );
+    assert.isUndefined(validateRequiredInfoSsn('123456789'));
     assert.isTrue(hasRequiredInfoTextValue(values, 'SOCIAL_SECURITY_NUMBER-0'));
     assert.isTrue(hasRequiredInfoFile(fileState.files, 'DOCUMENT-0'));
     assert.equal(fileState.fileNames['DOCUMENT-0'], 'synthetic-document.txt');

@@ -45,14 +45,23 @@ request. The SDK owns the browser widget once the host passes an
    `interactionResponse.oauth.access_token` is present.
 6. The shopper completes the required flow, such as OTP, saved source
    selection, card entry, ACH entry, Pay by Bank, or additional verification.
-7. The shopper chooses a verified source and explicitly confirms with **Use
-   selected method**. The SDK then attaches it and emits `onSelect` with the
-   selected `PaymentSource` in `event.detail`.
+7. An explicit payment-source selection flow emits `onSelect` with the selected
+   `PaymentSource` in `event.detail`. Marking a source as default is separate
+   from checkout selection and does not emit `onSelect`.
 8. The SDK also emits success-only operation events for SDK-managed source
    listing, creation, verification, deletion, and native account transfers.
 9. Your host completes the merchant interaction with
    `GET /merchant/interaction/{interactionId}/complete` and treats the
    merchant response as the completed source.
+
+Verified saved methods use radio controls. **Use selected method** remains
+disabled until a method is selected, then attaches that source, emits
+`onSelect`, and keeps the saved-method list visible with that source selected.
+When adding is available, **Add payment method** sits beside the selection
+action. If card and bank account are both allowed, it opens a bottom sheet with
+separate **Credit or debit card** and **Bank account** choices; a single allowed
+type opens its entry flow directly. The same bottom-sheet behavior applies to
+`ADD_ACCOUNT`-only flows.
 
 ```ts
 import 'commerce-hub-connect-sdk';
@@ -154,10 +163,12 @@ error and blocks shopper payment actions until the host assigns it.
 work. Its `event.detail` is the selected `PaymentSource`, and hosts should still
 complete the merchant interaction from that event.
 
-Changing the selected radio never performs a request. New and newly verified
-sources emit their operation event, return to the method list as the draft
-selection, and wait for explicit confirmation. This means `onSelect` is no
-longer emitted automatically after source creation or verification.
+Choosing **Mark as default** from a saved method's overflow menu attaches that
+source and updates the **Default** badge without emitting `onSelect`. New cards
+do not include a default-selection control and return to the saved-method list
+after creation or verification. Saved-method overflow menus also expose
+**Delete**, which reveals a red **Delete** action on the row for 10 seconds;
+activating that action removes the method.
 
 The SDK also emits success-only operation events with raw operation results:
 
@@ -194,7 +205,6 @@ widget.designConfig = {
     },
     paymentMethods: {
       title: 'Choose payment method',
-      continueButton: 'Use selected method',
     },
   },
 };

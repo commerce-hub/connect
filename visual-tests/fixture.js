@@ -104,10 +104,10 @@ const fixtureConfigurations = {
     ready: '.payment-method-skeletons',
   },
   list: {response: paymentResponse()},
-  edit: {
+  'delete-confirmation': {
     response: paymentResponse(),
     configure(element) {
-      element.paymentSourceEditMode = true;
+      element.deleteConfirmationPaymentSourceId = corporateCard.id;
     },
   },
   confirmed: {
@@ -124,6 +124,7 @@ const fixtureConfigurations = {
     configure(element) {
       element.addLauncherActive = true;
     },
+    ready: '.add-payment-sheet',
   },
   'add-card': {
     response: paymentResponse(),

@@ -20,6 +20,11 @@ export const requiredInfoSsnSegments = (
 export const requiredInfoSsnSegmentMaxLength = (segmentIndex: number): number =>
   REQUIRED_INFO_SSN_SEGMENT_LENGTHS[segmentIndex] ?? 0;
 
+export const validateRequiredInfoSsn = (value: string): string | undefined =>
+  normalizeRequiredInfoSsn(value).length === 9
+    ? undefined
+    : 'Enter a 9-digit Social Security number.';
+
 export const storeRequiredInfoValue = (
   values: RequiredInfoValues,
   key: string,

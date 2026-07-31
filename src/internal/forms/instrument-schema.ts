@@ -24,7 +24,9 @@ type NormalizedInstrumentSchema = {
   required?: string[];
 };
 
-type NormalizedInstrumentSchemaProperty = ConfigInstrumentSchemaProperty;
+type NormalizedInstrumentSchemaProperty = ConfigInstrumentSchemaProperty & {
+  readOnly?: boolean;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -34,6 +36,14 @@ const hasOwn = (value: object, key: PropertyKey): boolean =>
 
 const isNonBlankString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
+
+const trimmedInteractionCountry = (
+  interactionCountry: string | undefined
+): string | undefined => {
+  const trimmed = interactionCountry?.trim();
+
+  return trimmed ? trimmed : undefined;
+};
 
 const isOptionalNonNegativeInteger = (value: unknown): boolean =>
   value === undefined ||
@@ -175,7 +185,8 @@ const createObjectSchema = (): NormalizedInstrumentSchema => ({
 });
 
 const normalizeProperty = (
-  property: ConfigInstrumentSchemaProperty
+  property: ConfigInstrumentSchemaProperty,
+  readOnly = false
 ): NormalizedInstrumentSchemaProperty => {
   const normalized: NormalizedInstrumentSchemaProperty = {
     type: 'string',
@@ -192,6 +203,9 @@ const normalizeProperty = (
   if (property.pattern !== undefined) {
     normalized.pattern = normalizePattern(property.pattern);
   }
+  if (readOnly) {
+    normalized.readOnly = true;
+  }
 
   return normalized;
 };
@@ -199,7 +213,8 @@ const normalizeProperty = (
 const addProperty = (
   root: NormalizedInstrumentSchema,
   path: string[],
-  property: ConfigInstrumentSchemaProperty
+  property: ConfigInstrumentSchemaProperty,
+  readOnly = false
 ): void => {
   let parent = root;
 
@@ -213,7 +228,10 @@ const addProperty = (
     parent = child as NormalizedInstrumentSchema;
   }
 
-  parent.properties[path[path.length - 1]] = normalizeProperty(property);
+  parent.properties[path[path.length - 1]] = normalizeProperty(
+    property,
+    readOnly
+  );
 };
 
 const addRequiredPath = (
@@ -235,14 +253,21 @@ const addRequiredPath = (
 };
 
 export const normalizeInstrumentSchema = (
-  schema: ConfigInstrumentSchema
+  schema: ConfigInstrumentSchema,
+  interactionCountry?: string
 ): JsonSchema => {
   assertValidPropertyPaths(schema);
 
   const normalized = createObjectSchema();
+  const country = trimmedInteractionCountry(interactionCountry);
 
   for (const [path, property] of Object.entries(schema.properties)) {
-    addProperty(normalized, splitPropertyPath(path), property);
+    addProperty(
+      normalized,
+      splitPropertyPath(path),
+      property,
+      path === 'address.country' && country !== undefined
+    );
   }
 
   for (const path of schema.required) {
@@ -250,6 +275,28 @@ export const normalizeInstrumentSchema = (
   }
 
   return normalized as JsonSchema;
+};
+
+export const hasRequiredJsonSchemaValues = (
+  schema: JsonSchema,
+  data: unknown
+): boolean => {
+  if (!isRecord(data)) {
+    return (schema.required?.length ?? 0) === 0;
+  }
+
+  return (schema.required ?? []).every((key) => {
+    const value = data[key];
+    const property = schema.properties?.[key];
+
+    if (isRecord(property) && property.type === 'object') {
+      return hasRequiredJsonSchemaValues(property as JsonSchema, value);
+    }
+
+    return typeof value === 'string'
+      ? Boolean(value.trim())
+      : value !== undefined && value !== null;
+  });
 };
 
 export const instrumentSchemaWithoutAddress = (
@@ -287,11 +334,6 @@ export const createBankBillingAddressUiSchema = (
   const bankControls = elements.filter(
     (element) => !addressControls.includes(element)
   );
-  const accountNumberIndex = bankControls.findIndex((element) =>
-    scopeOf(element).endsWith('/accountNumber')
-  );
-  const insertionIndex =
-    accountNumberIndex >= 0 ? accountNumberIndex + 1 : bankControls.length;
   const billingAddressControl = {
     type: 'Control',
     scope: billingAddressScope,
@@ -299,17 +341,13 @@ export const createBankBillingAddressUiSchema = (
 
   return {
     ...layout,
-    elements: [
-      ...bankControls.slice(0, insertionIndex),
-      billingAddressControl,
-      ...addressControls,
-      ...bankControls.slice(insertionIndex),
-    ],
+    elements: [...bankControls, billingAddressControl, ...addressControls],
   };
 };
 
 export const createInstrumentSchemaInitialData = (
-  schema: ConfigInstrumentSchema
+  schema: ConfigInstrumentSchema,
+  interactionCountry?: string
 ): Record<string, unknown> => {
   assertValidPropertyPaths(schema);
 
@@ -327,11 +365,49 @@ export const createInstrumentSchemaInitialData = (
     }
   }
 
+  const country = trimmedInteractionCountry(interactionCountry);
+
+  if (hasOwn(schema.properties, 'address.country') && country !== undefined) {
+    const address = isRecord(data.address) ? data.address : {};
+
+    address.country = country;
+    data.address = address;
+  }
+
   return data;
 };
 
 const encodeJsonPointerSegment = (segment: string): string =>
   segment.replace(/~/gu, '~0').replace(/\//gu, '~1');
+
+const instrumentPropertyOrder = new Map<string, number>([
+  ['accountHolderName', 0],
+  ['accountNumber', 1],
+  ['institutionNumber', 2],
+  ['transitNumber', 3],
+  ['interacAccount', 4],
+  ['address.firstLine', 100],
+  ['address.city', 101],
+  ['address.state', 102],
+  ['address.postCode', 103],
+  ['address.country', 104],
+]);
+
+const instrumentPropertyRank = (path: string): number =>
+  instrumentPropertyOrder.get(path) ??
+  (path === 'address' || path.startsWith('address.') ? 200 : 50);
+
+const orderedInstrumentPropertyPaths = (
+  schema: ConfigInstrumentSchema
+): string[] =>
+  Object.keys(schema.properties)
+    .map((path, index) => ({path, index}))
+    .sort(
+      (left, right) =>
+        instrumentPropertyRank(left.path) -
+          instrumentPropertyRank(right.path) || left.index - right.index
+    )
+    .map(({path}) => path);
 
 export const createInstrumentSchemaUiSchema = (
   schema: ConfigInstrumentSchema
@@ -340,7 +416,7 @@ export const createInstrumentSchemaUiSchema = (
 
   return {
     type: 'VerticalLayout',
-    elements: Object.keys(schema.properties).map((path) => ({
+    elements: orderedInstrumentPropertyPaths(schema).map((path) => ({
       type: 'Control',
       scope: `#/properties/${splitPropertyPath(path)
         .map(encodeJsonPointerSegment)

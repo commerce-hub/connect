@@ -58,5 +58,10 @@ export const isTransferDraftReady = (
   Object.keys(validateTransferDraft(normalizeTransferDraft(draft), sources))
     .length === 0;
 
+export const hasRequiredTransferDraftValues = (draft: TransferDraft): boolean =>
+  [draft.fromSourceId, draft.toSourceId, draft.amount].every((value) =>
+    Boolean(value.trim())
+  );
+
 export const formatTransferAmountForReview = (draft: TransferDraft): string =>
   `${Number(draft.amount).toFixed(2)} ${TRANSFER_CURRENCY}`;

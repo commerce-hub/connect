@@ -2,6 +2,7 @@ import type {components} from '../../generated/openapi.js';
 import type {
   CardDraft,
   CardDraftErrors,
+  CardDraftTextField,
   CardEncryptionState,
   CardFieldEncryptionState,
   SensitiveCardField,
@@ -53,7 +54,7 @@ export const normalizeSensitiveCardFieldValue = (
   field === 'cardNumber' ? normalizeCardNumber(value) : normalizeCvv(value);
 
 export const formatCardDraftFieldValue = (
-  field: keyof CardDraft,
+  field: CardDraftTextField,
   value: string
 ): string => {
   if (field === 'cardNumber') {
@@ -196,6 +197,29 @@ export const isCardDraftReady = (
 ): boolean =>
   Object.keys(validateCardDraft(normalizeCardDraft(draft))).length === 0 &&
   Object.keys(validateCardEncryptionReadiness(draft, encryption)).length === 0;
+
+export const hasRequiredCardDraftValues = (draft: CardDraft): boolean => {
+  const requiredValues = [
+    draft.name,
+    draft.fullName,
+    draft.cardNumber,
+    draft.expirationDate,
+    draft.cvv,
+    draft.billingAddressValue,
+  ];
+
+  if (draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE) {
+    requiredValues.push(
+      draft.country,
+      draft.addressLine1,
+      draft.city,
+      draft.state,
+      draft.zip
+    );
+  }
+
+  return requiredValues.every((value) => Boolean(value.trim()));
+};
 
 export const validateSensitiveCardField = (
   field: SensitiveCardField,
