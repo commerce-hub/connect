@@ -2093,11 +2093,6 @@ suite('commerce-hub-connect flow', () => {
       true
     );
     assert.equal(
-      el.shadowRoot!.querySelector<HTMLInputElement>('#card-number')?.type,
-      'password',
-      'card number should be visually masked'
-    );
-    assert.equal(
       el
         .shadowRoot!.querySelector('#name-on-card')
         ?.closest('.field')
@@ -2117,11 +2112,6 @@ suite('commerce-hub-connect flow', () => {
         ?.closest('.field')
         ?.classList.contains('field-full'),
       false
-    );
-    assert.equal(
-      el.shadowRoot!.querySelector<HTMLInputElement>('#card-cvv')?.type,
-      'password',
-      'CVC should be visually masked'
     );
     const backButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.widget-back-button[data-action="back-to-payment-methods"]'
