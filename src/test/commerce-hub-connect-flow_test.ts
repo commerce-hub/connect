@@ -2844,7 +2844,7 @@ suite('commerce-hub-connect flow', () => {
     await clickAction(el, 'back-to-payment-methods');
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
   });
 
@@ -4052,7 +4052,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
     assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),
@@ -4127,7 +4127,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
   });
 
@@ -4637,7 +4637,7 @@ suite('commerce-hub-connect flow', () => {
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Add payment method',
+        'Payment methods',
       'bank provider failure did not return to payment methods'
     );
     await clickAction(el, 'add-card');
@@ -7653,7 +7653,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
@@ -7737,7 +7737,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
@@ -7888,7 +7888,7 @@ suite('commerce-hub-connect flow', () => {
       scriptFailureEl
         .shadowRoot!.querySelector('.widget-title')
         ?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
 
     paymentSdkWindow.PaymentSDK = {
@@ -7914,7 +7914,7 @@ suite('commerce-hub-connect flow', () => {
       incompleteSessionEl
         .shadowRoot!.querySelector('.widget-title')
         ?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
   });
 
@@ -7958,7 +7958,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
@@ -7977,7 +7977,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
   });
 });
