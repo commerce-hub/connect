@@ -2637,10 +2637,20 @@ suite('commerce-hub-connect payment selection', () => {
         cardNumber: '4111111111111111',
       },
     };
+    const authoritativeSource: PaymentSource = {
+      ...selectedSource,
+      name: 'Authoritative corporate Visa',
+      card: {
+        ...selectedSource.card,
+        network: 'Mastercard',
+        cardNumber: '5555555555554444',
+      },
+    };
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const request =
         input instanceof Request ? input : new Request(input, init);
+      const pathname = new URL(request.url).pathname;
 
       requests.push({
         url: request.url,
@@ -2650,12 +2660,24 @@ suite('commerce-hub-connect payment selection', () => {
         credentials: request.credentials,
       });
 
+      if (pathname === '/interaction/source/card-1/attach') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_ATTACHED',
+            selectedSource,
+            paymentSources: [selectedSource],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
       return new Response(
         JSON.stringify({
           interactionId: 'interaction-payment',
           status: 'PAYMENT_SOURCE_ATTACHED',
-          selectedSource,
-          paymentSources: [selectedSource],
+          selectedSource: authoritativeSource,
+          paymentSources: [authoritativeSource],
         }),
         {status: 200, headers: {'Content-Type': 'application/json'}}
       );
@@ -2694,10 +2716,16 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach']
+      ['POST /interaction/source/card-1/attach', 'GET /interaction']
     );
     assert.equal(successEvents.length, 1);
     assert.equal(successEvents[0].detail.id, 'card-1');
+    assert.equal(successEvents[0].detail.name, 'Authoritative corporate Visa');
+    assert.equal(
+      (successEvents[0].detail as Extract<PaymentSource, {tenderType: 'Card'}>)
+        .card?.network,
+      'Mastercard'
+    );
     assert.lengthOf(legacySuccessEvents, 0);
     assert.lengthOf(errorEvents, 0);
     assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
@@ -2747,16 +2775,25 @@ suite('commerce-hub-connect payment selection', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction/source/card-1/attach') {
+      if (
+        request.method === 'POST' &&
+        pathname === '/interaction/source/card-1/attach'
+      ) {
         return new Promise((resolve) => {
           resolveAttachResponse = resolve;
         });
       }
 
-      return new Response(JSON.stringify({}), {
-        status: 200,
-        headers: {'Content-Type': 'application/json'},
-      });
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: refreshedSource,
+          paymentSources: [refreshedSource],
+          billerAddress: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
     };
 
     const el = await renderConnect({
@@ -2805,8 +2842,15 @@ suite('commerce-hub-connect payment selection', () => {
     );
 
     await waitFor(
-      () => el.interactionResponse?.selectedSource?.id === 'card-1',
-      'default source did not update'
+      () =>
+        el.interactionResponse?.selectedSource?.id === 'card-1' &&
+        requests.some(
+          (request) =>
+            request.method === 'GET' &&
+            new URL(request.url).pathname === '/interaction'
+        ) &&
+        !el.shadowRoot!.querySelector('.widget-loading-animation'),
+      'authoritative default source refresh did not complete'
     );
     await flushElement(el);
 
@@ -2814,7 +2858,7 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach']
+      ['POST /interaction/source/card-1/attach', 'GET /interaction']
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),

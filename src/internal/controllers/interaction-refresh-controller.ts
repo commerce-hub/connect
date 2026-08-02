@@ -144,4 +144,24 @@ export class InteractionRefreshController implements ReactiveController {
 
     return this.refreshPromise;
   }
+
+  async fetchFresh(
+    interactionId: string,
+    options: InteractionRefreshOptions
+  ): Promise<InteractionResponse> {
+    const inFlightRefresh =
+      this.refreshInteractionId === interactionId
+        ? this.refreshPromise
+        : undefined;
+
+    if (inFlightRefresh) {
+      try {
+        await inFlightRefresh;
+      } catch (cause) {
+        void cause;
+      }
+    }
+
+    return this.fetch(interactionId, options);
+  }
 }
