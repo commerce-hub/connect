@@ -1932,14 +1932,14 @@ export const primitiveStyles = css`
 
   .source-action {
     width: 100%;
-    min-height: 3.5rem;
+    min-height: 4.5rem;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 0.625rem;
+    gap: 0.75rem;
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
-    padding: 0.75rem;
+    padding: 0.875rem 1rem;
     background: var(--chc-payment-method-background);
     color: var(--chc-text);
     text-align: left;
@@ -1964,6 +1964,12 @@ export const primitiveStyles = css`
     color: var(--chc-primary);
     font-size: 1.5rem;
     font-weight: inherit;
+  }
+
+  .source-action-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: currentColor;
   }
 
   .source-action-icon-transfer {
@@ -2013,6 +2019,7 @@ export const primitiveStyles = css`
 
   .source-action-copy {
     display: grid;
+    gap: 0.125rem;
     min-width: 0;
   }
 
@@ -2779,7 +2786,6 @@ export const primitiveStyles = css`
     }
 
     .payment-method-row,
-    .source-action,
     .source-action-link,
     .upload-row,
     .loading-row {

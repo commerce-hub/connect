@@ -94,7 +94,6 @@ export const renderNoSavedPaymentMethodsScreen = ({
                     subtitle: copy.addCardSubtitle,
                     action: 'add-card',
                     icon: 'card',
-                    variant: 'link',
                     disabled: deletePending,
                   })
                 : ''}
@@ -104,7 +103,6 @@ export const renderNoSavedPaymentMethodsScreen = ({
                     subtitle: copy.addBankAccountSubtitle,
                     action: 'add-bank-account',
                     icon: 'bank',
-                    variant: 'link',
                     disabled: deletePending,
                   })
                 : ''}

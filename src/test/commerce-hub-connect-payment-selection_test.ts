@@ -1275,7 +1275,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('filters empty-state add actions by allowed tender types', async () => {
+  test('renders a direct card action in the empty state when card is the only allowed tender', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -1286,14 +1286,20 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
+    assert.notExists(
+      el.shadowRoot!.querySelector(
+        '.widget-header-action [data-action="open-add-payment-source"]'
+      )
     );
     assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
     assert.notInclude(text, 'James Anderson');
     assert.notInclude(text, 'visa-1111');
     assert.notInclude(text, 'amex-8000');
     assert.exists(
-      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
+      el.shadowRoot!.querySelector('.source-action[data-action="add-card"]')
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
@@ -1301,9 +1307,20 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
     );
+    assert.notExists(
+      el.shadowRoot!.querySelector('.source-action-link-chevron')
+    );
+
+    await clickAction(el, 'add-card');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add card'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
   });
 
-  test('ADD_ACCOUNT-only empty state opens the add payment sheet', async () => {
+  test('renders ordered direct card and bank actions in the ADD_ACCOUNT-only empty state', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -1312,15 +1329,58 @@ suite('commerce-hub-connect payment selection', () => {
       paymentSources: [],
     });
 
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Payment methods'
     );
-    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
     assert.notExists(
-      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+      el.shadowRoot!.querySelector(
+        '.widget-header-action [data-action="open-add-payment-source"]'
+      )
     );
-    await clickAction(el, 'open-add-payment-source');
-    assert.exists(el.shadowRoot!.querySelector('.add-payment-sheet'));
+
+    const sourceActions = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.payment-action-links .source-action'
+      ),
+    ];
+
+    assert.deepEqual(
+      sourceActions.map((button) => ({
+        action: button.dataset.action,
+        title: button
+          .querySelector('.source-action-title')
+          ?.textContent?.trim(),
+        subtitle: button
+          .querySelector('.source-action-subtitle')
+          ?.textContent?.trim(),
+      })),
+      [
+        {
+          action: 'add-card',
+          title: 'Add credit or debit card',
+          subtitle: 'Add your card details',
+        },
+        {
+          action: 'add-bank-account',
+          title: 'Add bank account',
+          subtitle: 'Connect or enter an account',
+        },
+      ]
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('.source-action-link-chevron')
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
+
+    await clickAction(el, 'add-bank-account');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Select bank account type'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
   });
 
   test('renders consolidated Add payment method when selection is unavailable', async () => {

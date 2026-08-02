@@ -1064,7 +1064,6 @@ suite('commerce-hub-connect primitives', () => {
             addCardTitle: 'Add card',
             addCardSubtitle: 'Use card details',
           },
-          showTransferAction: true,
         })}
       </div>
     `);
@@ -1083,14 +1082,51 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(listScreen.querySelector('[role="menu"]'));
     assert.exists(listScreen.querySelector('.payment-method-radio:checked'));
     assert.notExists(listScreen.querySelector('.payment-action-links'));
+    const emptySourceActions = [
+      ...emptyScreen.querySelectorAll<HTMLButtonElement>(
+        '.payment-action-links .source-action'
+      ),
+    ];
     assert.deepEqual(
+      emptySourceActions.map((button) => ({
+        action: button.dataset.action,
+        title: button
+          .querySelector('.source-action-title')
+          ?.textContent?.trim(),
+        subtitle: button
+          .querySelector('.source-action-subtitle')
+          ?.textContent?.trim(),
+      })),
       [
-        ...emptyScreen.querySelectorAll<HTMLElement>(
-          '.payment-action-links .source-action-title'
-        ),
-      ].map((item) => item.textContent?.trim()),
-      ['Add card', 'Connect bank', 'Transfer funds']
+        {
+          action: 'add-card',
+          title: 'Add card',
+          subtitle: 'Use card details',
+        },
+        {
+          action: 'add-bank-account',
+          title: 'Connect bank',
+          subtitle: 'Use your account',
+        },
+      ]
     );
+    assert.exists(
+      emptySourceActions[0].querySelector(
+        '[data-source-action-icon="card"][aria-hidden="true"]'
+      )
+    );
+    assert.exists(
+      emptySourceActions[1].querySelector(
+        '[data-source-action-icon="bank"][aria-hidden="true"]'
+      )
+    );
+    emptySourceActions.forEach((button) => {
+      const svg = button.querySelector('svg')!;
+
+      assert.equal(svg.getAttribute('viewBox'), '0 0 640 640');
+      assert.equal(svg.getAttribute('focusable'), 'false');
+    });
+    assert.notExists(emptyScreen.querySelector('.source-action-link-chevron'));
     assert.notExists(
       deleteReadyScreen.querySelector('.payment-method-delete-confirmation')
     );

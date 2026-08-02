@@ -1540,18 +1540,11 @@ export class CommerceHubConnect extends LitElement {
     return this.renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
-      headerAction: canAddPaymentSources
-        ? renderTextLinkButton({
-            label: 'Add',
-            action: 'open-add-payment-source',
-            disabled: isDeletePending,
-          })
-        : undefined,
       showClose: false,
       showDivider: false,
       content: renderNoSavedPaymentMethodsScreen({
         allowedTenderOptions,
-        canAddPaymentSources: false,
+        canAddPaymentSources,
         deletePending: isDeletePending,
         copy,
       }),
@@ -6286,14 +6279,15 @@ const resolveNoSavedPaymentMethodsCopy = (
   const copy = designConfig?.copy?.noSavedPaymentMethods;
 
   return {
-    title: copy?.title ?? 'Add payment method',
+    title: copy?.title ?? 'Payment methods',
     subtitle: copy?.subtitle ?? '',
     emptyTitle: copy?.emptyTitle ?? '',
     emptyMessage: copy?.emptyMessage ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
-    addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
+    addBankAccountSubtitle:
+      copy?.addBankAccountSubtitle ?? 'Connect or enter an account',
     addCardTitle: copy?.addCardTitle ?? 'Add credit or debit card',
-    addCardSubtitle: copy?.addCardSubtitle ?? '',
+    addCardSubtitle: copy?.addCardSubtitle ?? 'Add your card details',
   };
 };
 
