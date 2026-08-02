@@ -1952,6 +1952,34 @@ export const primitiveStyles = css`
     cursor: pointer;
   }
 
+  .source-action-card,
+  .source-action-bank {
+    border-style: dotted;
+    transition: border-color var(--chc-motion-base) var(--chc-ease-standard),
+      background-color var(--chc-motion-base) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-base) var(--chc-ease-standard);
+  }
+
+  .source-action-card:hover:not(:disabled),
+  .source-action-card:focus-visible,
+  .source-action-bank:hover:not(:disabled),
+  .source-action-bank:focus-visible {
+    border-color: var(--chc-border-strong);
+    border-style: dotted;
+    background: color-mix(
+      in srgb,
+      var(--chc-payment-method-background) 90%,
+      var(--chc-soft-surface)
+    );
+    box-shadow: 0 0.5rem 1rem rgba(17, 24, 39, 0.04);
+  }
+
+  .source-action-card:focus-visible,
+  .source-action-bank:focus-visible {
+    outline: 0.125rem solid var(--chc-focus-ring);
+    outline-offset: 0.125rem;
+  }
+
   .source-action:disabled {
     background: var(--chc-payment-method-background);
     color: var(--chc-placeholder);

@@ -1944,6 +1944,8 @@ suite('commerce-hub-connect payment selection', () => {
         },
       ]
     );
+    assert.equal(getComputedStyle(sourceActions[0]).borderStyle, 'dotted');
+    assert.equal(getComputedStyle(sourceActions[1]).borderStyle, 'dotted');
     assert.notExists(
       el.shadowRoot!.querySelector('.source-action-link-chevron')
     );
@@ -2008,6 +2010,7 @@ suite('commerce-hub-connect payment selection', () => {
       [['open-add-payment-source', 'Add payment method']]
     );
     assert.isTrue(addButtons[0].classList.contains('button-primary'));
+    assert.notEqual(getComputedStyle(addButtons[0]).borderStyle, 'dotted');
     assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
     addButtons.forEach((button) => {
       const buttonContent = button.querySelector('.button-content')!;
@@ -2193,6 +2196,8 @@ suite('commerce-hub-connect payment selection', () => {
       'M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z'
     );
     assert.equal(getComputedStyle(cardOption).minHeight, '72px');
+    assert.notEqual(getComputedStyle(cardOption).borderStyle, 'dotted');
+    assert.notEqual(getComputedStyle(bankOption).borderStyle, 'dotted');
     const optionList = dialog.querySelector('.add-payment-sheet-options')!;
     assert.equal(getComputedStyle(optionList).gap, '12px');
     assert.equal(getComputedStyle(optionList).maskImage, 'none');

@@ -1026,6 +1026,9 @@ suite('commerce-hub-connect primitives', () => {
       continuingButton: 'Confirming...',
     };
     const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
       <div data-screen="loading">${renderPaymentMethodsSkeletonScreen()}</div>
       <div data-screen="list">
         ${renderPaymentMethodsScreen({
@@ -1081,6 +1084,13 @@ suite('commerce-hub-connect primitives', () => {
           },
         })}
       </div>
+      <div data-screen="transfer">
+        ${renderSourceAction({
+          label: 'Transfer funds',
+          action: 'transfer',
+          icon: 'transfer',
+        })}
+      </div>
     `);
 
     const listScreen = root.querySelector<HTMLElement>('[data-screen="list"]')!;
@@ -1089,6 +1099,9 @@ suite('commerce-hub-connect primitives', () => {
     )!;
     const emptyScreen = root.querySelector<HTMLElement>(
       '[data-screen="empty"]'
+    )!;
+    const transferAction = root.querySelector<HTMLButtonElement>(
+      '[data-screen="transfer"] .source-action-transfer'
     )!;
 
     assert.exists(
@@ -1144,6 +1157,21 @@ suite('commerce-hub-connect primitives', () => {
       BANK_SOURCE_ACTION_ICON_PATH
     );
     assert.notEqual(CARD_SOURCE_ACTION_ICON_PATH, BANK_SOURCE_ACTION_ICON_PATH);
+    assert.equal(getComputedStyle(emptySourceActions[0]).borderStyle, 'dotted');
+    assert.equal(getComputedStyle(emptySourceActions[1]).borderStyle, 'dotted');
+    assert.equal(getComputedStyle(transferAction).borderStyle, 'solid');
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-card:hover:not(:disabled)'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-bank:focus-visible'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      'border-color: var(--chc-border-strong)'
+    );
     emptySourceActions.forEach((button) => {
       const svg = button.querySelector('svg')!;
 
