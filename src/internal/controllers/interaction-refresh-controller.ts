@@ -15,6 +15,13 @@ interface InteractionRefreshOptions {
   emitListPaymentMethods: (paymentSources: PaymentSource[]) => void;
 }
 
+class StaleInteractionRefreshError extends Error {
+  constructor(interactionId: string) {
+    super(`Interaction refresh for ${interactionId} became stale.`);
+    this.name = 'StaleInteractionRefreshError';
+  }
+}
+
 export class InteractionRefreshController implements ReactiveController {
   private snapshotInteractionId?: string;
   private refreshInteractionId?: string;
@@ -172,6 +179,10 @@ export class InteractionRefreshController implements ReactiveController {
     interactionId: string,
     options: InteractionRefreshOptions
   ): Promise<InteractionResponse> {
+    const generation = this.generation;
+
+    this.assertCurrentRefresh(generation, interactionId, options);
+
     const inFlightRefresh =
       this.refreshInteractionId === interactionId
         ? this.refreshPromise
@@ -185,6 +196,21 @@ export class InteractionRefreshController implements ReactiveController {
       }
     }
 
+    this.assertCurrentRefresh(generation, interactionId, options);
+
     return this.fetch(interactionId, options);
+  }
+
+  private assertCurrentRefresh(
+    generation: number,
+    interactionId: string,
+    options: InteractionRefreshOptions
+  ) {
+    if (
+      generation !== this.generation ||
+      options.getCurrentInteractionResponse()?.interactionId !== interactionId
+    ) {
+      throw new StaleInteractionRefreshError(interactionId);
+    }
   }
 }

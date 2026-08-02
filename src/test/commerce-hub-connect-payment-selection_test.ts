@@ -665,6 +665,143 @@ suite('commerce-hub-connect payment selection', () => {
     assert.lengthOf(requests, 2);
   });
 
+  test('suspended fresh refresh rejects after interaction reset without disturbing the new refresh', async () => {
+    const requests: CapturedRequest[] = [];
+    const interactionA = createDeferred<Response>();
+    const interactionB = createDeferred<Response>();
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const interactionId = request.headers.get('x-interaction-id');
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return interactionId === 'interaction-a'
+        ? interactionA.promise
+        : interactionB.promise;
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-a',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+    const {listPaymentMethodsEvents} = recordOutputEvents(el);
+    const refreshMethods = el as unknown as {
+      fetchInteraction: (interactionId: string) => Promise<InteractionResponse>;
+      fetchFreshInteraction: (
+        interactionId: string
+      ) => Promise<InteractionResponse>;
+    };
+
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-a'
+        ),
+      'interaction A refresh did not start'
+    );
+    const staleFreshResult = refreshMethods
+      .fetchFreshInteraction('interaction-a')
+      .then(
+        () => undefined,
+        (cause: unknown) => cause
+      );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-b',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-b'
+        ),
+      'interaction B refresh did not start'
+    );
+
+    interactionA.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-a',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    const staleCause = await staleFreshResult;
+    const deduplicatedBRefresh =
+      refreshMethods.fetchInteraction('interaction-b');
+
+    assert.instanceOf(staleCause, Error);
+    assert.include((staleCause as Error).message, 'stale');
+    assert.lengthOf(
+      requests.filter(
+        (request) => request.headers.get('x-interaction-id') === 'interaction-a'
+      ),
+      1
+    );
+    assert.lengthOf(
+      requests.filter(
+        (request) => request.headers.get('x-interaction-id') === 'interaction-b'
+      ),
+      1
+    );
+
+    interactionB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'card-b',
+              name: 'Current interaction B card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {network: 'Visa', cardNumber: '4111111111114242'},
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await deduplicatedBRefresh;
+    await flushElement(el);
+
+    const immediateStaleCause = await refreshMethods
+      .fetchFreshInteraction('interaction-a')
+      .then(
+        () => undefined,
+        (cause: unknown) => cause
+      );
+
+    assert.instanceOf(immediateStaleCause, Error);
+    assert.include((immediateStaleCause as Error).message, 'stale');
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(listPaymentMethodsEvents, 1);
+    assert.lengthOf(requests, 2);
+  });
+
   test('initial interaction refresh loads saved methods when the host payment sources are empty', async () => {
     const requests: CapturedRequest[] = [];
 
