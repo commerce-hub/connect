@@ -15,7 +15,10 @@ import {
   resolveCommerceHubBaseURL,
   type CommerceHubBaseURLInput,
 } from './internal/api-client.js';
-import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
+import {
+  InteractionRefreshController,
+  StaleInteractionRefreshError,
+} from './internal/controllers/interaction-refresh-controller.js';
 import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
 import {parseCommerceHubResponseBody} from './internal/commerce-hub-response.js';
 import {
@@ -4118,6 +4121,7 @@ export class CommerceHubConnect extends LitElement {
             credentials: 'include',
           }
         );
+      this.assertCurrentInteraction(interactionId);
       const createdSource = this.sourceWithVerificationResponse(
         cardPaymentSourceFromPayload(cardSource, normalizedDraft.cardNumber),
         verificationResponse
@@ -4151,6 +4155,10 @@ export class CommerceHubConnect extends LitElement {
 
       this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
+      if (cause instanceof StaleInteractionRefreshError) {
+        return;
+      }
+
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
     } finally {
@@ -4226,6 +4234,7 @@ export class CommerceHubConnect extends LitElement {
           credentials: 'include',
         }
       );
+      this.assertCurrentInteraction(interactionId);
       const verificationResponse =
         verificationResponseFromUnknown(creationResponse);
       let refreshedInteraction: InteractionResponse | undefined;
@@ -4266,6 +4275,10 @@ export class CommerceHubConnect extends LitElement {
 
       this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
+      if (cause instanceof StaleInteractionRefreshError) {
+        return;
+      }
+
       this.bankAccountSubmitError = apiErrorMessage(cause);
     } finally {
       this.pendingAction = undefined;
@@ -4440,6 +4453,7 @@ export class CommerceHubConnect extends LitElement {
             credentials: 'include',
           }
         );
+      this.assertCurrentInteraction(interactionId);
       const createdSource = this.sourceWithVerificationResponse(
         bankPaymentSourceFromLegacyPayload(
           bankAccountSource,
@@ -4471,6 +4485,10 @@ export class CommerceHubConnect extends LitElement {
 
       this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
+      if (cause instanceof StaleInteractionRefreshError) {
+        return;
+      }
+
       this.bankAccountSubmitError = apiErrorMessage(cause);
     } finally {
       this.pendingAction = undefined;
@@ -4730,6 +4748,7 @@ export class CommerceHubConnect extends LitElement {
           interactionId,
           {method: 'POST', credentials: 'include'}
         );
+      this.assertCurrentInteraction(interactionId);
       const refreshedInteractionResponse = interactionResponseWithSelection(
         this.interactionResponse ?? {interactionId},
         interactionResponse,
@@ -4760,6 +4779,10 @@ export class CommerceHubConnect extends LitElement {
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
       this.focusAfterUpdate('.payment-method-radio:checked');
     } catch (cause) {
+      if (cause instanceof StaleInteractionRefreshError) {
+        return;
+      }
+
       this.paymentSourceView = 'list';
       this.attachmentError =
         apiErrorMessage(cause) ||
@@ -4858,6 +4881,14 @@ export class CommerceHubConnect extends LitElement {
     const source = this.findPaymentSourceById(paymentSourceId);
 
     if (!interactionId || !source) {
+      return;
+    }
+
+    if (
+      this.interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED' &&
+      this.interactionResponse.selectedSource?.id === paymentSourceId
+    ) {
+      this.clearDeletePaymentSourceConfirmation();
       return;
     }
 
@@ -5016,8 +5047,18 @@ export class CommerceHubConnect extends LitElement {
     try {
       return await this.fetchFreshInteraction(interactionId);
     } catch (cause) {
+      if (cause instanceof StaleInteractionRefreshError) {
+        throw cause;
+      }
+
       void cause;
       return undefined;
+    }
+  }
+
+  private assertCurrentInteraction(interactionId: string) {
+    if (this.interactionResponse?.interactionId !== interactionId) {
+      throw new StaleInteractionRefreshError(interactionId);
     }
   }
 
@@ -6871,15 +6912,17 @@ const interactionResponseWithSelection = (
     ...current,
     ...response,
   };
-  const paymentSources =
-    response.paymentSources ?? current.paymentSources ?? [];
+  const hasAuthoritativePaymentSources = response.paymentSources !== undefined;
+  const paymentSources = hasAuthoritativePaymentSources
+    ? response.paymentSources ?? []
+    : current.paymentSources ?? [];
   const selectedSource =
     resolvePreferredPaymentSource(
       paymentSources,
       preferredPaymentSourceId ?? response.selectedSource?.id
     ) ??
     response.selectedSource ??
-    current.selectedSource;
+    (hasAuthoritativePaymentSources ? undefined : current.selectedSource);
 
   return {
     ...base,
