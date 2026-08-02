@@ -802,6 +802,7 @@ export class CommerceHubConnect extends LitElement {
         previousInteractionResponse?.interactionId !==
         this.interactionResponse.interactionId
       ) {
+        this.pendingAction = undefined;
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
         this.openPaymentSourceMenuId = undefined;
@@ -4155,14 +4156,14 @@ export class CommerceHubConnect extends LitElement {
 
       this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
-      if (cause instanceof StaleInteractionRefreshError) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
         return;
       }
 
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'save-card');
     }
   }
 
@@ -4275,13 +4276,13 @@ export class CommerceHubConnect extends LitElement {
 
       this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
-      if (cause instanceof StaleInteractionRefreshError) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
         return;
       }
 
       this.bankAccountSubmitError = apiErrorMessage(cause);
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'save-bank-account');
     }
   }
 
@@ -4485,13 +4486,13 @@ export class CommerceHubConnect extends LitElement {
 
       this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
-      if (cause instanceof StaleInteractionRefreshError) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
         return;
       }
 
       this.bankAccountSubmitError = apiErrorMessage(cause);
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'save-bank-account');
     }
   }
 
@@ -4779,7 +4780,7 @@ export class CommerceHubConnect extends LitElement {
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
       this.focusAfterUpdate('.payment-method-radio:checked');
     } catch (cause) {
-      if (cause instanceof StaleInteractionRefreshError) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
         return;
       }
 
@@ -4788,7 +4789,7 @@ export class CommerceHubConnect extends LitElement {
         apiErrorMessage(cause) ||
         "We couldn't save this payment method. Please try again.";
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'attach-payment-source');
     }
   }
 
@@ -5059,6 +5060,28 @@ export class CommerceHubConnect extends LitElement {
   private assertCurrentInteraction(interactionId: string) {
     if (this.interactionResponse?.interactionId !== interactionId) {
       throw new StaleInteractionRefreshError(interactionId);
+    }
+  }
+
+  private isStaleMutationFailure(
+    interactionId: string,
+    cause: unknown
+  ): boolean {
+    return (
+      this.interactionResponse?.interactionId !== interactionId ||
+      cause instanceof StaleInteractionRefreshError
+    );
+  }
+
+  private clearPendingMutationAction(
+    interactionId: string,
+    action: FlowActionName
+  ) {
+    if (
+      this.interactionResponse?.interactionId === interactionId &&
+      this.pendingAction === action
+    ) {
+      this.pendingAction = undefined;
     }
   }
 

@@ -147,10 +147,15 @@ export class InteractionRefreshController implements ReactiveController {
       })
       .catch((cause) => {
         if (
+          generation !== this.generation ||
+          options.getCurrentInteractionResponse()?.interactionId !==
+            interactionId
+        ) {
+          throw new StaleInteractionRefreshError(interactionId);
+        }
+
+        if (
           !(cause instanceof StaleInteractionRefreshError) &&
-          generation === this.generation &&
-          options.getCurrentInteractionResponse()?.interactionId ===
-            interactionId &&
           this.snapshotInteractionId !== interactionId
         ) {
           this.refreshErrorMessage =

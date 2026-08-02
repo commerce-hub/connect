@@ -7,6 +7,7 @@ import type {
   InteractionResponse,
   PaymentSource,
 } from '../commerce-hub-connect.js';
+import {StaleInteractionRefreshError} from '../internal/controllers/interaction-refresh-controller.js';
 
 interface CapturedRequest {
   url: string;
@@ -931,6 +932,123 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.lengthOf(listPaymentMethodsEvents, 2);
     assert.lengthOf(requests, 4);
+  });
+
+  test('failed fresh refresh rejects as stale after interaction reset without disturbing the new refresh', async () => {
+    const requests: CapturedRequest[] = [];
+    const freshInteractionA = createDeferred<Response>();
+    const interactionB = createDeferred<Response>();
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const interactionId = request.headers.get('x-interaction-id');
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return interactionId === 'interaction-a'
+        ? freshInteractionA.promise
+        : interactionB.promise;
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-a',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+    const {listPaymentMethodsEvents} = recordOutputEvents(el);
+    const refreshMethods = el as unknown as {
+      fetchInteraction: (interactionId: string) => Promise<InteractionResponse>;
+      fetchFreshInteraction: (
+        interactionId: string
+      ) => Promise<InteractionResponse>;
+    };
+    const staleRefreshResult = refreshMethods
+      .fetchFreshInteraction('interaction-a')
+      .then(
+        () => undefined,
+        (cause: unknown) => cause
+      );
+
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-a'
+        ),
+      'fresh interaction A refresh did not start'
+    );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-b',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-b'
+        ),
+      'interaction B refresh did not start'
+    );
+
+    freshInteractionA.reject(new Error('Interaction A refresh failed'));
+    const staleCause = await staleRefreshResult;
+    const deduplicatedBRefresh =
+      refreshMethods.fetchInteraction('interaction-b');
+
+    assert.instanceOf(staleCause, StaleInteractionRefreshError);
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.lengthOf(listPaymentMethodsEvents, 0);
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="retry-interaction-refresh"]')
+    );
+    assert.lengthOf(
+      requests.filter(
+        (request) => request.headers.get('x-interaction-id') === 'interaction-b'
+      ),
+      1
+    );
+
+    interactionB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'card-b',
+              name: 'Current interaction B card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {network: 'Visa', cardNumber: '4111111111114242'},
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await deduplicatedBRefresh;
+    await flushElement(el);
+
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(listPaymentMethodsEvents, 1);
+    assert.deepEqual(
+      listPaymentMethodsEvents[0].detail.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(requests, 2);
   });
 
   test('initial interaction refresh loads saved methods when the host payment sources are empty', async () => {
@@ -3546,7 +3664,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notExists(el.shadowRoot!.querySelector('.alert-danger'));
   });
 
-  test('stale attach refresh cannot affect a newer interaction', async () => {
+  test('failed stale attach refresh cannot affect a newer interaction', async () => {
     const requests: CapturedRequest[] = [];
     const attachResponse = createDeferred<Response>();
     const interactionA = createDeferred<Response>();
@@ -3641,17 +3759,7 @@ suite('commerce-hub-connect payment selection', () => {
       'interaction B refresh did not start'
     );
 
-    interactionA.resolve(
-      new Response(
-        JSON.stringify({
-          interactionId: 'interaction-a',
-          status: 'PAYMENT_SOURCE_ATTACHED',
-          selectedSource: sourceA,
-          paymentSources: [sourceA],
-        }),
-        {status: 200, headers: {'Content-Type': 'application/json'}}
-      )
-    );
+    interactionA.reject(new Error('Interaction A refresh failed'));
     await attachmentPromise;
     await flushElement(el);
 
@@ -3694,6 +3802,149 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.lengthOf(errorEvents, 0);
     assert.notExists(el.shadowRoot!.querySelector('.alert-danger'));
+  });
+
+  test('stale attach rejection cannot clear a newer attach busy guard', async () => {
+    const requests: CapturedRequest[] = [];
+    const attachA = createDeferred<Response>();
+    const attachB = createDeferred<Response>();
+    const sourceA: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-a',
+      name: 'Interaction A card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Visa', cardNumber: '4111111111111111'},
+    };
+    const sourceB: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-b',
+      name: 'Interaction B card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Mastercard', cardNumber: '5555555555554444'},
+    };
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      const interactionId = request.headers.get('x-interaction-id');
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (request.method === 'POST') {
+        return interactionId === 'interaction-a'
+          ? attachA.promise
+          : attachB.promise;
+      }
+
+      const source = interactionId === 'interaction-a' ? sourceA : sourceB;
+
+      return new Response(
+        JSON.stringify({
+          interactionId,
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [source],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-a',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [sourceA],
+    });
+    const {successEvents, errorEvents} = recordOutputEvents(el);
+    const attachmentMethods = el as unknown as {
+      pendingAction?: string;
+      attachmentError?: string;
+      attachPaymentSource: (paymentSourceId: string) => Promise<void>;
+    };
+    const interactionAOperation =
+      attachmentMethods.attachPaymentSource('card-a');
+
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.headers.get('x-interaction-id') === 'interaction-a'
+        ),
+      'interaction A attach did not start'
+    );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-b',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [sourceB],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Interaction B card',
+      'interaction B payment source did not render'
+    );
+
+    const interactionBOperation =
+      attachmentMethods.attachPaymentSource('card-b');
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.headers.get('x-interaction-id') === 'interaction-b'
+        ),
+      'interaction B attach did not start'
+    );
+
+    await attachmentMethods.attachPaymentSource('card-b');
+    assert.lengthOf(
+      requests.filter((request) => request.method === 'POST'),
+      2
+    );
+
+    attachA.reject(new Error('Interaction A attach failed'));
+    await interactionAOperation;
+    await flushElement(el);
+
+    assert.equal(attachmentMethods.pendingAction, 'attach-payment-source');
+    assert.isUndefined(attachmentMethods.attachmentError);
+    assert.lengthOf(
+      requests.filter((request) => request.method === 'POST'),
+      2
+    );
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
+    assert.notExists(el.shadowRoot!.querySelector('.alert-danger'));
+
+    attachB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: sourceB,
+          paymentSources: [sourceB],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await interactionBOperation;
+    await flushElement(el);
+
+    assert.isUndefined(attachmentMethods.pendingAction);
+    assert.isUndefined(attachmentMethods.attachmentError);
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.equal(el.interactionResponse?.selectedSource?.id, 'card-b');
+    assert.lengthOf(successEvents, 1);
+    assert.equal(successEvents[0].detail.id, 'card-b');
+    assert.lengthOf(errorEvents, 0);
   });
 
   test('mark-as-default remains successful without onSelect when its interaction refresh fails', async () => {
