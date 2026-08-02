@@ -361,6 +361,47 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
+  test('missing verification status is not selectable or markable as default', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['ADD_ACCOUNT', 'SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-without-verification-status',
+          name: 'Unverified card',
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+      ],
+    });
+
+    const row = el.shadowRoot!.querySelector<HTMLElement>(
+      '.payment-method-row'
+    )!;
+    const useSelectedButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="attach-payment-source"]'
+    )!;
+
+    assert.notExists(row.querySelector('.verification-status-badge'));
+    assert.notExists(row.querySelector('.payment-method-radio'));
+    assert.isTrue(useSelectedButton.disabled);
+
+    row
+      .querySelector<HTMLButtonElement>(
+        '[data-action="toggle-payment-source-menu"]'
+      )!
+      .click();
+    await flushElement(el);
+
+    assert.notExists(
+      row.querySelector('[data-action="mark-payment-source-default"]')
+    );
+  });
+
   test('recipient provisioning controls verified bank labels and selection radios', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
