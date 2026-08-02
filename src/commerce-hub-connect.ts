@@ -124,6 +124,10 @@ import {
   resolvePaymentMethodIconName,
 } from './internal/payment-method-icons.js';
 import {
+  BANK_SOURCE_ACTION_ICON_PATH,
+  CARD_SOURCE_ACTION_ICON_PATH,
+} from './internal/source-action-icons.js';
+import {
   isPaymentSourceSelectionEligible,
   paymentSourceVerificationLabel,
 } from './internal/payment-source-selection.js';
@@ -1260,8 +1264,8 @@ export class CommerceHubConnect extends LitElement {
           <svg viewBox="0 0 640 640" focusable="false">
             <path
               d=${icon === 'card'
-                ? 'M64 192L64 224L576 224L576 192C576 156.7 547.3 128 512 128L128 128C92.7 128 64 156.7 64 192zM64 272L64 448C64 483.3 92.7 512 128 512L512 512C547.3 512 576 483.3 576 448L576 272L64 272zM128 424C128 410.7 138.7 400 152 400L200 400C213.3 400 224 410.7 224 424C224 437.3 213.3 448 200 448L152 448C138.7 448 128 437.3 128 424zM272 424C272 410.7 282.7 400 296 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L296 448C282.7 448 272 437.3 272 424z'
-                : 'M335.9 84.2C326.1 78.6 314 78.6 304.1 84.2L80.1 212.2C67.5 219.4 61.3 234.2 65 248.2C68.7 262.2 81.5 272 96 272L128 272L128 480L128 480L76.8 518.4C68.7 524.4 64 533.9 64 544C64 561.7 78.3 576 96 576L544 576C561.7 576 576 561.7 576 544C576 533.9 571.3 524.4 563.2 518.4L512 480L512 272L544 272C558.5 272 571.2 262.2 574.9 248.2C578.6 234.2 572.4 219.4 559.8 212.2L335.8 84.2zM464 272L464 480L400 480L400 272L464 272zM352 272L352 480L288 480L288 272L352 272zM240 272L240 480L176 480L176 272L240 272zM320 160C337.7 160 352 174.3 352 192C352 209.7 337.7 224 320 224C302.3 224 288 209.7 288 192C288 174.3 302.3 160 320 160z'}
+                ? CARD_SOURCE_ACTION_ICON_PATH
+                : BANK_SOURCE_ACTION_ICON_PATH}
             ></path>
           </svg>
         </span>
@@ -4885,14 +4889,24 @@ export class CommerceHubConnect extends LitElement {
     this.paymentSourceView = 'list';
     this.addLauncherActive = false;
     this.resetTransferFlow();
-    this.focusAfterUpdate(
-      '[data-action="open-add-payment-source"]',
-      '[data-action="toggle-payment-source-menu"]'
-    );
 
     if (refresh) {
-      void this.refreshPaymentSourcesForList();
+      void this.refreshPaymentSourcesForList().finally(() => {
+        this.focusPaymentSourceList();
+      });
+      return;
     }
+
+    this.focusPaymentSourceList();
+  }
+
+  private focusPaymentSourceList() {
+    this.focusAfterUpdate(
+      '[data-action="open-add-payment-source"]',
+      '[data-action="toggle-payment-source-menu"]',
+      '[data-action="add-card"]',
+      '[data-action="add-bank-account"]'
+    );
   }
 
   private shouldOpenPaymentSourceMenuAbove(trigger?: HTMLElement): boolean {

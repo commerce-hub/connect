@@ -37,6 +37,10 @@ import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from '../internal/payment-method-icons.js';
+import {
+  BANK_SOURCE_ACTION_ICON_PATH,
+  CARD_SOURCE_ACTION_ICON_PATH,
+} from '../internal/source-action-icons.js';
 import {primitiveStyles} from '../internal/styles.js';
 import type {PaymentMethod} from '../internal/types.js';
 
@@ -180,6 +184,17 @@ suite('commerce-hub-connect primitives', () => {
 
   test('declares a hover affordance for clickable source action links', () => {
     assert.include(primitiveStyles.cssText, '.source-action-link:hover');
+  });
+
+  test('allows source action subtitles to wrap on narrow hosts', () => {
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-title,\n    .source-action-subtitle,'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-subtitle {\n      overflow: visible;\n      text-overflow: clip;'
+    );
   });
 
   test('renders payment method logos in POC-style icon tiles', async () => {
@@ -1120,6 +1135,15 @@ suite('commerce-hub-connect primitives', () => {
         '[data-source-action-icon="bank"][aria-hidden="true"]'
       )
     );
+    assert.equal(
+      emptySourceActions[0].querySelector('path')?.getAttribute('d'),
+      CARD_SOURCE_ACTION_ICON_PATH
+    );
+    assert.equal(
+      emptySourceActions[1].querySelector('path')?.getAttribute('d'),
+      BANK_SOURCE_ACTION_ICON_PATH
+    );
+    assert.notEqual(CARD_SOURCE_ACTION_ICON_PATH, BANK_SOURCE_ACTION_ICON_PATH);
     emptySourceActions.forEach((button) => {
       const svg = button.querySelector('svg')!;
 

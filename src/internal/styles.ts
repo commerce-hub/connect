@@ -2799,9 +2799,15 @@ export const primitiveStyles = css`
     }
 
     .source-action-title,
+    .source-action-subtitle,
     .source-action-link-title,
     .payment-method-title {
       white-space: normal;
+    }
+
+    .source-action-subtitle {
+      overflow: visible;
+      text-overflow: clip;
     }
   }
 

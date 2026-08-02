@@ -210,6 +210,139 @@ suite('commerce-hub-connect accessibility', () => {
     assert.strictEqual(element.shadowRoot!.activeElement, restoredMethodAction);
   });
 
+  test('returning to an empty list after refresh focuses the direct card action', async () => {
+    let interactionRequestCount = 0;
+    let resolveReturnRefresh!: (response: Response) => void;
+    const returnRefresh = new Promise<Response>((resolve) => {
+      resolveReturnRefresh = resolve;
+    });
+    const interactionResponse: InteractionResponse = {
+      interactionId: 'empty-card-focus-interaction',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['ADD_ACCOUNT'],
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+      paymentSources: [],
+    };
+
+    window.fetch = async () => {
+      interactionRequestCount += 1;
+
+      if (interactionRequestCount === 1) {
+        return new Response(JSON.stringify(interactionResponse), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return returnRefresh;
+    };
+
+    const element = await renderConnect(interactionResponse);
+    await waitFor(
+      () =>
+        !element.shadowRoot!.querySelector('.payment-method-skeletons') &&
+        Boolean(element.shadowRoot!.querySelector('[data-action="add-card"]')),
+      'empty card action did not render'
+    );
+
+    element
+      .shadowRoot!.querySelector<HTMLButtonElement>('[data-action="add-card"]')!
+      .click();
+    await settle(element);
+    element
+      .shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="back-to-payment-methods"]'
+      )!
+      .click();
+    await settle(element);
+
+    assert.exists(
+      element.shadowRoot!.querySelector('.payment-method-skeletons')
+    );
+    resolveReturnRefresh(
+      new Response(JSON.stringify(interactionResponse), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      })
+    );
+    await waitFor(
+      () =>
+        !element.shadowRoot!.querySelector('.payment-method-skeletons') &&
+        element.shadowRoot!.activeElement?.getAttribute('data-action') ===
+          'add-card',
+      'direct card action did not receive focus after refresh'
+    );
+  });
+
+  test('returning to a bank-only empty list focuses the direct bank action', async () => {
+    let interactionRequestCount = 0;
+    let resolveReturnRefresh!: (response: Response) => void;
+    const returnRefresh = new Promise<Response>((resolve) => {
+      resolveReturnRefresh = resolve;
+    });
+    const interactionResponse: InteractionResponse = {
+      interactionId: 'empty-bank-focus-interaction',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: '   ',
+      features: ['ADD_ACCOUNT'],
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    };
+
+    window.fetch = async () => {
+      interactionRequestCount += 1;
+
+      if (interactionRequestCount === 1) {
+        return new Response(JSON.stringify(interactionResponse), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      return returnRefresh;
+    };
+
+    const element = await renderConnect(interactionResponse);
+    await waitFor(
+      () =>
+        !element.shadowRoot!.querySelector('.payment-method-skeletons') &&
+        Boolean(
+          element.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+        ),
+      'empty bank action did not render'
+    );
+
+    element
+      .shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="add-bank-account"]'
+      )!
+      .click();
+    await settle(element);
+    element
+      .shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="back-to-payment-methods"]'
+      )!
+      .click();
+    await settle(element);
+
+    assert.exists(
+      element.shadowRoot!.querySelector('.payment-method-skeletons')
+    );
+    resolveReturnRefresh(
+      new Response(JSON.stringify(interactionResponse), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      })
+    );
+    await waitFor(
+      () =>
+        !element.shadowRoot!.querySelector('.payment-method-skeletons') &&
+        element.shadowRoot!.activeElement?.getAttribute('data-action') ===
+          'add-bank-account',
+      'direct bank action did not receive focus after refresh'
+    );
+  });
+
   test('Add payment method sheet traps focus and Escape restores the trigger', async () => {
     window.fetch = async () =>
       new Response(JSON.stringify({}), {
