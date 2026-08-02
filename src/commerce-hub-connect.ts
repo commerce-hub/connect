@@ -5299,7 +5299,7 @@ export class CommerceHubConnect extends LitElement {
         )
           ? verifiedSource.id?.trim() || sourceId
           : undefined;
-        this.paymentSourceView = 'list';
+        this.showPaymentSourceList({refresh: true});
         return;
       }
 
@@ -5643,9 +5643,28 @@ export class CommerceHubConnect extends LitElement {
 
             this.setInteractionResponseFromSdk(nextInteractionResponse);
             this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, resolvedBankSource);
+            const refreshedInteraction =
+              await this.refreshInteractionAfterMutation(interactionId);
+
+            if (
+              !this.isCurrentPayByBankProviderRequest(
+                requestToken,
+                interactionId
+              )
+            ) {
+              resolve();
+              return;
+            }
+
+            const statusSource =
+              this.findPaymentSourceInInteraction(
+                refreshedInteraction,
+                paymentSourceId
+              ) ?? resolvedBankSource;
+
             this.resetBankFlow();
 
-            this.showAddedPaymentSourceStatus(resolvedBankSource);
+            this.showAddedPaymentSourceStatus(statusSource);
             resolve();
           } catch (cause) {
             if (
