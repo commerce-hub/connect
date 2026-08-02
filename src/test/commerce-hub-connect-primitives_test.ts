@@ -1436,6 +1436,9 @@ suite('commerce-hub-connect primitives', () => {
       defaultRow.querySelector('[data-action="delete-payment-source"]')
     );
     assert.notExists(defaultRow.querySelector('[role="menu"]'));
+    assert.isFalse(
+      defaultRow.classList.contains('payment-method-row-menu-open')
+    );
     assert.exists(
       otherRow.querySelector('[data-action="toggle-payment-source-menu"]')
     );

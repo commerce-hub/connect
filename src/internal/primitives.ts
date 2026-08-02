@@ -731,7 +731,7 @@ export const renderPaymentMethodRow = (
           : 'payment-method-row-static',
         rendersRadio && 'payment-method-row-radio',
         selected && rendersRadio && 'payment-method-row-selected',
-        menuOpen && 'payment-method-row-menu-open'
+        menuOpen && !method.isDefault && 'payment-method-row-menu-open'
       )}
       part="payment-method-row"
       aria-label=${label}
