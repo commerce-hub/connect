@@ -33,15 +33,17 @@ export const isPaymentSourceSelectionEligible = (
 export const paymentSourceVerificationLabel = (
   source: PaymentSource
 ): string | undefined => {
-  if (
-    source.verificationInfo?.status !== 'VERIFIED' ||
-    !isBankPaymentSource(source) ||
-    !source.recipient
-  ) {
+  if (source.verificationInfo?.status !== 'VERIFIED') {
     return undefined;
   }
 
-  return normalizedRecipientStatus(source) === 'PROVISIONED'
-    ? 'Verified & Ready'
-    : 'Verified';
+  if (
+    isBankPaymentSource(source) &&
+    source.recipient &&
+    normalizedRecipientStatus(source) !== 'PROVISIONED'
+  ) {
+    return 'Verified';
+  }
+
+  return 'Verified & Provisioned';
 };

@@ -510,7 +510,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(rows[0].querySelector('.verification-status-icon'));
     assert.equal(
       rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Ready'
+      'Verified & Provisioned'
     );
     assert.notExists(rows[0].querySelector('.payment-method-chevron'));
     assert.equal(
@@ -1378,6 +1378,87 @@ suite('commerce-hub-connect primitives', () => {
       'Verified'
     );
     assert.notExists(root.querySelector('.payment-method-radio'));
+  });
+
+  test('keeps default labels while limiting overflow actions to non-default methods', async () => {
+    const root = await renderHarness(html`
+      ${renderPaymentMethodRow(
+        {
+          id: 'card-default',
+          label: 'Default card',
+          brand: 'Visa',
+          last4: '1111',
+          status: 'verified',
+          isDefault: true,
+        },
+        {menuOpen: true, showMarkAsDefault: true}
+      )}
+      ${renderPaymentMethodRow(
+        {
+          id: 'card-other',
+          label: 'Other card',
+          brand: 'Mastercard',
+          last4: '2222',
+          status: 'verified',
+        },
+        {menuOpen: true, showMarkAsDefault: true}
+      )}
+      ${renderPaymentMethodRow(
+        {
+          id: 'card-default-confirming',
+          label: 'Confirming default card',
+          brand: 'Visa',
+          last4: '3333',
+          status: 'verified',
+          isDefault: true,
+        },
+        {confirmingDelete: true, showMarkAsDefault: true}
+      )}
+    `);
+    const defaultRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-default"]'
+    )!;
+    const otherRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-other"]'
+    )!;
+    const confirmingDefaultRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-default-confirming"]'
+    )!;
+
+    assert.equal(
+      defaultRow.querySelector('.payment-method-default-label')?.textContent,
+      'Default'
+    );
+    assert.notExists(
+      defaultRow.querySelector('[data-action="toggle-payment-source-menu"]')
+    );
+    assert.notExists(
+      defaultRow.querySelector('[data-action="delete-payment-source"]')
+    );
+    assert.notExists(defaultRow.querySelector('[role="menu"]'));
+    assert.exists(
+      otherRow.querySelector('[data-action="toggle-payment-source-menu"]')
+    );
+    assert.equal(
+      otherRow
+        .querySelector('[data-action="mark-payment-source-default"]')
+        ?.textContent?.trim(),
+      'Mark as default'
+    );
+    assert.equal(
+      otherRow
+        .querySelector('[data-action="delete-payment-source"]')
+        ?.textContent?.trim(),
+      'Remove'
+    );
+    assert.exists(
+      confirmingDefaultRow.querySelector('.payment-method-default-label')
+    );
+    assert.notExists(
+      confirmingDefaultRow.querySelector(
+        '[data-action="delete-payment-source"]'
+      )
+    );
   });
 
   test('keeps status badges beside titles regardless of trailing controls', async () => {

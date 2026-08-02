@@ -293,65 +293,77 @@ const renderPaymentMethodOverflowAction = (
   }
 ): TemplateResult => {
   const menuId = `payment-method-menu-${method.id}`;
+  const canMarkAsDefault =
+    showMarkAsDefault &&
+    !method.isDefault &&
+    isPaymentMethodSelectionEligible(method);
+  const canRemove = !method.isDefault;
+  const hasActions = canMarkAsDefault || canRemove;
 
   return html`
     <span class="payment-method-overflow">
       ${method.isDefault
         ? html`<span class="payment-method-default-label">Default</span>`
         : ''}
-      <button
-        class="payment-method-overflow-button"
-        type="button"
-        aria-label=${`More actions for ${method.label}`}
-        aria-haspopup="true"
-        aria-expanded=${menuOpen ? 'true' : 'false'}
-        aria-controls=${menuId}
-        data-action="toggle-payment-source-menu"
-        data-payment-method-id=${method.id}
-        ?disabled=${method.disabled}
-      >
-        <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
-        <svg viewBox="0 0 640 640" aria-hidden="true">
-          <path
-            d="M320 208C289.1 208 264 182.9 264 152C264 121.1 289.1 96 320 96C350.9 96 376 121.1 376 152C376 182.9 350.9 208 320 208zM320 432C350.9 432 376 457.1 376 488C376 518.9 350.9 544 320 544C289.1 544 264 518.9 264 488C264 457.1 289.1 432 320 432zM376 320C376 350.9 350.9 376 320 376C289.1 376 264 350.9 264 320C264 289.1 289.1 264 320 264C350.9 264 376 289.1 376 320z"
-          ></path>
-        </svg>
-      </button>
-      ${menuOpen
+      ${hasActions
         ? html`
-            <span
-              class=${joinClassNames(
-                'payment-method-menu',
-                menuPlacement === 'above' && 'payment-method-menu-above'
-              )}
-              id=${menuId}
-              role="menu"
+            <button
+              class="payment-method-overflow-button"
+              type="button"
+              aria-label=${`More actions for ${method.label}`}
+              aria-haspopup="true"
+              aria-expanded=${menuOpen ? 'true' : 'false'}
+              aria-controls=${menuId}
+              data-action="toggle-payment-source-menu"
+              data-payment-method-id=${method.id}
+              ?disabled=${method.disabled}
             >
-              ${showMarkAsDefault &&
-              !method.isDefault &&
-              isPaymentMethodSelectionEligible(method)
-                ? html`
-                    <button
-                      type="button"
-                      role="menuitem"
-                      data-action="mark-payment-source-default"
-                      data-payment-method-id=${method.id}
-                      ?disabled=${method.disabled}
-                    >
-                      Mark as default
-                    </button>
-                  `
-                : ''}
-              <button
-                type="button"
-                role="menuitem"
-                data-action="delete-payment-source"
-                data-payment-method-id=${method.id}
-                ?disabled=${method.disabled}
-              >
-                Remove
-              </button>
-            </span>
+              <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+              <svg viewBox="0 0 640 640" aria-hidden="true">
+                <path
+                  d="M320 208C289.1 208 264 182.9 264 152C264 121.1 289.1 96 320 96C350.9 96 376 121.1 376 152C376 182.9 350.9 208 320 208zM320 432C350.9 432 376 457.1 376 488C376 518.9 350.9 544 320 544C289.1 544 264 518.9 264 488C264 457.1 289.1 432 320 432zM376 320C376 350.9 350.9 376 320 376C289.1 376 264 350.9 264 320C264 289.1 289.1 264 320 264C350.9 264 376 289.1 376 320z"
+                ></path>
+              </svg>
+            </button>
+            ${menuOpen
+              ? html`
+                  <span
+                    class=${joinClassNames(
+                      'payment-method-menu',
+                      menuPlacement === 'above' && 'payment-method-menu-above'
+                    )}
+                    id=${menuId}
+                    role="menu"
+                  >
+                    ${canMarkAsDefault
+                      ? html`
+                          <button
+                            type="button"
+                            role="menuitem"
+                            data-action="mark-payment-source-default"
+                            data-payment-method-id=${method.id}
+                            ?disabled=${method.disabled}
+                          >
+                            Mark as default
+                          </button>
+                        `
+                      : ''}
+                    ${canRemove
+                      ? html`
+                          <button
+                            type="button"
+                            role="menuitem"
+                            data-action="delete-payment-source"
+                            data-payment-method-id=${method.id}
+                            ?disabled=${method.disabled}
+                          >
+                            Remove
+                          </button>
+                        `
+                      : ''}
+                  </span>
+                `
+              : ''}
           `
         : ''}
     </span>
@@ -690,7 +702,7 @@ export const renderPaymentMethodRow = (
     disabled,
   };
 
-  if (confirmingDelete) {
+  if (confirmingDelete && !method.isDefault) {
     return html`
       <div
         class=${joinClassNames(

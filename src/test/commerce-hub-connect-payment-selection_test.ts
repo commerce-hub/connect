@@ -297,6 +297,10 @@ suite('commerce-hub-connect payment selection', () => {
     assert.lengthOf(radios, 2);
     assert.isTrue(radios[0].checked);
     assert.isFalse(radios[1].checked);
+    assert.equal(
+      rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
+      'Verified & Provisioned'
+    );
     assert.strictEqual(
       radios[0].closest('label')?.firstElementChild,
       radios[0],
@@ -377,6 +381,14 @@ suite('commerce-hub-connect payment selection', () => {
           recipient: {id: 'recipient-2', status: 'PENDING'},
           bankAccount: {accountNumber: '3333333333'},
         },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-recipient-blank',
+          name: 'Blank recipient bank',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-3', status: '   '},
+          bankAccount: {accountNumber: '4444444444'},
+        },
       ],
     });
     const rows = [
@@ -392,7 +404,12 @@ suite('commerce-hub-connect payment selection', () => {
       rows.map((row) =>
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
-      ['Ready', 'Verified & Ready', 'Verified']
+      [
+        'Verified & Provisioned',
+        'Verified & Provisioned',
+        'Verified',
+        'Verified',
+      ]
     );
     assert.deepEqual(
       radios.map((radio) => radio.value),
@@ -400,6 +417,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.isTrue(radios[0].checked);
     assert.notExists(rows[2].querySelector('.payment-method-radio'));
+    assert.notExists(rows[3].querySelector('.payment-method-radio'));
   });
 
   test('verified bank with a non-provisioned recipient leaves selection disabled', async () => {
@@ -1891,12 +1909,9 @@ suite('commerce-hub-connect payment selection', () => {
     const overflow = selectedRow.querySelector<HTMLElement>(
       '.payment-method-overflow'
     )!;
-    const overflowButton = overflow.querySelector<HTMLButtonElement>(
-      '.payment-method-overflow-button'
-    )!;
 
     assert.strictEqual(defaultLabel.parentElement, overflow);
-    assert.strictEqual(defaultLabel.nextElementSibling, overflowButton);
+    assert.isNull(defaultLabel.nextElementSibling);
     assert.notExists(
       selectedRow.querySelector(
         '.payment-method-title-row .payment-method-default-label'
@@ -1907,20 +1922,14 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(getComputedStyle(defaultLabel).padding, '3px 9px');
     assert.equal(getComputedStyle(defaultLabel).fontWeight, '600');
 
-    selectedRow
-      .querySelector<HTMLButtonElement>(
-        '[data-action="toggle-payment-source-menu"]'
-      )!
-      .click();
-    await flushElement(el);
+    assert.notExists(
+      selectedRow.querySelector('[data-action="toggle-payment-source-menu"]')
+    );
     assert.notExists(
       selectedRow.querySelector('[data-action="mark-payment-source-default"]')
     );
-    assert.equal(
-      selectedRow
-        .querySelector('[data-action="delete-payment-source"]')
-        ?.textContent?.trim(),
-      'Remove'
+    assert.notExists(
+      selectedRow.querySelector('[data-action="delete-payment-source"]')
     );
   });
 
