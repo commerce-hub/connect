@@ -3621,6 +3621,148 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('schema-driven ACH v2 waits out a pre-mutation interaction GET before resolving an empty create response', async () => {
+    const requests: CapturedRequest[] = [];
+    const staleInteraction = deferredResponse();
+    let createdSourceId = '';
+    let interactionGetCount = 0;
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+      const bodyText = await request.clone().text();
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText,
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([TEST_INSTRUMENT_SCHEMAS[0]]);
+      }
+
+      if (pathname === '/interaction/source/v2/ach') {
+        createdSourceId = JSON.parse(bodyText).id;
+        return new Response(undefined, {
+          status: 201,
+          headers: {'Content-Type': 'application/json'},
+        });
+      }
+
+      if (pathname === '/interaction') {
+        interactionGetCount += 1;
+
+        if (interactionGetCount === 1) {
+          return staleInteraction.promise;
+        }
+
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            paymentSources: [
+              {
+                id: createdSourceId,
+                tenderType: 'BankAccount',
+                name: 'Bob Bobson',
+                verificationInfo: {status: 'VERIFIED'},
+                bankAccount: {
+                  accountNumber: '0000026',
+                  asset: {type: 'CURRENCY', id: 'CAD'},
+                  country: 'CA',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CA',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+    const {addPaymentMethodEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'add-bank-account');
+    await selectCanadianBusinessBankSchema(el);
+
+    for (const [name, value] of [
+      ['accountHolderName', 'Bob Bobson'],
+      ['accountNumber', '0000026'],
+      ['address.city', 'Toronto'],
+      ['institutionNumber', '002'],
+      ['transitNumber', '12345'],
+    ] as const) {
+      const input = el.shadowRoot!.querySelector<HTMLInputElement>(
+        `input[name="${name}"]`
+      )!;
+
+      input.value = value;
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await flushElement(el);
+    }
+
+    await waitForActionEnabled(el, 'save-bank-account');
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="save-bank-account"]'
+    )!.click();
+    const preMutationRefresh = (
+      el as unknown as {
+        fetchInteraction: (
+          interactionId: string
+        ) => Promise<InteractionResponse>;
+      }
+    ).fetchInteraction('interaction-payment');
+
+    await waitForRequest(requests, '/interaction/source/v2/ach');
+    assert.equal(interactionGetCount, 1);
+    staleInteraction.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await preMutationRefresh;
+    await waitFor(
+      () => addPaymentMethodEvents.length === 1,
+      'empty ACH v2 response was not resolved after the fresh interaction GET'
+    );
+
+    assert.equal(addPaymentMethodEvents[0].detail.id, createdSourceId);
+    assert.deepEqual(
+      requests
+        .filter((request) =>
+          ['/interaction/source/v2/ach', '/interaction'].includes(
+            new URL(request.url).pathname
+          )
+        )
+        .map((request) => `${request.method} ${new URL(request.url).pathname}`),
+      [
+        'GET /interaction',
+        'POST /interaction/source/v2/ach',
+        'GET /interaction',
+      ]
+    );
+    assert.lengthOf(addPaymentMethodEvents, 1);
+  });
+
   test('schema-driven ACH v2 rejects an uncorrelated source after an empty create response', async () => {
     const requests: CapturedRequest[] = [];
 

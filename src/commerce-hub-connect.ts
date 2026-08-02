@@ -4279,7 +4279,9 @@ export class CommerceHubConnect extends LitElement {
     source: BankPaymentSource & {id: string};
     interactionResponse: InteractionResponse;
   }> {
-    const refreshedInteraction = await this.fetchInteraction(interactionId);
+    const refreshedInteraction = await this.fetchFreshInteraction(
+      interactionId
+    );
     const bankSources = (refreshedInteraction.paymentSources ?? []).filter(
       isBankPaymentSource
     );
@@ -5012,14 +5014,20 @@ export class CommerceHubConnect extends LitElement {
     interactionId: string
   ): Promise<InteractionResponse | undefined> {
     try {
-      return await this.interactionRefresh.fetchFresh(
-        interactionId,
-        this.interactionRefreshOptions()
-      );
+      return await this.fetchFreshInteraction(interactionId);
     } catch (cause) {
       void cause;
       return undefined;
     }
+  }
+
+  private fetchFreshInteraction(
+    interactionId: string
+  ): Promise<InteractionResponse> {
+    return this.interactionRefresh.fetchFresh(
+      interactionId,
+      this.interactionRefreshOptions()
+    );
   }
 
   private interactionResponseWithAddedSource(
