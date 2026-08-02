@@ -1852,15 +1852,25 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
     );
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.notExists(el.shadowRoot!.querySelector('.empty-state'));
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
+    assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+          '.payment-action-links .source-action'
+        ),
+      ].map((button) => button.dataset.action),
+      ['add-card', 'add-bank-account']
     );
     assert.notExists(el.shadowRoot!.querySelector('.source-action-link'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
     assert.notExists(
       el.shadowRoot!.querySelector(
         '[data-action="mark-payment-source-default"]'
@@ -1910,10 +1920,25 @@ suite('commerce-hub-connect flow', () => {
     );
     await waitFor(
       () =>
-        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Add payment method',
+        !el.shadowRoot!.querySelector('.payment-method-skeletons') &&
+        el.shadowRoot!.querySelectorAll('.payment-action-links .source-action')
+          .length === 2,
       'empty payment-source state did not render after refresh'
     );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Payment methods'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+          '.payment-action-links .source-action'
+        ),
+      ].map((button) => button.dataset.action),
+      ['add-card', 'add-bank-account']
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
   });
 
   test('renders no-saved-methods copy from partial designConfig overrides', async () => {
@@ -1955,22 +1980,39 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('.empty-state-message')?.textContent?.trim(),
       'Add a payment method to keep going.'
     );
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
-    );
-    assert.notExists(el.shadowRoot!.querySelector('.source-action-link'));
-
-    await clickAction(el, 'open-add-payment-source');
-
+    assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
     assert.deepEqual(
-      [...el.shadowRoot!.querySelectorAll('.add-payment-sheet-option')].map(
-        (item) => item.textContent?.replace(/\s+/g, ' ').trim()
-      ),
       [
-        'Credit or debit card Add your card details',
-        'Bank account Connect or enter an account',
+        ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+          '.payment-action-links .source-action'
+        ),
+      ].map((button) => ({
+        action: button.dataset.action,
+        title: button
+          .querySelector('.source-action-title')
+          ?.textContent?.trim(),
+        subtitle: button
+          .querySelector('.source-action-subtitle')
+          ?.textContent?.trim(),
+      })),
+      [
+        {
+          action: 'add-card',
+          title: 'Add card',
+          subtitle: 'Use card number and CVV',
+        },
+        {
+          action: 'add-bank-account',
+          title: 'Connect bank',
+          subtitle: 'Connect checking or savings',
+        },
       ]
     );
+    assert.notExists(el.shadowRoot!.querySelector('.source-action-link'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
   });
 
   test('opens the add card screen with the SDK v3 compact card-entry layout and header back link', async () => {

@@ -221,7 +221,15 @@ suite('commerce-hub-connect accessibility', () => {
       status: 'PAYMENT_SOURCE_REQUESTED',
       features: ['ADD_ACCOUNT', 'SELECT'],
       allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
-      paymentSources: [],
+      paymentSources: [
+        {
+          id: 'card-1',
+          tenderType: 'Card',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '1111'},
+        },
+      ],
     });
 
     element
@@ -289,7 +297,15 @@ suite('commerce-hub-connect accessibility', () => {
       status: 'PAYMENT_SOURCE_REQUESTED',
       features: ['ADD_ACCOUNT', 'SELECT'],
       allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
-      paymentSources: [],
+      paymentSources: [
+        {
+          id: 'card-1',
+          tenderType: 'Card',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '1111'},
+        },
+      ],
     });
     const openSheet = async () => {
       element
