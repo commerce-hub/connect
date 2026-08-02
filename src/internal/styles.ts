@@ -1406,6 +1406,10 @@ export const primitiveStyles = css`
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  .payment-method-row-default {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .payment-method-row-menu-open {
     z-index: 5;
   }
@@ -1640,6 +1644,8 @@ export const primitiveStyles = css`
   }
 
   .payment-method-default-label {
+    flex: 0 0 auto;
+    margin-left: auto;
     min-height: 1.5625rem;
     display: inline-flex;
     align-items: center;

@@ -1514,6 +1514,9 @@ suite('commerce-hub-connect primitives', () => {
 
   test('keeps default labels while limiting overflow actions to non-default methods', async () => {
     const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
       ${renderPaymentMethodRow(
         {
           id: 'card-default',
@@ -1546,6 +1549,14 @@ suite('commerce-hub-connect primitives', () => {
         },
         {confirmingDelete: true, showMarkAsDefault: true}
       )}
+      ${renderPaymentMethodRow({
+        id: 'card-default-without-meta',
+        label: 'Default card without metadata',
+        brand: '',
+        last4: '',
+        status: 'verified',
+        isDefault: true,
+      })}
     `);
     const defaultRow = root.querySelector<HTMLElement>(
       '[data-payment-method-id="card-default"]'
@@ -1556,11 +1567,21 @@ suite('commerce-hub-connect primitives', () => {
     const confirmingDefaultRow = root.querySelector<HTMLElement>(
       '[data-payment-method-id="card-default-confirming"]'
     )!;
+    const defaultWithoutMetaRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-default-without-meta"]'
+    )!;
+    const defaultLabel = defaultRow.querySelector<HTMLElement>(
+      '.payment-method-default-label'
+    )!;
 
-    assert.equal(
-      defaultRow.querySelector('.payment-method-default-label')?.textContent,
-      'Default'
+    assert.equal(defaultLabel.textContent, 'Default');
+    assert.isTrue(defaultRow.classList.contains('payment-method-row-default'));
+    assert.isTrue(
+      defaultLabel.parentElement?.classList.contains('payment-method-meta-row')
     );
+    assert.notExists(defaultRow.querySelector('.payment-method-overflow'));
+    assert.equal(getComputedStyle(defaultLabel).marginLeft, 'auto');
+    assert.equal(getComputedStyle(defaultLabel).flexShrink, '0');
     assert.notExists(
       defaultRow.querySelector('[data-action="toggle-payment-source-menu"]')
     );
@@ -1593,6 +1614,14 @@ suite('commerce-hub-connect primitives', () => {
       confirmingDefaultRow.querySelector(
         '[data-action="delete-payment-source"]'
       )
+    );
+    assert.exists(
+      defaultWithoutMetaRow.querySelector(
+        '.payment-method-meta-row .payment-method-default-label'
+      )
+    );
+    assert.notExists(
+      defaultWithoutMetaRow.querySelector('.payment-method-meta')
     );
   });
 

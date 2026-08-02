@@ -2539,12 +2539,12 @@ suite('commerce-hub-connect payment selection', () => {
     const defaultLabel = selectedRow.querySelector<HTMLElement>(
       '.payment-method-default-label'
     )!;
-    const overflow = selectedRow.querySelector<HTMLElement>(
-      '.payment-method-overflow'
-    )!;
 
-    assert.strictEqual(defaultLabel.parentElement, overflow);
-    assert.isNull(defaultLabel.nextElementSibling);
+    assert.strictEqual(
+      defaultLabel.parentElement,
+      selectedRow.querySelector('.payment-method-meta-row')
+    );
+    assert.notExists(selectedRow.querySelector('.payment-method-overflow'));
     assert.notExists(
       selectedRow.querySelector(
         '.payment-method-title-row .payment-method-default-label'
