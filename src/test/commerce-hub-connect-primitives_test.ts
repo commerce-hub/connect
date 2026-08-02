@@ -1105,6 +1105,78 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
+  test('opens payment-method screen menu styling only for actionable non-default rows', async () => {
+    const methods: PaymentMethod[] = [
+      {
+        id: 'card-default',
+        label: 'Default card',
+        brand: 'Visa',
+        last4: '1111',
+        status: 'verified',
+        isDefault: true,
+      },
+      {
+        id: 'card-other',
+        label: 'Other card',
+        brand: 'Mastercard',
+        last4: '2222',
+        status: 'verified',
+      },
+    ];
+    const copy = {
+      title: 'Pay with',
+      subtitle: '',
+      addBankAccountTitle: 'Add bank account',
+      addBankAccountSubtitle: 'Connect a bank',
+      addCardTitle: 'Add credit or debit card',
+      addCardSubtitle: 'Use a card',
+      continueButton: 'Confirm',
+      continuingButton: 'Confirming...',
+    };
+    const screenModel = {
+      status: 'PAYMENT_SOURCE_REQUESTED' as const,
+      methods,
+      allowedTenderOptions: {
+        card: true,
+        bankAccount: true,
+        nativeAccount: false,
+      },
+      canAddPaymentSources: true,
+      canSelectPaymentSources: true,
+      actionPending: false,
+      copy,
+    };
+    const root = await renderHarness(html`
+      <div data-screen="stale-default">
+        ${renderPaymentMethodsScreen({
+          ...screenModel,
+          openPaymentSourceMenuId: 'card-default',
+        })}
+      </div>
+      <div data-screen="open-non-default">
+        ${renderPaymentMethodsScreen({
+          ...screenModel,
+          openPaymentSourceMenuId: 'card-other',
+        })}
+      </div>
+    `);
+    const staleDefaultStack = root.querySelector<HTMLElement>(
+      '[data-screen="stale-default"] .primitive-stack'
+    )!;
+    const openNonDefaultStack = root.querySelector<HTMLElement>(
+      '[data-screen="open-non-default"] .primitive-stack'
+    )!;
+
+    assert.isFalse(
+      staleDefaultStack.classList.contains('primitive-stack-menu-open')
+    );
+    assert.notExists(staleDefaultStack.querySelector('[role="menu"]'));
+    assert.isTrue(
+      openNonDefaultStack.classList.contains('primitive-stack-menu-open')
+    );
+    assert.exists(openNonDefaultStack.querySelector('[role="menu"]'));
+  });
+
   test('declares framed-shell motion, narrow-layout, and reduced-motion overrides', () => {
     assert.include(primitiveStyles.cssText, '--chc-motion-fast: 150ms');
     assert.include(primitiveStyles.cssText, '--chc-motion-base: 220ms');

@@ -30,7 +30,9 @@ export const renderPaymentMethodsScreen = ({
   paymentSourceMenuPlacement = 'below',
   deleteConfirmationPaymentSourceId,
 }: PaymentMethodsScreenModel): TemplateResult => {
-  const menuOpen = Boolean(openPaymentSourceMenuId);
+  const menuOpen = methods.some(
+    (method) => method.id === openPaymentSourceMenuId && !method.isDefault
+  );
 
   return html`
     <div class="payment-flow">
