@@ -1202,6 +1202,11 @@ export const primitiveStyles = css`
   .field-input-mask-wrap .field-input {
     flex: 1 1 auto;
     min-width: 0;
+    /* Monospace keeps digit and bullet advances equal so the (transparent)
+       caret stays aligned with the visible overlay characters. */
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    letter-spacing: 0;
   }
 
   .field-input-mask-hidden {
@@ -1220,7 +1225,9 @@ export const primitiveStyles = css`
     align-items: center;
     pointer-events: none;
     font: inherit;
-    letter-spacing: inherit;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    letter-spacing: 0;
     color: var(--chc-text);
     white-space: pre;
     overflow: hidden;
