@@ -7,6 +7,7 @@ import type {
   InteractionResponse,
   PaymentSource,
 } from '../commerce-hub-connect.js';
+import {StaleInteractionRefreshError} from '../internal/controllers/interaction-refresh-controller.js';
 
 interface CapturedRequest {
   url: string;
@@ -205,6 +206,7 @@ const markPaymentSourceAsDefault = async (
 const recordOutputEvents = (el: Element) => {
   const successEvents: CustomEvent<PaymentSource>[] = [];
   const legacySuccessEvents: CustomEvent<PaymentSource>[] = [];
+  const listPaymentMethodsEvents: CustomEvent<PaymentSource[]>[] = [];
   const errorEvents: CustomEvent<unknown>[] = [];
 
   el.addEventListener('onSelect', (event) => {
@@ -213,11 +215,19 @@ const recordOutputEvents = (el: Element) => {
   el.addEventListener('onSuccess', (event) => {
     legacySuccessEvents.push(event as CustomEvent<PaymentSource>);
   });
+  el.addEventListener('onListPaymentMethods', (event) => {
+    listPaymentMethodsEvents.push(event as CustomEvent<PaymentSource[]>);
+  });
   el.addEventListener('onError', (event) => {
     errorEvents.push(event as CustomEvent<unknown>);
   });
 
-  return {successEvents, legacySuccessEvents, errorEvents};
+  return {
+    successEvents,
+    legacySuccessEvents,
+    listPaymentMethodsEvents,
+    errorEvents,
+  };
 };
 
 suite('commerce-hub-connect payment selection', () => {
@@ -297,6 +307,10 @@ suite('commerce-hub-connect payment selection', () => {
     assert.lengthOf(radios, 2);
     assert.isTrue(radios[0].checked);
     assert.isFalse(radios[1].checked);
+    assert.equal(
+      rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
+      'Verified & Provisioned'
+    );
     assert.strictEqual(
       radios[0].closest('label')?.firstElementChild,
       radios[0],
@@ -348,6 +362,47 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
+  test('missing verification status is not selectable or markable as default', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['ADD_ACCOUNT', 'SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-without-verification-status',
+          name: 'Unverified card',
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+      ],
+    });
+
+    const row = el.shadowRoot!.querySelector<HTMLElement>(
+      '.payment-method-row'
+    )!;
+    const useSelectedButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="attach-payment-source"]'
+    )!;
+
+    assert.notExists(row.querySelector('.verification-status-badge'));
+    assert.notExists(row.querySelector('.payment-method-radio'));
+    assert.isTrue(useSelectedButton.disabled);
+
+    row
+      .querySelector<HTMLButtonElement>(
+        '[data-action="toggle-payment-source-menu"]'
+      )!
+      .click();
+    await flushElement(el);
+
+    assert.notExists(
+      row.querySelector('[data-action="mark-payment-source-default"]')
+    );
+  });
+
   test('recipient provisioning controls verified bank labels and selection radios', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
@@ -377,6 +432,14 @@ suite('commerce-hub-connect payment selection', () => {
           recipient: {id: 'recipient-2', status: 'PENDING'},
           bankAccount: {accountNumber: '3333333333'},
         },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-recipient-blank',
+          name: 'Blank recipient bank',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-3', status: '   '},
+          bankAccount: {accountNumber: '4444444444'},
+        },
       ],
     });
     const rows = [
@@ -392,7 +455,12 @@ suite('commerce-hub-connect payment selection', () => {
       rows.map((row) =>
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
-      ['Ready', 'Verified & Ready', 'Verified']
+      [
+        'Verified & Provisioned',
+        'Verified & Provisioned',
+        'Verified',
+        'Verified',
+      ]
     );
     assert.deepEqual(
       radios.map((radio) => radio.value),
@@ -400,6 +468,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.isTrue(radios[0].checked);
     assert.notExists(rows[2].querySelector('.payment-method-radio'));
+    assert.notExists(rows[3].querySelector('.payment-method-radio'));
   });
 
   test('verified bank with a non-provisioned recipient leaves selection disabled', async () => {
@@ -510,6 +579,478 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
+  test('stale interaction refresh cannot overwrite or clear a newer interaction refresh', async () => {
+    const requests: CapturedRequest[] = [];
+    const interactionA = createDeferred<Response>();
+    const interactionB = createDeferred<Response>();
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const interactionId = request.headers.get('x-interaction-id');
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return interactionId === 'interaction-a'
+        ? interactionA.promise
+        : interactionB.promise;
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-a',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+    const {listPaymentMethodsEvents} = recordOutputEvents(el);
+
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-a'
+        ),
+      'interaction A refresh did not start'
+    );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-b',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-b'
+        ),
+      'interaction B refresh did not start'
+    );
+
+    interactionA.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-a',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'card-a',
+              name: 'Stale interaction A card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {network: 'Visa', cardNumber: '4111111111111111'},
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await flushElement(el);
+
+    const deduplicatedBRefresh = (
+      el as unknown as {
+        fetchInteraction: (
+          interactionId: string
+        ) => Promise<InteractionResponse>;
+      }
+    ).fetchInteraction('interaction-b');
+
+    assert.lengthOf(
+      requests.filter(
+        (request) => request.headers.get('x-interaction-id') === 'interaction-b'
+      ),
+      1
+    );
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.lengthOf(listPaymentMethodsEvents, 0);
+
+    interactionB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'card-b',
+              name: 'Current interaction B card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {network: 'Mastercard', cardNumber: '5555555555554444'},
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await deduplicatedBRefresh;
+    await flushElement(el);
+
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(listPaymentMethodsEvents, 1);
+    assert.deepEqual(
+      listPaymentMethodsEvents[0].detail.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(requests, 2);
+  });
+
+  test('suspended fresh refresh rejects after interaction reset without disturbing the new refresh', async () => {
+    const requests: CapturedRequest[] = [];
+    const interactionA = createDeferred<Response>();
+    const interactionB = createDeferred<Response>();
+    const freshInteractionB = createDeferred<Response>();
+    const interactionC = createDeferred<Response>();
+    let interactionBRequestCount = 0;
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const interactionId = request.headers.get('x-interaction-id');
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (interactionId === 'interaction-a') {
+        return interactionA.promise;
+      }
+
+      if (interactionId === 'interaction-b') {
+        interactionBRequestCount += 1;
+        return interactionBRequestCount === 1
+          ? interactionB.promise
+          : freshInteractionB.promise;
+      }
+
+      return interactionC.promise;
+    };
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-a',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+    const {listPaymentMethodsEvents} = recordOutputEvents(el);
+    const refreshMethods = el as unknown as {
+      fetchInteraction: (interactionId: string) => Promise<InteractionResponse>;
+      fetchFreshInteraction: (
+        interactionId: string
+      ) => Promise<InteractionResponse>;
+    };
+
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-a'
+        ),
+      'interaction A refresh did not start'
+    );
+    const staleFreshResult = refreshMethods
+      .fetchFreshInteraction('interaction-a')
+      .then(
+        () => undefined,
+        (cause: unknown) => cause
+      );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-b',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-b'
+        ),
+      'interaction B refresh did not start'
+    );
+
+    interactionA.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-a',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    const staleCause = await staleFreshResult;
+    const deduplicatedBRefresh =
+      refreshMethods.fetchInteraction('interaction-b');
+
+    assert.instanceOf(staleCause, Error);
+    assert.include((staleCause as Error).message, 'stale');
+    assert.lengthOf(
+      requests.filter(
+        (request) => request.headers.get('x-interaction-id') === 'interaction-a'
+      ),
+      1
+    );
+    assert.lengthOf(
+      requests.filter(
+        (request) => request.headers.get('x-interaction-id') === 'interaction-b'
+      ),
+      1
+    );
+
+    interactionB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'card-b',
+              name: 'Current interaction B card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {network: 'Visa', cardNumber: '4111111111114242'},
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await deduplicatedBRefresh;
+    await flushElement(el);
+
+    const immediateStaleCause = await refreshMethods
+      .fetchFreshInteraction('interaction-a')
+      .then(
+        () => undefined,
+        (cause: unknown) => cause
+      );
+
+    assert.instanceOf(immediateStaleCause, Error);
+    assert.include((immediateStaleCause as Error).message, 'stale');
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(listPaymentMethodsEvents, 1);
+    assert.lengthOf(requests, 2);
+
+    const midFlightFreshResult = refreshMethods
+      .fetchFreshInteraction('interaction-b')
+      .then(
+        () => undefined,
+        (cause: unknown) => cause
+      );
+    await waitFor(
+      () => interactionBRequestCount === 2,
+      'fresh interaction B request did not start'
+    );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-c',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-c'
+        ),
+      'interaction C refresh did not start'
+    );
+
+    freshInteractionB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    const midFlightStaleCause = await midFlightFreshResult;
+    const deduplicatedCRefresh =
+      refreshMethods.fetchInteraction('interaction-c');
+
+    assert.instanceOf(midFlightStaleCause, Error);
+    assert.include((midFlightStaleCause as Error).message, 'stale');
+    assert.lengthOf(
+      requests.filter(
+        (request) => request.headers.get('x-interaction-id') === 'interaction-c'
+      ),
+      1
+    );
+
+    interactionC.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-c',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'card-c',
+              name: 'Current interaction C card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {network: 'Visa', cardNumber: '4111111111111111'},
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await deduplicatedCRefresh;
+    await flushElement(el);
+
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-c');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-c']
+    );
+    assert.lengthOf(listPaymentMethodsEvents, 2);
+    assert.lengthOf(requests, 4);
+  });
+
+  test('failed fresh refresh rejects as stale after interaction reset without disturbing the new refresh', async () => {
+    const requests: CapturedRequest[] = [];
+    const freshInteractionA = createDeferred<Response>();
+    const interactionB = createDeferred<Response>();
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const interactionId = request.headers.get('x-interaction-id');
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return interactionId === 'interaction-a'
+        ? freshInteractionA.promise
+        : interactionB.promise;
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-a',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    });
+    const {listPaymentMethodsEvents} = recordOutputEvents(el);
+    const refreshMethods = el as unknown as {
+      fetchInteraction: (interactionId: string) => Promise<InteractionResponse>;
+      fetchFreshInteraction: (
+        interactionId: string
+      ) => Promise<InteractionResponse>;
+    };
+    const staleRefreshResult = refreshMethods
+      .fetchFreshInteraction('interaction-a')
+      .then(
+        () => undefined,
+        (cause: unknown) => cause
+      );
+
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-a'
+        ),
+      'fresh interaction A refresh did not start'
+    );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-b',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.headers.get('x-interaction-id') === 'interaction-b'
+        ),
+      'interaction B refresh did not start'
+    );
+
+    freshInteractionA.reject(new Error('Interaction A refresh failed'));
+    const staleCause = await staleRefreshResult;
+    const deduplicatedBRefresh =
+      refreshMethods.fetchInteraction('interaction-b');
+
+    assert.instanceOf(staleCause, StaleInteractionRefreshError);
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.lengthOf(listPaymentMethodsEvents, 0);
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="retry-interaction-refresh"]')
+    );
+    assert.lengthOf(
+      requests.filter(
+        (request) => request.headers.get('x-interaction-id') === 'interaction-b'
+      ),
+      1
+    );
+
+    interactionB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [
+            {
+              tenderType: 'Card',
+              id: 'card-b',
+              name: 'Current interaction B card',
+              verificationInfo: {status: 'VERIFIED'},
+              card: {network: 'Visa', cardNumber: '4111111111114242'},
+            },
+          ],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await deduplicatedBRefresh;
+    await flushElement(el);
+
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(listPaymentMethodsEvents, 1);
+    assert.deepEqual(
+      listPaymentMethodsEvents[0].detail.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(requests, 2);
+  });
+
   test('initial interaction refresh loads saved methods when the host payment sources are empty', async () => {
     const requests: CapturedRequest[] = [];
 
@@ -568,6 +1109,58 @@ suite('commerce-hub-connect payment selection', () => {
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
       ['GET /interaction']
+    );
+  });
+
+  test('authoritative empty payment sources clear a stale selected source', async () => {
+    const staleSource: PaymentSource = {
+      tenderType: 'Card',
+      id: 'stale-card',
+      name: 'Stale selected card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Visa', cardNumber: '4111111111111111'},
+    };
+
+    window.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          allowedTenderTypes: ['CARD'],
+          paymentSources: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_ATTACHED',
+        allowedTenderTypes: ['CARD'],
+        selectedSource: staleSource,
+        paymentSources: [staleSource],
+      },
+      TEST_COMMERCE_HUB_BASE_URL,
+      {initialInteractionResponse: false}
+    );
+
+    await waitFor(
+      () =>
+        Boolean(
+          el.shadowRoot!.querySelector('.source-action[data-action="add-card"]')
+        ),
+      'authoritative empty direct-add state did not render'
+    );
+
+    assert.isUndefined(el.interactionResponse?.selectedSource);
+    assert.deepEqual(el.interactionResponse?.paymentSources, []);
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Stale selected card');
+    assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('.payment-method-default-label')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('.source-action[data-action="add-card"]')
     );
   });
 
@@ -828,7 +1421,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       rows[3].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Wallet ending 7890'
+      'Wallet xx 7890'
     );
     assert.exists(rows[3].querySelector('[data-payment-method-icon="native"]'));
     assert.exists(
@@ -1257,7 +1850,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('filters empty-state add actions by allowed tender types', async () => {
+  test('renders a direct card action in the empty state when card is the only allowed tender', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -1268,14 +1861,20 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
-      'Add payment method'
+      'Payment methods'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
+    assert.notExists(
+      el.shadowRoot!.querySelector(
+        '.widget-header-action [data-action="open-add-payment-source"]'
+      )
     );
     assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
     assert.notInclude(text, 'James Anderson');
     assert.notInclude(text, 'visa-1111');
     assert.notInclude(text, 'amex-8000');
     assert.exists(
-      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
+      el.shadowRoot!.querySelector('.source-action[data-action="add-card"]')
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
@@ -1283,9 +1882,20 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
     );
+    assert.notExists(
+      el.shadowRoot!.querySelector('.source-action-link-chevron')
+    );
+
+    await clickAction(el, 'add-card');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add card'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
   });
 
-  test('ADD_ACCOUNT-only empty state opens the add payment sheet', async () => {
+  test('renders ordered direct card and bank actions in the ADD_ACCOUNT-only empty state', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -1294,15 +1904,60 @@ suite('commerce-hub-connect payment selection', () => {
       paymentSources: [],
     });
 
-    assert.exists(
-      el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Payment methods'
     );
-    assert.notExists(el.shadowRoot!.querySelector('[data-action="add-card"]'));
+    assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
     assert.notExists(
-      el.shadowRoot!.querySelector('[data-action="add-bank-account"]')
+      el.shadowRoot!.querySelector(
+        '.widget-header-action [data-action="open-add-payment-source"]'
+      )
     );
-    await clickAction(el, 'open-add-payment-source');
-    assert.exists(el.shadowRoot!.querySelector('.add-payment-sheet'));
+
+    const sourceActions = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.payment-action-links .source-action'
+      ),
+    ];
+
+    assert.deepEqual(
+      sourceActions.map((button) => ({
+        action: button.dataset.action,
+        title: button
+          .querySelector('.source-action-title')
+          ?.textContent?.trim(),
+        subtitle: button
+          .querySelector('.source-action-subtitle')
+          ?.textContent?.trim(),
+      })),
+      [
+        {
+          action: 'add-card',
+          title: 'Add credit or debit card',
+          subtitle: 'Add your card details',
+        },
+        {
+          action: 'add-bank-account',
+          title: 'Add bank account',
+          subtitle: 'Connect or enter an account',
+        },
+      ]
+    );
+    assert.equal(getComputedStyle(sourceActions[0]).borderStyle, 'dashed');
+    assert.equal(getComputedStyle(sourceActions[1]).borderStyle, 'dashed');
+    assert.notExists(
+      el.shadowRoot!.querySelector('.source-action-link-chevron')
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
+
+    await clickAction(el, 'add-bank-account');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Select bank account type'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
   });
 
   test('renders consolidated Add payment method when selection is unavailable', async () => {
@@ -1355,6 +2010,7 @@ suite('commerce-hub-connect payment selection', () => {
       [['open-add-payment-source', 'Add payment method']]
     );
     assert.isTrue(addButtons[0].classList.contains('button-primary'));
+    assert.notEqual(getComputedStyle(addButtons[0]).borderStyle, 'dotted');
     assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
     addButtons.forEach((button) => {
       const buttonContent = button.querySelector('.button-content')!;
@@ -1527,13 +2183,11 @@ suite('commerce-hub-connect payment selection', () => {
       bankOption.textContent?.replace(/\s+/g, ' ').trim(),
       'Bank account Connect or enter an account'
     );
-    assert.equal(
-      cardOption.querySelector('svg')?.querySelector('path')?.getAttribute('d'),
-      'M64 192L64 224L576 224L576 192C576 156.7 547.3 128 512 128L128 128C92.7 128 64 156.7 64 192zM64 272L64 448C64 483.3 92.7 512 128 512L512 512C547.3 512 576 483.3 576 448L576 272L64 272zM128 424C128 410.7 138.7 400 152 400L200 400C213.3 400 224 410.7 224 424C224 437.3 213.3 448 200 448L152 448C138.7 448 128 437.3 128 424zM272 424C272 410.7 282.7 400 296 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L296 448C282.7 448 272 437.3 272 424z'
-    );
-    assert.equal(
-      bankOption.querySelector('svg')?.querySelector('path')?.getAttribute('d'),
-      'M335.9 84.2C326.1 78.6 314 78.6 304.1 84.2L80.1 212.2C67.5 219.4 61.3 234.2 65 248.2C68.7 262.2 81.5 272 96 272L128 272L128 480L128 480L76.8 518.4C68.7 524.4 64 533.9 64 544C64 561.7 78.3 576 96 576L544 576C561.7 576 576 561.7 576 544C576 533.9 571.3 524.4 563.2 518.4L512 480L512 272L544 272C558.5 272 571.2 262.2 574.9 248.2C578.6 234.2 572.4 219.4 559.8 212.2L335.8 84.2zM464 272L464 480L400 480L400 272L464 272zM352 272L352 480L288 480L288 272L352 272zM240 272L240 480L176 480L176 272L240 272zM320 160C337.7 160 352 174.3 352 192C352 209.7 337.7 224 320 224C302.3 224 288 209.7 288 192C288 174.3 302.3 160 320 160z'
+    assert.exists(cardOption.querySelector('.add-payment-sheet-icon svg path'));
+    assert.exists(bankOption.querySelector('.add-payment-sheet-icon svg path'));
+    assert.notEqual(
+      cardOption.querySelector('path')?.getAttribute('d'),
+      bankOption.querySelector('path')?.getAttribute('d')
     );
     assert.equal(
       dialog
@@ -1542,6 +2196,8 @@ suite('commerce-hub-connect payment selection', () => {
       'M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z'
     );
     assert.equal(getComputedStyle(cardOption).minHeight, '72px');
+    assert.notEqual(getComputedStyle(cardOption).borderStyle, 'dotted');
+    assert.notEqual(getComputedStyle(bankOption).borderStyle, 'dotted');
     const optionList = dialog.querySelector('.add-payment-sheet-options')!;
     assert.equal(getComputedStyle(optionList).gap, '12px');
     assert.equal(getComputedStyle(optionList).maskImage, 'none');
@@ -1888,15 +2544,12 @@ suite('commerce-hub-connect payment selection', () => {
     const defaultLabel = selectedRow.querySelector<HTMLElement>(
       '.payment-method-default-label'
     )!;
-    const overflow = selectedRow.querySelector<HTMLElement>(
-      '.payment-method-overflow'
-    )!;
-    const overflowButton = overflow.querySelector<HTMLButtonElement>(
-      '.payment-method-overflow-button'
-    )!;
 
-    assert.strictEqual(defaultLabel.parentElement, overflow);
-    assert.strictEqual(defaultLabel.nextElementSibling, overflowButton);
+    assert.strictEqual(
+      defaultLabel.parentElement,
+      selectedRow.querySelector('.payment-method-meta-row')
+    );
+    assert.notExists(selectedRow.querySelector('.payment-method-overflow'));
     assert.notExists(
       selectedRow.querySelector(
         '.payment-method-title-row .payment-method-default-label'
@@ -1907,20 +2560,14 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(getComputedStyle(defaultLabel).padding, '3px 9px');
     assert.equal(getComputedStyle(defaultLabel).fontWeight, '600');
 
-    selectedRow
-      .querySelector<HTMLButtonElement>(
-        '[data-action="toggle-payment-source-menu"]'
-      )!
-      .click();
-    await flushElement(el);
+    assert.notExists(
+      selectedRow.querySelector('[data-action="toggle-payment-source-menu"]')
+    );
     assert.notExists(
       selectedRow.querySelector('[data-action="mark-payment-source-default"]')
     );
-    assert.equal(
-      selectedRow
-        .querySelector('[data-action="delete-payment-source"]')
-        ?.textContent?.trim(),
-      'Remove'
+    assert.notExists(
+      selectedRow.querySelector('[data-action="delete-payment-source"]')
     );
   });
 
@@ -2030,7 +2677,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       armedRow.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
     assert.notExists(
       armedRow.querySelector('[data-action="cancel-delete-payment-source"]')
@@ -2063,6 +2710,31 @@ suite('commerce-hub-connect payment selection', () => {
         bodyText: await request.clone().text(),
         credentials: request.credentials,
       });
+
+      if (
+        request.method === 'GET' &&
+        new URL(request.url).pathname.endsWith('/interaction')
+      ) {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            paymentSources: [
+              {
+                tenderType: 'BankAccount',
+                id: 'bank-1',
+                name: 'Operating account',
+                verificationInfo: {status: 'UNDER_REVIEW'},
+                bankAccount: {
+                  bankName: 'Commerce National Bank',
+                  accountNumber: '9876543210',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
 
       return new Response('', {status: 200});
     };
@@ -2116,7 +2788,7 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['DELETE /interaction/source/card-1']
+      ['DELETE /interaction/source/card-1', 'GET /interaction']
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
@@ -2136,6 +2808,69 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="delete-payment-source"]')
+    );
+  });
+
+  test('stale deletion cannot remove a source after it becomes default', async () => {
+    const requests: CapturedRequest[] = [];
+    const deleteEvents: CustomEvent<string>[] = [];
+    const source: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Corporate card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Visa', cardNumber: '4111111111111111'},
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      return new Response('', {status: 200});
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [source],
+    });
+    const deletionMethods = el as unknown as {
+      deleteConfirmationPaymentSourceId?: string;
+      deletePaymentSource: (paymentSourceId: string) => Promise<void>;
+    };
+    el.addEventListener('onDeletePaymentMethod', (event) => {
+      deleteEvents.push(event as CustomEvent<string>);
+    });
+
+    await requestPaymentSourceDeletion(el, 'card-1');
+    assert.equal(deletionMethods.deleteConfirmationPaymentSourceId, 'card-1');
+
+    el.interactionResponse = {
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_ATTACHED',
+      selectedSource: source,
+      paymentSources: [source],
+    };
+    await flushElement(el);
+    await deletionMethods.deletePaymentSource('card-1');
+    await flushElement(el);
+
+    assert.isUndefined(deletionMethods.deleteConfirmationPaymentSourceId);
+    assert.lengthOf(requests, 0);
+    assert.lengthOf(deleteEvents, 0);
+    assert.equal(el.interactionResponse?.selectedSource?.id, 'card-1');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map(
+        (paymentSource) => paymentSource.id
+      ),
+      ['card-1']
     );
   });
 
@@ -2427,7 +3162,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
 
     await clickAction(el, 'open-add-payment-source');
@@ -2570,10 +3305,20 @@ suite('commerce-hub-connect payment selection', () => {
         cardNumber: '4111111111111111',
       },
     };
+    const authoritativeSource: PaymentSource = {
+      ...selectedSource,
+      name: 'Authoritative corporate Visa',
+      card: {
+        ...selectedSource.card,
+        network: 'Mastercard',
+        cardNumber: '5555555555554444',
+      },
+    };
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const request =
         input instanceof Request ? input : new Request(input, init);
+      const pathname = new URL(request.url).pathname;
 
       requests.push({
         url: request.url,
@@ -2583,12 +3328,24 @@ suite('commerce-hub-connect payment selection', () => {
         credentials: request.credentials,
       });
 
+      if (pathname === '/interaction/source/card-1/attach') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_ATTACHED',
+            selectedSource,
+            paymentSources: [selectedSource],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
       return new Response(
         JSON.stringify({
           interactionId: 'interaction-payment',
           status: 'PAYMENT_SOURCE_ATTACHED',
-          selectedSource,
-          paymentSources: [selectedSource],
+          selectedSource: authoritativeSource,
+          paymentSources: [authoritativeSource],
         }),
         {status: 200, headers: {'Content-Type': 'application/json'}}
       );
@@ -2627,10 +3384,16 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach']
+      ['POST /interaction/source/card-1/attach', 'GET /interaction']
     );
     assert.equal(successEvents.length, 1);
     assert.equal(successEvents[0].detail.id, 'card-1');
+    assert.equal(successEvents[0].detail.name, 'Authoritative corporate Visa');
+    assert.equal(
+      (successEvents[0].detail as Extract<PaymentSource, {tenderType: 'Card'}>)
+        .card?.network,
+      'Mastercard'
+    );
     assert.lengthOf(legacySuccessEvents, 0);
     assert.lengthOf(errorEvents, 0);
     assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
@@ -2680,16 +3443,25 @@ suite('commerce-hub-connect payment selection', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction/source/card-1/attach') {
+      if (
+        request.method === 'POST' &&
+        pathname === '/interaction/source/card-1/attach'
+      ) {
         return new Promise((resolve) => {
           resolveAttachResponse = resolve;
         });
       }
 
-      return new Response(JSON.stringify({}), {
-        status: 200,
-        headers: {'Content-Type': 'application/json'},
-      });
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: refreshedSource,
+          paymentSources: [refreshedSource],
+          billerAddress: [],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
     };
 
     const el = await renderConnect({
@@ -2738,8 +3510,15 @@ suite('commerce-hub-connect payment selection', () => {
     );
 
     await waitFor(
-      () => el.interactionResponse?.selectedSource?.id === 'card-1',
-      'default source did not update'
+      () =>
+        el.interactionResponse?.selectedSource?.id === 'card-1' &&
+        requests.some(
+          (request) =>
+            request.method === 'GET' &&
+            new URL(request.url).pathname === '/interaction'
+        ) &&
+        !el.shadowRoot!.querySelector('.widget-loading-animation'),
+      'authoritative default source refresh did not complete'
     );
     await flushElement(el);
 
@@ -2747,7 +3526,7 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach']
+      ['POST /interaction/source/card-1/attach', 'GET /interaction']
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
@@ -2776,7 +3555,7 @@ suite('commerce-hub-connect payment selection', () => {
       el
         .shadowRoot!.querySelector('.payment-method-row .payment-method-meta')
         ?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
     assert.equal(
       el
@@ -2844,6 +3623,429 @@ suite('commerce-hub-connect payment selection', () => {
     assert.include(
       el.shadowRoot!.querySelector('.alert-danger')?.textContent ?? '',
       'Attach was declined'
+    );
+  });
+
+  test('attach remains successful and emits onSelect once when its interaction refresh fails', async () => {
+    const requests: CapturedRequest[] = [];
+    const source: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Local attached card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Visa', cardNumber: '4111111111111111'},
+    };
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/card-1/attach') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_ATTACHED',
+            selectedSource: source,
+            paymentSources: [source],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({message: 'Refresh unavailable'}), {
+        status: 503,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [source],
+    });
+    const {successEvents, errorEvents} = recordOutputEvents(el);
+
+    await clickAction(el, 'attach-payment-source');
+    await waitFor(
+      () =>
+        successEvents.length === 1 &&
+        !el.shadowRoot!.querySelector('.widget-loading-animation'),
+      'attach did not complete with its local fallback'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['POST /interaction/source/card-1/attach', 'GET /interaction']
+    );
+    assert.equal(successEvents[0].detail.name, 'Local attached card');
+    assert.lengthOf(successEvents, 1);
+    assert.lengthOf(errorEvents, 0);
+    assert.notExists(el.shadowRoot!.querySelector('.alert-danger'));
+  });
+
+  test('failed stale attach refresh cannot affect a newer interaction', async () => {
+    const requests: CapturedRequest[] = [];
+    const attachResponse = createDeferred<Response>();
+    const interactionA = createDeferred<Response>();
+    const interactionB = createDeferred<Response>();
+    const sourceA: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-a',
+      name: 'Interaction A card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Visa', cardNumber: '4111111111111111'},
+    };
+    const sourceB: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-b',
+      name: 'Interaction B card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Mastercard', cardNumber: '5555555555554444'},
+    };
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (request.method === 'POST') {
+        return attachResponse.promise;
+      }
+
+      return request.headers.get('x-interaction-id') === 'interaction-a'
+        ? interactionA.promise
+        : interactionB.promise;
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-a',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [sourceA],
+    });
+    const {successEvents, listPaymentMethodsEvents, errorEvents} =
+      recordOutputEvents(el);
+    const attachmentPromise = (
+      el as unknown as {
+        attachPaymentSource: (paymentSourceId: string) => Promise<void>;
+      }
+    ).attachPaymentSource('card-a');
+
+    await waitFor(
+      () => requests.some((request) => request.method === 'POST'),
+      'interaction A attach did not start'
+    );
+    attachResponse.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-a',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: sourceA,
+          paymentSources: [sourceA],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.method === 'GET' &&
+            request.headers.get('x-interaction-id') === 'interaction-a'
+        ),
+      'interaction A authoritative refresh did not start'
+    );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-b',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.method === 'GET' &&
+            request.headers.get('x-interaction-id') === 'interaction-b'
+        ),
+      'interaction B refresh did not start'
+    );
+
+    interactionA.reject(new Error('Interaction A refresh failed'));
+    await attachmentPromise;
+    await flushElement(el);
+
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.isUndefined(el.interactionResponse?.selectedSource);
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(listPaymentMethodsEvents, 0);
+    assert.lengthOf(errorEvents, 0);
+    assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
+    assert.notExists(el.shadowRoot!.querySelector('.alert-danger'));
+
+    interactionB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [sourceB],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Interaction B card',
+      'interaction B did not remain authoritative'
+    );
+
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.deepEqual(
+      el.interactionResponse?.paymentSources?.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(listPaymentMethodsEvents, 1);
+    assert.deepEqual(
+      listPaymentMethodsEvents[0].detail.map((source) => source.id),
+      ['card-b']
+    );
+    assert.lengthOf(errorEvents, 0);
+    assert.notExists(el.shadowRoot!.querySelector('.alert-danger'));
+  });
+
+  test('stale attach rejection cannot clear a newer attach busy guard', async () => {
+    const requests: CapturedRequest[] = [];
+    const attachA = createDeferred<Response>();
+    const attachB = createDeferred<Response>();
+    const sourceA: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-a',
+      name: 'Interaction A card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Visa', cardNumber: '4111111111111111'},
+    };
+    const sourceB: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-b',
+      name: 'Interaction B card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Mastercard', cardNumber: '5555555555554444'},
+    };
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      const interactionId = request.headers.get('x-interaction-id');
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (request.method === 'POST') {
+        return interactionId === 'interaction-a'
+          ? attachA.promise
+          : attachB.promise;
+      }
+
+      const source = interactionId === 'interaction-a' ? sourceA : sourceB;
+
+      return new Response(
+        JSON.stringify({
+          interactionId,
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          paymentSources: [source],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-a',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [sourceA],
+    });
+    const {successEvents, errorEvents} = recordOutputEvents(el);
+    const attachmentMethods = el as unknown as {
+      pendingAction?: string;
+      attachmentError?: string;
+      attachPaymentSource: (paymentSourceId: string) => Promise<void>;
+    };
+    const interactionAOperation =
+      attachmentMethods.attachPaymentSource('card-a');
+
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.headers.get('x-interaction-id') === 'interaction-a'
+        ),
+      'interaction A attach did not start'
+    );
+
+    el.interactionResponse = {
+      interactionId: 'interaction-b',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [sourceB],
+    };
+    await flushElement(el);
+    await waitFor(
+      () =>
+        el
+          .shadowRoot!.querySelector('.payment-method-title')
+          ?.textContent?.trim() === 'Interaction B card',
+      'interaction B payment source did not render'
+    );
+
+    const interactionBOperation =
+      attachmentMethods.attachPaymentSource('card-b');
+    await waitFor(
+      () =>
+        requests.some(
+          (request) =>
+            request.method === 'POST' &&
+            request.headers.get('x-interaction-id') === 'interaction-b'
+        ),
+      'interaction B attach did not start'
+    );
+
+    await attachmentMethods.attachPaymentSource('card-b');
+    assert.lengthOf(
+      requests.filter((request) => request.method === 'POST'),
+      2
+    );
+
+    attachA.reject(new Error('Interaction A attach failed'));
+    await interactionAOperation;
+    await flushElement(el);
+
+    assert.equal(attachmentMethods.pendingAction, 'attach-payment-source');
+    assert.isUndefined(attachmentMethods.attachmentError);
+    assert.lengthOf(
+      requests.filter((request) => request.method === 'POST'),
+      2
+    );
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
+    assert.notExists(el.shadowRoot!.querySelector('.alert-danger'));
+
+    attachB.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-b',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: sourceB,
+          paymentSources: [sourceB],
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await interactionBOperation;
+    await flushElement(el);
+
+    assert.isUndefined(attachmentMethods.pendingAction);
+    assert.isUndefined(attachmentMethods.attachmentError);
+    assert.equal(el.interactionResponse?.interactionId, 'interaction-b');
+    assert.equal(el.interactionResponse?.selectedSource?.id, 'card-b');
+    assert.lengthOf(successEvents, 1);
+    assert.equal(successEvents[0].detail.id, 'card-b');
+    assert.lengthOf(errorEvents, 0);
+  });
+
+  test('mark-as-default remains successful without onSelect when its interaction refresh fails', async () => {
+    const requests: CapturedRequest[] = [];
+    const source: PaymentSource = {
+      tenderType: 'Card',
+      id: 'card-1',
+      name: 'Local default card',
+      verificationInfo: {status: 'VERIFIED'},
+      card: {network: 'Visa', cardNumber: '4111111111111111'},
+    };
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/interaction/source/card-1/attach') {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_ATTACHED',
+            selectedSource: source,
+            paymentSources: [source],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response(JSON.stringify({message: 'Refresh unavailable'}), {
+        status: 503,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [source],
+    });
+    const {successEvents, errorEvents} = recordOutputEvents(el);
+
+    await markPaymentSourceAsDefault(el, 'card-1');
+    await waitFor(
+      () =>
+        el.interactionResponse?.selectedSource?.id === 'card-1' &&
+        !el.shadowRoot!.querySelector('.widget-loading-animation'),
+      'mark-as-default did not complete with its local fallback'
+    );
+
+    assert.deepEqual(
+      requests.map(
+        (request) => `${request.method} ${new URL(request.url).pathname}`
+      ),
+      ['POST /interaction/source/card-1/attach', 'GET /interaction']
+    );
+    assert.lengthOf(successEvents, 0);
+    assert.lengthOf(errorEvents, 0);
+    assert.notExists(el.shadowRoot!.querySelector('.alert-danger'));
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.payment-method-default-label')
+        ?.textContent?.trim(),
+      'Default'
     );
   });
 
@@ -3026,7 +4228,7 @@ suite('commerce-hub-connect payment selection', () => {
           '.selected-payment-method .payment-method-meta'
         )
         ?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
   });
 

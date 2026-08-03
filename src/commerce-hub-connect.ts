@@ -15,7 +15,10 @@ import {
   resolveCommerceHubBaseURL,
   type CommerceHubBaseURLInput,
 } from './internal/api-client.js';
-import {InteractionRefreshController} from './internal/controllers/interaction-refresh-controller.js';
+import {
+  InteractionRefreshController,
+  StaleInteractionRefreshError,
+} from './internal/controllers/interaction-refresh-controller.js';
 import {NativeBalanceController} from './internal/controllers/native-balance-controller.js';
 import {parseCommerceHubResponseBody} from './internal/commerce-hub-response.js';
 import {
@@ -123,6 +126,10 @@ import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from './internal/payment-method-icons.js';
+import {
+  BANK_SOURCE_ACTION_ICON_PATH,
+  CARD_SOURCE_ACTION_ICON_PATH,
+} from './internal/source-action-icons.js';
 import {
   isPaymentSourceSelectionEligible,
   paymentSourceVerificationLabel,
@@ -724,6 +731,13 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private cardEncryption: CardEncryptionState = createCardEncryptionState();
 
+  private cardEncryptionTasks: Partial<
+    Record<SensitiveCardField, Promise<void>>
+  > = {};
+
+  @state()
+  private revealedCardFields: ReadonlySet<SensitiveCardField> = new Set();
+
   @state()
   private cardSubmitError?: string;
 
@@ -795,6 +809,7 @@ export class CommerceHubConnect extends LitElement {
         previousInteractionResponse?.interactionId !==
         this.interactionResponse.interactionId
       ) {
+        this.pendingAction = undefined;
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
         this.openPaymentSourceMenuId = undefined;
@@ -1260,8 +1275,8 @@ export class CommerceHubConnect extends LitElement {
           <svg viewBox="0 0 640 640" focusable="false">
             <path
               d=${icon === 'card'
-                ? 'M64 192L64 224L576 224L576 192C576 156.7 547.3 128 512 128L128 128C92.7 128 64 156.7 64 192zM64 272L64 448C64 483.3 92.7 512 128 512L512 512C547.3 512 576 483.3 576 448L576 272L64 272zM128 424C128 410.7 138.7 400 152 400L200 400C213.3 400 224 410.7 224 424C224 437.3 213.3 448 200 448L152 448C138.7 448 128 437.3 128 424zM272 424C272 410.7 282.7 400 296 400L360 400C373.3 400 384 410.7 384 424C384 437.3 373.3 448 360 448L296 448C282.7 448 272 437.3 272 424z'
-                : 'M335.9 84.2C326.1 78.6 314 78.6 304.1 84.2L80.1 212.2C67.5 219.4 61.3 234.2 65 248.2C68.7 262.2 81.5 272 96 272L128 272L128 480L128 480L76.8 518.4C68.7 524.4 64 533.9 64 544C64 561.7 78.3 576 96 576L544 576C561.7 576 576 561.7 576 544C576 533.9 571.3 524.4 563.2 518.4L512 480L512 272L544 272C558.5 272 571.2 262.2 574.9 248.2C578.6 234.2 572.4 219.4 559.8 212.2L335.8 84.2zM464 272L464 480L400 480L400 272L464 272zM352 272L352 480L288 480L288 272L352 272zM240 272L240 480L176 480L176 272L240 272zM320 160C337.7 160 352 174.3 352 192C352 209.7 337.7 224 320 224C302.3 224 288 209.7 288 192C288 174.3 302.3 160 320 160z'}
+                ? CARD_SOURCE_ACTION_ICON_PATH
+                : BANK_SOURCE_ACTION_ICON_PATH}
             ></path>
           </svg>
         </span>
@@ -1540,18 +1555,11 @@ export class CommerceHubConnect extends LitElement {
     return this.renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
-      headerAction: canAddPaymentSources
-        ? renderTextLinkButton({
-            label: 'Add',
-            action: 'open-add-payment-source',
-            disabled: isDeletePending,
-          })
-        : undefined,
       showClose: false,
       showDivider: false,
       content: renderNoSavedPaymentMethodsScreen({
         allowedTenderOptions,
-        canAddPaymentSources: false,
+        canAddPaymentSources,
         deletePending: isDeletePending,
         copy,
       }),
@@ -1968,6 +1976,9 @@ export class CommerceHubConnect extends LitElement {
               dataField: 'cardNumber',
               error: this.visibleCardDraftError('cardNumber'),
               disabled: isSaving,
+              maskable: true,
+              revealed: this.revealedCardFields.has('cardNumber'),
+              onToggleReveal: () => this.toggleCardFieldReveal('cardNumber'),
             }),
             renderTextField({
               id: 'expiration-date',
@@ -1994,6 +2005,9 @@ export class CommerceHubConnect extends LitElement {
               dataField: 'cvv',
               error: this.visibleCardDraftError('cvv'),
               disabled: isSaving,
+              maskable: true,
+              revealed: this.revealedCardFields.has('cvv'),
+              onToggleReveal: () => this.toggleCardFieldReveal('cvv'),
             }),
             renderTextField({
               id: 'name-on-card',
@@ -3219,7 +3233,7 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (cardInput) {
-      void this.encryptCardField(
+      void this.trackCardFieldEncryption(
         cardInput.dataset.cardField as SensitiveCardField,
         cardInput.value
       );
@@ -3753,6 +3767,16 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountSubmitError = undefined;
   }
 
+  private toggleCardFieldReveal(field: SensitiveCardField) {
+    const next = new Set(this.revealedCardFields);
+    if (next.has(field)) {
+      next.delete(field);
+    } else {
+      next.add(field);
+    }
+    this.revealedCardFields = next;
+  }
+
   private updateCardDraftField(field: CardDraftTextField, value: string) {
     const formattedValue = formatCardDraftFieldValue(field, value);
     const nextDraft = {
@@ -4024,6 +4048,52 @@ export class CommerceHubConnect extends LitElement {
     return encryptSourceValue(value, sourceCreateContext.publicKey);
   }
 
+  private trackCardFieldEncryption(
+    field: SensitiveCardField,
+    value: string
+  ): Promise<void> {
+    const task = this.encryptCardField(field, value);
+    this.cardEncryptionTasks[field] = task;
+    const clear = () => {
+      if (this.cardEncryptionTasks[field] === task) {
+        delete this.cardEncryptionTasks[field];
+      }
+    };
+    task.then(clear, clear);
+    return task;
+  }
+
+  private async ensureSensitiveCardFieldsEncrypted(): Promise<void> {
+    await Promise.all(
+      (['cardNumber', 'cvv'] as const).map(async (field) => {
+        const inFlight = this.cardEncryptionTasks[field];
+
+        if (inFlight) {
+          await inFlight;
+        }
+
+        const value = this.cardDraft[field];
+        const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
+
+        if (!normalizedValue) {
+          return;
+        }
+
+        const encryptedField = this.cardEncryption[field];
+        const alreadyEncrypted =
+          encryptedField.status === 'encrypted' &&
+          encryptedField.normalizedValue === normalizedValue &&
+          Boolean(encryptedField.encryptedValue);
+
+        if (alreadyEncrypted) {
+          return;
+        }
+
+        await this.trackCardFieldEncryption(field, value);
+      })
+    );
+  }
+
   private async saveCard() {
     if (this.pendingAction === 'save-card') {
       return;
@@ -4037,10 +4107,12 @@ export class CommerceHubConnect extends LitElement {
 
     this.cardValidationAttempted = true;
 
+    await this.ensureSensitiveCardFieldsEncrypted();
+
     const normalizedDraft = normalizeCardDraft(this.cardDraft);
     const errors = {
-      ...validateCardDraft(normalizedDraft),
       ...validateCardEncryptionReadiness(normalizedDraft, this.cardEncryption),
+      ...validateCardDraft(normalizedDraft),
     };
 
     if (Object.keys(errors).length > 0) {
@@ -4121,6 +4193,7 @@ export class CommerceHubConnect extends LitElement {
             credentials: 'include',
           }
         );
+      this.assertCurrentInteraction(interactionId);
       const createdSource = this.sourceWithVerificationResponse(
         cardPaymentSourceFromPayload(cardSource, normalizedDraft.cardNumber),
         verificationResponse
@@ -4143,12 +4216,25 @@ export class CommerceHubConnect extends LitElement {
       this.setInteractionResponseFromSdk(nextInteractionResponse);
       this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
 
-      this.showAddedPaymentSourceStatus(createdSource);
+      const refreshedInteraction = await this.refreshInteractionAfterMutation(
+        interactionId
+      );
+      const statusSource =
+        this.findPaymentSourceInInteraction(
+          refreshedInteraction,
+          createdSource.id
+        ) ?? createdSource;
+
+      this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
+        return;
+      }
+
       this.cardSubmitError = apiErrorMessage(cause);
       this.cardFlowScreen = 'error';
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'save-card');
     }
   }
 
@@ -4220,17 +4306,27 @@ export class CommerceHubConnect extends LitElement {
           credentials: 'include',
         }
       );
+      this.assertCurrentInteraction(interactionId);
       const verificationResponse =
         verificationResponseFromUnknown(creationResponse);
-      const createdSource = verificationResponse
-        ? (this.sourceWithVerificationResponse(
-            bankPaymentSourceFromConfigDrivenRequest(bankSource),
-            verificationResponse
-          ) as BankPaymentSource & {id: string})
-        : await this.resolveConfigDrivenBankSourceFromInteraction(
+      let refreshedInteraction: InteractionResponse | undefined;
+      let createdSource: BankPaymentSource & {id: string};
+
+      if (verificationResponse) {
+        createdSource = this.sourceWithVerificationResponse(
+          bankPaymentSourceFromConfigDrivenRequest(bankSource),
+          verificationResponse
+        ) as BankPaymentSource & {id: string};
+      } else {
+        const resolvedSource =
+          await this.resolveConfigDrivenBankSourceFromInteraction(
             interactionId,
             bankSource
           );
+
+        createdSource = resolvedSource.source;
+        refreshedInteraction = resolvedSource.interactionResponse;
+      }
       const nextInteractionResponse = this.interactionResponseWithAddedSource(
         interactionId,
         createdSource
@@ -4240,19 +4336,37 @@ export class CommerceHubConnect extends LitElement {
       this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
       this.resetBankFlow();
 
-      this.showAddedPaymentSourceStatus(createdSource);
+      refreshedInteraction ??= await this.refreshInteractionAfterMutation(
+        interactionId
+      );
+      const statusSource =
+        this.findPaymentSourceInInteraction(
+          refreshedInteraction,
+          createdSource.id
+        ) ?? createdSource;
+
+      this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
+        return;
+      }
+
       this.bankAccountSubmitError = apiErrorMessage(cause);
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'save-bank-account');
     }
   }
 
   private async resolveConfigDrivenBankSourceFromInteraction(
     interactionId: string,
     request: ConfigDrivenBankAccountRequest
-  ): Promise<BankPaymentSource & {id: string}> {
-    const refreshedInteraction = await this.fetchInteraction(interactionId);
+  ): Promise<{
+    source: BankPaymentSource & {id: string};
+    interactionResponse: InteractionResponse;
+  }> {
+    const refreshedInteraction = await this.fetchFreshInteraction(
+      interactionId
+    );
     const bankSources = (refreshedInteraction.paymentSources ?? []).filter(
       isBankPaymentSource
     );
@@ -4270,14 +4384,17 @@ export class CommerceHubConnect extends LitElement {
     const displaySource = bankPaymentSourceFromConfigDrivenRequest(request);
 
     return {
-      ...refreshedSource,
-      ...displaySource,
-      id: sourceId,
-      verificationInfo: refreshedSource.verificationInfo,
-      bankAccount: {
-        ...refreshedSource.bankAccount,
-        ...displaySource.bankAccount,
+      source: {
+        ...refreshedSource,
+        ...displaySource,
+        id: sourceId,
+        verificationInfo: refreshedSource.verificationInfo,
+        bankAccount: {
+          ...refreshedSource.bankAccount,
+          ...displaySource.bankAccount,
+        },
       },
+      interactionResponse: refreshedInteraction,
     };
   }
 
@@ -4408,6 +4525,7 @@ export class CommerceHubConnect extends LitElement {
             credentials: 'include',
           }
         );
+      this.assertCurrentInteraction(interactionId);
       const createdSource = this.sourceWithVerificationResponse(
         bankPaymentSourceFromLegacyPayload(
           bankAccountSource,
@@ -4428,11 +4546,24 @@ export class CommerceHubConnect extends LitElement {
       this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, createdSource);
       this.resetBankFlow();
 
-      this.showAddedPaymentSourceStatus(createdSource);
+      const refreshedInteraction = await this.refreshInteractionAfterMutation(
+        interactionId
+      );
+      const statusSource =
+        this.findPaymentSourceInInteraction(
+          refreshedInteraction,
+          createdSource.id
+        ) ?? createdSource;
+
+      this.showAddedPaymentSourceStatus(statusSource);
     } catch (cause) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
+        return;
+      }
+
       this.bankAccountSubmitError = apiErrorMessage(cause);
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'save-bank-account');
     }
   }
 
@@ -4689,23 +4820,27 @@ export class CommerceHubConnect extends LitElement {
           interactionId,
           {method: 'POST', credentials: 'include'}
         );
+      this.assertCurrentInteraction(interactionId);
       const refreshedInteractionResponse = interactionResponseWithSelection(
         this.interactionResponse ?? {interactionId},
         interactionResponse,
         paymentSourceId
       );
+      this.setInteractionResponseFromSdk(refreshedInteractionResponse);
+      const authoritativeInteraction =
+        await this.refreshInteractionAfterMutation(interactionId);
       const attachedSource =
-        selectedPaymentSourceFromInteractionResponse(
-          refreshedInteractionResponse,
+        this.findPaymentSourceInInteraction(
+          authoritativeInteraction,
           paymentSourceId
         ) ??
-        refreshedInteractionResponse.paymentSources?.find(
-          (paymentSource) => paymentSource.id === paymentSourceId
+        this.findPaymentSourceInInteraction(
+          refreshedInteractionResponse,
+          paymentSourceId
         ) ??
         source;
 
       this.selectedPaymentSourceId = attachedSource.id;
-      this.setInteractionResponseFromSdk(refreshedInteractionResponse);
 
       if (intent === 'mark-default') {
         this.paymentSourceView = 'list';
@@ -4716,12 +4851,16 @@ export class CommerceHubConnect extends LitElement {
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
       this.focusAfterUpdate('.payment-method-radio:checked');
     } catch (cause) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
+        return;
+      }
+
       this.paymentSourceView = 'list';
       this.attachmentError =
         apiErrorMessage(cause) ||
         "We couldn't save this payment method. Please try again.";
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'attach-payment-source');
     }
   }
 
@@ -4817,6 +4956,14 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (
+      this.interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED' &&
+      this.interactionResponse.selectedSource?.id === paymentSourceId
+    ) {
+      this.clearDeletePaymentSourceConfirmation();
+      return;
+    }
+
     if (this.deleteConfirmationPaymentSourceId !== paymentSourceId) {
       this.armDeletePaymentSourceConfirmation(paymentSourceId);
       return;
@@ -4835,17 +4982,18 @@ export class CommerceHubConnect extends LitElement {
         }
       );
 
-      const nextInteractionResponse = interactionResponseWithoutPaymentSource(
-        this.interactionResponse ?? {interactionId},
-        paymentSourceId
-      );
-
-      this.setInteractionResponseFromSdk(nextInteractionResponse);
+      // Re-fetch the interaction so the list reflects true server state instead
+      // of optimistically removing the row locally.
+      await this.refreshInteractionAfterMutation(interactionId);
       this.emitSdkEvent(ON_DELETE_PAYMENT_METHOD_EVENT, paymentSourceId);
     } catch (cause) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
+        return;
+      }
+
       void cause;
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'delete-payment-source');
     }
   }
 
@@ -4881,25 +5029,49 @@ export class CommerceHubConnect extends LitElement {
     );
   }
 
+  private findPaymentSourceInInteraction(
+    interactionResponse: InteractionResponse | undefined,
+    paymentSourceId: string
+  ): PaymentSource | undefined {
+    return (
+      (interactionResponse?.selectedSource?.id === paymentSourceId
+        ? interactionResponse.selectedSource
+        : undefined) ??
+      interactionResponse?.paymentSources?.find(
+        (source) => source.id === paymentSourceId
+      )
+    );
+  }
+
   private resetSavedSourceVerification() {
     this.savedSourceVerificationSource = undefined;
     this.savedSourceVerificationFailed = false;
   }
 
-  private showPaymentSourceList({refresh = false}: {refresh?: boolean} = {}) {
+  private showPaymentSourceList({refresh = true}: {refresh?: boolean} = {}) {
     this.clearDeletePaymentSourceConfirmation();
     this.openPaymentSourceMenuId = undefined;
     this.paymentSourceView = 'list';
     this.addLauncherActive = false;
     this.resetTransferFlow();
-    this.focusAfterUpdate(
-      '[data-action="open-add-payment-source"]',
-      '[data-action="toggle-payment-source-menu"]'
-    );
 
     if (refresh) {
-      void this.refreshPaymentSourcesForList();
+      void this.refreshPaymentSourcesForList().finally(() => {
+        this.focusPaymentSourceList();
+      });
+      return;
     }
+
+    this.focusPaymentSourceList();
+  }
+
+  private focusPaymentSourceList() {
+    this.focusAfterUpdate(
+      '[data-action="open-add-payment-source"]',
+      '[data-action="toggle-payment-source-menu"]',
+      '[data-action="add-card"]',
+      '[data-action="add-bank-account"]'
+    );
   }
 
   private shouldOpenPaymentSourceMenuAbove(trigger?: HTMLElement): boolean {
@@ -4940,6 +5112,58 @@ export class CommerceHubConnect extends LitElement {
     } catch (cause) {
       void cause;
     }
+  }
+
+  private async refreshInteractionAfterMutation(
+    interactionId: string
+  ): Promise<InteractionResponse | undefined> {
+    try {
+      return await this.fetchFreshInteraction(interactionId);
+    } catch (cause) {
+      if (cause instanceof StaleInteractionRefreshError) {
+        throw cause;
+      }
+
+      void cause;
+      return undefined;
+    }
+  }
+
+  private assertCurrentInteraction(interactionId: string) {
+    if (this.interactionResponse?.interactionId !== interactionId) {
+      throw new StaleInteractionRefreshError(interactionId);
+    }
+  }
+
+  private isStaleMutationFailure(
+    interactionId: string,
+    cause: unknown
+  ): boolean {
+    return (
+      this.interactionResponse?.interactionId !== interactionId ||
+      cause instanceof StaleInteractionRefreshError
+    );
+  }
+
+  private clearPendingMutationAction(
+    interactionId: string,
+    action: FlowActionName
+  ) {
+    if (
+      this.interactionResponse?.interactionId === interactionId &&
+      this.pendingAction === action
+    ) {
+      this.pendingAction = undefined;
+    }
+  }
+
+  private fetchFreshInteraction(
+    interactionId: string
+  ): Promise<InteractionResponse> {
+    return this.interactionRefresh.fetchFresh(
+      interactionId,
+      this.interactionRefreshOptions()
+    );
   }
 
   private interactionResponseWithAddedSource(
@@ -5211,7 +5435,7 @@ export class CommerceHubConnect extends LitElement {
         )
           ? verifiedSource.id?.trim() || sourceId
           : undefined;
-        this.paymentSourceView = 'list';
+        this.showPaymentSourceList({refresh: true});
         return;
       }
 
@@ -5555,9 +5779,28 @@ export class CommerceHubConnect extends LitElement {
 
             this.setInteractionResponseFromSdk(nextInteractionResponse);
             this.emitSdkEvent(ON_ADD_PAYMENT_METHOD_EVENT, resolvedBankSource);
+            const refreshedInteraction =
+              await this.refreshInteractionAfterMutation(interactionId);
+
+            if (
+              !this.isCurrentPayByBankProviderRequest(
+                requestToken,
+                interactionId
+              )
+            ) {
+              resolve();
+              return;
+            }
+
+            const statusSource =
+              this.findPaymentSourceInInteraction(
+                refreshedInteraction,
+                paymentSourceId
+              ) ?? resolvedBankSource;
+
             this.resetBankFlow();
 
-            this.showAddedPaymentSourceStatus(resolvedBankSource);
+            this.showAddedPaymentSourceStatus(statusSource);
             resolve();
           } catch (cause) {
             if (
@@ -6286,14 +6529,15 @@ const resolveNoSavedPaymentMethodsCopy = (
   const copy = designConfig?.copy?.noSavedPaymentMethods;
 
   return {
-    title: copy?.title ?? 'Add payment method',
+    title: copy?.title ?? 'Payment methods',
     subtitle: copy?.subtitle ?? '',
     emptyTitle: copy?.emptyTitle ?? '',
     emptyMessage: copy?.emptyMessage ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
-    addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
+    addBankAccountSubtitle:
+      copy?.addBankAccountSubtitle ?? 'Connect or enter an account',
     addCardTitle: copy?.addCardTitle ?? 'Add credit or debit card',
-    addCardSubtitle: copy?.addCardSubtitle ?? '',
+    addCardSubtitle: copy?.addCardSubtitle ?? 'Add your card details',
   };
 };
 
@@ -6580,22 +6824,22 @@ const paymentSourceAccountLabel = (source: PaymentSource): string => {
   const last4 = paymentSourceLast4(source);
 
   if (isCardPaymentSource(source)) {
-    return `${source.card?.network?.trim() || 'Card'} ending ${last4}`;
+    return `${source.card?.network?.trim() || 'Card'} xx ${last4}`;
   }
 
   if (isBankPaymentSource(source)) {
     return `${
       source.bankAccount?.accountType?.trim() || 'Bank account'
-    } ending ${last4}`;
+    } xx ${last4}`;
   }
 
   if (isNativePaymentSource(source)) {
     const accountType = source.account?.productType?.trim();
 
-    return `${accountType || 'Native account'} ending ${last4}`;
+    return `${accountType || 'Native account'} xx ${last4}`;
   }
 
-  return `Card ending ${last4}`;
+  return `Card xx ${last4}`;
 };
 
 const paymentSourceLast4 = (source: PaymentSource): string => {
@@ -6763,41 +7007,20 @@ const interactionResponseWithSelection = (
     ...current,
     ...response,
   };
-  const paymentSources =
-    response.paymentSources ?? current.paymentSources ?? [];
+  const hasAuthoritativePaymentSources = response.paymentSources !== undefined;
+  const paymentSources = hasAuthoritativePaymentSources
+    ? response.paymentSources ?? []
+    : current.paymentSources ?? [];
   const selectedSource =
     resolvePreferredPaymentSource(
       paymentSources,
       preferredPaymentSourceId ?? response.selectedSource?.id
     ) ??
     response.selectedSource ??
-    current.selectedSource;
+    (hasAuthoritativePaymentSources ? undefined : current.selectedSource);
 
   return {
     ...base,
-    selectedSource,
-    paymentSources,
-  };
-};
-
-const interactionResponseWithoutPaymentSource = (
-  current: InteractionResponse,
-  paymentSourceId: string
-): InteractionResponse => {
-  const paymentSources = (current.paymentSources ?? []).filter(
-    (source) => source.id !== paymentSourceId
-  );
-  const selectedSource =
-    current.selectedSource?.id === paymentSourceId
-      ? undefined
-      : current.selectedSource;
-
-  return {
-    ...current,
-    status:
-      current.status === 'PAYMENT_SOURCE_ATTACHED' && !selectedSource
-        ? PAYMENT_SELECTION_READY_STATUS
-        : current.status,
     selectedSource,
     paymentSources,
   };

@@ -15,11 +15,19 @@ interface InteractionRefreshOptions {
   emitListPaymentMethods: (paymentSources: PaymentSource[]) => void;
 }
 
+export class StaleInteractionRefreshError extends Error {
+  constructor(interactionId: string) {
+    super(`Interaction refresh for ${interactionId} became stale.`);
+    this.name = 'StaleInteractionRefreshError';
+  }
+}
+
 export class InteractionRefreshController implements ReactiveController {
   private snapshotInteractionId?: string;
   private refreshInteractionId?: string;
   private refreshPromise?: Promise<InteractionResponse>;
   private refreshErrorMessage?: string;
+  private generation = 0;
 
   constructor(private readonly host: ReactiveControllerHost) {
     host.addController(this);
@@ -32,6 +40,7 @@ export class InteractionRefreshController implements ReactiveController {
   }
 
   reset({requestUpdate = true}: {requestUpdate?: boolean} = {}) {
+    this.generation += 1;
     this.snapshotInteractionId = undefined;
     this.refreshInteractionId = undefined;
     this.refreshPromise = undefined;
@@ -110,9 +119,18 @@ export class InteractionRefreshController implements ReactiveController {
     this.refreshErrorMessage = undefined;
     this.host.requestUpdate();
 
-    this.refreshPromise = options
+    const generation = this.generation;
+    const refreshPromise = options
       .requestInteraction(interactionId)
       .then((interactionResponse) => {
+        if (
+          generation !== this.generation ||
+          options.getCurrentInteractionResponse()?.interactionId !==
+            interactionId
+        ) {
+          throw new StaleInteractionRefreshError(interactionId);
+        }
+
         const refreshedInteractionResponse = options.mergeInteractionResponse(
           options.getCurrentInteractionResponse() ?? {interactionId},
           interactionResponse,
@@ -128,7 +146,18 @@ export class InteractionRefreshController implements ReactiveController {
         return refreshedInteractionResponse;
       })
       .catch((cause) => {
-        if (this.snapshotInteractionId !== interactionId) {
+        if (
+          generation !== this.generation ||
+          options.getCurrentInteractionResponse()?.interactionId !==
+            interactionId
+        ) {
+          throw new StaleInteractionRefreshError(interactionId);
+        }
+
+        if (
+          !(cause instanceof StaleInteractionRefreshError) &&
+          this.snapshotInteractionId !== interactionId
+        ) {
           this.refreshErrorMessage =
             "We couldn't load payment methods. Try again.";
           this.host.requestUpdate();
@@ -137,11 +166,57 @@ export class InteractionRefreshController implements ReactiveController {
         throw cause;
       })
       .finally(() => {
-        this.refreshPromise = undefined;
-        this.refreshInteractionId = undefined;
-        this.host.requestUpdate();
+        if (
+          generation === this.generation &&
+          this.refreshPromise === refreshPromise
+        ) {
+          this.refreshPromise = undefined;
+          this.refreshInteractionId = undefined;
+          this.host.requestUpdate();
+        }
       });
 
-    return this.refreshPromise;
+    this.refreshPromise = refreshPromise;
+
+    return refreshPromise;
+  }
+
+  async fetchFresh(
+    interactionId: string,
+    options: InteractionRefreshOptions
+  ): Promise<InteractionResponse> {
+    const generation = this.generation;
+
+    this.assertCurrentRefresh(generation, interactionId, options);
+
+    const inFlightRefresh =
+      this.refreshInteractionId === interactionId
+        ? this.refreshPromise
+        : undefined;
+
+    if (inFlightRefresh) {
+      try {
+        await inFlightRefresh;
+      } catch (cause) {
+        void cause;
+      }
+    }
+
+    this.assertCurrentRefresh(generation, interactionId, options);
+
+    return this.fetch(interactionId, options);
+  }
+
+  private assertCurrentRefresh(
+    generation: number,
+    interactionId: string,
+    options: InteractionRefreshOptions
+  ) {
+    if (
+      generation !== this.generation ||
+      options.getCurrentInteractionResponse()?.interactionId !== interactionId
+    ) {
+      throw new StaleInteractionRefreshError(interactionId);
+    }
   }
 }

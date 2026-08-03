@@ -5,6 +5,14 @@ import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from './payment-method-icons.js';
+import {
+  BANK_SOURCE_ACTION_ICON_PATH,
+  CARD_SOURCE_ACTION_ICON_PATH,
+} from './source-action-icons.js';
+import {
+  renderRevealFieldIcon,
+  revealFieldButtonLabel,
+} from './reveal-field-icons.js';
 import type {
   AlertOptions,
   ButtonOptions,
@@ -119,7 +127,7 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
     normalizeCopyValue(method.accountLabel) ??
     paymentMethodFallbackAccountLabel(method);
   const title = normalizeCopyValue(method.label) ?? accountLabel;
-  const shouldRenderMeta = Boolean(accountLabel);
+  const shouldRenderMeta = Boolean(accountLabel) || method.isDefault;
 
   return html`
     <span class="payment-method-copy">
@@ -135,7 +143,14 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
       ${shouldRenderMeta
         ? html`
             <span class="payment-method-meta-row">
-              <span class="payment-method-meta">${accountLabel}</span>
+              ${accountLabel
+                ? html`<span class="payment-method-meta">${accountLabel}</span>`
+                : ''}
+              ${method.isDefault
+                ? html`<span class="payment-method-default-label"
+                    >Default</span
+                  >`
+                : ''}
             </span>
           `
         : ''}
@@ -293,12 +308,19 @@ const renderPaymentMethodOverflowAction = (
   }
 ): TemplateResult => {
   const menuId = `payment-method-menu-${method.id}`;
+  const canMarkAsDefault =
+    showMarkAsDefault &&
+    !method.isDefault &&
+    isPaymentMethodSelectionEligible(method);
+  const canRemove = !method.isDefault;
+  const hasActions = canMarkAsDefault || canRemove;
+
+  if (!hasActions) {
+    return html``;
+  }
 
   return html`
     <span class="payment-method-overflow">
-      ${method.isDefault
-        ? html`<span class="payment-method-default-label">Default</span>`
-        : ''}
       <button
         class="payment-method-overflow-button"
         type="button"
@@ -327,9 +349,7 @@ const renderPaymentMethodOverflowAction = (
               id=${menuId}
               role="menu"
             >
-              ${showMarkAsDefault &&
-              !method.isDefault &&
-              isPaymentMethodSelectionEligible(method)
+              ${canMarkAsDefault
                 ? html`
                     <button
                       type="button"
@@ -342,15 +362,19 @@ const renderPaymentMethodOverflowAction = (
                     </button>
                   `
                 : ''}
-              <button
-                type="button"
-                role="menuitem"
-                data-action="delete-payment-source"
-                data-payment-method-id=${method.id}
-                ?disabled=${method.disabled}
-              >
-                Remove
-              </button>
+              ${canRemove
+                ? html`
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-action="delete-payment-source"
+                      data-payment-method-id=${method.id}
+                      ?disabled=${method.disabled}
+                    >
+                      Remove
+                    </button>
+                  `
+                : ''}
             </span>
           `
         : ''}
@@ -424,6 +448,9 @@ export const renderTextField = ({
   dataField,
   dataFieldScope = 'card',
   error,
+  maskable = false,
+  revealed = false,
+  onToggleReveal,
 }: TextFieldOptions): TemplateResult => {
   const fieldClasses = joinClassNames(
     'field',
@@ -439,12 +466,13 @@ export const renderTextField = ({
     'field-input',
     variant === 'card-form' && 'field-input-card-form'
   );
+  const resolvedType = maskable && !revealed ? 'password' : type;
   const input = html`
     <input
       class=${inputClasses}
       id=${id}
       name=${ifDefined(name)}
-      type=${type}
+      type=${resolvedType}
       .value=${value}
       placeholder=${ifDefined(placeholder)}
       autocomplete=${ifDefined(autocomplete)}
@@ -464,12 +492,36 @@ export const renderTextField = ({
     />
   `;
 
+  const revealButton =
+    maskable && onToggleReveal
+      ? html`
+          <button
+            class="field-reveal-toggle"
+            type="button"
+            aria-label=${revealFieldButtonLabel(revealed)}
+            aria-pressed=${revealed ? 'true' : 'false'}
+            aria-controls=${id}
+            ?disabled=${disabled}
+            @mousedown=${(event: MouseEvent) => event.preventDefault()}
+            @click=${() => onToggleReveal()}
+          >
+            ${renderRevealFieldIcon(revealed)}
+          </button>
+        `
+      : '';
+
+  const controlClasses = joinClassNames(
+    'field-control',
+    'field-control-card-form',
+    maskable && 'field-control-reveal'
+  );
+
   return html`
     <div class=${fieldClasses}>
       <label class=${labelClasses} for=${id}>${label}</label>
-      ${variant === 'card-form'
+      ${variant === 'card-form' || maskable
         ? html`
-            <div class="field-control field-control-card-form">${input}</div>
+            <div class=${controlClasses}>${input}${revealButton}</div>
           `
         : input}
       ${error
@@ -690,7 +742,7 @@ export const renderPaymentMethodRow = (
     disabled,
   };
 
-  if (confirmingDelete) {
+  if (confirmingDelete && !method.isDefault) {
     return html`
       <div
         class=${joinClassNames(
@@ -719,7 +771,8 @@ export const renderPaymentMethodRow = (
           : 'payment-method-row-static',
         rendersRadio && 'payment-method-row-radio',
         selected && rendersRadio && 'payment-method-row-selected',
-        menuOpen && 'payment-method-row-menu-open'
+        method.isDefault && 'payment-method-row-default',
+        menuOpen && !method.isDefault && 'payment-method-row-menu-open'
       )}
       part="payment-method-row"
       aria-label=${label}
@@ -783,22 +836,41 @@ export const renderSelectedPaymentMethod = ({
   `;
 };
 
-const renderSourceActionIcon = (icon: SourceActionOptions['icon']) =>
-  icon === 'transfer'
-    ? html`
+const renderSourceActionIcon = (icon: SourceActionOptions['icon']) => {
+  if (icon === 'transfer') {
+    return html`
+      <span
+        class="source-action-icon source-action-icon-transfer"
+        data-source-action-icon=${icon}
+        aria-hidden="true"
+      >
         <span
-          class="source-action-icon source-action-icon-transfer"
-          aria-hidden="true"
-        >
-          <span
-            class="source-action-transfer-arrow source-action-transfer-arrow-forward"
-          ></span>
-          <span
-            class="source-action-transfer-arrow source-action-transfer-arrow-back"
-          ></span>
-        </span>
-      `
-    : html`<span class="source-action-icon" aria-hidden="true">+</span>`;
+          class="source-action-transfer-arrow source-action-transfer-arrow-forward"
+        ></span>
+        <span
+          class="source-action-transfer-arrow source-action-transfer-arrow-back"
+        ></span>
+      </span>
+    `;
+  }
+
+  return html`
+    <span
+      class="source-action-icon"
+      data-source-action-icon=${icon}
+      aria-hidden="true"
+    >
+      <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+      <svg viewBox="0 0 640 640" focusable="false">
+        <path
+          d=${icon === 'card'
+            ? CARD_SOURCE_ACTION_ICON_PATH
+            : BANK_SOURCE_ACTION_ICON_PATH}
+        ></path>
+      </svg>
+    </span>
+  `;
+};
 
 export const renderSourceAction = ({
   label,

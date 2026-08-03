@@ -1141,6 +1141,56 @@ export const primitiveStyles = css`
     border-color: var(--chc-danger);
   }
 
+  .field-control-reveal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .field-control-reveal .field-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .field-reveal-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--chc-radius-control);
+    background: transparent;
+    color: var(--chc-muted);
+    cursor: pointer;
+    transition: color var(--chc-motion-fast) var(--chc-ease-standard);
+  }
+
+  .field-reveal-toggle:hover {
+    color: var(--chc-text);
+  }
+
+  .field-reveal-toggle:focus-visible {
+    outline: 0;
+    color: var(--chc-primary);
+    box-shadow: 0 0 0 0.1875rem var(--chc-focus-ring);
+  }
+
+  .field-reveal-toggle:disabled {
+    color: var(--chc-muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .field-reveal-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    fill: currentColor;
+  }
+
   .field-card-form .field-input {
     min-height: 0;
     border: 0;
@@ -1406,6 +1456,10 @@ export const primitiveStyles = css`
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  .payment-method-row-default {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .payment-method-row-menu-open {
     z-index: 5;
   }
@@ -1640,6 +1694,8 @@ export const primitiveStyles = css`
   }
 
   .payment-method-default-label {
+    flex: 0 0 auto;
+    margin-left: auto;
     min-height: 1.5625rem;
     display: inline-flex;
     align-items: center;
@@ -1932,18 +1988,48 @@ export const primitiveStyles = css`
 
   .source-action {
     width: 100%;
-    min-height: 3.5rem;
+    min-height: 4.5rem;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 0.625rem;
+    gap: 0.75rem;
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
-    padding: 0.75rem;
+    padding: 0.875rem 1rem;
     background: var(--chc-payment-method-background);
     color: var(--chc-text);
     text-align: left;
     cursor: pointer;
+  }
+
+  .source-action-card,
+  .source-action-bank {
+    border-width: 0.125rem;
+    border-style: dashed;
+    border-color: var(--chc-border-strong);
+    transition: border-color var(--chc-motion-base) var(--chc-ease-standard),
+      background-color var(--chc-motion-base) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-base) var(--chc-ease-standard);
+  }
+
+  .source-action-card:hover:not(:disabled),
+  .source-action-card:focus-visible,
+  .source-action-bank:hover:not(:disabled),
+  .source-action-bank:focus-visible {
+    border-color: var(--chc-border-strong);
+    border-style: dashed;
+    background: color-mix(
+      in srgb,
+      var(--chc-payment-method-background) 90%,
+      var(--chc-soft-surface)
+    );
+    box-shadow: 0 0.5rem 1rem rgba(17, 24, 39, 0.04);
+  }
+
+  .source-action-card:focus-visible,
+  .source-action-bank:focus-visible {
+    outline: 0.125rem solid var(--chc-focus-ring);
+    outline-offset: 0.125rem;
   }
 
   .source-action:disabled {
@@ -1964,6 +2050,23 @@ export const primitiveStyles = css`
     color: var(--chc-primary);
     font-size: 1.5rem;
     font-weight: inherit;
+  }
+
+  .source-action-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: currentColor;
+  }
+
+  .source-action-card .source-action-icon,
+  .source-action-bank .source-action-icon {
+    font-size: 3rem;
+  }
+
+  .source-action-card .source-action-icon svg,
+  .source-action-bank .source-action-icon svg {
+    width: 2.5rem;
+    height: 2.5rem;
   }
 
   .source-action-icon-transfer {
@@ -2013,6 +2116,7 @@ export const primitiveStyles = css`
 
   .source-action-copy {
     display: grid;
+    gap: 0.125rem;
     min-width: 0;
   }
 
@@ -2779,7 +2883,6 @@ export const primitiveStyles = css`
     }
 
     .payment-method-row,
-    .source-action,
     .source-action-link,
     .upload-row,
     .loading-row {
@@ -2793,9 +2896,15 @@ export const primitiveStyles = css`
     }
 
     .source-action-title,
+    .source-action-subtitle,
     .source-action-link-title,
     .payment-method-title {
       white-space: normal;
+    }
+
+    .source-action-subtitle {
+      overflow: visible;
+      text-overflow: clip;
     }
   }
 

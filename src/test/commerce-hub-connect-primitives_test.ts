@@ -37,6 +37,10 @@ import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
 } from '../internal/payment-method-icons.js';
+import {
+  BANK_SOURCE_ACTION_ICON_PATH,
+  CARD_SOURCE_ACTION_ICON_PATH,
+} from '../internal/source-action-icons.js';
 import {primitiveStyles} from '../internal/styles.js';
 import type {PaymentMethod} from '../internal/types.js';
 
@@ -180,6 +184,17 @@ suite('commerce-hub-connect primitives', () => {
 
   test('declares a hover affordance for clickable source action links', () => {
     assert.include(primitiveStyles.cssText, '.source-action-link:hover');
+  });
+
+  test('allows source action subtitles to wrap on narrow hosts', () => {
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-title,\n    .source-action-subtitle,'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-subtitle {\n      overflow: visible;\n      text-overflow: clip;'
+    );
   });
 
   test('renders payment method logos in POC-style icon tiles', async () => {
@@ -490,7 +505,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Visa ending 4242'
+      'Visa xx 4242'
     );
     assert.exists(rows[0].querySelector('.payment-method-radio'));
     assert.notExists(rows[0].querySelector('.payment-method-default-label'));
@@ -510,7 +525,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(rows[0].querySelector('.verification-status-icon'));
     assert.equal(
       rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Ready'
+      'Verified & Provisioned'
     );
     assert.notExists(rows[0].querySelector('.payment-method-chevron'));
     assert.equal(
@@ -519,7 +534,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[1].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Bank account ending 3210'
+      'Bank account xx 3210'
     );
     assert.exists(rows[1].querySelector('.payment-method-title-row'));
     assert.exists(rows[1].querySelector('.payment-method-meta-row'));
@@ -539,7 +554,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[2].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Wallet ending 7890'
+      'Wallet xx 7890'
     );
     assert.exists(rows[2].querySelector('[data-payment-method-icon="native"]'));
     assert.exists(rows[2].querySelector('.payment-method-radio'));
@@ -631,7 +646,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Bank account ending 3210'
+      'Bank account xx 3210'
     );
   });
 
@@ -669,7 +684,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Bank account ending 3210'
+      'Bank account xx 3210'
     );
   });
 
@@ -1011,6 +1026,9 @@ suite('commerce-hub-connect primitives', () => {
       continuingButton: 'Confirming...',
     };
     const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
       <div data-screen="loading">${renderPaymentMethodsSkeletonScreen()}</div>
       <div data-screen="list">
         ${renderPaymentMethodsScreen({
@@ -1064,7 +1082,13 @@ suite('commerce-hub-connect primitives', () => {
             addCardTitle: 'Add card',
             addCardSubtitle: 'Use card details',
           },
-          showTransferAction: true,
+        })}
+      </div>
+      <div data-screen="transfer">
+        ${renderSourceAction({
+          label: 'Transfer funds',
+          action: 'transfer',
+          icon: 'transfer',
         })}
       </div>
     `);
@@ -1076,6 +1100,9 @@ suite('commerce-hub-connect primitives', () => {
     const emptyScreen = root.querySelector<HTMLElement>(
       '[data-screen="empty"]'
     )!;
+    const transferAction = root.querySelector<HTMLButtonElement>(
+      '[data-screen="transfer"] .source-action-transfer'
+    )!;
 
     assert.exists(
       root.querySelector('[data-screen="loading"] .payment-method-skeletons')
@@ -1083,14 +1110,75 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(listScreen.querySelector('[role="menu"]'));
     assert.exists(listScreen.querySelector('.payment-method-radio:checked'));
     assert.notExists(listScreen.querySelector('.payment-action-links'));
+    const emptySourceActions = [
+      ...emptyScreen.querySelectorAll<HTMLButtonElement>(
+        '.payment-action-links .source-action'
+      ),
+    ];
     assert.deepEqual(
+      emptySourceActions.map((button) => ({
+        action: button.dataset.action,
+        title: button
+          .querySelector('.source-action-title')
+          ?.textContent?.trim(),
+        subtitle: button
+          .querySelector('.source-action-subtitle')
+          ?.textContent?.trim(),
+      })),
       [
-        ...emptyScreen.querySelectorAll<HTMLElement>(
-          '.payment-action-links .source-action-title'
-        ),
-      ].map((item) => item.textContent?.trim()),
-      ['Add card', 'Connect bank', 'Transfer funds']
+        {
+          action: 'add-card',
+          title: 'Add card',
+          subtitle: 'Use card details',
+        },
+        {
+          action: 'add-bank-account',
+          title: 'Connect bank',
+          subtitle: 'Use your account',
+        },
+      ]
     );
+    assert.exists(
+      emptySourceActions[0].querySelector(
+        '[data-source-action-icon="card"][aria-hidden="true"]'
+      )
+    );
+    assert.exists(
+      emptySourceActions[1].querySelector(
+        '[data-source-action-icon="bank"][aria-hidden="true"]'
+      )
+    );
+    assert.equal(
+      emptySourceActions[0].querySelector('path')?.getAttribute('d'),
+      CARD_SOURCE_ACTION_ICON_PATH
+    );
+    assert.equal(
+      emptySourceActions[1].querySelector('path')?.getAttribute('d'),
+      BANK_SOURCE_ACTION_ICON_PATH
+    );
+    assert.notEqual(CARD_SOURCE_ACTION_ICON_PATH, BANK_SOURCE_ACTION_ICON_PATH);
+    assert.equal(getComputedStyle(emptySourceActions[0]).borderStyle, 'dashed');
+    assert.equal(getComputedStyle(emptySourceActions[1]).borderStyle, 'dashed');
+    assert.equal(getComputedStyle(transferAction).borderStyle, 'solid');
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-card:hover:not(:disabled)'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-bank:focus-visible'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      'border-color: var(--chc-border-strong)'
+    );
+    emptySourceActions.forEach((button) => {
+      const svg = button.querySelector('svg')!;
+
+      assert.equal(svg.getAttribute('viewBox'), '0 0 640 640');
+      assert.equal(svg.getAttribute('focusable'), 'false');
+    });
+    assert.notExists(emptyScreen.querySelector('.source-action-link-chevron'));
     assert.notExists(
       deleteReadyScreen.querySelector('.payment-method-delete-confirmation')
     );
@@ -1103,6 +1191,78 @@ suite('commerce-hub-connect primitives', () => {
       emptyScreen.querySelector('.empty-state-message')?.textContent?.trim(),
       'Add a payment method to keep going.'
     );
+  });
+
+  test('opens payment-method screen menu styling only for actionable non-default rows', async () => {
+    const methods: PaymentMethod[] = [
+      {
+        id: 'card-default',
+        label: 'Default card',
+        brand: 'Visa',
+        last4: '1111',
+        status: 'verified',
+        isDefault: true,
+      },
+      {
+        id: 'card-other',
+        label: 'Other card',
+        brand: 'Mastercard',
+        last4: '2222',
+        status: 'verified',
+      },
+    ];
+    const copy = {
+      title: 'Pay with',
+      subtitle: '',
+      addBankAccountTitle: 'Add bank account',
+      addBankAccountSubtitle: 'Connect a bank',
+      addCardTitle: 'Add credit or debit card',
+      addCardSubtitle: 'Use a card',
+      continueButton: 'Confirm',
+      continuingButton: 'Confirming...',
+    };
+    const screenModel = {
+      status: 'PAYMENT_SOURCE_REQUESTED' as const,
+      methods,
+      allowedTenderOptions: {
+        card: true,
+        bankAccount: true,
+        nativeAccount: false,
+      },
+      canAddPaymentSources: true,
+      canSelectPaymentSources: true,
+      actionPending: false,
+      copy,
+    };
+    const root = await renderHarness(html`
+      <div data-screen="stale-default">
+        ${renderPaymentMethodsScreen({
+          ...screenModel,
+          openPaymentSourceMenuId: 'card-default',
+        })}
+      </div>
+      <div data-screen="open-non-default">
+        ${renderPaymentMethodsScreen({
+          ...screenModel,
+          openPaymentSourceMenuId: 'card-other',
+        })}
+      </div>
+    `);
+    const staleDefaultStack = root.querySelector<HTMLElement>(
+      '[data-screen="stale-default"] .primitive-stack'
+    )!;
+    const openNonDefaultStack = root.querySelector<HTMLElement>(
+      '[data-screen="open-non-default"] .primitive-stack'
+    )!;
+
+    assert.isFalse(
+      staleDefaultStack.classList.contains('primitive-stack-menu-open')
+    );
+    assert.notExists(staleDefaultStack.querySelector('[role="menu"]'));
+    assert.isTrue(
+      openNonDefaultStack.classList.contains('primitive-stack-menu-open')
+    );
+    assert.exists(openNonDefaultStack.querySelector('[role="menu"]'));
   });
 
   test('declares framed-shell motion, narrow-layout, and reduced-motion overrides', () => {
@@ -1378,6 +1538,119 @@ suite('commerce-hub-connect primitives', () => {
       'Verified'
     );
     assert.notExists(root.querySelector('.payment-method-radio'));
+  });
+
+  test('keeps default labels while limiting overflow actions to non-default methods', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderPaymentMethodRow(
+        {
+          id: 'card-default',
+          label: 'Default card',
+          brand: 'Visa',
+          last4: '1111',
+          status: 'verified',
+          isDefault: true,
+        },
+        {menuOpen: true, showMarkAsDefault: true}
+      )}
+      ${renderPaymentMethodRow(
+        {
+          id: 'card-other',
+          label: 'Other card',
+          brand: 'Mastercard',
+          last4: '2222',
+          status: 'verified',
+        },
+        {menuOpen: true, showMarkAsDefault: true}
+      )}
+      ${renderPaymentMethodRow(
+        {
+          id: 'card-default-confirming',
+          label: 'Confirming default card',
+          brand: 'Visa',
+          last4: '3333',
+          status: 'verified',
+          isDefault: true,
+        },
+        {confirmingDelete: true, showMarkAsDefault: true}
+      )}
+      ${renderPaymentMethodRow({
+        id: 'card-default-without-meta',
+        label: 'Default card without metadata',
+        brand: '',
+        last4: '',
+        status: 'verified',
+        isDefault: true,
+      })}
+    `);
+    const defaultRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-default"]'
+    )!;
+    const otherRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-other"]'
+    )!;
+    const confirmingDefaultRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-default-confirming"]'
+    )!;
+    const defaultWithoutMetaRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-default-without-meta"]'
+    )!;
+    const defaultLabel = defaultRow.querySelector<HTMLElement>(
+      '.payment-method-default-label'
+    )!;
+
+    assert.equal(defaultLabel.textContent, 'Default');
+    assert.isTrue(defaultRow.classList.contains('payment-method-row-default'));
+    assert.isTrue(
+      defaultLabel.parentElement?.classList.contains('payment-method-meta-row')
+    );
+    assert.notExists(defaultRow.querySelector('.payment-method-overflow'));
+    assert.equal(getComputedStyle(defaultLabel).marginLeft, 'auto');
+    assert.equal(getComputedStyle(defaultLabel).flexShrink, '0');
+    assert.notExists(
+      defaultRow.querySelector('[data-action="toggle-payment-source-menu"]')
+    );
+    assert.notExists(
+      defaultRow.querySelector('[data-action="delete-payment-source"]')
+    );
+    assert.notExists(defaultRow.querySelector('[role="menu"]'));
+    assert.isFalse(
+      defaultRow.classList.contains('payment-method-row-menu-open')
+    );
+    assert.exists(
+      otherRow.querySelector('[data-action="toggle-payment-source-menu"]')
+    );
+    assert.equal(
+      otherRow
+        .querySelector('[data-action="mark-payment-source-default"]')
+        ?.textContent?.trim(),
+      'Mark as default'
+    );
+    assert.equal(
+      otherRow
+        .querySelector('[data-action="delete-payment-source"]')
+        ?.textContent?.trim(),
+      'Remove'
+    );
+    assert.exists(
+      confirmingDefaultRow.querySelector('.payment-method-default-label')
+    );
+    assert.notExists(
+      confirmingDefaultRow.querySelector(
+        '[data-action="delete-payment-source"]'
+      )
+    );
+    assert.exists(
+      defaultWithoutMetaRow.querySelector(
+        '.payment-method-meta-row .payment-method-default-label'
+      )
+    );
+    assert.notExists(
+      defaultWithoutMetaRow.querySelector('.payment-method-meta')
+    );
   });
 
   test('keeps status badges beside titles regardless of trailing controls', async () => {

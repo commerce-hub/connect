@@ -306,6 +306,9 @@ export interface TextFieldOptions {
   dataField?: string;
   dataFieldScope?: 'card' | 'bankAccount' | 'transfer';
   error?: string;
+  maskable?: boolean;
+  revealed?: boolean;
+  onToggleReveal?: () => void;
 }
 
 export interface SelectFieldOption {

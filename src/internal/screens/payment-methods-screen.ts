@@ -30,7 +30,9 @@ export const renderPaymentMethodsScreen = ({
   paymentSourceMenuPlacement = 'below',
   deleteConfirmationPaymentSourceId,
 }: PaymentMethodsScreenModel): TemplateResult => {
-  const menuOpen = Boolean(openPaymentSourceMenuId);
+  const menuOpen = methods.some(
+    (method) => method.id === openPaymentSourceMenuId && !method.isDefault
+  );
 
   return html`
     <div class="payment-flow">
@@ -92,7 +94,6 @@ export const renderNoSavedPaymentMethodsScreen = ({
                     subtitle: copy.addCardSubtitle,
                     action: 'add-card',
                     icon: 'card',
-                    variant: 'link',
                     disabled: deletePending,
                   })
                 : ''}
@@ -102,7 +103,6 @@ export const renderNoSavedPaymentMethodsScreen = ({
                     subtitle: copy.addBankAccountSubtitle,
                     action: 'add-bank-account',
                     icon: 'bank',
-                    variant: 'link',
                     disabled: deletePending,
                   })
                 : ''}

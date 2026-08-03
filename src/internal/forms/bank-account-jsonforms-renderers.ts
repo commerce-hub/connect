@@ -5,8 +5,13 @@ import {
   type LitJsonFormsRendererRegistryEntry,
 } from '../jsonforms-lit/index.js';
 import {html, type TemplateResult} from 'lit';
-import {customElement} from 'lit/decorators.js';
+import {customElement, state} from 'lit/decorators.js';
 import {ifDefined} from 'lit/directives/if-defined.js';
+
+import {
+  renderRevealFieldIcon,
+  revealFieldButtonLabel,
+} from '../reveal-field-icons.js';
 
 import type {
   BankAccountDraft,
@@ -49,6 +54,9 @@ const isSensitiveBankAccountJsonFormsField = (
 
 @customElement('commerce-hub-bank-account-control')
 export class CommerceHubBankAccountControl extends JsonFormsControl {
+  @state()
+  private revealed = false;
+
   protected override render() {
     const props = this.controlProps;
     const field = props?.path;
@@ -71,10 +79,12 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
     const error = config?.errors?.[field];
     const disabled =
       Boolean(config?.disabled) || !props.enabled || Boolean(props.readonly);
-    const type =
+    const baseType =
       draft && encryption && isSensitiveBankAccountJsonFormsField(field)
         ? bankAccountInputType(field, draft, encryption)
         : 'text';
+    const maskable = baseType === 'password';
+    const type = maskable && this.revealed ? 'text' : baseType;
     const inputmode = isSensitiveBankAccountJsonFormsField(field)
       ? 'numeric'
       : undefined;
@@ -82,6 +92,12 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
 
     if (error) {
       fieldClasses.push('field-invalid');
+    }
+
+    const controlClasses = ['field-control', 'field-control-card-form'];
+
+    if (maskable) {
+      controlClasses.push('field-control-reveal');
     }
 
     return html`
@@ -92,7 +108,7 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
         >
           ${props.label}
         </label>
-        <div class="field-control field-control-card-form">
+        <div class=${controlClasses.join(' ')}>
           <input
             class="field-input field-input-card-form"
             id=${bankAccountFieldIds[field]}
@@ -114,6 +130,23 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
               );
             }}
           />
+          ${maskable
+            ? html`
+                <button
+                  class="field-reveal-toggle"
+                  type="button"
+                  aria-label=${revealFieldButtonLabel(this.revealed)}
+                  aria-pressed=${this.revealed ? 'true' : 'false'}
+                  aria-controls=${bankAccountFieldIds[field]}
+                  ?disabled=${disabled}
+                  @click=${() => {
+                    this.revealed = !this.revealed;
+                  }}
+                >
+                  ${renderRevealFieldIcon(this.revealed)}
+                </button>
+              `
+            : ''}
         </div>
         ${error
           ? html`
