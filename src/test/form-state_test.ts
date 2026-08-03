@@ -22,6 +22,7 @@ import {
   formatCardDraftFieldValue,
   hasRequiredCardDraftValues,
   isCardDraftReady,
+  maskCvvForReveal,
   normalizeCardDraft,
   parseExpirationDate,
   resolveEncryptedCardFieldValue,
@@ -272,6 +273,15 @@ suite('form state models', () => {
       ),
       'enc-account'
     );
+  });
+
+  test('maskCvvForReveal masks all characters unless the last is revealed', () => {
+    assert.equal(maskCvvForReveal('', false), '');
+    assert.equal(maskCvvForReveal('', true), '');
+    assert.equal(maskCvvForReveal('123', false), '•••');
+    assert.equal(maskCvvForReveal('123', true), '••3');
+    assert.equal(maskCvvForReveal('1', true), '1');
+    assert.equal(maskCvvForReveal('1234', true), '•••4');
   });
 
   test('requires ACH nickname and exactly nine digits for account fields', () => {

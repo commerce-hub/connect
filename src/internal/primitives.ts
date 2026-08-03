@@ -451,6 +451,7 @@ export const renderTextField = ({
   maskable = false,
   revealed = false,
   onToggleReveal,
+  maskReveal,
 }: TextFieldOptions): TemplateResult => {
   const fieldClasses = joinClassNames(
     'field',
@@ -466,10 +467,18 @@ export const renderTextField = ({
     'field-input',
     variant === 'card-form' && 'field-input-card-form'
   );
-  const resolvedType = maskable && !revealed ? 'password' : type;
+  const useMaskOverlay = maskable && !revealed && maskReveal !== undefined;
+  const resolvedType = useMaskOverlay
+    ? 'text'
+    : maskable && !revealed
+    ? 'password'
+    : type;
   const input = html`
     <input
-      class=${inputClasses}
+      class=${joinClassNames(
+        inputClasses,
+        useMaskOverlay && 'field-input-mask-hidden'
+      )}
       id=${id}
       name=${ifDefined(name)}
       type=${resolvedType}
@@ -491,6 +500,19 @@ export const renderTextField = ({
       ?disabled=${disabled}
     />
   `;
+
+  // A transparent real input keeps the submitted value and native caret intact
+  // while a cosmetic overlay renders the masked, last-character-reveal text.
+  const maskedInput = useMaskOverlay
+    ? html`
+        <div class="field-input-mask-wrap">
+          ${input}
+          <span class="field-input-mask-overlay" aria-hidden="true"
+            >${maskReveal}</span
+          >
+        </div>
+      `
+    : input;
 
   const revealButton =
     maskable && onToggleReveal
@@ -521,9 +543,9 @@ export const renderTextField = ({
       <label class=${labelClasses} for=${id}>${label}</label>
       ${variant === 'card-form' || maskable
         ? html`
-            <div class=${controlClasses}>${input}${revealButton}</div>
+            <div class=${controlClasses}>${maskedInput}${revealButton}</div>
           `
-        : input}
+        : maskedInput}
       ${error
         ? html`<p class="field-error" id=${`${id}-error`}>${error}</p>`
         : ''}

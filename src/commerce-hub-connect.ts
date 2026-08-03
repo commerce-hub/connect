@@ -84,6 +84,7 @@ import {
   formatCardDraftFieldValue,
   hasRequiredCardDraftValues,
   isSensitiveCardField,
+  maskCvvForReveal,
   normalizeCardDraft,
   normalizeCardNumber,
   normalizeSensitiveCardFieldValue,
@@ -514,6 +515,9 @@ const DEFAULT_PAY_BY_BANK_OPTIONS = {
 } satisfies Required<DesignConfigPayByBank>;
 const DELETE_CONFIRMATION_TIMEOUT_MS = 10000;
 
+// How long the last typed CVV character stays visible before it masks.
+const CVV_LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
+
 /**
  * CommerceHub Connect Web SDK widget shell.
  *
@@ -739,6 +743,11 @@ export class CommerceHubConnect extends LitElement {
   private revealedCardFields: ReadonlySet<SensitiveCardField> = new Set();
 
   @state()
+  private cvvRevealLastChar = false;
+
+  private cvvRevealTimeoutId?: number;
+
+  @state()
   private cardSubmitError?: string;
 
   @state()
@@ -883,6 +892,7 @@ export class CommerceHubConnect extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.clearDeletePaymentSourceConfirmation();
+    this.clearCvvLastCharReveal();
     this.resetBankFlow();
   }
 
@@ -2008,6 +2018,9 @@ export class CommerceHubConnect extends LitElement {
               maskable: true,
               revealed: this.revealedCardFields.has('cvv'),
               onToggleReveal: () => this.toggleCardFieldReveal('cvv'),
+              maskReveal: this.cardDraft.cvv
+                ? maskCvvForReveal(this.cardDraft.cvv, this.cvvRevealLastChar)
+                : undefined,
             }),
             renderTextField({
               id: 'name-on-card',
@@ -2764,10 +2777,12 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (cardInput) {
-      this.updateCardDraftField(
-        cardInput.dataset.cardField as CardDraftTextField,
-        cardInput.value
-      );
+      const cardField = cardInput.dataset.cardField as CardDraftTextField;
+      this.updateCardDraftField(cardField, cardInput.value);
+
+      if (cardField === 'cvv') {
+        this.armCvvLastCharReveal();
+      }
       return;
     }
 
@@ -3233,6 +3248,10 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (cardInput) {
+      if (cardInput.dataset.cardField === 'cvv') {
+        this.clearCvvLastCharReveal();
+      }
+
       void this.trackCardFieldEncryption(
         cardInput.dataset.cardField as SensitiveCardField,
         cardInput.value
@@ -3775,6 +3794,25 @@ export class CommerceHubConnect extends LitElement {
       next.add(field);
     }
     this.revealedCardFields = next;
+  }
+
+  private armCvvLastCharReveal() {
+    this.cvvRevealLastChar = true;
+    if (this.cvvRevealTimeoutId !== undefined) {
+      window.clearTimeout(this.cvvRevealTimeoutId);
+    }
+    this.cvvRevealTimeoutId = window.setTimeout(() => {
+      this.cvvRevealLastChar = false;
+      this.cvvRevealTimeoutId = undefined;
+    }, CVV_LAST_CHAR_REVEAL_TIMEOUT_MS);
+  }
+
+  private clearCvvLastCharReveal() {
+    if (this.cvvRevealTimeoutId !== undefined) {
+      window.clearTimeout(this.cvvRevealTimeoutId);
+      this.cvvRevealTimeoutId = undefined;
+    }
+    this.cvvRevealLastChar = false;
   }
 
   private updateCardDraftField(field: CardDraftTextField, value: string) {

@@ -1191,6 +1191,41 @@ export const primitiveStyles = css`
     fill: currentColor;
   }
 
+  .field-input-mask-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .field-input-mask-wrap .field-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .field-input-mask-hidden {
+    color: transparent;
+    caret-color: var(--chc-text);
+  }
+
+  .field-input-mask-hidden::selection {
+    color: transparent;
+  }
+
+  .field-input-mask-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    font: inherit;
+    letter-spacing: inherit;
+    color: var(--chc-text);
+    white-space: pre;
+    overflow: hidden;
+  }
+
   .field-card-form .field-input {
     min-height: 0;
     border: 0;

@@ -53,6 +53,21 @@ export const normalizeSensitiveCardFieldValue = (
 ): string =>
   field === 'cardNumber' ? normalizeCardNumber(value) : normalizeCvv(value);
 
+// Masked overlay text for the CVV field. Reveals only the last character for a
+// brief peek when `revealLast` is set; otherwise every character is masked.
+export const maskCvvForReveal = (
+  value: string,
+  revealLast: boolean
+): string => {
+  if (!value) {
+    return '';
+  }
+
+  return revealLast
+    ? `${'\u2022'.repeat(value.length - 1)}${value.slice(-1)}`
+    : '\u2022'.repeat(value.length);
+};
+
 export const formatCardDraftFieldValue = (
   field: CardDraftTextField,
   value: string
