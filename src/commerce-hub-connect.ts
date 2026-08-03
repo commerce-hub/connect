@@ -72,6 +72,7 @@ import {
   encryptConfigDrivenBankAccountRequest,
   type ConfigDrivenBankAccountRequest,
 } from './internal/forms/manual-bank-account-request.js';
+import {maskRevealText} from './internal/forms/mask-reveal.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
   NEW_BILLING_ADDRESS_VALUE,
@@ -84,7 +85,6 @@ import {
   formatCardDraftFieldValue,
   hasRequiredCardDraftValues,
   isSensitiveCardField,
-  maskCvvForReveal,
   normalizeCardDraft,
   normalizeCardNumber,
   normalizeSensitiveCardFieldValue,
@@ -515,8 +515,8 @@ const DEFAULT_PAY_BY_BANK_OPTIONS = {
 } satisfies Required<DesignConfigPayByBank>;
 const DELETE_CONFIRMATION_TIMEOUT_MS = 10000;
 
-// How long the last typed CVV character stays visible before it masks.
-const CVV_LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
+// How long the last typed sensitive character stays visible before it masks.
+const LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
 
 /**
  * CommerceHub Connect Web SDK widget shell.
@@ -743,9 +743,11 @@ export class CommerceHubConnect extends LitElement {
   private revealedCardFields: ReadonlySet<SensitiveCardField> = new Set();
 
   @state()
-  private cvvRevealLastChar = false;
+  private cardFieldsRevealingLastChar: ReadonlySet<SensitiveCardField> =
+    new Set();
 
-  private cvvRevealTimeoutId?: number;
+  private cardRevealTimeoutIds: Partial<Record<SensitiveCardField, number>> =
+    {};
 
   @state()
   private cardSubmitError?: string;
@@ -892,7 +894,7 @@ export class CommerceHubConnect extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.clearDeletePaymentSourceConfirmation();
-    this.clearCvvLastCharReveal();
+    this.clearAllCardFieldLastCharReveal();
     this.resetBankFlow();
   }
 
@@ -1989,6 +1991,10 @@ export class CommerceHubConnect extends LitElement {
               maskable: true,
               revealed: this.revealedCardFields.has('cardNumber'),
               onToggleReveal: () => this.toggleCardFieldReveal('cardNumber'),
+              maskReveal: maskRevealText(
+                this.cardDraft.cardNumber,
+                this.cardFieldsRevealingLastChar.has('cardNumber')
+              ),
             }),
             renderTextField({
               id: 'expiration-date',
@@ -2018,9 +2024,10 @@ export class CommerceHubConnect extends LitElement {
               maskable: true,
               revealed: this.revealedCardFields.has('cvv'),
               onToggleReveal: () => this.toggleCardFieldReveal('cvv'),
-              maskReveal: this.cardDraft.cvv
-                ? maskCvvForReveal(this.cardDraft.cvv, this.cvvRevealLastChar)
-                : undefined,
+              maskReveal: maskRevealText(
+                this.cardDraft.cvv,
+                this.cardFieldsRevealingLastChar.has('cvv')
+              ),
             }),
             renderTextField({
               id: 'name-on-card',
@@ -2780,8 +2787,8 @@ export class CommerceHubConnect extends LitElement {
       const cardField = cardInput.dataset.cardField as CardDraftTextField;
       this.updateCardDraftField(cardField, cardInput.value);
 
-      if (cardField === 'cvv') {
-        this.armCvvLastCharReveal();
+      if (isSensitiveCardField(cardField)) {
+        this.armCardFieldLastCharReveal(cardField);
       }
       return;
     }
@@ -3248,14 +3255,10 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (cardInput) {
-      if (cardInput.dataset.cardField === 'cvv') {
-        this.clearCvvLastCharReveal();
-      }
+      const cardField = cardInput.dataset.cardField as SensitiveCardField;
+      this.clearCardFieldLastCharReveal(cardField);
 
-      void this.trackCardFieldEncryption(
-        cardInput.dataset.cardField as SensitiveCardField,
-        cardInput.value
-      );
+      void this.trackCardFieldEncryption(cardField, cardInput.value);
       return;
     }
 
@@ -3796,23 +3799,45 @@ export class CommerceHubConnect extends LitElement {
     this.revealedCardFields = next;
   }
 
-  private armCvvLastCharReveal() {
-    this.cvvRevealLastChar = true;
-    if (this.cvvRevealTimeoutId !== undefined) {
-      window.clearTimeout(this.cvvRevealTimeoutId);
+  private armCardFieldLastCharReveal(field: SensitiveCardField) {
+    const next = new Set(this.cardFieldsRevealingLastChar);
+    next.add(field);
+    this.cardFieldsRevealingLastChar = next;
+
+    const existing = this.cardRevealTimeoutIds[field];
+    if (existing !== undefined) {
+      window.clearTimeout(existing);
     }
-    this.cvvRevealTimeoutId = window.setTimeout(() => {
-      this.cvvRevealLastChar = false;
-      this.cvvRevealTimeoutId = undefined;
-    }, CVV_LAST_CHAR_REVEAL_TIMEOUT_MS);
+    this.cardRevealTimeoutIds[field] = window.setTimeout(() => {
+      this.clearCardFieldLastCharReveal(field);
+    }, LAST_CHAR_REVEAL_TIMEOUT_MS);
   }
 
-  private clearCvvLastCharReveal() {
-    if (this.cvvRevealTimeoutId !== undefined) {
-      window.clearTimeout(this.cvvRevealTimeoutId);
-      this.cvvRevealTimeoutId = undefined;
+  private clearCardFieldLastCharReveal(field: SensitiveCardField) {
+    const existing = this.cardRevealTimeoutIds[field];
+    if (existing !== undefined) {
+      window.clearTimeout(existing);
+      delete this.cardRevealTimeoutIds[field];
     }
-    this.cvvRevealLastChar = false;
+
+    if (this.cardFieldsRevealingLastChar.has(field)) {
+      const next = new Set(this.cardFieldsRevealingLastChar);
+      next.delete(field);
+      this.cardFieldsRevealingLastChar = next;
+    }
+  }
+
+  private clearAllCardFieldLastCharReveal() {
+    Object.values(this.cardRevealTimeoutIds).forEach((id) => {
+      if (id !== undefined) {
+        window.clearTimeout(id);
+      }
+    });
+    this.cardRevealTimeoutIds = {};
+
+    if (this.cardFieldsRevealingLastChar.size > 0) {
+      this.cardFieldsRevealingLastChar = new Set();
+    }
   }
 
   private updateCardDraftField(field: CardDraftTextField, value: string) {

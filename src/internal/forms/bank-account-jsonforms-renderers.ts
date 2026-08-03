@@ -20,6 +20,7 @@ import type {
   SensitiveBankAccountField,
 } from '../types.js';
 import {bankAccountInputType} from './bank-account-form-state.js';
+import {maskRevealText} from './mask-reveal.js';
 
 type BankAccountJsonFormsConfig = {
   draft: BankAccountDraft;
@@ -52,10 +53,42 @@ const isSensitiveBankAccountJsonFormsField = (
   field: keyof BankAccountDraft
 ): field is SensitiveBankAccountField => sensitiveFields.has(field);
 
+// How long the last typed sensitive character stays visible before it masks.
+const LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
+
 @customElement('commerce-hub-bank-account-control')
 export class CommerceHubBankAccountControl extends JsonFormsControl {
   @state()
   private revealed = false;
+
+  @state()
+  private revealLastChar = false;
+
+  private revealLastCharTimeoutId?: number;
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.clearLastCharReveal();
+  }
+
+  private armLastCharReveal() {
+    this.revealLastChar = true;
+    if (this.revealLastCharTimeoutId !== undefined) {
+      window.clearTimeout(this.revealLastCharTimeoutId);
+    }
+    this.revealLastCharTimeoutId = window.setTimeout(() => {
+      this.revealLastChar = false;
+      this.revealLastCharTimeoutId = undefined;
+    }, LAST_CHAR_REVEAL_TIMEOUT_MS);
+  }
+
+  private clearLastCharReveal() {
+    if (this.revealLastCharTimeoutId !== undefined) {
+      window.clearTimeout(this.revealLastCharTimeoutId);
+      this.revealLastCharTimeoutId = undefined;
+    }
+    this.revealLastChar = false;
+  }
 
   protected override render() {
     const props = this.controlProps;
@@ -84,7 +117,12 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
         ? bankAccountInputType(field, draft, encryption)
         : 'text';
     const maskable = baseType === 'password';
-    const type = maskable && this.revealed ? 'text' : baseType;
+    const type = maskable ? 'text' : baseType;
+    const stringValue = String(value);
+    const overlayHidesText = maskable && !this.revealed && stringValue !== '';
+    const maskRevealValue = this.revealed
+      ? ''
+      : maskRevealText(stringValue, this.revealLastChar);
     const inputmode = isSensitiveBankAccountJsonFormsField(field)
       ? 'numeric'
       : undefined;
@@ -100,6 +138,40 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
       controlClasses.push('field-control-reveal');
     }
 
+    const inputTemplate = html`
+      <input
+        class=${overlayHidesText
+          ? 'field-input field-input-card-form field-input-mask-hidden'
+          : 'field-input field-input-card-form'}
+        id=${bankAccountFieldIds[field]}
+        name=${field}
+        type=${type}
+        .value=${stringValue}
+        autocomplete="off"
+        inputmode=${ifDefined(inputmode)}
+        data-bank-account-field=${field}
+        aria-invalid=${error ? 'true' : 'false'}
+        aria-describedby=${ifDefined(
+          error ? `${bankAccountFieldIds[field]}-error` : undefined
+        )}
+        ?disabled=${disabled}
+        @input=${(event: Event) => {
+          props.handleChange(
+            props.path,
+            (event.currentTarget as HTMLInputElement).value
+          );
+          if (maskable) {
+            this.armLastCharReveal();
+          }
+        }}
+        @blur=${() => {
+          if (maskable) {
+            this.clearLastCharReveal();
+          }
+        }}
+      />
+    `;
+
     return html`
       <div class=${fieldClasses.join(' ')}>
         <label
@@ -109,27 +181,16 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
           ${props.label}
         </label>
         <div class=${controlClasses.join(' ')}>
-          <input
-            class="field-input field-input-card-form"
-            id=${bankAccountFieldIds[field]}
-            name=${field}
-            type=${type}
-            .value=${String(value)}
-            autocomplete="off"
-            inputmode=${ifDefined(inputmode)}
-            data-bank-account-field=${field}
-            aria-invalid=${error ? 'true' : 'false'}
-            aria-describedby=${ifDefined(
-              error ? `${bankAccountFieldIds[field]}-error` : undefined
-            )}
-            ?disabled=${disabled}
-            @input=${(event: Event) => {
-              props.handleChange(
-                props.path,
-                (event.currentTarget as HTMLInputElement).value
-              );
-            }}
-          />
+          ${maskable
+            ? html`
+                <div class="field-input-mask-wrap">
+                  ${inputTemplate}
+                  <span class="field-input-mask-overlay" aria-hidden="true"
+                    >${maskRevealValue}</span
+                  >
+                </div>
+              `
+            : inputTemplate}
           ${maskable
             ? html`
                 <button

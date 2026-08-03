@@ -467,7 +467,8 @@ export const renderTextField = ({
     'field-input',
     variant === 'card-form' && 'field-input-card-form'
   );
-  const useMaskOverlay = maskable && !revealed && maskReveal !== undefined;
+  const useMaskOverlay = maskable && maskReveal !== undefined;
+  const overlayHidesText = useMaskOverlay && !revealed && value !== '';
   const resolvedType = useMaskOverlay
     ? 'text'
     : maskable && !revealed
@@ -477,7 +478,7 @@ export const renderTextField = ({
     <input
       class=${joinClassNames(
         inputClasses,
-        useMaskOverlay && 'field-input-mask-hidden'
+        overlayHidesText && 'field-input-mask-hidden'
       )}
       id=${id}
       name=${ifDefined(name)}
@@ -508,7 +509,7 @@ export const renderTextField = ({
         <div class="field-input-mask-wrap">
           ${input}
           <span class="field-input-mask-overlay" aria-hidden="true"
-            >${maskReveal}</span
+            >${revealed ? '' : maskReveal}</span
           >
         </div>
       `

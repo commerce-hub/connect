@@ -22,7 +22,6 @@ import {
   formatCardDraftFieldValue,
   hasRequiredCardDraftValues,
   isCardDraftReady,
-  maskCvvForReveal,
   normalizeCardDraft,
   parseExpirationDate,
   resolveEncryptedCardFieldValue,
@@ -30,6 +29,7 @@ import {
   validateCardEncryptionReadiness,
 } from '../internal/forms/card-form-state.js';
 import {hasRequiredJsonSchemaValues} from '../internal/forms/instrument-schema.js';
+import {maskRevealText} from '../internal/forms/mask-reveal.js';
 import {
   OTP_LENGTH,
   normalizeOtpValue,
@@ -275,13 +275,15 @@ suite('form state models', () => {
     );
   });
 
-  test('maskCvvForReveal masks all characters unless the last is revealed', () => {
-    assert.equal(maskCvvForReveal('', false), '');
-    assert.equal(maskCvvForReveal('', true), '');
-    assert.equal(maskCvvForReveal('123', false), '•••');
-    assert.equal(maskCvvForReveal('123', true), '••3');
-    assert.equal(maskCvvForReveal('1', true), '1');
-    assert.equal(maskCvvForReveal('1234', true), '•••4');
+  test('maskRevealText masks all characters unless the last is revealed', () => {
+    assert.equal(maskRevealText('', false), '');
+    assert.equal(maskRevealText('', true), '');
+    assert.equal(maskRevealText('123', false), '•••');
+    assert.equal(maskRevealText('123', true), '••3');
+    assert.equal(maskRevealText('1', true), '1');
+    assert.equal(maskRevealText('1234', true), '•••4');
+    assert.equal(maskRevealText('4111 1111', false), '•••• ••••');
+    assert.equal(maskRevealText('4111 1111', true), '•••• •••1');
   });
 
   test('requires ACH nickname and exactly nine digits for account fields', () => {
