@@ -1954,7 +1954,12 @@ export const primitiveStyles = css`
 
   .source-action-card,
   .source-action-bank {
-    border-style: dotted;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+    border-width: 0.125rem;
+    border-style: dashed;
+    border-color: var(--chc-border-strong);
     transition: border-color var(--chc-motion-base) var(--chc-ease-standard),
       background-color var(--chc-motion-base) var(--chc-ease-standard),
       box-shadow var(--chc-motion-base) var(--chc-ease-standard);
@@ -1965,7 +1970,7 @@ export const primitiveStyles = css`
   .source-action-bank:hover:not(:disabled),
   .source-action-bank:focus-visible {
     border-color: var(--chc-border-strong);
-    border-style: dotted;
+    border-style: dashed;
     background: color-mix(
       in srgb,
       var(--chc-payment-method-background) 90%,
@@ -2004,6 +2009,17 @@ export const primitiveStyles = css`
     width: 1.5rem;
     height: 1.5rem;
     fill: currentColor;
+  }
+
+  .source-action-card .source-action-icon,
+  .source-action-bank .source-action-icon {
+    font-size: 3rem;
+  }
+
+  .source-action-card .source-action-icon svg,
+  .source-action-bank .source-action-icon svg {
+    width: 3rem;
+    height: 3rem;
   }
 
   .source-action-icon-transfer {

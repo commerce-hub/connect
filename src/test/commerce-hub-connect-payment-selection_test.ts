@@ -1944,8 +1944,8 @@ suite('commerce-hub-connect payment selection', () => {
         },
       ]
     );
-    assert.equal(getComputedStyle(sourceActions[0]).borderStyle, 'dotted');
-    assert.equal(getComputedStyle(sourceActions[1]).borderStyle, 'dotted');
+    assert.equal(getComputedStyle(sourceActions[0]).borderStyle, 'dashed');
+    assert.equal(getComputedStyle(sourceActions[1]).borderStyle, 'dashed');
     assert.notExists(
       el.shadowRoot!.querySelector('.source-action-link-chevron')
     );

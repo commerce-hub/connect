@@ -1157,8 +1157,8 @@ suite('commerce-hub-connect primitives', () => {
       BANK_SOURCE_ACTION_ICON_PATH
     );
     assert.notEqual(CARD_SOURCE_ACTION_ICON_PATH, BANK_SOURCE_ACTION_ICON_PATH);
-    assert.equal(getComputedStyle(emptySourceActions[0]).borderStyle, 'dotted');
-    assert.equal(getComputedStyle(emptySourceActions[1]).borderStyle, 'dotted');
+    assert.equal(getComputedStyle(emptySourceActions[0]).borderStyle, 'dashed');
+    assert.equal(getComputedStyle(emptySourceActions[1]).borderStyle, 'dashed');
     assert.equal(getComputedStyle(transferAction).borderStyle, 'solid');
     assert.include(
       primitiveStyles.cssText,
