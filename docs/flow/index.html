@@ -49,6 +49,13 @@ property as an HTML attribute.</p>
 <code>GET /interaction</code> and uses that server-fetched response as the authoritative
 state for payment methods, selected source, billing addresses, and status.
 Host-provided <code>paymentSources</code> are not rendered as authoritative saved methods.</p>
+<p>Verified saved methods render as radio choices. The <strong>Use selected method</strong>
+button is enabled after a choice is made, attaches that source, emits
+<code>onSelect</code>, and keeps the saved-method list visible with that source selected.
+<strong>Add payment method</strong> opens a modal bottom sheet with <strong>Credit or debit card</strong>
+and <strong>Bank account</strong> options when both are allowed. If only one type is allowed,
+the widget opens that flow directly.
+The same bottom-sheet behavior applies to <code>ADD_ACCOUNT</code>-only interactions.</p>
 <p>The widget always sends <code>interactionResponse.interactionId</code> as the
 <code>x-interaction-id</code> header for SDK-managed CommerceHub calls. When
 <code>interactionResponse.oauth.access_token</code> is present, it also sends
@@ -121,10 +128,13 @@ state. These events use raw operation results in <code>event.detail</code>:</p>
 <p>The widget handles recoverable flow errors in the UI, such as an invalid OTP or
 source verification state. It does not currently emit a separate public error
 event for those states.</p>
-<p>Selecting a saved method only updates the draft radio selection. The attach
-request and <code>onSelect</code> event occur after the shopper activates <strong>Use selected
-method</strong>. Added and newly verified sources return to the list selected, but do
-not attach automatically.</p>
+<p><code>onSelect</code> remains the completion boundary only for explicit payment-source
+selection. Marking a saved source as default attaches it and updates the
+<strong>Default</strong> badge, but does not emit <code>onSelect</code> or complete host-owned checkout
+work. New-card forms do not include a default-selection control. A saved method
+can be removed from its
+overflow menu: the first <strong>Remove</strong> selection reveals a red <strong>Delete</strong> action
+on the row for 10 seconds, and activating that action removes the method.</p>
 <h2>5. Configure production behavior</h2>
 <p>SDK-managed browser calls use the <code>PROD</code> preset by default. Set <code>.baseURL</code> only
 when the host needs a different CommerceHub environment or gateway origin.</p>
