@@ -2065,8 +2065,8 @@ export const primitiveStyles = css`
 
   .source-action-card .source-action-icon svg,
   .source-action-bank .source-action-icon svg {
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
   }
 
   .source-action-icon-transfer {
