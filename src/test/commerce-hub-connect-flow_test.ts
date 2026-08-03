@@ -6545,7 +6545,36 @@ suite('commerce-hub-connect flow', () => {
   });
 
   test('confirmed source deletion emits deleted payment source id', async () => {
-    window.fetch = async () => new Response('', {status: 200});
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+
+      if (
+        request.method === 'GET' &&
+        new URL(request.url).pathname.endsWith('/interaction')
+      ) {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            paymentSources: [
+              {
+                tenderType: 'BankAccount',
+                id: 'bank-1',
+                name: 'Operating account',
+                verificationInfo: {status: 'UNDER_REVIEW'},
+                bankAccount: {
+                  bankName: 'Commerce National Bank',
+                  accountNumber: '9876543210',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
+      return new Response('', {status: 200});
+    };
 
     const el = await renderConnect(
       {

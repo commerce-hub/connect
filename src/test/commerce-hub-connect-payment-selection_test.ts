@@ -2711,6 +2711,31 @@ suite('commerce-hub-connect payment selection', () => {
         credentials: request.credentials,
       });
 
+      if (
+        request.method === 'GET' &&
+        new URL(request.url).pathname.endsWith('/interaction')
+      ) {
+        return new Response(
+          JSON.stringify({
+            interactionId: 'interaction-payment',
+            status: 'PAYMENT_SOURCE_REQUESTED',
+            paymentSources: [
+              {
+                tenderType: 'BankAccount',
+                id: 'bank-1',
+                name: 'Operating account',
+                verificationInfo: {status: 'UNDER_REVIEW'},
+                bankAccount: {
+                  bankName: 'Commerce National Bank',
+                  accountNumber: '9876543210',
+                },
+              },
+            ],
+          }),
+          {status: 200, headers: {'Content-Type': 'application/json'}}
+        );
+      }
+
       return new Response('', {status: 200});
     };
 
@@ -2763,7 +2788,7 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['DELETE /interaction/source/card-1']
+      ['DELETE /interaction/source/card-1', 'GET /interaction']
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),

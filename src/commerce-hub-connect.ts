@@ -4982,17 +4982,18 @@ export class CommerceHubConnect extends LitElement {
         }
       );
 
-      const nextInteractionResponse = interactionResponseWithoutPaymentSource(
-        this.interactionResponse ?? {interactionId},
-        paymentSourceId
-      );
-
-      this.setInteractionResponseFromSdk(nextInteractionResponse);
+      // Re-fetch the interaction so the list reflects true server state instead
+      // of optimistically removing the row locally.
+      await this.refreshInteractionAfterMutation(interactionId);
       this.emitSdkEvent(ON_DELETE_PAYMENT_METHOD_EVENT, paymentSourceId);
     } catch (cause) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
+        return;
+      }
+
       void cause;
     } finally {
-      this.pendingAction = undefined;
+      this.clearPendingMutationAction(interactionId, 'delete-payment-source');
     }
   }
 
@@ -7020,29 +7021,6 @@ const interactionResponseWithSelection = (
 
   return {
     ...base,
-    selectedSource,
-    paymentSources,
-  };
-};
-
-const interactionResponseWithoutPaymentSource = (
-  current: InteractionResponse,
-  paymentSourceId: string
-): InteractionResponse => {
-  const paymentSources = (current.paymentSources ?? []).filter(
-    (source) => source.id !== paymentSourceId
-  );
-  const selectedSource =
-    current.selectedSource?.id === paymentSourceId
-      ? undefined
-      : current.selectedSource;
-
-  return {
-    ...current,
-    status:
-      current.status === 'PAYMENT_SOURCE_ATTACHED' && !selectedSource
-        ? PAYMENT_SELECTION_READY_STATUS
-        : current.status,
     selectedSource,
     paymentSources,
   };
