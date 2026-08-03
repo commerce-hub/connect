@@ -1529,7 +1529,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Visa ending 4242'
+      'Visa xx 4242'
     );
     assert.notExists(rows[0].querySelector('.payment-method-status'));
     assert.equal(
@@ -1545,7 +1545,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       rows[1].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Bank account ending 3210'
+      'Bank account xx 3210'
     );
     assert.exists(rows[1].querySelector('[data-payment-method-icon="bank"]'));
     assert.notExists(rows[1].querySelector('.payment-method-status'));
@@ -1561,7 +1561,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       rows[2].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Mastercard ending 4444'
+      'Mastercard xx 4444'
     );
     assert.exists(
       rows[2].querySelector('[data-payment-method-icon="mastercard"]')
@@ -5443,7 +5443,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.payment-method-row .payment-method-meta')
         ?.textContent?.trim(),
-      'Mastercard ending 4444'
+      'Mastercard xx 4444'
     );
     assert.notExists(
       el.shadowRoot!.querySelector('.payment-method-default-label')
@@ -5893,7 +5893,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Visa ending 4242'
+      'Visa xx 4242'
     );
   });
 
@@ -6539,7 +6539,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.payment-method-row .payment-method-meta')
         ?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
     assert.notExists(el.shadowRoot!.querySelector('.selected-payment-method'));
   });
@@ -7291,7 +7291,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.payment-method-row .payment-method-meta')
         ?.textContent?.trim(),
-      'Bank account ending ----'
+      'Bank account xx ----'
     );
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,

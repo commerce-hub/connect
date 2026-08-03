@@ -6823,22 +6823,22 @@ const paymentSourceAccountLabel = (source: PaymentSource): string => {
   const last4 = paymentSourceLast4(source);
 
   if (isCardPaymentSource(source)) {
-    return `${source.card?.network?.trim() || 'Card'} ending ${last4}`;
+    return `${source.card?.network?.trim() || 'Card'} xx ${last4}`;
   }
 
   if (isBankPaymentSource(source)) {
     return `${
       source.bankAccount?.accountType?.trim() || 'Bank account'
-    } ending ${last4}`;
+    } xx ${last4}`;
   }
 
   if (isNativePaymentSource(source)) {
     const accountType = source.account?.productType?.trim();
 
-    return `${accountType || 'Native account'} ending ${last4}`;
+    return `${accountType || 'Native account'} xx ${last4}`;
   }
 
-  return `Card ending ${last4}`;
+  return `Card xx ${last4}`;
 };
 
 const paymentSourceLast4 = (source: PaymentSource): string => {

@@ -505,7 +505,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[0].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Visa ending 4242'
+      'Visa xx 4242'
     );
     assert.exists(rows[0].querySelector('.payment-method-radio'));
     assert.notExists(rows[0].querySelector('.payment-method-default-label'));
@@ -534,7 +534,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[1].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Bank account ending 3210'
+      'Bank account xx 3210'
     );
     assert.exists(rows[1].querySelector('.payment-method-title-row'));
     assert.exists(rows[1].querySelector('.payment-method-meta-row'));
@@ -554,7 +554,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       rows[2].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Wallet ending 7890'
+      'Wallet xx 7890'
     );
     assert.exists(rows[2].querySelector('[data-payment-method-icon="native"]'));
     assert.exists(rows[2].querySelector('.payment-method-radio'));
@@ -646,7 +646,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Bank account ending 3210'
+      'Bank account xx 3210'
     );
   });
 
@@ -684,7 +684,7 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Bank account ending 3210'
+      'Bank account xx 3210'
     );
   });
 

@@ -1421,7 +1421,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       rows[3].querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Wallet ending 7890'
+      'Wallet xx 7890'
     );
     assert.exists(rows[3].querySelector('[data-payment-method-icon="native"]'));
     assert.exists(
@@ -2677,7 +2677,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       armedRow.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
     assert.notExists(
       armedRow.querySelector('[data-action="cancel-delete-payment-source"]')
@@ -3137,7 +3137,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
     assert.equal(
       el.shadowRoot!.querySelector('.payment-method-meta')?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
 
     await clickAction(el, 'open-add-payment-source');
@@ -3530,7 +3530,7 @@ suite('commerce-hub-connect payment selection', () => {
       el
         .shadowRoot!.querySelector('.payment-method-row .payment-method-meta')
         ?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
     assert.equal(
       el
@@ -4203,7 +4203,7 @@ suite('commerce-hub-connect payment selection', () => {
           '.selected-payment-method .payment-method-meta'
         )
         ?.textContent?.trim(),
-      'Visa ending 1111'
+      'Visa xx 1111'
     );
   });
 
