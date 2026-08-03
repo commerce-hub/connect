@@ -9,6 +9,10 @@ import {
   BANK_SOURCE_ACTION_ICON_PATH,
   CARD_SOURCE_ACTION_ICON_PATH,
 } from './source-action-icons.js';
+import {
+  renderRevealFieldIcon,
+  revealFieldButtonLabel,
+} from './reveal-field-icons.js';
 import type {
   AlertOptions,
   ButtonOptions,
@@ -444,6 +448,9 @@ export const renderTextField = ({
   dataField,
   dataFieldScope = 'card',
   error,
+  maskable = false,
+  revealed = false,
+  onToggleReveal,
 }: TextFieldOptions): TemplateResult => {
   const fieldClasses = joinClassNames(
     'field',
@@ -459,12 +466,13 @@ export const renderTextField = ({
     'field-input',
     variant === 'card-form' && 'field-input-card-form'
   );
+  const resolvedType = maskable && !revealed ? 'password' : type;
   const input = html`
     <input
       class=${inputClasses}
       id=${id}
       name=${ifDefined(name)}
-      type=${type}
+      type=${resolvedType}
       .value=${value}
       placeholder=${ifDefined(placeholder)}
       autocomplete=${ifDefined(autocomplete)}
@@ -484,12 +492,36 @@ export const renderTextField = ({
     />
   `;
 
+  const revealButton =
+    maskable && onToggleReveal
+      ? html`
+          <button
+            class="field-reveal-toggle"
+            type="button"
+            aria-label=${revealFieldButtonLabel(revealed)}
+            aria-pressed=${revealed ? 'true' : 'false'}
+            aria-controls=${id}
+            ?disabled=${disabled}
+            @mousedown=${(event: MouseEvent) => event.preventDefault()}
+            @click=${() => onToggleReveal()}
+          >
+            ${renderRevealFieldIcon(revealed)}
+          </button>
+        `
+      : '';
+
+  const controlClasses = joinClassNames(
+    'field-control',
+    'field-control-card-form',
+    maskable && 'field-control-reveal'
+  );
+
   return html`
     <div class=${fieldClasses}>
       <label class=${labelClasses} for=${id}>${label}</label>
-      ${variant === 'card-form'
+      ${variant === 'card-form' || maskable
         ? html`
-            <div class="field-control field-control-card-form">${input}</div>
+            <div class=${controlClasses}>${input}${revealButton}</div>
           `
         : input}
       ${error

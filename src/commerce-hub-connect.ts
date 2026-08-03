@@ -731,6 +731,13 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private cardEncryption: CardEncryptionState = createCardEncryptionState();
 
+  private cardEncryptionTasks: Partial<
+    Record<SensitiveCardField, Promise<void>>
+  > = {};
+
+  @state()
+  private revealedCardFields: ReadonlySet<SensitiveCardField> = new Set();
+
   @state()
   private cardSubmitError?: string;
 
@@ -1969,6 +1976,9 @@ export class CommerceHubConnect extends LitElement {
               dataField: 'cardNumber',
               error: this.visibleCardDraftError('cardNumber'),
               disabled: isSaving,
+              maskable: true,
+              revealed: this.revealedCardFields.has('cardNumber'),
+              onToggleReveal: () => this.toggleCardFieldReveal('cardNumber'),
             }),
             renderTextField({
               id: 'expiration-date',
@@ -1995,6 +2005,9 @@ export class CommerceHubConnect extends LitElement {
               dataField: 'cvv',
               error: this.visibleCardDraftError('cvv'),
               disabled: isSaving,
+              maskable: true,
+              revealed: this.revealedCardFields.has('cvv'),
+              onToggleReveal: () => this.toggleCardFieldReveal('cvv'),
             }),
             renderTextField({
               id: 'name-on-card',
@@ -3220,7 +3233,7 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (cardInput) {
-      void this.encryptCardField(
+      void this.trackCardFieldEncryption(
         cardInput.dataset.cardField as SensitiveCardField,
         cardInput.value
       );
@@ -3754,6 +3767,16 @@ export class CommerceHubConnect extends LitElement {
     this.bankAccountSubmitError = undefined;
   }
 
+  private toggleCardFieldReveal(field: SensitiveCardField) {
+    const next = new Set(this.revealedCardFields);
+    if (next.has(field)) {
+      next.delete(field);
+    } else {
+      next.add(field);
+    }
+    this.revealedCardFields = next;
+  }
+
   private updateCardDraftField(field: CardDraftTextField, value: string) {
     const formattedValue = formatCardDraftFieldValue(field, value);
     const nextDraft = {
@@ -4025,6 +4048,52 @@ export class CommerceHubConnect extends LitElement {
     return encryptSourceValue(value, sourceCreateContext.publicKey);
   }
 
+  private trackCardFieldEncryption(
+    field: SensitiveCardField,
+    value: string
+  ): Promise<void> {
+    const task = this.encryptCardField(field, value);
+    this.cardEncryptionTasks[field] = task;
+    const clear = () => {
+      if (this.cardEncryptionTasks[field] === task) {
+        delete this.cardEncryptionTasks[field];
+      }
+    };
+    task.then(clear, clear);
+    return task;
+  }
+
+  private async ensureSensitiveCardFieldsEncrypted(): Promise<void> {
+    await Promise.all(
+      (['cardNumber', 'cvv'] as const).map(async (field) => {
+        const inFlight = this.cardEncryptionTasks[field];
+
+        if (inFlight) {
+          await inFlight;
+        }
+
+        const value = this.cardDraft[field];
+        const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
+
+        if (!normalizedValue) {
+          return;
+        }
+
+        const encryptedField = this.cardEncryption[field];
+        const alreadyEncrypted =
+          encryptedField.status === 'encrypted' &&
+          encryptedField.normalizedValue === normalizedValue &&
+          Boolean(encryptedField.encryptedValue);
+
+        if (alreadyEncrypted) {
+          return;
+        }
+
+        await this.trackCardFieldEncryption(field, value);
+      })
+    );
+  }
+
   private async saveCard() {
     if (this.pendingAction === 'save-card') {
       return;
@@ -4038,10 +4107,12 @@ export class CommerceHubConnect extends LitElement {
 
     this.cardValidationAttempted = true;
 
+    await this.ensureSensitiveCardFieldsEncrypted();
+
     const normalizedDraft = normalizeCardDraft(this.cardDraft);
     const errors = {
-      ...validateCardDraft(normalizedDraft),
       ...validateCardEncryptionReadiness(normalizedDraft, this.cardEncryption),
+      ...validateCardDraft(normalizedDraft),
     };
 
     if (Object.keys(errors).length > 0) {

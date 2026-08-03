@@ -1141,6 +1141,56 @@ export const primitiveStyles = css`
     border-color: var(--chc-danger);
   }
 
+  .field-control-reveal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .field-control-reveal .field-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .field-reveal-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--chc-radius-control);
+    background: transparent;
+    color: var(--chc-muted);
+    cursor: pointer;
+    transition: color var(--chc-motion-fast) var(--chc-ease-standard);
+  }
+
+  .field-reveal-toggle:hover {
+    color: var(--chc-text);
+  }
+
+  .field-reveal-toggle:focus-visible {
+    outline: 0;
+    color: var(--chc-primary);
+    box-shadow: 0 0 0 0.1875rem var(--chc-focus-ring);
+  }
+
+  .field-reveal-toggle:disabled {
+    color: var(--chc-muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .field-reveal-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    fill: currentColor;
+  }
+
   .field-card-form .field-input {
     min-height: 0;
     border: 0;
