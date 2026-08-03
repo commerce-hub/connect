@@ -2004,9 +2004,6 @@ export const primitiveStyles = css`
 
   .source-action-card,
   .source-action-bank {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    text-align: center;
     border-width: 0.125rem;
     border-style: dashed;
     border-color: var(--chc-border-strong);
