@@ -2100,8 +2100,8 @@ export const primitiveStyles = css`
     padding: 0.0625rem 0.4375rem;
     background: color-mix(in srgb, var(--chc-soft-surface) 85%, white);
     color: var(--chc-text);
-    font-size: 0.625rem;
-    font-weight: 600;
+    font-size: 0.575rem;
+    font-weight: 400;
     letter-spacing: 0.005em;
   }
 
