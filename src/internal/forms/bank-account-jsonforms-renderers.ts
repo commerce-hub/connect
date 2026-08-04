@@ -269,7 +269,6 @@ export const bankAccountJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] 
 // until the instrument schema carries a `writeOnly`/`x-sensitive` flag.
 const CONFIG_DRIVEN_SENSITIVE_SCOPES = [
   'accountNumber',
-  'routingCode',
   'bsbCode',
   'interacAccount',
 ];
