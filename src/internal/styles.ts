@@ -1346,6 +1346,43 @@ export const primitiveStyles = css`
     opacity: 1;
   }
 
+  .bank-account-jsonforms .jsonforms-mask-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .bank-account-jsonforms .jsonforms-mask-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .bank-account-jsonforms .jsonforms-control input.jsonforms-mask-input {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    letter-spacing: 0;
+  }
+
+  .bank-account-jsonforms .jsonforms-mask-overlay {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 0.75rem;
+    pointer-events: none;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    font-size: inherit;
+    letter-spacing: 0;
+    color: var(--chc-text);
+    white-space: pre;
+    overflow: hidden;
+  }
+
   .bank-account-jsonforms .jsonforms-description {
     color: var(--chc-muted);
     font-size: 0.875em;

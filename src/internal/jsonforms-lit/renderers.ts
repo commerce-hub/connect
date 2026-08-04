@@ -10,7 +10,7 @@ import {
   type Layout,
 } from '@jsonforms/core';
 import {html} from 'lit';
-import {customElement} from 'lit/decorators.js';
+import {customElement, state} from 'lit/decorators.js';
 import {ifDefined} from 'lit/directives/if-defined.js';
 import {
   JsonFormsControl,
@@ -19,6 +19,14 @@ import {
 } from './base-renderers.js';
 import {JsonFormsDispatch} from './dispatch.js';
 import type {LitJsonFormsRendererRegistryEntry} from './store.js';
+import {maskRevealText} from '../forms/mask-reveal.js';
+import {
+  renderRevealFieldIcon,
+  revealFieldButtonLabel,
+} from '../reveal-field-icons.js';
+
+// How long the last typed sensitive character stays visible before it masks.
+const SENSITIVE_LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
 
 void JsonFormsDispatch;
 
@@ -42,7 +50,9 @@ export class JsonFormsVerticalLayoutRenderer extends JsonFormsLayout {
     const layout = props.uischema as Layout;
     return html`
       <div class=${className}>
-        ${props.label ? html`<div class="jsonforms-group-label">${props.label}</div>` : ''}
+        ${props.label
+          ? html`<div class="jsonforms-group-label">${props.label}</div>`
+          : ''}
         ${layout.elements?.map(
           (element) => html`
             <jsonforms-lit-dispatch
@@ -148,6 +158,109 @@ export class JsonFormsTextControlRenderer extends JsonFormsControl {
   }
 }
 
+@customElement('jsonforms-lit-sensitive-text-control')
+export class JsonFormsSensitiveTextControlRenderer extends JsonFormsTextControlRenderer {
+  @state()
+  private revealed = false;
+
+  @state()
+  private revealLastChar = false;
+
+  private revealLastCharTimeoutId?: number;
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.clearLastCharReveal();
+  }
+
+  private armLastCharReveal() {
+    this.revealLastChar = true;
+    if (this.revealLastCharTimeoutId !== undefined) {
+      window.clearTimeout(this.revealLastCharTimeoutId);
+    }
+    this.revealLastCharTimeoutId = window.setTimeout(() => {
+      this.revealLastChar = false;
+      this.revealLastCharTimeoutId = undefined;
+    }, SENSITIVE_LAST_CHAR_REVEAL_TIMEOUT_MS);
+  }
+
+  private clearLastCharReveal() {
+    if (this.revealLastCharTimeoutId !== undefined) {
+      window.clearTimeout(this.revealLastCharTimeoutId);
+      this.revealLastCharTimeoutId = undefined;
+    }
+    this.revealLastChar = false;
+  }
+
+  protected override render() {
+    const props = this.controlProps;
+    if (props === undefined || props.visible === false) {
+      return html``;
+    }
+
+    const hasErrors = Array.isArray(props.errors)
+      ? props.errors.length > 0
+      : Boolean(props.errors);
+    const errorId = hasErrors ? `${props.id}-error` : undefined;
+    const value = String(props.data ?? '');
+    const disabled = !props.enabled || props.readonly;
+    const overlayHidesText = !this.revealed && value !== '';
+    const overlayText = this.revealed
+      ? ''
+      : maskRevealText(value, this.revealLastChar);
+
+    return html`
+      <div class="jsonforms-control jsonforms-control-sensitive">
+        ${this.renderLabel(props.label, props.required)}
+        <div class="jsonforms-mask-control">
+          <div class="jsonforms-mask-wrap">
+            <input
+              class=${overlayHidesText
+                ? 'jsonforms-mask-input field-input-mask-hidden'
+                : 'jsonforms-mask-input'}
+              id=${props.id}
+              name=${props.path}
+              type="text"
+              autocomplete="off"
+              .value=${value}
+              ?disabled=${disabled}
+              ?required=${props.required}
+              aria-invalid=${hasErrors ? 'true' : 'false'}
+              aria-describedby=${ifDefined(errorId)}
+              @input=${(event: Event) => {
+                props.handleChange(
+                  props.path,
+                  (event.currentTarget as HTMLInputElement).value
+                );
+                this.armLastCharReveal();
+              }}
+              @blur=${() => this.clearLastCharReveal()}
+            />
+            <span class="jsonforms-mask-overlay" aria-hidden="true"
+              >${overlayText}</span
+            >
+          </div>
+          <button
+            class="field-reveal-toggle"
+            type="button"
+            aria-label=${revealFieldButtonLabel(this.revealed)}
+            aria-pressed=${this.revealed ? 'true' : 'false'}
+            aria-controls=${props.id}
+            ?disabled=${disabled}
+            @mousedown=${(event: MouseEvent) => event.preventDefault()}
+            @click=${() => {
+              this.revealed = !this.revealed;
+            }}
+          >
+            ${renderRevealFieldIcon(this.revealed)}
+          </button>
+        </div>
+        ${this.renderErrors(props.errors, errorId)}
+      </div>
+    `;
+  }
+}
+
 @customElement('jsonforms-lit-number-control')
 export class JsonFormsNumberControlRenderer extends JsonFormsTextControlRenderer {
   protected override render() {
@@ -166,7 +279,10 @@ export class JsonFormsNumberControlRenderer extends JsonFormsTextControlRenderer
           ?disabled=${!props.enabled || props.readonly}
           @input=${(event: Event) => {
             const value = (event.currentTarget as HTMLInputElement).value;
-            props.handleChange(props.path, value === '' ? undefined : Number(value));
+            props.handleChange(
+              props.path,
+              value === '' ? undefined : Number(value)
+            );
           }}
         />
         ${this.renderDescription(props.description)}
@@ -198,7 +314,9 @@ export class JsonFormsBooleanControlRenderer extends JsonFormsTextControlRendere
                 (event.currentTarget as HTMLInputElement).checked
               )}
           />
-          ${props.label}${props.required && !props.label.endsWith('*') ? '*' : ''}
+          ${props.label}${props.required && !props.label.endsWith('*')
+            ? '*'
+            : ''}
         </label>
         ${this.renderDescription(props.description)}
         ${this.renderErrors(props.errors)}
@@ -231,7 +349,10 @@ export class JsonFormsEnumControlRenderer extends JsonFormsTextControlRenderer {
         >
           ${options.map(
             (option) => html`
-              <option value=${String(option)} ?selected=${option === props.data}>
+              <option
+                value=${String(option)}
+                ?selected=${option === props.data}
+              >
                 ${String(option)}
               </option>
             `

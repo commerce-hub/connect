@@ -44,7 +44,7 @@ import {bankAccountDraftErrorsToJsonFormsErrors} from './internal/forms/bank-acc
 import {
   BANK_BILLING_ADDRESS_CONTROL_SCOPE,
   bankAccountJsonFormsRenderers,
-  bankBillingAddressJsonFormsRenderers,
+  configDrivenBankAccountJsonFormsRenderers,
 } from './internal/forms/bank-account-jsonforms-renderers.js';
 import {
   createBankBillingAddressUiSchema,
@@ -2268,7 +2268,7 @@ export class CommerceHubConnect extends LitElement {
             .uischema=${bankAccountFormUiSchema}
             .data=${this.bankAccountFormData}
             .i18n=${this.bankAccountFormI18n}
-            .renderers=${bankBillingAddressJsonFormsRenderers}
+            .renderers=${configDrivenBankAccountJsonFormsRenderers}
             .config=${{
               billingAddressTemplate:
                 this.renderBankBillingAddressControl(isSaving),

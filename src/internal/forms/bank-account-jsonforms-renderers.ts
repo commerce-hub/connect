@@ -1,4 +1,4 @@
-import {rankWith, scopeEndsWith} from '@jsonforms/core';
+import {or, rankWith, scopeEndsWith} from '@jsonforms/core';
 import {
   JsonFormsControl,
   litRenderers,
@@ -262,6 +262,29 @@ export const bankAccountJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] 
     {
       tester: rankWith(10, scopeEndsWith('confirmAccountNumber')),
       renderer: 'commerce-hub-bank-account-control',
+    },
+  ];
+
+// Stopgap: sensitive fields for the config-driven ACH form are matched by name
+// until the instrument schema carries a `writeOnly`/`x-sensitive` flag.
+const CONFIG_DRIVEN_SENSITIVE_SCOPES = [
+  'accountNumber',
+  'routingCode',
+  'bsbCode',
+  'interacAccount',
+];
+
+export const configDrivenBankAccountJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] =
+  [
+    ...bankBillingAddressJsonFormsRenderers,
+    {
+      tester: rankWith(
+        20,
+        or(
+          ...CONFIG_DRIVEN_SENSITIVE_SCOPES.map((scope) => scopeEndsWith(scope))
+        )
+      ),
+      renderer: 'jsonforms-lit-sensitive-text-control',
     },
   ];
 
