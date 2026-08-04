@@ -1696,19 +1696,14 @@ suite('commerce-hub-connect payment selection', () => {
         return balanceResponse.promise;
       }
 
-      if (pathname === '/interaction/source/native-account-1/attach') {
-        return new Response(
-          JSON.stringify({
-            interactionId: 'interaction-payment',
-            status: 'PAYMENT_SOURCE_ATTACHED',
-            selectedSource: nativeSource,
-            paymentSources: [nativeSource],
-          }),
-          {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          }
-        );
+      if (
+        request.method === 'PATCH' &&
+        pathname === '/interaction/source/native-account-1'
+      ) {
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       return new Response(JSON.stringify({}), {
@@ -3444,8 +3439,8 @@ suite('commerce-hub-connect payment selection', () => {
       });
 
       if (
-        request.method === 'POST' &&
-        pathname === '/interaction/source/card-1/attach'
+        request.method === 'PATCH' &&
+        pathname === '/interaction/source/card-1'
       ) {
         return new Promise((resolve) => {
           resolveAttachResponse = resolve;
@@ -3526,7 +3521,7 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach', 'GET /interaction']
+      ['PATCH /interaction/source/card-1', 'GET /interaction']
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
@@ -3999,16 +3994,14 @@ suite('commerce-hub-connect payment selection', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction/source/card-1/attach') {
-        return new Response(
-          JSON.stringify({
-            interactionId: 'interaction-payment',
-            status: 'PAYMENT_SOURCE_ATTACHED',
-            selectedSource: source,
-            paymentSources: [source],
-          }),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
-        );
+      if (
+        request.method === 'PATCH' &&
+        pathname === '/interaction/source/card-1'
+      ) {
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       return new Response(JSON.stringify({message: 'Refresh unavailable'}), {
@@ -4036,7 +4029,7 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach', 'GET /interaction']
+      ['PATCH /interaction/source/card-1', 'GET /interaction']
     );
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);

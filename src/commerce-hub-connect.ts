@@ -368,7 +368,6 @@ type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
 type TransferFlowScreen = 'form' | 'confirm';
-type PaymentSourceAttachmentIntent = 'select' | 'mark-default';
 type PaymentSourceToPaymentMethodOptions = {
   selected?: boolean;
   isDefault?: boolean;
@@ -1399,14 +1398,10 @@ export class CommerceHubConnect extends LitElement {
       source,
       this.savedSourceVerificationFailed
     );
-    const showHeaderBack =
-      outcome.kind === 'declined' || outcome.kind === 'pending';
 
     return this.renderWidgetShell({
       title: outcome.title,
-      backAction: showHeaderBack
-        ? 'done-payment-source-verification'
-        : undefined,
+      backAction: 'done-payment-source-verification',
       showClose: false,
       showDivider: false,
       content: html`
@@ -1416,16 +1411,6 @@ export class CommerceHubConnect extends LitElement {
             message: outcome.message,
           })}
           ${source ? renderRequiredInfoSourceCard(source) : ''}
-          ${showHeaderBack
-            ? ''
-            : html`
-                <div class="primitive-footer">
-                  ${renderButton({
-                    label: 'Back to payment methods',
-                    action: 'done-payment-source-verification',
-                  })}
-                </div>
-              `}
         </div>
       `,
     });
@@ -2558,7 +2543,7 @@ export class CommerceHubConnect extends LitElement {
     if (action === 'mark-payment-source-default') {
       if (paymentMethodId) {
         this.clearDeletePaymentSourceConfirmation();
-        void this.attachPaymentSource(paymentMethodId, 'mark-default');
+        void this.markPaymentSourceDefault(paymentMethodId);
       }
       return;
     }
@@ -4901,10 +4886,7 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private async attachPaymentSource(
-    paymentSourceId: string,
-    intent: PaymentSourceAttachmentIntent = 'select'
-  ) {
+  private async attachPaymentSource(paymentSourceId: string) {
     if (this.pendingAction === 'attach-payment-source') {
       return;
     }
@@ -4953,12 +4935,6 @@ export class CommerceHubConnect extends LitElement {
         source;
 
       this.selectedPaymentSourceId = attachedSource.id;
-
-      if (intent === 'mark-default') {
-        this.paymentSourceView = 'list';
-        return;
-      }
-
       this.paymentSourceView = 'list';
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
       this.focusAfterUpdate('.payment-method-radio:checked');
@@ -4971,6 +4947,81 @@ export class CommerceHubConnect extends LitElement {
       this.attachmentError =
         apiErrorMessage(cause) ||
         "We couldn't save this payment method. Please try again.";
+    } finally {
+      this.clearPendingMutationAction(interactionId, 'attach-payment-source');
+    }
+  }
+
+  // Marks a saved payment source as the default via
+  // `PATCH /interaction/source/{sourceId}` (the same endpoint as delete).
+  private async markPaymentSourceDefault(paymentSourceId: string) {
+    if (this.pendingAction === 'attach-payment-source') {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+    const source = this.findPaymentSourceById(paymentSourceId);
+
+    if (!interactionId || !source) {
+      return;
+    }
+
+    if (!isPaymentSourceSelectionEligible(source)) {
+      return;
+    }
+
+    this.selectedPaymentSourceId = paymentSourceId;
+    this.paymentSourceView = 'list';
+    this.attachmentError = undefined;
+    this.pendingAction = 'attach-payment-source';
+
+    try {
+      await this.requestCommerceHubJson<unknown>(
+        `/interaction/source/${encodeURIComponent(paymentSourceId)}`,
+        interactionId,
+        {method: 'PATCH', credentials: 'include'}
+      );
+      this.assertCurrentInteraction(interactionId);
+
+      // The PATCH returns no interaction body, so optimistically reflect the
+      // default attachment locally before re-fetching the authoritative state.
+      const currentInteractionResponse = this.interactionResponse ?? {
+        interactionId,
+      };
+      const optimisticInteractionResponse = interactionResponseWithSelection(
+        currentInteractionResponse,
+        {
+          ...currentInteractionResponse,
+          status: 'PAYMENT_SOURCE_ATTACHED',
+        },
+        paymentSourceId
+      );
+      this.setInteractionResponseFromSdk(optimisticInteractionResponse);
+
+      const authoritativeInteraction =
+        await this.refreshInteractionAfterMutation(interactionId);
+      const defaultSource =
+        this.findPaymentSourceInInteraction(
+          authoritativeInteraction,
+          paymentSourceId
+        ) ??
+        this.findPaymentSourceInInteraction(
+          optimisticInteractionResponse,
+          paymentSourceId
+        ) ??
+        source;
+
+      this.selectedPaymentSourceId = defaultSource.id;
+      this.paymentSourceView = 'list';
+    } catch (cause) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
+        return;
+      }
+
+      this.paymentSourceView = 'list';
+      this.attachmentError =
+        apiErrorMessage(cause) ||
+        "We couldn't update the default payment method. Please try again.";
     } finally {
       this.clearPendingMutationAction(interactionId, 'attach-payment-source');
     }
@@ -6884,11 +6935,9 @@ const paymentSourceDisplayName = (
   }
 
   if (isBankPaymentSource(source)) {
-    return (
-      source.name?.trim() ||
-      source.bankAccount?.bankName?.trim() ||
-      paymentSourceLabel(source)
-    );
+    const bankName = source.bankAccount?.bankName?.trim();
+
+    return bankName || source.name?.trim() || paymentSourceLabel(source);
   }
 
   if (isNativePaymentSource(source)) {
@@ -6908,7 +6957,7 @@ const paymentSourceLabel = (source: PaymentSource): string => {
   }
 
   if (isBankPaymentSource(source)) {
-    return source.bankAccount?.bankName ?? 'Saved bank account';
+    return source.bankAccount?.bankName?.trim() || 'Saved bank account';
   }
 
   if (isNativePaymentSource(source)) {
@@ -6924,7 +6973,7 @@ const paymentSourceBrand = (source: PaymentSource): string => {
   }
 
   if (isBankPaymentSource(source)) {
-    return source.bankAccount?.bankName ?? 'Bank account';
+    return source.bankAccount?.bankName?.trim() || 'Bank account';
   }
 
   if (isNativePaymentSource(source)) {
@@ -7102,8 +7151,7 @@ const selectedPaymentSourceFromInteractionResponse = (
   return localTestingResponse?.selectedSource;
 };
 
-const LOCAL_NON_VERIFIED_TESTING_QUERY_PARAM =
-  'chc_local_non_verified_testing';
+const LOCAL_NON_VERIFIED_TESTING_QUERY_PARAM = 'chc_local_non_verified_testing';
 
 type LocalNonVerifiedTestingMode = 'off' | 'single' | 'all' | 'show-all';
 
@@ -7892,11 +7940,9 @@ const requiredInfoSourceName = (source: PaymentSource): string => {
   }
 
   if (isBankPaymentSource(source)) {
-    return (
-      source.name?.trim() ||
-      source.bankAccount?.bankName?.trim() ||
-      paymentSourceLabel(source)
-    );
+    const bankName = source.bankAccount?.bankName?.trim();
+
+    return bankName || source.name?.trim() || paymentSourceLabel(source);
   }
 
   if (isNativePaymentSource(source)) {

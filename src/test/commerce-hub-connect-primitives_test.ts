@@ -807,6 +807,28 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(root.querySelector('.powered-by-footer'));
   });
 
+  test('forces autofill suppression attributes on masked fields', async () => {
+    const root = await renderHarness(html`
+      ${renderTextField({
+        id: 'card-number',
+        name: 'cardNumber',
+        label: 'Card number',
+        value: '4111 1111 1111 1111',
+        autocomplete: 'cc-number',
+        maskable: true,
+        maskReveal: '•••• •••• •••• •••1',
+      })}
+    `);
+
+    const input = root.querySelector<HTMLInputElement>('input#card-number');
+    assert.exists(input);
+    assert.equal(input?.getAttribute('autocomplete'), 'off');
+    assert.equal(input?.getAttribute('autocapitalize'), 'off');
+    assert.equal(input?.getAttribute('autocorrect'), 'off');
+    assert.equal(input?.getAttribute('spellcheck'), 'false');
+    assert.equal(input?.getAttribute('data-lpignore'), 'true');
+  });
+
   test('renders alert variants without icons', async () => {
     const root = await renderHarness(html`
       <style>

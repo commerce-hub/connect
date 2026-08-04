@@ -1117,6 +1117,20 @@ const completePayByBankFlow = async ({
       );
     }
 
+    const markDefaultMatch =
+      request.method === 'PATCH'
+        ? pathname.match(/^\/interaction\/source\/([^/]+)$/)
+        : null;
+
+    if (markDefaultMatch) {
+      attachedSourceId = decodeURIComponent(markDefaultMatch[1]);
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    }
+
     if (pathname === '/interaction') {
       const refreshedSourceId = attachedSourceId ?? authoritativeSourceId;
       const authoritativeSource = {
@@ -5630,7 +5644,7 @@ suite('commerce-hub-connect flow', () => {
 
     assert.include(
       requests.map((request) => new URL(request.url).pathname),
-      '/interaction/source/card-created-1/attach'
+      '/interaction/source/card-created-1'
     );
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
@@ -6464,7 +6478,10 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction/source/card-1/attach') {
+      if (
+        request.method === 'PATCH' &&
+        pathname === '/interaction/source/card-1'
+      ) {
         return new Response(
           JSON.stringify({
             interactionId: 'interaction-payment',
@@ -6511,7 +6528,7 @@ suite('commerce-hub-connect flow', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach', 'GET /interaction']
+      ['PATCH /interaction/source/card-1', 'GET /interaction']
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
@@ -7360,7 +7377,7 @@ suite('commerce-hub-connect flow', () => {
         'GET /interaction/source/pbb/session',
         'PUT /interaction/source/pbb/session/agg-session-1/p-token-1',
         'GET /interaction',
-        'POST /interaction/source/bank-new/attach',
+        'PATCH /interaction/source/bank-new',
         'GET /interaction',
       ]
     );
@@ -7816,7 +7833,11 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await markPaymentSourceAsDefault(el, 'bank-verified');
-    await waitForRequest(requests, '/interaction/source/bank-verified/attach');
+    await waitForRequest(
+      requests,
+      '/interaction/source/bank-verified',
+      'PATCH'
+    );
     await waitFor(
       () => el.interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED',
       'verified bank source was not marked as default'

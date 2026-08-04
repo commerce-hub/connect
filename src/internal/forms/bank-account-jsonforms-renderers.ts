@@ -148,6 +148,10 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
         type=${type}
         .value=${stringValue}
         autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        data-lpignore="true"
         inputmode=${ifDefined(inputmode)}
         data-bank-account-field=${field}
         aria-invalid=${error ? 'true' : 'false'}

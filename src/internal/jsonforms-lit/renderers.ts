@@ -222,6 +222,10 @@ export class JsonFormsSensitiveTextControlRenderer extends JsonFormsTextControlR
               name=${props.path}
               type="text"
               autocomplete="off"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              data-lpignore="true"
               .value=${value}
               ?disabled=${disabled}
               ?required=${props.required}
