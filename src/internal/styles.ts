@@ -1347,9 +1347,28 @@ export const primitiveStyles = css`
   }
 
   .bank-account-jsonforms .jsonforms-mask-control {
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-height: var(--chc-input-height);
+    padding: 0.625rem 0.75rem;
+    border: 0.0625rem solid var(--chc-border-strong);
+    border-radius: var(--chc-radius-control);
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 82%,
+      var(--chc-surface)
+    );
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard);
+  }
+
+  .bank-account-jsonforms .jsonforms-mask-control:focus-within {
+    border-color: var(--chc-primary);
+    background: var(--chc-surface);
+    box-shadow: 0 0 0 0.25rem var(--chc-focus-ring);
   }
 
   .bank-account-jsonforms .jsonforms-mask-wrap {
@@ -1361,9 +1380,29 @@ export const primitiveStyles = css`
   }
 
   .bank-account-jsonforms .jsonforms-control input.jsonforms-mask-input {
+    width: 100%;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
     font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
       'Liberation Mono', monospace;
     letter-spacing: 0;
+  }
+
+  .bank-account-jsonforms .jsonforms-control input.jsonforms-mask-input:focus {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .bank-account-jsonforms
+    .jsonforms-control
+    input.jsonforms-mask-input.field-input-mask-hidden {
+    color: transparent;
+    caret-color: var(--chc-text);
   }
 
   .bank-account-jsonforms .jsonforms-mask-overlay {
@@ -1372,7 +1411,6 @@ export const primitiveStyles = css`
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    padding: 0.625rem 0.75rem;
     pointer-events: none;
     font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
       'Liberation Mono', monospace;
