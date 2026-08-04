@@ -1571,6 +1571,8 @@ export const primitiveStyles = css`
   .payment-method-row {
     position: relative;
     grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.625rem;
+    column-gap: 0.5rem;
   }
 
   .payment-method-row-has-overflow {
@@ -1583,6 +1585,7 @@ export const primitiveStyles = css`
 
   .payment-method-row-has-overflow.payment-method-row-has-affordance {
     grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 0.1875rem;
   }
 
   .payment-method-row-menu-open {
@@ -1736,30 +1739,33 @@ export const primitiveStyles = css`
 
   .payment-method-overflow {
     position: relative;
-    display: inline-flex;
+    display: grid;
     align-items: center;
+    align-self: stretch;
     gap: 0.375rem;
     justify-self: end;
   }
 
   .payment-method-row-affordance {
-    min-width: 1.5rem;
-    min-height: 1.5rem;
+    min-width: 1rem;
+    min-height: 1rem;
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
+    align-self: stretch;
     justify-self: end;
   }
 
   .payment-method-row-affordance-radio {
-    min-width: 2rem;
+    min-width: 1.125rem;
+    min-height: 2.5rem;
   }
 
   .payment-method-overflow-button {
-    width: 2.75rem;
-    min-width: 2.75rem;
-    height: 2.75rem;
-    min-height: 2.75rem;
+    width: 2.5rem;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    min-height: 2.5rem;
     display: inline-grid;
     place-items: center;
     border: 0;
@@ -1834,16 +1840,16 @@ export const primitiveStyles = css`
   .payment-method-default-label {
     flex: 0 0 auto;
     margin-left: auto;
-    min-height: 1.5625rem;
+    min-height: 1.375rem;
     display: inline-flex;
     align-items: center;
     border: 0.0625rem solid
       color-mix(in srgb, var(--chc-primary) 28%, transparent);
     border-radius: 999rem;
-    padding: 0.1875rem 0.5625rem;
+    padding: 0.125rem 0.5rem;
     background: color-mix(in srgb, var(--chc-primary) 8%, white);
     color: var(--chc-primary);
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     white-space: nowrap;
   }
@@ -2091,12 +2097,12 @@ export const primitiveStyles = css`
     border: 0.0625rem solid transparent;
     flex: 0 0 auto;
     border-radius: var(--chc-radius-control);
-    padding: 0.15625rem 0.5rem;
+    padding: 0.0625rem 0.4375rem;
     background: color-mix(in srgb, var(--chc-soft-surface) 85%, white);
     color: var(--chc-text);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.005em;
   }
 
   .verification-status-label {
