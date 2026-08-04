@@ -2112,53 +2112,33 @@ export const primitiveStyles = css`
   }
 
   .verification-status-badge-success {
-    border-color: color-mix(in srgb, #17803d 45%, transparent);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #d8f6e2 95%, white),
-      color-mix(in srgb, #c5efcf 92%, white)
-    );
-    color: #0f5b2c;
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
   }
 
   .verification-status-badge-warning {
-    border-color: color-mix(in srgb, #a06900 46%, transparent);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #ffefbf 94%, white),
-      color-mix(in srgb, #ffe39a 90%, white)
-    );
-    color: #714700;
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
   }
 
   .verification-status-badge-danger {
-    border-color: color-mix(in srgb, #c1322a 44%, transparent);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #ffe1dd 94%, white),
-      color-mix(in srgb, #ffcfc8 90%, white)
-    );
-    color: #8a1f1f;
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
   }
 
   .verification-status-badge[data-verification-status='require-info'] {
-    border-color: color-mix(in srgb, #0369a1 44%, transparent);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #dcf2ff 95%, white),
-      color-mix(in srgb, #c8eaff 90%, white)
-    );
-    color: #0b4e73;
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
   }
 
   .verification-status-badge[data-verification-status='not-verified'] {
-    border-color: color-mix(in srgb, #9a3412 45%, transparent);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #ffe7d6 95%, white),
-      color-mix(in srgb, #ffd7bd 90%, white)
-    );
-    color: #7a2f13;
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
   }
 
   .source-action {
