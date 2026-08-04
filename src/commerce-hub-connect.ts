@@ -6719,18 +6719,20 @@ const paymentMethodsFromInteractionResponse = (
   interactionResponse?: InteractionResponse,
   options: PaymentSourceToPaymentMethodOptions = {}
 ): PaymentMethod[] => {
-  const paymentSources = interactionResponse?.paymentSources;
+  const localTestingResponse =
+    interactionResponseWithLocalNonVerifiedTestingOverride(interactionResponse);
+  const paymentSources = localTestingResponse?.paymentSources;
 
   if (!paymentSources?.length) {
     const selectedSource =
-      selectedPaymentSourceFromInteractionResponse(interactionResponse);
+      selectedPaymentSourceFromInteractionResponse(localTestingResponse);
 
     if (selectedSource) {
       return [
         paymentSourceToPaymentMethod(selectedSource, {
           ...options,
           selected: true,
-          isDefault: interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED',
+          isDefault: localTestingResponse?.status === 'PAYMENT_SOURCE_ATTACHED',
         }),
       ];
     }
@@ -6739,8 +6741,8 @@ const paymentMethodsFromInteractionResponse = (
   }
 
   const selectedSourceId =
-    interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED'
-      ? interactionResponse.selectedSource?.id
+    localTestingResponse?.status === 'PAYMENT_SOURCE_ATTACHED'
+      ? localTestingResponse.selectedSource?.id
       : undefined;
 
   return paymentSources.map((source) =>
@@ -6941,7 +6943,10 @@ const paymentSourcePaymentMethodType = (
 const transferPaymentSourcesFromInteractionResponse = (
   interactionResponse?: InteractionResponse
 ): PaymentSource[] =>
-  (interactionResponse?.paymentSources ?? []).filter(
+  (
+    interactionResponseWithLocalNonVerifiedTestingOverride(interactionResponse)
+      ?.paymentSources ?? []
+  ).filter(
     (source) =>
       (isBankPaymentSource(source) || isNativePaymentSource(source)) &&
       source.verificationInfo?.status === 'VERIFIED' &&
@@ -6980,7 +6985,9 @@ const resolveSelectedPaymentSourceId = (
   interactionResponse?: InteractionResponse,
   currentSelection?: string
 ): string | undefined => {
-  const paymentSources = interactionResponse?.paymentSources;
+  const localTestingResponse =
+    interactionResponseWithLocalNonVerifiedTestingOverride(interactionResponse);
+  const paymentSources = localTestingResponse?.paymentSources;
 
   if (!paymentSources?.length) {
     return undefined;
@@ -6997,7 +7004,7 @@ const resolveSelectedPaymentSourceId = (
     return currentSelection;
   }
 
-  const serverSelection = interactionResponse?.selectedSource?.id;
+  const serverSelection = localTestingResponse?.selectedSource?.id;
 
   if (
     serverSelection &&
@@ -7030,8 +7037,11 @@ const selectedPaymentSourceFromInteractionResponse = (
   interactionResponse?: InteractionResponse,
   selectedPaymentSourceId?: string
 ): PaymentSource | undefined => {
+  const localTestingResponse =
+    interactionResponseWithLocalNonVerifiedTestingOverride(interactionResponse);
+
   if (selectedPaymentSourceId) {
-    const selectedSource = interactionResponse?.paymentSources?.find(
+    const selectedSource = localTestingResponse?.paymentSources?.find(
       (source) => source.id === selectedPaymentSourceId
     );
 
@@ -7040,7 +7050,125 @@ const selectedPaymentSourceFromInteractionResponse = (
     }
   }
 
-  return interactionResponse?.selectedSource;
+  return localTestingResponse?.selectedSource;
+};
+
+const LOCAL_NON_VERIFIED_TESTING_QUERY_PARAM =
+  'chc_local_non_verified_testing';
+
+type LocalNonVerifiedTestingMode = 'off' | 'single' | 'all' | 'show-all';
+
+type VerificationInfoStatus = NonNullable<
+  NonNullable<PaymentSource['verificationInfo']>['status']
+>;
+
+const LOCAL_SHOW_ALL_STATUS_SEQUENCE: readonly VerificationInfoStatus[] = [
+  'VERIFIED',
+  'REQUIRE_INFO',
+  'NOT_VERIFIED',
+];
+
+const isLocalHostName = (host: string): boolean =>
+  host === 'localhost' || host === '127.0.0.1' || host === '::1';
+
+const localNonVerifiedTestingMode = (): LocalNonVerifiedTestingMode => {
+  if (typeof window === 'undefined') {
+    return 'off';
+  }
+
+  if (!isLocalHostName(window.location.hostname)) {
+    return 'off';
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const flag = searchParams
+    .get(LOCAL_NON_VERIFIED_TESTING_QUERY_PARAM)
+    ?.trim()
+    .toLowerCase();
+
+  if (flag === 'show-all' || flag === 'mixed') {
+    return 'show-all';
+  }
+
+  if (flag === 'all') {
+    return 'all';
+  }
+
+  if (flag === '1' || flag === 'true') {
+    return 'single';
+  }
+
+  return 'off';
+};
+
+const interactionResponseWithLocalNonVerifiedTestingOverride = (
+  interactionResponse?: InteractionResponse
+): InteractionResponse | undefined => {
+  const mode = localNonVerifiedTestingMode();
+
+  if (!interactionResponse || mode === 'off') {
+    return interactionResponse;
+  }
+
+  const paymentSources = interactionResponse.paymentSources ?? [];
+  const downgradedSourceKeys = new Set<string>();
+  let verifiedSourceIndex = 0;
+
+  const remappedPaymentSources = paymentSources.map((source) => {
+    if (source.verificationInfo?.status !== 'VERIFIED') {
+      return source;
+    }
+
+    if (mode === 'single' && downgradedSourceKeys.size > 0) {
+      return source;
+    }
+
+    const remappedStatus: VerificationInfoStatus =
+      mode === 'show-all'
+        ? LOCAL_SHOW_ALL_STATUS_SEQUENCE[
+            verifiedSourceIndex % LOCAL_SHOW_ALL_STATUS_SEQUENCE.length
+          ]
+        : 'UNDER_REVIEW';
+    verifiedSourceIndex += 1;
+
+    if (remappedStatus === 'VERIFIED') {
+      return source;
+    }
+
+    downgradedSourceKeys.add(paymentSourceId(source));
+
+    return {
+      ...source,
+      verificationInfo: {
+        ...source.verificationInfo,
+        status: remappedStatus,
+      },
+    };
+  });
+
+  if (downgradedSourceKeys.size === 0) {
+    return interactionResponse;
+  }
+
+  const remappedSelectedSource =
+    interactionResponse.selectedSource &&
+    downgradedSourceKeys.has(
+      paymentSourceId(interactionResponse.selectedSource)
+    )
+      ? {
+          ...interactionResponse.selectedSource,
+          verificationInfo: {
+            ...interactionResponse.selectedSource.verificationInfo,
+            status: 'UNDER_REVIEW' as const,
+          },
+        }
+      : interactionResponse.selectedSource;
+
+  return {
+    ...interactionResponse,
+    paymentSources: remappedPaymentSources,
+    selectedSource: remappedSelectedSource,
+  };
 };
 
 const isPaymentSelectionReadyStatus = (status?: InteractionStatus): boolean =>

@@ -1570,11 +1570,19 @@ export const primitiveStyles = css`
 
   .payment-method-row {
     position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .payment-method-row-has-overflow {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .payment-method-row-default {
-    grid-template-columns: minmax(0, 1fr);
+  .payment-method-row-has-affordance:not(.payment-method-row-has-overflow) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .payment-method-row-has-overflow.payment-method-row-has-affordance {
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .payment-method-row-menu-open {
@@ -1603,7 +1611,7 @@ export const primitiveStyles = css`
   }
 
   .payment-method-row-main-radio {
-    grid-template-columns: 1.125rem 2.375rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.375rem minmax(0, 1fr) auto;
   }
 
   .payment-method-row-main-action {
@@ -1732,6 +1740,19 @@ export const primitiveStyles = css`
     align-items: center;
     gap: 0.375rem;
     justify-self: end;
+  }
+
+  .payment-method-row-affordance {
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .payment-method-row-affordance-radio {
+    min-width: 2rem;
   }
 
   .payment-method-overflow-button {
@@ -2067,16 +2088,15 @@ export const primitiveStyles = css`
     max-width: 100%;
     display: inline-flex;
     align-items: center;
-    border: 0.0625rem solid;
+    border: 0.0625rem solid transparent;
     flex: 0 0 auto;
-    border-color: var(--chc-border);
     border-radius: var(--chc-radius-control);
-    padding: 0.125rem 0.375rem;
-    background: var(--chc-surface);
-    color: var(--chc-muted);
+    padding: 0.15625rem 0.5rem;
+    background: color-mix(in srgb, var(--chc-soft-surface) 85%, white);
+    color: var(--chc-text);
     font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
   }
 
   .verification-status-label {
@@ -2086,21 +2106,53 @@ export const primitiveStyles = css`
   }
 
   .verification-status-badge-success {
-    border-color: var(--chc-border);
-    background: var(--chc-surface);
-    color: var(--chc-muted);
+    border-color: color-mix(in srgb, #17803d 45%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #d8f6e2 95%, white),
+      color-mix(in srgb, #c5efcf 92%, white)
+    );
+    color: #0f5b2c;
   }
 
   .verification-status-badge-warning {
-    border-color: var(--chc-border);
-    background: var(--chc-surface);
-    color: var(--chc-muted);
+    border-color: color-mix(in srgb, #a06900 46%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffefbf 94%, white),
+      color-mix(in srgb, #ffe39a 90%, white)
+    );
+    color: #714700;
   }
 
   .verification-status-badge-danger {
-    border-color: var(--chc-border);
-    background: var(--chc-surface);
-    color: var(--chc-muted);
+    border-color: color-mix(in srgb, #c1322a 44%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffe1dd 94%, white),
+      color-mix(in srgb, #ffcfc8 90%, white)
+    );
+    color: #8a1f1f;
+  }
+
+  .verification-status-badge[data-verification-status='require-info'] {
+    border-color: color-mix(in srgb, #0369a1 44%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #dcf2ff 95%, white),
+      color-mix(in srgb, #c8eaff 90%, white)
+    );
+    color: #0b4e73;
+  }
+
+  .verification-status-badge[data-verification-status='not-verified'] {
+    border-color: color-mix(in srgb, #9a3412 45%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffe7d6 95%, white),
+      color-mix(in srgb, #ffd7bd 90%, white)
+    );
+    color: #7a2f13;
   }
 
   .source-action {
