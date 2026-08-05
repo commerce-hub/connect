@@ -1480,7 +1480,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(statusBadge);
     assert.exists(row.querySelector('.payment-method-title-row'));
     assert.exists(metaRow);
-    assert.equal(statusBadge.textContent?.trim(), 'Action required');
+    assert.equal(statusBadge.textContent?.trim(), 'Needs info');
     assert.equal(
       statusBadge.getAttribute('data-verification-status'),
       'not-verified'
@@ -1727,6 +1727,42 @@ suite('commerce-hub-connect primitives', () => {
         rows[1].querySelector<HTMLElement>('.payment-method-trailing')!
       ).width,
       '16px'
+    );
+  });
+
+  test('reserves trailing affordance space when a row renders overflow without radio or chevron', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderPaymentMethodRow(
+        {
+          id: 'bank-overflow-only',
+          label: 'Warehouse account',
+          accountLabel: '•••• 7788',
+          type: 'bank',
+          brand: 'Commerce National Bank',
+          last4: '7788',
+          status: 'verified',
+        },
+        {showMarkAsDefault: true}
+      )}
+    `);
+
+    const row = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="bank-overflow-only"]'
+    )!;
+
+    assert.isTrue(
+      row.classList.contains('payment-method-row-has-overflow-without-affordance')
+    );
+    assert.exists(row.querySelector('.payment-method-overflow-button'));
+    assert.notExists(row.querySelector('.payment-method-chevron'));
+    assert.notExists(row.querySelector('.payment-method-radio'));
+    assert.exists(row.querySelector('.payment-method-row-spacer'));
+    assert.equal(
+      getComputedStyle(row).gridTemplateColumns,
+      'minmax(0px, 1fr) auto 16px'
     );
   });
 

@@ -1588,6 +1588,11 @@ export const primitiveStyles = css`
     column-gap: 0.1875rem;
   }
 
+  .payment-method-row-has-overflow-without-affordance {
+    grid-template-columns: minmax(0, 1fr) auto 1rem;
+    column-gap: 0.1875rem;
+  }
+
   .payment-method-row-menu-open {
     z-index: 5;
   }

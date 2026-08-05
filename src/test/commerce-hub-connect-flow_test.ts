@@ -797,6 +797,13 @@ const recordOutputEvents = (el: Element) => {
   const listPaymentMethodsEvents: CustomEvent<PaymentSource[]>[] = [];
   const transferEvents: CustomEvent<NativeAccountTransaction>[] = [];
   const errorEvents: CustomEvent<unknown>[] = [];
+  const eventEvents: CustomEvent<{
+    type?: string;
+    name?: string;
+    screen?: string;
+    previousScreen?: string;
+    isBackAction?: boolean;
+  }>[] = [];
   const eventOrder: string[] = [];
 
   el.addEventListener('onSelect', (event) => {
@@ -827,6 +834,18 @@ const recordOutputEvents = (el: Element) => {
     eventOrder.push('onError');
     errorEvents.push(event as CustomEvent<unknown>);
   });
+  el.addEventListener('onEvent', (event) => {
+    eventOrder.push('onEvent');
+    eventEvents.push(
+      event as CustomEvent<{
+        type?: string;
+        name?: string;
+        screen?: string;
+        previousScreen?: string;
+        isBackAction?: boolean;
+      }>
+    );
+  });
 
   return {
     successEvents,
@@ -836,6 +855,7 @@ const recordOutputEvents = (el: Element) => {
     listPaymentMethodsEvents,
     transferEvents,
     errorEvents,
+    eventEvents,
     eventOrder,
   };
 };
@@ -846,7 +866,6 @@ type VerificationStatus = NonNullable<
 
 interface TestPaymentSdkEvent {
   type?: string;
-  payload?: unknown;
   [key: string]: unknown;
 }
 
@@ -1267,6 +1286,68 @@ suite('commerce-hub-connect flow', () => {
 
     assert.deepEqual(listPaymentMethodsEvents[0].detail, [listedSource]);
     assert.lengthOf(errorEvents, 0);
+  });
+
+  test('emits onEvent for screenload and back navigation actions', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-action-events',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-action-events',
+          name: 'Action events card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111111111',
+          },
+        },
+      ],
+    });
+
+    const {eventEvents} = recordOutputEvents(el);
+
+    await flushElement(el);
+
+    const canonicalInitialScreenLoadEvent = eventEvents.find(
+      (event) =>
+        event.detail.type === 'view' &&
+        event.detail.name === 'view_loaded' &&
+        event.detail.screen === 'payment-methods-list'
+    );
+    assert.exists(canonicalInitialScreenLoadEvent);
+
+    await clickAction(el, 'add-card');
+    await flushElement(el);
+
+    const cardFormScreenLoadEvent = eventEvents.find(
+      (event) =>
+        event.detail.type === 'view' &&
+        event.detail.name === 'view_loaded' &&
+        event.detail.screen === 'card-form'
+    );
+    assert.exists(cardFormScreenLoadEvent);
+
+    await clickAction(el, 'back-to-payment-methods');
+    await flushElement(el);
+
+    const canonicalBackActionEvent = eventEvents.find(
+      (event) =>
+        event.detail.type === 'action' &&
+        event.detail.name === 'back-to-payment-methods'
+    );
+    assert.exists(canonicalBackActionEvent);
+    assert.equal(canonicalBackActionEvent?.detail.isBackAction, true);
+
+    const returnToListEvent = eventEvents.find(
+      (event) =>
+        event.detail.type === 'view' &&
+        event.detail.name === 'view_loaded' &&
+        event.detail.screen === 'payment-methods-list' &&
+        event.detail.previousScreen === 'card-form'
+    );
+    assert.exists(returnToListEvent);
   });
 
   test('renders OTP pending with SDK v3 title, verify CTA before resend, and compact inputs', async () => {
@@ -2703,6 +2784,67 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector(
         '[data-action="mark-payment-source-default"]'
       )
+    );
+  });
+
+  test('single instrument schema skips selection and opens bank details', async () => {
+    const requests: CapturedRequest[] = [];
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([TEST_INSTRUMENT_SCHEMAS[0]]);
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CAN',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitForRequest(requests, '/party/configuration-inquiry');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Enter bank details',
+      'single instrument schema did not open bank details'
+    );
+
+    assert.notExists(
+      el.shadowRoot!.querySelector('#instrument-schema-currency')
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('#instrument-schema-account-type')
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('#instrument-schema-payment-type')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('input[name="accountHolderName"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('input[name="accountNumber"]')
     );
   });
 

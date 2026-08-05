@@ -3522,6 +3522,11 @@ suite('commerce-hub-connect payment selection', () => {
       requests[0].headers.get('x-interaction-id'),
       'interaction-payment'
     );
+    assert.equal(
+      requests[0].headers.get('Content-Type'),
+      'application/json'
+    );
+    assert.deepEqual(JSON.parse(requests[0].bodyText), {isDefault: true});
     assert.equal(requests[0].credentials, 'include');
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(legacySuccessEvents, 0);
@@ -4287,7 +4292,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(verifyButton.tagName, 'BUTTON');
     assert.equal(
       row.querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Action required'
+      'Needs info'
     );
     assert.exists(row.querySelector('.payment-method-chevron'));
     assert.deepEqual(

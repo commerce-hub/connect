@@ -68,6 +68,7 @@ import 'commerce-hub-connect-sdk';
 import type {
   DesignConfig,
   InteractionResponse,
+  OnEventEvent,
   OnSelectEvent,
 } from 'commerce-hub-connect-sdk';
 
@@ -90,6 +91,17 @@ if (widget) {
   widget.interactionResponse = interactionResponse;
   widget.designConfig = designConfig;
   widget.baseURL = 'QA';
+  widget.addEventListener('onEvent', (event: Event) => {
+    const {detail} = event as OnEventEvent;
+
+    if (detail.type === 'view' && detail.name === 'view_loaded') {
+      console.debug('screenload', detail.screen, detail.previousScreen);
+    }
+
+    if (detail.type === 'action' && detail.isBackAction) {
+      console.debug('shopper used back action', detail.name);
+    }
+  });
   widget.addEventListener('onSelect', async (event: Event) => {
     const {detail: paymentSource} = event as OnSelectEvent;
 
@@ -118,7 +130,7 @@ When the widget performs CommerceHub calls, it uses the `PROD` preset by
 default. Set `.baseURL` only when the host needs a different CommerceHub preset
 or a custom origin. The `PROD` preset resolves to
 `https://connect.fiservapis.com/chc`, the `DEV` preset resolves to
-`https://connect-dev.fiservapis.com/chc`, and the `QA` preset resolves to the
+`https://connect-qa.fiservapis.com/chc`, and the `QA` preset resolves to the
 QA non-production CommerceHub origin.
 
 ```ts
@@ -179,6 +191,28 @@ The SDK also emits success-only operation events with raw operation results:
 | `onVerifyPaymentMethod` | Verified or updated `PaymentSource`.                            |
 | `onDeletePaymentMethod` | Deleted payment source id.                                      |
 | `onTransfer`            | `NativeAccountTransaction` returned by native account transfer. |
+
+For host analytics and UI orchestration, the SDK emits `onEvent` with
+`WalletEventDetail` detail objects.
+
+For a team-shareable reference with exhaustive tables and examples, see
+`docs/superpowers/specs/2026-08-05-wallet-sdk-event-telemetry-reference.md`.
+
+| Type | Meaning |
+| --- | --- |
+| `view` | A widget screen became active. The event name is `view_loaded` and includes `screen` and `previousScreen`. |
+| `action` | A shopper-triggered widget action fired. Includes `name` and `isBackAction`. |
+
+Standardized `onEvent` fields:
+
+| Field | Values |
+| --- | --- |
+| `type` | `view` \| `action` |
+| `name` when `type=view` | `view_loaded` |
+| `name` when `type=action` | Every `FlowActionName` value (for example `back-to-payment-methods`, `add-card`, `verify-otp`) |
+
+Use `onSelect` for checkout completion boundaries and `onEvent` for telemetry,
+host navigation sync, or non-terminal shopper journey tracking.
 
 ## Design configuration
 

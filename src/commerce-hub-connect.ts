@@ -282,6 +282,63 @@ export type OnTransferEvent = CustomEvent<NativeAccountTransaction>;
 export type OnErrorEvent = CustomEvent<InteractionError>;
 
 /**
+ * Named screens emitted by the SDK event telemetry API.
+ */
+export type WalletSdkScreenName =
+  | 'missing-interaction'
+  | 'payment-methods-list'
+  | 'selected-payment-method'
+  | 'otp'
+  | 'required-info'
+  | 'saved-source-verification'
+  | 'transfer-form'
+  | 'transfer-confirm'
+  | 'card-form'
+  | 'card-error'
+  | 'pay-by-bank-provider'
+  | 'pay-by-bank-outcome'
+  | 'manual-bank-config-loading'
+  | 'manual-bank-config-error'
+  | 'manual-bank-schema-selection'
+  | 'manual-bank-form';
+
+/**
+ * Canonical event category for SDK telemetry.
+ */
+export type WalletEventType = 'view' | 'action';
+
+/**
+ * Canonical view lifecycle event names.
+ */
+export type WalletViewEventName = 'view_loaded';
+
+/**
+ * Canonical shopper action names emitted by the SDK.
+ */
+export type WalletActionEventName = FlowActionName;
+
+/**
+ * Canonical SDK telemetry event names.
+ */
+export type WalletEventName = WalletViewEventName | WalletActionEventName;
+
+/**
+ * Detail payload emitted for SDK action and lifecycle telemetry.
+ */
+export interface WalletEventDetail {
+  type: WalletEventType;
+  name: WalletEventName;
+  screen?: WalletSdkScreenName;
+  previousScreen?: WalletSdkScreenName;
+  isBackAction?: boolean;
+}
+
+/**
+ * Event emitted for shopper actions and screen transitions.
+ */
+export type OnEventEvent = CustomEvent<WalletEventDetail>;
+
+/**
  * Name of the selection event emitted by `<commerce-hub-connect>`.
  */
 export const ON_SELECT_EVENT = 'onSelect';
@@ -323,6 +380,11 @@ export const ON_TRANSFER_EVENT = 'onTransfer';
 export const ON_ERROR_EVENT = 'onError';
 
 /**
+ * Name of the telemetry event emitted by `<commerce-hub-connect>`.
+ */
+export const ON_EVENT_EVENT = 'onEvent';
+
+/**
  * Detail payloads for public SDK events emitted by `<commerce-hub-connect>`.
  */
 interface SdkEventDetailMap {
@@ -333,6 +395,7 @@ interface SdkEventDetailMap {
   [ON_LIST_PAYMENT_METHODS_EVENT]: PaymentSource[];
   [ON_TRANSFER_EVENT]: NativeAccountTransaction;
   [ON_ERROR_EVENT]: InteractionError;
+  [ON_EVENT_EVENT]: WalletEventDetail;
 }
 
 /**
@@ -346,6 +409,7 @@ interface SdkEventMap {
   [ON_LIST_PAYMENT_METHODS_EVENT]: OnListPaymentMethodsEvent;
   [ON_TRANSFER_EVENT]: OnTransferEvent;
   [ON_ERROR_EVENT]: OnErrorEvent;
+  [ON_EVENT_EVENT]: OnEventEvent;
 }
 
 type SdkEventName = keyof SdkEventDetailMap & string;
@@ -388,7 +452,6 @@ type SourceCreateContext = {
 
 type PaymentSdkEvent = {
   type?: 'success' | 'failure' | 'cancel' | 'error' | string;
-  payload?: unknown;
   [key: string]: unknown;
 };
 
@@ -537,6 +600,8 @@ const LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
  * payment sources are successfully refreshed from the interaction.
  * @fires onTransfer - Emitted with a `NativeAccountTransaction` detail after a
  * native account transfer is successfully initiated.
+ * @fires onEvent - Emitted with standardized telemetry metadata for screen
+ * transitions and shopper actions.
  *
  * @csspart shell - Top-level widget shell.
  * @csspart header - Screen header row.
@@ -806,6 +871,7 @@ export class CommerceHubConnect extends LitElement {
   private readonly interactionRefresh = new InteractionRefreshController(this);
   private readonly nativeBalance = new NativeBalanceController(this);
   private minimumVerificationOverlayToken = 0;
+  private lastReportedScreen?: WalletSdkScreenName;
 
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (
@@ -831,6 +897,7 @@ export class CommerceHubConnect extends LitElement {
         this.resetTransferFlow();
         this.resetSavedSourceVerification();
         this.resetRequiredInfo();
+        this.lastReportedScreen = undefined;
       }
 
       if (
@@ -866,6 +933,8 @@ export class CommerceHubConnect extends LitElement {
     if (changedProperties.has('interactionResponse')) {
       void this.refreshPaymentSourcesFromInteraction();
     }
+
+    this.emitScreenLoadEvent();
   }
 
   override render() {
@@ -909,6 +978,110 @@ export class CommerceHubConnect extends LitElement {
     this.dispatchEvent(
       new CustomEvent<SdkEventDetailMap[Name]>(name, {detail})
     );
+  }
+
+  private emitActionEvent(detail: WalletEventDetail) {
+    this.emitSdkEvent(ON_EVENT_EVENT, detail);
+  }
+
+  private emitScreenLoadEvent() {
+    const screen = this.resolveCurrentScreenName();
+
+    if (screen === this.lastReportedScreen) {
+      return;
+    }
+
+    const previousScreen = this.lastReportedScreen;
+    this.lastReportedScreen = screen;
+    this.emitActionEvent({
+      type: 'view',
+      name: 'view_loaded',
+      screen,
+      previousScreen,
+    });
+  }
+
+  private resolveCurrentScreenName(): WalletSdkScreenName {
+    if (!this.interactionResponse) {
+      return 'missing-interaction';
+    }
+
+    if (this.bankFlowScreen === 'provider') {
+      return 'pay-by-bank-provider';
+    }
+
+    if (this.bankFlowScreen === 'outcome') {
+      return 'pay-by-bank-outcome';
+    }
+
+    if (this.bankFlowScreen === 'manual-config-loading') {
+      return 'manual-bank-config-loading';
+    }
+
+    if (this.bankFlowScreen === 'manual-config-error') {
+      return 'manual-bank-config-error';
+    }
+
+    if (this.bankFlowScreen === 'manual-schema-selection') {
+      return 'manual-bank-schema-selection';
+    }
+
+    if (this.bankFlowScreen === 'manual') {
+      return 'manual-bank-form';
+    }
+
+    if (this.cardFlowScreen === 'form') {
+      return 'card-form';
+    }
+
+    if (this.cardFlowScreen === 'error') {
+      return 'card-error';
+    }
+
+    if (this.requiredInfoSource) {
+      return 'required-info';
+    }
+
+    if (this.savedSourceVerificationSource) {
+      return 'saved-source-verification';
+    }
+
+    if (
+      this.interactionResponse?.status === 'OTP_VALIDATION_PENDING' ||
+      this.interactionResponse?.status === 'OTP_VALIDATION_FAILED'
+    ) {
+      return 'otp';
+    }
+
+    if (this.shouldRenderTransferScreen()) {
+      const transferSources = transferPaymentSourcesFromInteractionResponse(
+        this.interactionResponse
+      );
+      const normalizedDraft = normalizeTransferDraft(this.transferDraft);
+      const fromSource = transferSources.find(
+        (source) => paymentSourceId(source) === normalizedDraft.fromSourceId
+      );
+      const toSource = transferSources.find(
+        (source) => paymentSourceId(source) === normalizedDraft.toSourceId
+      );
+
+      if (
+        this.transferFlowScreen === 'confirm' &&
+        fromSource &&
+        toSource &&
+        isTransferDraftReady(normalizedDraft, transferSources)
+      ) {
+        return 'transfer-confirm';
+      }
+
+      return 'transfer-form';
+    }
+
+    if (this.shouldRenderSelectedPaymentSourceScreen()) {
+      return 'selected-payment-method';
+    }
+
+    return 'payment-methods-list';
   }
 
   private focusAfterUpdate(...selectors: string[]) {
@@ -2516,6 +2689,13 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.emitActionEvent({
+      type: 'action',
+      name: action,
+      screen: this.resolveCurrentScreenName(),
+      isBackAction: isBackFlowAction(action),
+    });
+
     if (action === 'toggle-payment-source-menu') {
       if (paymentMethodId) {
         const openingMenu = this.openPaymentSourceMenuId !== paymentMethodId;
@@ -3540,11 +3720,9 @@ export class CommerceHubConnect extends LitElement {
       }
 
       const instrumentSchemas = usableInstrumentSchemas(rawInstrumentSchemas);
+      const selectableSchemas = selectableInstrumentSchemas(instrumentSchemas);
 
-      if (
-        instrumentSchemas.length === 0 ||
-        selectableInstrumentSchemas(instrumentSchemas).length === 0
-      ) {
+      if (instrumentSchemas.length === 0 || selectableSchemas.length === 0) {
         this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
         this.bankFlowScreen = 'manual-config-error';
         return;
@@ -3552,6 +3730,14 @@ export class CommerceHubConnect extends LitElement {
 
       this.bankAccountInstrumentSchemas = instrumentSchemas;
       this.bankAccountConfigError = undefined;
+
+      if (selectableSchemas.length === 1) {
+        this.selectedBankAccountInstrumentSchemaCode =
+          selectableSchemas[0].schema.bavSupportedCode;
+        this.initializeManualBankAccountScreen();
+        return;
+      }
+
       this.bankFlowScreen = 'manual-schema-selection';
     } catch (cause) {
       if (
@@ -4980,7 +5166,12 @@ export class CommerceHubConnect extends LitElement {
       await this.requestCommerceHubJson<unknown>(
         `/interaction/source/${encodeURIComponent(paymentSourceId)}`,
         interactionId,
-        {method: 'PATCH', credentials: 'include'}
+        {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({isDefault: true}),
+          credentials: 'include',
+        }
       );
       this.assertCurrentInteraction(interactionId);
 
@@ -7431,6 +7622,9 @@ const isTerminalPaymentSdkEvent = (event: PaymentSdkEvent): boolean =>
   event.type === 'cancel' ||
   event.type === 'failure' ||
   event.type === 'error';
+
+const isBackFlowAction = (action: string): boolean =>
+  action.startsWith('back-to-') || action === 'change-payment-source';
 
 const withUpsertedSource = (
   interactionResponse: InteractionResponse,
