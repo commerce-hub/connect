@@ -309,7 +309,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.isFalse(radios[1].checked);
     assert.equal(
       rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Verified & Provisioned'
+      'Verified'
     );
     assert.strictEqual(
       radios[0].closest('label')?.firstElementChild,
@@ -455,16 +455,11 @@ suite('commerce-hub-connect payment selection', () => {
       rows.map((row) =>
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
-      [
-        'Verified & Provisioned',
-        'Verified & Provisioned',
-        'Verified',
-        'Verified',
-      ]
+      ['Verified', 'Verified, Provisioned', 'Verified, Pending', 'Verified']
     );
     assert.deepEqual(
       radios.map((radio) => radio.value),
-      ['bank-without-recipient', 'bank-provisioned']
+      ['bank-provisioned']
     );
     assert.isTrue(radios[0].checked);
     assert.notExists(rows[2].querySelector('.payment-method-radio'));
@@ -492,7 +487,7 @@ suite('commerce-hub-connect payment selection', () => {
       el
         .shadowRoot!.querySelector('.verification-status-badge')
         ?.textContent?.trim(),
-      'Verified'
+      'Verified, Pending'
     );
     assert.notExists(el.shadowRoot!.querySelector('.payment-method-radio'));
     assert.isTrue(

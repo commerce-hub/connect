@@ -3653,7 +3653,7 @@ suite('commerce-hub-connect flow', () => {
       el
         .shadowRoot!.querySelector('.verification-status-badge')
         ?.textContent?.trim(),
-      'Verified'
+      'Verified, Pending'
     );
     assert.notExists(el.shadowRoot!.querySelector('.payment-method-radio'));
     assert.isTrue(

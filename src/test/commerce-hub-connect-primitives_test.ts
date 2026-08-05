@@ -525,7 +525,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(rows[0].querySelector('.verification-status-icon'));
     assert.equal(
       rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Verified & Provisioned'
+      'Verified'
     );
     assert.notExists(rows[0].querySelector('.payment-method-chevron'));
     assert.equal(

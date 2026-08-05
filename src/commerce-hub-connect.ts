@@ -132,6 +132,7 @@ import {
   CARD_SOURCE_ACTION_ICON_PATH,
 } from './internal/source-action-icons.js';
 import {
+  isPaymentSourceMarkAsDefaultEligible,
   isPaymentSourceSelectionEligible,
   paymentSourceVerificationLabel,
 } from './internal/payment-source-selection.js';
@@ -4966,7 +4967,7 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    if (!isPaymentSourceSelectionEligible(source)) {
+    if (!isPaymentSourceMarkAsDefaultEligible(source)) {
       return;
     }
 

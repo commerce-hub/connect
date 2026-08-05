@@ -287,9 +287,7 @@ const shouldRenderPaymentMethodOverflowAction = (
   showMarkAsDefault: boolean
 ): boolean => {
   const canMarkAsDefault =
-    showMarkAsDefault &&
-    !method.isDefault &&
-    isPaymentMethodSelectionEligible(method);
+    showMarkAsDefault && !method.isDefault && method.status === 'verified';
   const canRemove = !method.isDefault;
 
   return canMarkAsDefault || canRemove;
@@ -307,7 +305,9 @@ const renderPaymentMethodAffordance = (
 ): TemplateResult | '' => {
   if (rendersRadio) {
     return html`
-      <span class="payment-method-row-affordance payment-method-row-affordance-radio">
+      <span
+        class="payment-method-row-affordance payment-method-row-affordance-radio"
+      >
         <input
           class="payment-method-radio"
           id=${paymentMethodRadioInputId(method.id)}
@@ -325,7 +325,9 @@ const renderPaymentMethodAffordance = (
 
   if (isPaymentMethodRowClickable(method)) {
     return html`
-      <span class="payment-method-row-affordance payment-method-row-affordance-chevron">
+      <span
+        class="payment-method-row-affordance payment-method-row-affordance-chevron"
+      >
         <span class="payment-method-chevron" aria-hidden="true">
           <span class="payment-method-chevron-icon"></span>
         </span>
@@ -350,9 +352,7 @@ const renderPaymentMethodOverflowAction = (
 ): TemplateResult => {
   const menuId = `payment-method-menu-${method.id}`;
   const canMarkAsDefault =
-    showMarkAsDefault &&
-    !method.isDefault &&
-    isPaymentMethodSelectionEligible(method);
+    showMarkAsDefault && !method.isDefault && method.status === 'verified';
   const canRemove = !method.isDefault;
   const hasActions = shouldRenderPaymentMethodOverflowAction(
     method,
