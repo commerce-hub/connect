@@ -13,12 +13,12 @@ const bankSource = (verificationStatus, recipient) => ({
   ...(recipient === undefined ? {} : {recipient}),
 });
 
-test('verified recipient matrix controls bank selection and labels', () => {
+test('verified bank recipient status controls selection and labels', () => {
   const cases = [
     {
       source: bankSource('VERIFIED'),
-      eligible: true,
-      label: undefined,
+      eligible: false,
+      label: 'Verified',
     },
     {
       source: bankSource('VERIFIED', {
@@ -26,7 +26,7 @@ test('verified recipient matrix controls bank selection and labels', () => {
         status: 'PROVISIONED',
       }),
       eligible: true,
-      label: 'Verified & Ready',
+      label: 'Verified, Provisioned',
     },
     {
       source: bankSource('VERIFIED', {
@@ -34,10 +34,10 @@ test('verified recipient matrix controls bank selection and labels', () => {
         status: 'PENDING',
       }),
       eligible: false,
-      label: 'Verified',
+      label: 'Verified, Pending',
     },
     {
-      source: bankSource('VERIFIED', {id: 'recipient-3', status: ' '}),
+      source: bankSource('VERIFIED', {id: 'recipient-3', status: '   '}),
       eligible: false,
       label: 'Verified',
     },
@@ -49,7 +49,7 @@ test('verified recipient matrix controls bank selection and labels', () => {
   }
 });
 
-test('non-verified sources retain their existing status presentation path', () => {
+test('non-verified sources are not selectable and have no verification label', () => {
   for (const status of [
     'NOT_VERIFIED',
     'REQUIRE_INFO',
@@ -66,7 +66,7 @@ test('non-verified sources retain their existing status presentation path', () =
   }
 });
 
-test('verified non-bank sources remain selectable', () => {
+test('verified non-bank sources remain selectable and labeled Verified', () => {
   const source = {
     tenderType: 'Card',
     id: 'card-1',
@@ -74,5 +74,5 @@ test('verified non-bank sources remain selectable', () => {
   };
 
   assert.equal(isPaymentSourceSelectionEligible(source), true);
-  assert.equal(paymentSourceVerificationLabel(source), undefined);
+  assert.equal(paymentSourceVerificationLabel(source), 'Verified');
 });

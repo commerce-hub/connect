@@ -44,7 +44,7 @@ import {bankAccountDraftErrorsToJsonFormsErrors} from './internal/forms/bank-acc
 import {
   BANK_BILLING_ADDRESS_CONTROL_SCOPE,
   bankAccountJsonFormsRenderers,
-  bankBillingAddressJsonFormsRenderers,
+  configDrivenBankAccountJsonFormsRenderers,
 } from './internal/forms/bank-account-jsonforms-renderers.js';
 import {
   createBankBillingAddressUiSchema,
@@ -72,6 +72,7 @@ import {
   encryptConfigDrivenBankAccountRequest,
   type ConfigDrivenBankAccountRequest,
 } from './internal/forms/manual-bank-account-request.js';
+import {maskRevealText} from './internal/forms/mask-reveal.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
   NEW_BILLING_ADDRESS_VALUE,
@@ -131,6 +132,7 @@ import {
   CARD_SOURCE_ACTION_ICON_PATH,
 } from './internal/source-action-icons.js';
 import {
+  isPaymentSourceMarkAsDefaultEligible,
   isPaymentSourceSelectionEligible,
   paymentSourceVerificationLabel,
 } from './internal/payment-source-selection.js';
@@ -280,6 +282,63 @@ export type OnTransferEvent = CustomEvent<NativeAccountTransaction>;
 export type OnErrorEvent = CustomEvent<InteractionError>;
 
 /**
+ * Named screens emitted by the SDK event telemetry API.
+ */
+export type WalletSdkScreenName =
+  | 'missing-interaction'
+  | 'payment-methods-list'
+  | 'selected-payment-method'
+  | 'otp'
+  | 'required-info'
+  | 'saved-source-verification'
+  | 'transfer-form'
+  | 'transfer-confirm'
+  | 'card-form'
+  | 'card-error'
+  | 'pay-by-bank-provider'
+  | 'pay-by-bank-outcome'
+  | 'manual-bank-config-loading'
+  | 'manual-bank-config-error'
+  | 'manual-bank-schema-selection'
+  | 'manual-bank-form';
+
+/**
+ * Canonical event category for SDK telemetry.
+ */
+export type WalletEventType = 'view' | 'action';
+
+/**
+ * Canonical view lifecycle event names.
+ */
+export type WalletViewEventName = 'view_loaded';
+
+/**
+ * Canonical shopper action names emitted by the SDK.
+ */
+export type WalletActionEventName = FlowActionName;
+
+/**
+ * Canonical SDK telemetry event names.
+ */
+export type WalletEventName = WalletViewEventName | WalletActionEventName;
+
+/**
+ * Detail payload emitted for SDK action and lifecycle telemetry.
+ */
+export interface WalletEventDetail {
+  type: WalletEventType;
+  name: WalletEventName;
+  screen?: WalletSdkScreenName;
+  previousScreen?: WalletSdkScreenName;
+  isBackAction?: boolean;
+}
+
+/**
+ * Event emitted for shopper actions and screen transitions.
+ */
+export type OnEventEvent = CustomEvent<WalletEventDetail>;
+
+/**
  * Name of the selection event emitted by `<commerce-hub-connect>`.
  */
 export const ON_SELECT_EVENT = 'onSelect';
@@ -321,6 +380,11 @@ export const ON_TRANSFER_EVENT = 'onTransfer';
 export const ON_ERROR_EVENT = 'onError';
 
 /**
+ * Name of the telemetry event emitted by `<commerce-hub-connect>`.
+ */
+export const ON_EVENT_EVENT = 'onEvent';
+
+/**
  * Detail payloads for public SDK events emitted by `<commerce-hub-connect>`.
  */
 interface SdkEventDetailMap {
@@ -331,6 +395,7 @@ interface SdkEventDetailMap {
   [ON_LIST_PAYMENT_METHODS_EVENT]: PaymentSource[];
   [ON_TRANSFER_EVENT]: NativeAccountTransaction;
   [ON_ERROR_EVENT]: InteractionError;
+  [ON_EVENT_EVENT]: WalletEventDetail;
 }
 
 /**
@@ -344,6 +409,7 @@ interface SdkEventMap {
   [ON_LIST_PAYMENT_METHODS_EVENT]: OnListPaymentMethodsEvent;
   [ON_TRANSFER_EVENT]: OnTransferEvent;
   [ON_ERROR_EVENT]: OnErrorEvent;
+  [ON_EVENT_EVENT]: OnEventEvent;
 }
 
 type SdkEventName = keyof SdkEventDetailMap & string;
@@ -367,7 +433,6 @@ type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
 };
 type TransferFlowScreen = 'form' | 'confirm';
-type PaymentSourceAttachmentIntent = 'select' | 'mark-default';
 type PaymentSourceToPaymentMethodOptions = {
   selected?: boolean;
   isDefault?: boolean;
@@ -387,7 +452,6 @@ type SourceCreateContext = {
 
 type PaymentSdkEvent = {
   type?: 'success' | 'failure' | 'cancel' | 'error' | string;
-  payload?: unknown;
   [key: string]: unknown;
 };
 
@@ -514,6 +578,9 @@ const DEFAULT_PAY_BY_BANK_OPTIONS = {
 } satisfies Required<DesignConfigPayByBank>;
 const DELETE_CONFIRMATION_TIMEOUT_MS = 10000;
 
+// How long the last typed sensitive character stays visible before it masks.
+const LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
+
 /**
  * CommerceHub Connect Web SDK widget shell.
  *
@@ -533,6 +600,8 @@ const DELETE_CONFIRMATION_TIMEOUT_MS = 10000;
  * payment sources are successfully refreshed from the interaction.
  * @fires onTransfer - Emitted with a `NativeAccountTransaction` detail after a
  * native account transfer is successfully initiated.
+ * @fires onEvent - Emitted with standardized telemetry metadata for screen
+ * transitions and shopper actions.
  *
  * @csspart shell - Top-level widget shell.
  * @csspart header - Screen header row.
@@ -739,6 +808,13 @@ export class CommerceHubConnect extends LitElement {
   private revealedCardFields: ReadonlySet<SensitiveCardField> = new Set();
 
   @state()
+  private cardFieldsRevealingLastChar: ReadonlySet<SensitiveCardField> =
+    new Set();
+
+  private cardRevealTimeoutIds: Partial<Record<SensitiveCardField, number>> =
+    {};
+
+  @state()
   private cardSubmitError?: string;
 
   @state()
@@ -795,6 +871,7 @@ export class CommerceHubConnect extends LitElement {
   private readonly interactionRefresh = new InteractionRefreshController(this);
   private readonly nativeBalance = new NativeBalanceController(this);
   private minimumVerificationOverlayToken = 0;
+  private lastReportedScreen?: WalletSdkScreenName;
 
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (
@@ -820,6 +897,7 @@ export class CommerceHubConnect extends LitElement {
         this.resetTransferFlow();
         this.resetSavedSourceVerification();
         this.resetRequiredInfo();
+        this.lastReportedScreen = undefined;
       }
 
       if (
@@ -855,6 +933,8 @@ export class CommerceHubConnect extends LitElement {
     if (changedProperties.has('interactionResponse')) {
       void this.refreshPaymentSourcesFromInteraction();
     }
+
+    this.emitScreenLoadEvent();
   }
 
   override render() {
@@ -883,6 +963,7 @@ export class CommerceHubConnect extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.clearDeletePaymentSourceConfirmation();
+    this.clearAllCardFieldLastCharReveal();
     this.resetBankFlow();
   }
 
@@ -897,6 +978,110 @@ export class CommerceHubConnect extends LitElement {
     this.dispatchEvent(
       new CustomEvent<SdkEventDetailMap[Name]>(name, {detail})
     );
+  }
+
+  private emitActionEvent(detail: WalletEventDetail) {
+    this.emitSdkEvent(ON_EVENT_EVENT, detail);
+  }
+
+  private emitScreenLoadEvent() {
+    const screen = this.resolveCurrentScreenName();
+
+    if (screen === this.lastReportedScreen) {
+      return;
+    }
+
+    const previousScreen = this.lastReportedScreen;
+    this.lastReportedScreen = screen;
+    this.emitActionEvent({
+      type: 'view',
+      name: 'view_loaded',
+      screen,
+      previousScreen,
+    });
+  }
+
+  private resolveCurrentScreenName(): WalletSdkScreenName {
+    if (!this.interactionResponse) {
+      return 'missing-interaction';
+    }
+
+    if (this.bankFlowScreen === 'provider') {
+      return 'pay-by-bank-provider';
+    }
+
+    if (this.bankFlowScreen === 'outcome') {
+      return 'pay-by-bank-outcome';
+    }
+
+    if (this.bankFlowScreen === 'manual-config-loading') {
+      return 'manual-bank-config-loading';
+    }
+
+    if (this.bankFlowScreen === 'manual-config-error') {
+      return 'manual-bank-config-error';
+    }
+
+    if (this.bankFlowScreen === 'manual-schema-selection') {
+      return 'manual-bank-schema-selection';
+    }
+
+    if (this.bankFlowScreen === 'manual') {
+      return 'manual-bank-form';
+    }
+
+    if (this.cardFlowScreen === 'form') {
+      return 'card-form';
+    }
+
+    if (this.cardFlowScreen === 'error') {
+      return 'card-error';
+    }
+
+    if (this.requiredInfoSource) {
+      return 'required-info';
+    }
+
+    if (this.savedSourceVerificationSource) {
+      return 'saved-source-verification';
+    }
+
+    if (
+      this.interactionResponse?.status === 'OTP_VALIDATION_PENDING' ||
+      this.interactionResponse?.status === 'OTP_VALIDATION_FAILED'
+    ) {
+      return 'otp';
+    }
+
+    if (this.shouldRenderTransferScreen()) {
+      const transferSources = transferPaymentSourcesFromInteractionResponse(
+        this.interactionResponse
+      );
+      const normalizedDraft = normalizeTransferDraft(this.transferDraft);
+      const fromSource = transferSources.find(
+        (source) => paymentSourceId(source) === normalizedDraft.fromSourceId
+      );
+      const toSource = transferSources.find(
+        (source) => paymentSourceId(source) === normalizedDraft.toSourceId
+      );
+
+      if (
+        this.transferFlowScreen === 'confirm' &&
+        fromSource &&
+        toSource &&
+        isTransferDraftReady(normalizedDraft, transferSources)
+      ) {
+        return 'transfer-confirm';
+      }
+
+      return 'transfer-form';
+    }
+
+    if (this.shouldRenderSelectedPaymentSourceScreen()) {
+      return 'selected-payment-method';
+    }
+
+    return 'payment-methods-list';
   }
 
   private focusAfterUpdate(...selectors: string[]) {
@@ -1387,14 +1572,10 @@ export class CommerceHubConnect extends LitElement {
       source,
       this.savedSourceVerificationFailed
     );
-    const showHeaderBack =
-      outcome.kind === 'declined' || outcome.kind === 'pending';
 
     return this.renderWidgetShell({
       title: outcome.title,
-      backAction: showHeaderBack
-        ? 'done-payment-source-verification'
-        : undefined,
+      backAction: 'done-payment-source-verification',
       showClose: false,
       showDivider: false,
       content: html`
@@ -1404,16 +1585,6 @@ export class CommerceHubConnect extends LitElement {
             message: outcome.message,
           })}
           ${source ? renderRequiredInfoSourceCard(source) : ''}
-          ${showHeaderBack
-            ? ''
-            : html`
-                <div class="primitive-footer">
-                  ${renderButton({
-                    label: 'Back to payment methods',
-                    action: 'done-payment-source-verification',
-                  })}
-                </div>
-              `}
         </div>
       `,
     });
@@ -1535,7 +1706,10 @@ export class CommerceHubConnect extends LitElement {
               action: 'submit-required-info',
               type: 'submit',
               loading: isSubmitting,
-              disabled: isSubmitting || !canSubmit,
+              disabled:
+                isSubmitting ||
+                !canSubmit ||
+                this.hasBlockingRequiredInfoValidationErrors(),
             })}
           </div>
         </form>
@@ -1718,7 +1892,8 @@ export class CommerceHubConnect extends LitElement {
                 loading: isSubmitting,
                 disabled:
                   isSubmitting ||
-                  !hasRequiredTransferDraftValues(this.transferDraft),
+                  !hasRequiredTransferDraftValues(this.transferDraft) ||
+                  this.hasBlockingTransferValidationErrors(),
               })}
             </div>
           </div>
@@ -1979,6 +2154,10 @@ export class CommerceHubConnect extends LitElement {
               maskable: true,
               revealed: this.revealedCardFields.has('cardNumber'),
               onToggleReveal: () => this.toggleCardFieldReveal('cardNumber'),
+              maskReveal: maskRevealText(
+                this.cardDraft.cardNumber,
+                this.cardFieldsRevealingLastChar.has('cardNumber')
+              ),
             }),
             renderTextField({
               id: 'expiration-date',
@@ -2008,6 +2187,10 @@ export class CommerceHubConnect extends LitElement {
               maskable: true,
               revealed: this.revealedCardFields.has('cvv'),
               onToggleReveal: () => this.toggleCardFieldReveal('cvv'),
+              maskReveal: maskRevealText(
+                this.cardDraft.cvv,
+                this.cardFieldsRevealingLastChar.has('cvv')
+              ),
             }),
             renderTextField({
               id: 'name-on-card',
@@ -2034,7 +2217,8 @@ export class CommerceHubConnect extends LitElement {
                 disabled:
                   isSaving ||
                   isEncrypting ||
-                  !hasRequiredCardDraftValues(this.cardDraft),
+                  !hasRequiredCardDraftValues(this.cardDraft) ||
+                  this.hasBlockingCardValidationErrors(),
               })}
             </div>
           </div>
@@ -2248,7 +2432,7 @@ export class CommerceHubConnect extends LitElement {
             .uischema=${bankAccountFormUiSchema}
             .data=${this.bankAccountFormData}
             .i18n=${this.bankAccountFormI18n}
-            .renderers=${bankBillingAddressJsonFormsRenderers}
+            .renderers=${configDrivenBankAccountJsonFormsRenderers}
             .config=${{
               billingAddressTemplate:
                 this.renderBankBillingAddressControl(isSaving),
@@ -2274,6 +2458,7 @@ export class CommerceHubConnect extends LitElement {
               loading: isSaving,
               disabled:
                 isSaving ||
+                this.hasBlockingConfigBankValidationErrors() ||
                 !hasRequiredJsonSchemaValues(
                   bankAccountFormSchema,
                   this.bankAccountFormData
@@ -2395,6 +2580,7 @@ export class CommerceHubConnect extends LitElement {
               disabled:
                 isSaving ||
                 isEncrypting ||
+                this.hasBlockingLegacyBankValidationErrors() ||
                 !hasRequiredBankAccountDraftValues(
                   this.legacyBankAccountDraft,
                   legacyBankAccountFormSchema
@@ -2503,6 +2689,13 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.emitActionEvent({
+      type: 'action',
+      name: action,
+      screen: this.resolveCurrentScreenName(),
+      isBackAction: isBackFlowAction(action),
+    });
+
     if (action === 'toggle-payment-source-menu') {
       if (paymentMethodId) {
         const openingMenu = this.openPaymentSourceMenuId !== paymentMethodId;
@@ -2531,7 +2724,7 @@ export class CommerceHubConnect extends LitElement {
     if (action === 'mark-payment-source-default') {
       if (paymentMethodId) {
         this.clearDeletePaymentSourceConfirmation();
-        void this.attachPaymentSource(paymentMethodId, 'mark-default');
+        void this.markPaymentSourceDefault(paymentMethodId);
       }
       return;
     }
@@ -2764,10 +2957,12 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (cardInput) {
-      this.updateCardDraftField(
-        cardInput.dataset.cardField as CardDraftTextField,
-        cardInput.value
-      );
+      const cardField = cardInput.dataset.cardField as CardDraftTextField;
+      this.updateCardDraftField(cardField, cardInput.value);
+
+      if (isSensitiveCardField(cardField)) {
+        this.armCardFieldLastCharReveal(cardField);
+      }
       return;
     }
 
@@ -3233,10 +3428,10 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (cardInput) {
-      void this.trackCardFieldEncryption(
-        cardInput.dataset.cardField as SensitiveCardField,
-        cardInput.value
-      );
+      const cardField = cardInput.dataset.cardField as SensitiveCardField;
+      this.clearCardFieldLastCharReveal(cardField);
+
+      void this.trackCardFieldEncryption(cardField, cardInput.value);
       return;
     }
 
@@ -3525,11 +3720,9 @@ export class CommerceHubConnect extends LitElement {
       }
 
       const instrumentSchemas = usableInstrumentSchemas(rawInstrumentSchemas);
+      const selectableSchemas = selectableInstrumentSchemas(instrumentSchemas);
 
-      if (
-        instrumentSchemas.length === 0 ||
-        selectableInstrumentSchemas(instrumentSchemas).length === 0
-      ) {
+      if (instrumentSchemas.length === 0 || selectableSchemas.length === 0) {
         this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
         this.bankFlowScreen = 'manual-config-error';
         return;
@@ -3537,6 +3730,14 @@ export class CommerceHubConnect extends LitElement {
 
       this.bankAccountInstrumentSchemas = instrumentSchemas;
       this.bankAccountConfigError = undefined;
+
+      if (selectableSchemas.length === 1) {
+        this.selectedBankAccountInstrumentSchemaCode =
+          selectableSchemas[0].schema.bavSupportedCode;
+        this.initializeManualBankAccountScreen();
+        return;
+      }
+
       this.bankFlowScreen = 'manual-schema-selection';
     } catch (cause) {
       if (
@@ -3744,6 +3945,48 @@ export class CommerceHubConnect extends LitElement {
       : undefined;
   }
 
+  private hasBlockingTransferValidationErrors(): boolean {
+    if (!this.transferValidationAttempted) {
+      return false;
+    }
+
+    return Object.values(this.transferDraftErrors).some((error) =>
+      Boolean(error)
+    );
+  }
+
+  private hasBlockingCardValidationErrors(): boolean {
+    if (!this.cardValidationAttempted) {
+      return false;
+    }
+
+    return Object.values(this.cardDraftErrors).some((error) => Boolean(error));
+  }
+
+  private hasBlockingConfigBankValidationErrors(): boolean {
+    return this.bankAccountValidationAttempted && !this.bankAccountFormValid;
+  }
+
+  private hasBlockingLegacyBankValidationErrors(): boolean {
+    if (!this.bankAccountValidationAttempted) {
+      return false;
+    }
+
+    return Object.values(this.legacyBankAccountDraftErrors).some((error) =>
+      Boolean(error)
+    );
+  }
+
+  private hasBlockingRequiredInfoValidationErrors(): boolean {
+    if (!this.requiredInfoValidationAttempted || !this.requiredInfoSource) {
+      return false;
+    }
+
+    return requiredInfoDocs(this.requiredInfoSource).some((doc, index) =>
+      Boolean(this.requiredInfoValidationError(doc, index))
+    );
+  }
+
   private updateLegacyBankAccountDraftField(
     field: keyof BankAccountDraft,
     value: string
@@ -3775,6 +4018,47 @@ export class CommerceHubConnect extends LitElement {
       next.add(field);
     }
     this.revealedCardFields = next;
+  }
+
+  private armCardFieldLastCharReveal(field: SensitiveCardField) {
+    const next = new Set(this.cardFieldsRevealingLastChar);
+    next.add(field);
+    this.cardFieldsRevealingLastChar = next;
+
+    const existing = this.cardRevealTimeoutIds[field];
+    if (existing !== undefined) {
+      window.clearTimeout(existing);
+    }
+    this.cardRevealTimeoutIds[field] = window.setTimeout(() => {
+      this.clearCardFieldLastCharReveal(field);
+    }, LAST_CHAR_REVEAL_TIMEOUT_MS);
+  }
+
+  private clearCardFieldLastCharReveal(field: SensitiveCardField) {
+    const existing = this.cardRevealTimeoutIds[field];
+    if (existing !== undefined) {
+      window.clearTimeout(existing);
+      delete this.cardRevealTimeoutIds[field];
+    }
+
+    if (this.cardFieldsRevealingLastChar.has(field)) {
+      const next = new Set(this.cardFieldsRevealingLastChar);
+      next.delete(field);
+      this.cardFieldsRevealingLastChar = next;
+    }
+  }
+
+  private clearAllCardFieldLastCharReveal() {
+    Object.values(this.cardRevealTimeoutIds).forEach((id) => {
+      if (id !== undefined) {
+        window.clearTimeout(id);
+      }
+    });
+    this.cardRevealTimeoutIds = {};
+
+    if (this.cardFieldsRevealingLastChar.size > 0) {
+      this.cardFieldsRevealingLastChar = new Set();
+    }
   }
 
   private updateCardDraftField(field: CardDraftTextField, value: string) {
@@ -4789,10 +5073,7 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private async attachPaymentSource(
-    paymentSourceId: string,
-    intent: PaymentSourceAttachmentIntent = 'select'
-  ) {
+  private async attachPaymentSource(paymentSourceId: string) {
     if (this.pendingAction === 'attach-payment-source') {
       return;
     }
@@ -4841,12 +5122,6 @@ export class CommerceHubConnect extends LitElement {
         source;
 
       this.selectedPaymentSourceId = attachedSource.id;
-
-      if (intent === 'mark-default') {
-        this.paymentSourceView = 'list';
-        return;
-      }
-
       this.paymentSourceView = 'list';
       this.emitSdkEvent(ON_SELECT_EVENT, attachedSource);
       this.focusAfterUpdate('.payment-method-radio:checked');
@@ -4859,6 +5134,86 @@ export class CommerceHubConnect extends LitElement {
       this.attachmentError =
         apiErrorMessage(cause) ||
         "We couldn't save this payment method. Please try again.";
+    } finally {
+      this.clearPendingMutationAction(interactionId, 'attach-payment-source');
+    }
+  }
+
+  // Marks a saved payment source as the default via
+  // `PATCH /interaction/source/{sourceId}` (the same endpoint as delete).
+  private async markPaymentSourceDefault(paymentSourceId: string) {
+    if (this.pendingAction === 'attach-payment-source') {
+      return;
+    }
+
+    const interactionId = this.requireInteractionId();
+    const source = this.findPaymentSourceById(paymentSourceId);
+
+    if (!interactionId || !source) {
+      return;
+    }
+
+    if (!isPaymentSourceMarkAsDefaultEligible(source)) {
+      return;
+    }
+
+    this.selectedPaymentSourceId = paymentSourceId;
+    this.paymentSourceView = 'list';
+    this.attachmentError = undefined;
+    this.pendingAction = 'attach-payment-source';
+
+    try {
+      await this.requestCommerceHubJson<unknown>(
+        `/interaction/source/${encodeURIComponent(paymentSourceId)}`,
+        interactionId,
+        {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({isDefault: true}),
+          credentials: 'include',
+        }
+      );
+      this.assertCurrentInteraction(interactionId);
+
+      // The PATCH returns no interaction body, so optimistically reflect the
+      // default attachment locally before re-fetching the authoritative state.
+      const currentInteractionResponse = this.interactionResponse ?? {
+        interactionId,
+      };
+      const optimisticInteractionResponse = interactionResponseWithSelection(
+        currentInteractionResponse,
+        {
+          ...currentInteractionResponse,
+          status: 'PAYMENT_SOURCE_ATTACHED',
+        },
+        paymentSourceId
+      );
+      this.setInteractionResponseFromSdk(optimisticInteractionResponse);
+
+      const authoritativeInteraction =
+        await this.refreshInteractionAfterMutation(interactionId);
+      const defaultSource =
+        this.findPaymentSourceInInteraction(
+          authoritativeInteraction,
+          paymentSourceId
+        ) ??
+        this.findPaymentSourceInInteraction(
+          optimisticInteractionResponse,
+          paymentSourceId
+        ) ??
+        source;
+
+      this.selectedPaymentSourceId = defaultSource.id;
+      this.paymentSourceView = 'list';
+    } catch (cause) {
+      if (this.isStaleMutationFailure(interactionId, cause)) {
+        return;
+      }
+
+      this.paymentSourceView = 'list';
+      this.attachmentError =
+        apiErrorMessage(cause) ||
+        "We couldn't update the default payment method. Please try again.";
     } finally {
       this.clearPendingMutationAction(interactionId, 'attach-payment-source');
     }
@@ -6656,18 +7011,20 @@ const paymentMethodsFromInteractionResponse = (
   interactionResponse?: InteractionResponse,
   options: PaymentSourceToPaymentMethodOptions = {}
 ): PaymentMethod[] => {
-  const paymentSources = interactionResponse?.paymentSources;
+  const localTestingResponse =
+    interactionResponseWithLocalNonVerifiedTestingOverride(interactionResponse);
+  const paymentSources = localTestingResponse?.paymentSources;
 
   if (!paymentSources?.length) {
     const selectedSource =
-      selectedPaymentSourceFromInteractionResponse(interactionResponse);
+      selectedPaymentSourceFromInteractionResponse(localTestingResponse);
 
     if (selectedSource) {
       return [
         paymentSourceToPaymentMethod(selectedSource, {
           ...options,
           selected: true,
-          isDefault: interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED',
+          isDefault: localTestingResponse?.status === 'PAYMENT_SOURCE_ATTACHED',
         }),
       ];
     }
@@ -6676,8 +7033,8 @@ const paymentMethodsFromInteractionResponse = (
   }
 
   const selectedSourceId =
-    interactionResponse?.status === 'PAYMENT_SOURCE_ATTACHED'
-      ? interactionResponse.selectedSource?.id
+    localTestingResponse?.status === 'PAYMENT_SOURCE_ATTACHED'
+      ? localTestingResponse.selectedSource?.id
       : undefined;
 
   return paymentSources.map((source) =>
@@ -6770,11 +7127,9 @@ const paymentSourceDisplayName = (
   }
 
   if (isBankPaymentSource(source)) {
-    return (
-      source.name?.trim() ||
-      source.bankAccount?.bankName?.trim() ||
-      paymentSourceLabel(source)
-    );
+    const bankName = source.bankAccount?.bankName?.trim();
+
+    return bankName || source.name?.trim() || paymentSourceLabel(source);
   }
 
   if (isNativePaymentSource(source)) {
@@ -6794,7 +7149,7 @@ const paymentSourceLabel = (source: PaymentSource): string => {
   }
 
   if (isBankPaymentSource(source)) {
-    return source.bankAccount?.bankName ?? 'Saved bank account';
+    return source.bankAccount?.bankName?.trim() || 'Saved bank account';
   }
 
   if (isNativePaymentSource(source)) {
@@ -6810,7 +7165,7 @@ const paymentSourceBrand = (source: PaymentSource): string => {
   }
 
   if (isBankPaymentSource(source)) {
-    return source.bankAccount?.bankName ?? 'Bank account';
+    return source.bankAccount?.bankName?.trim() || 'Bank account';
   }
 
   if (isNativePaymentSource(source)) {
@@ -6878,7 +7233,10 @@ const paymentSourcePaymentMethodType = (
 const transferPaymentSourcesFromInteractionResponse = (
   interactionResponse?: InteractionResponse
 ): PaymentSource[] =>
-  (interactionResponse?.paymentSources ?? []).filter(
+  (
+    interactionResponseWithLocalNonVerifiedTestingOverride(interactionResponse)
+      ?.paymentSources ?? []
+  ).filter(
     (source) =>
       (isBankPaymentSource(source) || isNativePaymentSource(source)) &&
       source.verificationInfo?.status === 'VERIFIED' &&
@@ -6917,7 +7275,9 @@ const resolveSelectedPaymentSourceId = (
   interactionResponse?: InteractionResponse,
   currentSelection?: string
 ): string | undefined => {
-  const paymentSources = interactionResponse?.paymentSources;
+  const localTestingResponse =
+    interactionResponseWithLocalNonVerifiedTestingOverride(interactionResponse);
+  const paymentSources = localTestingResponse?.paymentSources;
 
   if (!paymentSources?.length) {
     return undefined;
@@ -6934,7 +7294,7 @@ const resolveSelectedPaymentSourceId = (
     return currentSelection;
   }
 
-  const serverSelection = interactionResponse?.selectedSource?.id;
+  const serverSelection = localTestingResponse?.selectedSource?.id;
 
   if (
     serverSelection &&
@@ -6967,8 +7327,11 @@ const selectedPaymentSourceFromInteractionResponse = (
   interactionResponse?: InteractionResponse,
   selectedPaymentSourceId?: string
 ): PaymentSource | undefined => {
+  const localTestingResponse =
+    interactionResponseWithLocalNonVerifiedTestingOverride(interactionResponse);
+
   if (selectedPaymentSourceId) {
-    const selectedSource = interactionResponse?.paymentSources?.find(
+    const selectedSource = localTestingResponse?.paymentSources?.find(
       (source) => source.id === selectedPaymentSourceId
     );
 
@@ -6977,7 +7340,124 @@ const selectedPaymentSourceFromInteractionResponse = (
     }
   }
 
-  return interactionResponse?.selectedSource;
+  return localTestingResponse?.selectedSource;
+};
+
+const LOCAL_NON_VERIFIED_TESTING_QUERY_PARAM = 'chc_local_non_verified_testing';
+
+type LocalNonVerifiedTestingMode = 'off' | 'single' | 'all' | 'show-all';
+
+type VerificationInfoStatus = NonNullable<
+  NonNullable<PaymentSource['verificationInfo']>['status']
+>;
+
+const LOCAL_SHOW_ALL_STATUS_SEQUENCE: readonly VerificationInfoStatus[] = [
+  'VERIFIED',
+  'REQUIRE_INFO',
+  'NOT_VERIFIED',
+];
+
+const isLocalHostName = (host: string): boolean =>
+  host === 'localhost' || host === '127.0.0.1' || host === '::1';
+
+const localNonVerifiedTestingMode = (): LocalNonVerifiedTestingMode => {
+  if (typeof window === 'undefined') {
+    return 'off';
+  }
+
+  if (!isLocalHostName(window.location.hostname)) {
+    return 'off';
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const flag = searchParams
+    .get(LOCAL_NON_VERIFIED_TESTING_QUERY_PARAM)
+    ?.trim()
+    .toLowerCase();
+
+  if (flag === 'show-all' || flag === 'mixed') {
+    return 'show-all';
+  }
+
+  if (flag === 'all') {
+    return 'all';
+  }
+
+  if (flag === '1' || flag === 'true') {
+    return 'single';
+  }
+
+  return 'off';
+};
+
+const interactionResponseWithLocalNonVerifiedTestingOverride = (
+  interactionResponse?: InteractionResponse
+): InteractionResponse | undefined => {
+  const mode = localNonVerifiedTestingMode();
+
+  if (!interactionResponse || mode === 'off') {
+    return interactionResponse;
+  }
+
+  const paymentSources = interactionResponse.paymentSources ?? [];
+  const downgradedSourceKeys = new Set<string>();
+  let verifiedSourceIndex = 0;
+
+  const remappedPaymentSources = paymentSources.map((source) => {
+    if (source.verificationInfo?.status !== 'VERIFIED') {
+      return source;
+    }
+
+    if (mode === 'single' && downgradedSourceKeys.size > 0) {
+      return source;
+    }
+
+    const remappedStatus: VerificationInfoStatus =
+      mode === 'show-all'
+        ? LOCAL_SHOW_ALL_STATUS_SEQUENCE[
+            verifiedSourceIndex % LOCAL_SHOW_ALL_STATUS_SEQUENCE.length
+          ]
+        : 'UNDER_REVIEW';
+    verifiedSourceIndex += 1;
+
+    if (remappedStatus === 'VERIFIED') {
+      return source;
+    }
+
+    downgradedSourceKeys.add(paymentSourceId(source));
+
+    return {
+      ...source,
+      verificationInfo: {
+        ...source.verificationInfo,
+        status: remappedStatus,
+      },
+    };
+  });
+
+  if (downgradedSourceKeys.size === 0) {
+    return interactionResponse;
+  }
+
+  const remappedSelectedSource =
+    interactionResponse.selectedSource &&
+    downgradedSourceKeys.has(
+      paymentSourceId(interactionResponse.selectedSource)
+    )
+      ? {
+          ...interactionResponse.selectedSource,
+          verificationInfo: {
+            ...interactionResponse.selectedSource.verificationInfo,
+            status: 'UNDER_REVIEW' as const,
+          },
+        }
+      : interactionResponse.selectedSource;
+
+  return {
+    ...interactionResponse,
+    paymentSources: remappedPaymentSources,
+    selectedSource: remappedSelectedSource,
+  };
 };
 
 const isPaymentSelectionReadyStatus = (status?: InteractionStatus): boolean =>
@@ -7142,6 +7622,9 @@ const isTerminalPaymentSdkEvent = (event: PaymentSdkEvent): boolean =>
   event.type === 'cancel' ||
   event.type === 'failure' ||
   event.type === 'error';
+
+const isBackFlowAction = (action: string): boolean =>
+  action.startsWith('back-to-') || action === 'change-payment-source';
 
 const withUpsertedSource = (
   interactionResponse: InteractionResponse,
@@ -7652,11 +8135,9 @@ const requiredInfoSourceName = (source: PaymentSource): string => {
   }
 
   if (isBankPaymentSource(source)) {
-    return (
-      source.name?.trim() ||
-      source.bankAccount?.bankName?.trim() ||
-      paymentSourceLabel(source)
-    );
+    const bankName = source.bankAccount?.bankName?.trim();
+
+    return bankName || source.name?.trim() || paymentSourceLabel(source);
   }
 
   if (isNativePaymentSource(source)) {

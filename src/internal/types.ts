@@ -309,6 +309,7 @@ export interface TextFieldOptions {
   maskable?: boolean;
   revealed?: boolean;
   onToggleReveal?: () => void;
+  maskReveal?: string;
 }
 
 export interface SelectFieldOption {

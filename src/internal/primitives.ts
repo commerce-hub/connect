@@ -90,7 +90,7 @@ const paymentMethodStatusPresentation = (
     return {label: "Can't use", tone: 'danger'};
   }
 
-  return {label: 'Action required', tone: 'warning'};
+  return {label: 'Needs info', tone: 'warning'};
 };
 
 export const renderVerificationStatusBadge = (
@@ -181,17 +181,10 @@ const renderPaymentMethodBalance = ({
 
 const renderPaymentMethodTrailingContent = (
   method: PaymentMethod,
-  clickable: boolean
+  _clickable: boolean
 ): TemplateResult => html`
   <span class="payment-method-trailing">
     ${renderPaymentMethodBalance(method)}
-    ${clickable
-      ? html`
-          <span class="payment-method-chevron" aria-hidden="true">
-            <span class="payment-method-chevron-icon"></span>
-          </span>
-        `
-      : ''}
   </span>
 `;
 
@@ -269,23 +262,17 @@ const renderPaymentMethodMain = (
   return html`<span class="payment-method-row-main">${content}</span>`;
 };
 
+const paymentMethodRadioInputId = (id: string): string =>
+  `payment-method-radio-${id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+
 const renderSelectablePaymentMethodMain = (
   method: PaymentMethod,
-  selected: boolean
+  radioInputId: string
 ): TemplateResult => html`
   <label
     class="payment-method-row-main payment-method-row-main-action payment-method-row-main-radio"
+    for=${radioInputId}
   >
-    <input
-      class="payment-method-radio"
-      type="radio"
-      name="payment-method"
-      value=${method.id}
-      data-payment-method-radio="true"
-      aria-label=${`Select ${method.label}`}
-      .checked=${selected}
-      ?disabled=${method.disabled}
-    />
     ${renderPaymentMethodContent(
       method,
       html`<span class="payment-method-trailing">
@@ -294,6 +281,62 @@ const renderSelectablePaymentMethodMain = (
     )}
   </label>
 `;
+
+const shouldRenderPaymentMethodOverflowAction = (
+  method: PaymentMethod,
+  showMarkAsDefault: boolean
+): boolean => {
+  const canMarkAsDefault =
+    showMarkAsDefault && !method.isDefault && method.status === 'verified';
+  const canRemove = !method.isDefault;
+
+  return canMarkAsDefault || canRemove;
+};
+
+const renderPaymentMethodAffordance = (
+  method: PaymentMethod,
+  {
+    rendersRadio,
+    selected,
+  }: {
+    rendersRadio: boolean;
+    selected: boolean;
+  }
+): TemplateResult | '' => {
+  if (rendersRadio) {
+    return html`
+      <span
+        class="payment-method-row-affordance payment-method-row-affordance-radio"
+      >
+        <input
+          class="payment-method-radio"
+          id=${paymentMethodRadioInputId(method.id)}
+          type="radio"
+          name="payment-method"
+          value=${method.id}
+          data-payment-method-radio="true"
+          aria-label=${`Select ${method.label}`}
+          .checked=${selected}
+          ?disabled=${method.disabled}
+        />
+      </span>
+    `;
+  }
+
+  if (isPaymentMethodRowClickable(method)) {
+    return html`
+      <span
+        class="payment-method-row-affordance payment-method-row-affordance-chevron"
+      >
+        <span class="payment-method-chevron" aria-hidden="true">
+          <span class="payment-method-chevron-icon"></span>
+        </span>
+      </span>
+    `;
+  }
+
+  return '';
+};
 
 const renderPaymentMethodOverflowAction = (
   method: PaymentMethod,
@@ -309,11 +352,12 @@ const renderPaymentMethodOverflowAction = (
 ): TemplateResult => {
   const menuId = `payment-method-menu-${method.id}`;
   const canMarkAsDefault =
-    showMarkAsDefault &&
-    !method.isDefault &&
-    isPaymentMethodSelectionEligible(method);
+    showMarkAsDefault && !method.isDefault && method.status === 'verified';
   const canRemove = !method.isDefault;
-  const hasActions = canMarkAsDefault || canRemove;
+  const hasActions = shouldRenderPaymentMethodOverflowAction(
+    method,
+    showMarkAsDefault
+  );
 
   if (!hasActions) {
     return html``;
@@ -451,6 +495,7 @@ export const renderTextField = ({
   maskable = false,
   revealed = false,
   onToggleReveal,
+  maskReveal,
 }: TextFieldOptions): TemplateResult => {
   const fieldClasses = joinClassNames(
     'field',
@@ -466,16 +511,31 @@ export const renderTextField = ({
     'field-input',
     variant === 'card-form' && 'field-input-card-form'
   );
-  const resolvedType = maskable && !revealed ? 'password' : type;
+  const useMaskOverlay = maskable && maskReveal !== undefined;
+  const suppressAutofill = maskable;
+  const resolvedAutocomplete = suppressAutofill ? 'off' : autocomplete;
+  const overlayHidesText = useMaskOverlay && !revealed && value !== '';
+  const resolvedType = useMaskOverlay
+    ? 'text'
+    : maskable && !revealed
+    ? 'password'
+    : type;
   const input = html`
     <input
-      class=${inputClasses}
+      class=${joinClassNames(
+        inputClasses,
+        overlayHidesText && 'field-input-mask-hidden'
+      )}
       id=${id}
       name=${ifDefined(name)}
       type=${resolvedType}
       .value=${value}
       placeholder=${ifDefined(placeholder)}
-      autocomplete=${ifDefined(autocomplete)}
+      autocomplete=${ifDefined(resolvedAutocomplete)}
+      autocapitalize=${ifDefined(suppressAutofill ? 'off' : undefined)}
+      autocorrect=${ifDefined(suppressAutofill ? 'off' : undefined)}
+      spellcheck=${ifDefined(suppressAutofill ? 'false' : undefined)}
+      data-lpignore=${ifDefined(suppressAutofill ? 'true' : undefined)}
       inputmode=${ifDefined(inputmode)}
       data-card-field=${ifDefined(
         dataFieldScope === 'card' ? dataField : undefined
@@ -491,6 +551,19 @@ export const renderTextField = ({
       ?disabled=${disabled}
     />
   `;
+
+  // A transparent real input keeps the submitted value and native caret intact
+  // while a cosmetic overlay renders the masked, last-character-reveal text.
+  const maskedInput = useMaskOverlay
+    ? html`
+        <div class="field-input-mask-wrap">
+          ${input}
+          <span class="field-input-mask-overlay" aria-hidden="true"
+            >${revealed ? '' : maskReveal}</span
+          >
+        </div>
+      `
+    : input;
 
   const revealButton =
     maskable && onToggleReveal
@@ -521,9 +594,9 @@ export const renderTextField = ({
       <label class=${labelClasses} for=${id}>${label}</label>
       ${variant === 'card-form' || maskable
         ? html`
-            <div class=${controlClasses}>${input}${revealButton}</div>
+            <div class=${controlClasses}>${maskedInput}${revealButton}</div>
           `
-        : input}
+        : maskedInput}
       ${error
         ? html`<p class="field-error" id=${`${id}-error`}>${error}</p>`
         : ''}
@@ -761,6 +834,12 @@ export const renderPaymentMethodRow = (
   }
 
   const rendersRadio = selectable && isPaymentMethodSelectionEligible(method);
+  const rendersOverflow = shouldRenderPaymentMethodOverflowAction(
+    method,
+    showMarkAsDefault
+  );
+  const rendersAffordance = rendersRadio || isPaymentMethodRowClickable(method);
+  const reservesAffordanceSpace = rendersOverflow && !rendersAffordance;
 
   return html`
     <div
@@ -770,6 +849,10 @@ export const renderPaymentMethodRow = (
           ? 'payment-method-row-action'
           : 'payment-method-row-static',
         rendersRadio && 'payment-method-row-radio',
+        rendersOverflow && 'payment-method-row-has-overflow',
+        rendersAffordance && 'payment-method-row-has-affordance',
+        reservesAffordanceSpace &&
+          'payment-method-row-has-overflow-without-affordance',
         selected && rendersRadio && 'payment-method-row-selected',
         method.isDefault && 'payment-method-row-default',
         menuOpen && !method.isDefault && 'payment-method-row-menu-open'
@@ -780,12 +863,22 @@ export const renderPaymentMethodRow = (
       data-payment-method-id=${id}
     >
       ${rendersRadio
-        ? renderSelectablePaymentMethodMain(method, selected)
+        ? renderSelectablePaymentMethodMain(
+            method,
+            paymentMethodRadioInputId(method.id)
+          )
         : renderPaymentMethodMain(method)}
       ${renderPaymentMethodOverflowAction(method, {
         menuOpen,
         menuPlacement,
         showMarkAsDefault,
+      })}
+      ${reservesAffordanceSpace
+        ? html`<span class="payment-method-row-spacer" aria-hidden="true"></span>`
+        : ''}
+      ${renderPaymentMethodAffordance(method, {
+        rendersRadio,
+        selected,
       })}
     </div>
   `;

@@ -1191,6 +1191,48 @@ export const primitiveStyles = css`
     fill: currentColor;
   }
 
+  .field-input-mask-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .field-input-mask-wrap .field-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* Monospace keeps digit and bullet advances equal so the (transparent)
+       caret stays aligned with the visible overlay characters. */
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    letter-spacing: 0;
+  }
+
+  .field-input-mask-hidden {
+    color: transparent;
+    caret-color: var(--chc-text);
+  }
+
+  .field-input-mask-hidden::selection {
+    color: transparent;
+  }
+
+  .field-input-mask-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    font: inherit;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    letter-spacing: 0;
+    color: var(--chc-text);
+    white-space: pre;
+    overflow: hidden;
+  }
+
   .field-card-form .field-input {
     min-height: 0;
     border: 0;
@@ -1302,6 +1344,81 @@ export const primitiveStyles = css`
     color: var(--chc-muted);
     cursor: not-allowed;
     opacity: 1;
+  }
+
+  .bank-account-jsonforms .jsonforms-mask-control {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: var(--chc-input-height);
+    padding: 0.625rem 0.75rem;
+    border: 0.0625rem solid var(--chc-border-strong);
+    border-radius: var(--chc-radius-control);
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 82%,
+      var(--chc-surface)
+    );
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
+      box-shadow var(--chc-motion-fast) var(--chc-ease-standard),
+      background-color var(--chc-motion-fast) var(--chc-ease-standard);
+  }
+
+  .bank-account-jsonforms .jsonforms-mask-control:focus-within {
+    border-color: var(--chc-primary);
+    background: var(--chc-surface);
+    box-shadow: 0 0 0 0.25rem var(--chc-focus-ring);
+  }
+
+  .bank-account-jsonforms .jsonforms-mask-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .bank-account-jsonforms .jsonforms-control input.jsonforms-mask-input {
+    width: 100%;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    letter-spacing: 0;
+  }
+
+  .bank-account-jsonforms .jsonforms-control input.jsonforms-mask-input:focus {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .bank-account-jsonforms
+    .jsonforms-control
+    input.jsonforms-mask-input.field-input-mask-hidden {
+    color: transparent;
+    caret-color: var(--chc-text);
+  }
+
+  .bank-account-jsonforms .jsonforms-mask-overlay {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+      'Liberation Mono', monospace;
+    font-size: inherit;
+    letter-spacing: 0;
+    color: var(--chc-text);
+    white-space: pre;
+    overflow: hidden;
   }
 
   .bank-account-jsonforms .jsonforms-description {
@@ -1453,11 +1570,27 @@ export const primitiveStyles = css`
 
   .payment-method-row {
     position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.625rem;
+    column-gap: 0.5rem;
+  }
+
+  .payment-method-row-has-overflow {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .payment-method-row-default {
-    grid-template-columns: minmax(0, 1fr);
+  .payment-method-row-has-affordance:not(.payment-method-row-has-overflow) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .payment-method-row-has-overflow.payment-method-row-has-affordance {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 0.1875rem;
+  }
+
+  .payment-method-row-has-overflow-without-affordance {
+    grid-template-columns: minmax(0, 1fr) auto 1rem;
+    column-gap: 0.1875rem;
   }
 
   .payment-method-row-menu-open {
@@ -1486,7 +1619,7 @@ export const primitiveStyles = css`
   }
 
   .payment-method-row-main-radio {
-    grid-template-columns: 1.125rem 2.375rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.375rem minmax(0, 1fr) auto;
   }
 
   .payment-method-row-main-action {
@@ -1611,17 +1744,33 @@ export const primitiveStyles = css`
 
   .payment-method-overflow {
     position: relative;
-    display: inline-flex;
+    display: grid;
     align-items: center;
+    align-self: stretch;
     gap: 0.375rem;
     justify-self: end;
   }
 
+  .payment-method-row-affordance {
+    min-width: 1rem;
+    min-height: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    align-self: stretch;
+    justify-self: end;
+  }
+
+  .payment-method-row-affordance-radio {
+    min-width: 1.125rem;
+    min-height: 2.5rem;
+  }
+
   .payment-method-overflow-button {
-    width: 2.75rem;
-    min-width: 2.75rem;
-    height: 2.75rem;
-    min-height: 2.75rem;
+    width: 2.5rem;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    min-height: 2.5rem;
     display: inline-grid;
     place-items: center;
     border: 0;
@@ -1696,16 +1845,16 @@ export const primitiveStyles = css`
   .payment-method-default-label {
     flex: 0 0 auto;
     margin-left: auto;
-    min-height: 1.5625rem;
+    min-height: 1.375rem;
     display: inline-flex;
     align-items: center;
     border: 0.0625rem solid
       color-mix(in srgb, var(--chc-primary) 28%, transparent);
     border-radius: 999rem;
-    padding: 0.1875rem 0.5625rem;
+    padding: 0.125rem 0.5rem;
     background: color-mix(in srgb, var(--chc-primary) 8%, white);
     color: var(--chc-primary);
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     white-space: nowrap;
   }
@@ -1950,16 +2099,15 @@ export const primitiveStyles = css`
     max-width: 100%;
     display: inline-flex;
     align-items: center;
-    border: 0.0625rem solid;
+    border: 0.0625rem solid transparent;
     flex: 0 0 auto;
-    border-color: var(--chc-border);
     border-radius: var(--chc-radius-control);
-    padding: 0.125rem 0.375rem;
-    background: var(--chc-surface);
-    color: var(--chc-muted);
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    padding: 0.0625rem 0.4375rem;
+    background: color-mix(in srgb, var(--chc-soft-surface) 85%, white);
+    color: var(--chc-text);
+    font-size: 0.575rem;
+    font-weight: 400;
+    letter-spacing: 0.005em;
   }
 
   .verification-status-label {
@@ -1981,6 +2129,18 @@ export const primitiveStyles = css`
   }
 
   .verification-status-badge-danger {
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
+  }
+
+  .verification-status-badge[data-verification-status='require-info'] {
+    border-color: var(--chc-border);
+    background: var(--chc-surface);
+    color: var(--chc-muted);
+  }
+
+  .verification-status-badge[data-verification-status='not-verified'] {
     border-color: var(--chc-border);
     background: var(--chc-surface);
     color: var(--chc-muted);

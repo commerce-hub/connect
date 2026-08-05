@@ -309,7 +309,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.isFalse(radios[1].checked);
     assert.equal(
       rows[0].querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Verified & Provisioned'
+      'Verified'
     );
     assert.strictEqual(
       radios[0].closest('label')?.firstElementChild,
@@ -455,16 +455,11 @@ suite('commerce-hub-connect payment selection', () => {
       rows.map((row) =>
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
-      [
-        'Verified & Provisioned',
-        'Verified & Provisioned',
-        'Verified',
-        'Verified',
-      ]
+      ['Verified', 'Verified, Provisioned', 'Verified, Pending', 'Verified']
     );
     assert.deepEqual(
       radios.map((radio) => radio.value),
-      ['bank-without-recipient', 'bank-provisioned']
+      ['bank-provisioned']
     );
     assert.isTrue(radios[0].checked);
     assert.notExists(rows[2].querySelector('.payment-method-radio'));
@@ -492,7 +487,7 @@ suite('commerce-hub-connect payment selection', () => {
       el
         .shadowRoot!.querySelector('.verification-status-badge')
         ?.textContent?.trim(),
-      'Verified'
+      'Verified, Pending'
     );
     assert.notExists(el.shadowRoot!.querySelector('.payment-method-radio'));
     assert.isTrue(
@@ -1696,19 +1691,14 @@ suite('commerce-hub-connect payment selection', () => {
         return balanceResponse.promise;
       }
 
-      if (pathname === '/interaction/source/native-account-1/attach') {
-        return new Response(
-          JSON.stringify({
-            interactionId: 'interaction-payment',
-            status: 'PAYMENT_SOURCE_ATTACHED',
-            selectedSource: nativeSource,
-            paymentSources: [nativeSource],
-          }),
-          {
-            status: 200,
-            headers: {'Content-Type': 'application/json'},
-          }
-        );
+      if (
+        request.method === 'PATCH' &&
+        pathname === '/interaction/source/native-account-1'
+      ) {
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       return new Response(JSON.stringify({}), {
@@ -3444,8 +3434,8 @@ suite('commerce-hub-connect payment selection', () => {
       });
 
       if (
-        request.method === 'POST' &&
-        pathname === '/interaction/source/card-1/attach'
+        request.method === 'PATCH' &&
+        pathname === '/interaction/source/card-1'
       ) {
         return new Promise((resolve) => {
           resolveAttachResponse = resolve;
@@ -3526,12 +3516,17 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach', 'GET /interaction']
+      ['PATCH /interaction/source/card-1', 'GET /interaction']
     );
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
       'interaction-payment'
     );
+    assert.equal(
+      requests[0].headers.get('Content-Type'),
+      'application/json'
+    );
+    assert.deepEqual(JSON.parse(requests[0].bodyText), {isDefault: true});
     assert.equal(requests[0].credentials, 'include');
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(legacySuccessEvents, 0);
@@ -3999,16 +3994,14 @@ suite('commerce-hub-connect payment selection', () => {
         credentials: request.credentials,
       });
 
-      if (pathname === '/interaction/source/card-1/attach') {
-        return new Response(
-          JSON.stringify({
-            interactionId: 'interaction-payment',
-            status: 'PAYMENT_SOURCE_ATTACHED',
-            selectedSource: source,
-            paymentSources: [source],
-          }),
-          {status: 200, headers: {'Content-Type': 'application/json'}}
-        );
+      if (
+        request.method === 'PATCH' &&
+        pathname === '/interaction/source/card-1'
+      ) {
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
       }
 
       return new Response(JSON.stringify({message: 'Refresh unavailable'}), {
@@ -4036,7 +4029,7 @@ suite('commerce-hub-connect payment selection', () => {
       requests.map(
         (request) => `${request.method} ${new URL(request.url).pathname}`
       ),
-      ['POST /interaction/source/card-1/attach', 'GET /interaction']
+      ['PATCH /interaction/source/card-1', 'GET /interaction']
     );
     assert.lengthOf(successEvents, 0);
     assert.lengthOf(errorEvents, 0);
@@ -4299,7 +4292,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.equal(verifyButton.tagName, 'BUTTON');
     assert.equal(
       row.querySelector('.verification-status-badge')?.textContent?.trim(),
-      'Action required'
+      'Needs info'
     );
     assert.exists(row.querySelector('.payment-method-chevron'));
     assert.deepEqual(
