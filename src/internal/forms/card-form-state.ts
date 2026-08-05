@@ -144,6 +144,8 @@ export const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
 
   if (!draft.name) {
     errors.name = 'Enter a card name.';
+  } else if (!/^[A-Za-z0-9 ]+$/.test(draft.name)) {
+    errors.name = 'Card name can only contain letters and numbers.';
   }
 
   if (!draft.fullName) {
