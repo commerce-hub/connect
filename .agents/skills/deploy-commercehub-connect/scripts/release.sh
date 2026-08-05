@@ -9,7 +9,7 @@
 # All paths are overridable through environment variables:
 #   SDK_REPO       path to this SDK checkout            (default: repo root of this script)
 #   CONNECT_REPO   path to the public commerce-hub/connect checkout
-#   SOURCE_REF     git ref to release from              (default: feature/wallet-sdk-0.9.10)
+#   SOURCE_REF     git ref to release from              (default: main)
 #   CONNECT_REMOTE git URL for the public docs repo
 #   GH_REPO        GitHub repo slug for releases        (default: commerce-hub/connect)
 #   EXPORT_ROOT    where --prepare writes artifacts     (default: $SDK_REPO/exports/releases)
@@ -26,7 +26,7 @@ DEFAULT_SDK_REPO="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 SDK_REPO="${SDK_REPO:-$DEFAULT_SDK_REPO}"
 CONNECT_REPO="${CONNECT_REPO:-$(cd "$SDK_REPO/.." && pwd)/connect}"
-SOURCE_REF="${SOURCE_REF:-feature/wallet-sdk-0.9.10}"
+SOURCE_REF="${SOURCE_REF:-main}"
 CONNECT_REMOTE="${CONNECT_REMOTE:-https://github.com/commerce-hub/connect}"
 GH_REPO="${GH_REPO:-commerce-hub/connect}"
 EXPORT_ROOT="${EXPORT_ROOT:-$SDK_REPO/exports/releases}"
@@ -63,7 +63,7 @@ Modes:
                        connect repo, publish docs, and create/upload the GitHub release.
 
 Options:
-  --source-ref <ref>   Git ref to build from (default: feature/wallet-sdk-0.9.10)
+  --source-ref <ref>   Git ref to build from (default: main)
   --sdk-repo <path>    SDK checkout to build from
   --connect-repo <path>
                        Local path for the public connect checkout
@@ -124,10 +124,17 @@ if [[ "$MODE" == "publish" ]]; then
 fi
 
 [[ -d "$SDK_REPO/.git" || -f "$SDK_REPO/.git" ]] || die "not a git checkout: $SDK_REPO"
-git -C "$SDK_REPO" rev-parse --verify --quiet "$SOURCE_REF^{commit}" >/dev/null \
-  || die "source ref not found in $SDK_REPO: $SOURCE_REF"
+RESOLVED_SOURCE_REF="$SOURCE_REF"
+if [[ "$SOURCE_REF" == "main" ]]; then
+  log "Fetching latest main from origin"
+  git -C "$SDK_REPO" fetch origin main
+  RESOLVED_SOURCE_REF="origin/main"
+fi
 
-SOURCE_SHA="$(git -C "$SDK_REPO" rev-parse "$SOURCE_REF")"
+git -C "$SDK_REPO" rev-parse --verify --quiet "$RESOLVED_SOURCE_REF^{commit}" >/dev/null \
+  || die "source ref not found in $SDK_REPO: $RESOLVED_SOURCE_REF"
+
+SOURCE_SHA="$(git -C "$SDK_REPO" rev-parse "$RESOLVED_SOURCE_REF")"
 WORKTREE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/chc-release-XXXXXX")"
 
 cleanup() {
@@ -135,7 +142,6 @@ cleanup() {
   if [[ -d "$WORKTREE_DIR" ]]; then
     log "Cleaning up temporary worktree"
     git -C "$SDK_REPO" worktree remove --force "$WORKTREE_DIR" >/dev/null 2>&1 || true
-    rm -rf "$WORKTREE_DIR"
     git -C "$SDK_REPO" worktree prune >/dev/null 2>&1 || true
   fi
   exit "$exit_code"
@@ -146,7 +152,7 @@ log "Release configuration"
 cat <<EOF
     mode:          $MODE
     sdk repo:      $SDK_REPO
-    source ref:    $SOURCE_REF ($SOURCE_SHA)
+    source ref:    $SOURCE_REF -> $RESOLVED_SOURCE_REF ($SOURCE_SHA)
     connect repo:  $CONNECT_REPO
     connect remote:$CONNECT_REMOTE
     gh repo:       $GH_REPO
@@ -208,7 +214,7 @@ if [[ -d "$CONNECT_REPO/.git" ]]; then
     die "public repo has local changes; resolve them before publishing: $CONNECT_REPO"
   fi
   run git -C "$CONNECT_REPO" checkout "$CONNECT_BRANCH"
-  run git -C "$CONNECT_REPO" reset --hard "origin/$CONNECT_BRANCH"
+  run git -C "$CONNECT_REPO" pull --ff-only origin "$CONNECT_BRANCH"
 else
   run git clone "$CONNECT_REMOTE" "$CONNECT_REPO"
   run git -C "$CONNECT_REPO" checkout "$CONNECT_BRANCH"
