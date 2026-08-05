@@ -3720,9 +3720,11 @@ export class CommerceHubConnect extends LitElement {
       }
 
       const instrumentSchemas = usableInstrumentSchemas(rawInstrumentSchemas);
-      const selectableSchemas = selectableInstrumentSchemas(instrumentSchemas);
 
-      if (instrumentSchemas.length === 0 || selectableSchemas.length === 0) {
+      if (
+        instrumentSchemas.length === 0 ||
+        selectableInstrumentSchemas(instrumentSchemas).length === 0
+      ) {
         this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
         this.bankFlowScreen = 'manual-config-error';
         return;
@@ -3730,14 +3732,6 @@ export class CommerceHubConnect extends LitElement {
 
       this.bankAccountInstrumentSchemas = instrumentSchemas;
       this.bankAccountConfigError = undefined;
-
-      if (selectableSchemas.length === 1) {
-        this.selectedBankAccountInstrumentSchemaCode =
-          selectableSchemas[0].schema.bavSupportedCode;
-        this.initializeManualBankAccountScreen();
-        return;
-      }
-
       this.bankFlowScreen = 'manual-schema-selection';
     } catch (cause) {
       if (
