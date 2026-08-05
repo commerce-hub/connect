@@ -302,6 +302,7 @@ export interface TextFieldOptions {
   variant?: FieldVariant;
   autocomplete?: TextFieldAutocomplete;
   inputmode?: TextFieldInputMode;
+  maxLength?: number;
   disabled?: boolean;
   dataField?: string;
   dataFieldScope?: 'card' | 'bankAccount' | 'transfer';

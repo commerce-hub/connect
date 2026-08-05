@@ -2297,6 +2297,10 @@ suite('commerce-hub-connect flow', () => {
         ?.classList.contains('field-full'),
       false
     );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#card-cvv')?.maxLength,
+      4
+    );
     const backButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.widget-back-button[data-action="back-to-payment-methods"]'
     );

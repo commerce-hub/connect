@@ -488,6 +488,7 @@ export const renderTextField = ({
   variant = 'default',
   autocomplete,
   inputmode,
+  maxLength,
   disabled = false,
   dataField,
   dataFieldScope = 'card',
@@ -537,6 +538,7 @@ export const renderTextField = ({
       spellcheck=${ifDefined(suppressAutofill ? 'false' : undefined)}
       data-lpignore=${ifDefined(suppressAutofill ? 'true' : undefined)}
       inputmode=${ifDefined(inputmode)}
+      maxlength=${ifDefined(maxLength)}
       data-card-field=${ifDefined(
         dataFieldScope === 'card' ? dataField : undefined
       )}

@@ -2181,6 +2181,7 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               autocomplete: 'cc-csc',
               inputmode: 'numeric',
+              maxLength: 4,
               dataField: 'cvv',
               error: this.visibleCardDraftError('cvv'),
               disabled: isSaving,
