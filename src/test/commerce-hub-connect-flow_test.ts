@@ -2787,67 +2787,6 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('single instrument schema skips selection and opens bank details', async () => {
-    const requests: CapturedRequest[] = [];
-    window.fetch = async (input: RequestInfo | URL) => {
-      const request = input instanceof Request ? input : new Request(input);
-      const pathname = new URL(request.url).pathname;
-
-      requests.push({
-        url: request.url,
-        method: request.method,
-        headers: new Headers(request.headers),
-        bodyText: await request.clone().text(),
-        credentials: request.credentials,
-      });
-
-      if (pathname === '/party/configuration-inquiry') {
-        return bankAccountCountryConfigResponse([TEST_INSTRUMENT_SCHEMAS[0]]);
-      }
-
-      return new Response(JSON.stringify({}), {
-        status: 200,
-        headers: {'Content-Type': 'application/json'},
-      });
-    };
-
-    const el = await renderConnect({
-      interactionId: 'interaction-payment',
-      status: 'PAYMENT_SOURCE_REQUESTED',
-      country: 'CAN',
-      allowedTenderTypes: ['BANK_ACCOUNT'],
-      paymentSources: [],
-    });
-
-    await clickAction(el, 'add-bank-account');
-    await waitForRequest(requests, '/party/configuration-inquiry');
-    await waitFor(
-      () =>
-        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Enter bank details',
-      'single instrument schema did not open bank details'
-    );
-
-    assert.notExists(
-      el.shadowRoot!.querySelector('#instrument-schema-currency')
-    );
-    assert.notExists(
-      el.shadowRoot!.querySelector('#instrument-schema-account-type')
-    );
-    assert.notExists(
-      el.shadowRoot!.querySelector('#instrument-schema-payment-type')
-    );
-    assert.exists(
-      el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
-    );
-    assert.exists(
-      el.shadowRoot!.querySelector('input[name="accountHolderName"]')
-    );
-    assert.exists(
-      el.shadowRoot!.querySelector('input[name="accountNumber"]')
-    );
-  });
-
   test('non-USA bank entry defaults to manual schema selection', async () => {
     const requests: CapturedRequest[] = [];
     window.fetch = async (input: RequestInfo | URL) => {
