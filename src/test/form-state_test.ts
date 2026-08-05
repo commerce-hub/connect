@@ -213,6 +213,19 @@ suite('form state models', () => {
     assert.isFalse(hasRequiredCardDraftValues({...draft, fullName: '   '}));
   });
 
+  test('rejects special characters in the card name', () => {
+    const validDraft = {
+      ...createCardDraft(),
+      name: 'Corporate Card 2',
+    };
+
+    assert.notProperty(validateCardDraft(validDraft), 'name');
+    assert.equal(
+      validateCardDraft({...validDraft, name: 'Corporate@Card'}).name,
+      'Card name can only contain letters and numbers.'
+    );
+  });
+
   test('formats, validates, masks, and resolves manual ACH fields', () => {
     const draft = {
       ...createBankAccountDraft(),

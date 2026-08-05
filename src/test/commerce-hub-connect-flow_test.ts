@@ -2489,7 +2489,7 @@ suite('commerce-hub-connect flow', () => {
     assert.isTrue(saveButton.disabled);
     assert.notExists(el.shadowRoot!.querySelector('.field-error'));
 
-    await setFieldValue(el, 'card-label', 'x');
+    await setFieldValue(el, 'card-label', 'Corporate@Card');
     await setFieldValue(el, 'name-on-card', 'x');
     await setFieldValue(el, 'card-number', '1');
     await setFieldValue(el, 'expiration-date', '1');
@@ -2509,6 +2509,13 @@ suite('commerce-hub-connect flow', () => {
     assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),
       '/interaction/source/card'
+    );
+    assert.include(
+      el
+        .shadowRoot!.querySelector('#card-label')
+        ?.closest('.field')
+        ?.querySelector('.field-error')?.textContent ?? '',
+      'Card name can only contain letters and numbers.'
     );
 
     await setFieldValue(el, 'billing-zip', '53045');
