@@ -90,7 +90,7 @@ const paymentMethodStatusPresentation = (
     return {label: "Can't use", tone: 'danger'};
   }
 
-  return {label: 'Action required', tone: 'warning'};
+  return {label: 'Needs info', tone: 'warning'};
 };
 
 export const renderVerificationStatusBadge = (
@@ -839,6 +839,7 @@ export const renderPaymentMethodRow = (
     showMarkAsDefault
   );
   const rendersAffordance = rendersRadio || isPaymentMethodRowClickable(method);
+  const reservesAffordanceSpace = rendersOverflow && !rendersAffordance;
 
   return html`
     <div
@@ -850,6 +851,8 @@ export const renderPaymentMethodRow = (
         rendersRadio && 'payment-method-row-radio',
         rendersOverflow && 'payment-method-row-has-overflow',
         rendersAffordance && 'payment-method-row-has-affordance',
+        reservesAffordanceSpace &&
+          'payment-method-row-has-overflow-without-affordance',
         selected && rendersRadio && 'payment-method-row-selected',
         method.isDefault && 'payment-method-row-default',
         menuOpen && !method.isDefault && 'payment-method-row-menu-open'
@@ -870,6 +873,9 @@ export const renderPaymentMethodRow = (
         menuPlacement,
         showMarkAsDefault,
       })}
+      ${reservesAffordanceSpace
+        ? html`<span class="payment-method-row-spacer" aria-hidden="true"></span>`
+        : ''}
       ${renderPaymentMethodAffordance(method, {
         rendersRadio,
         selected,
