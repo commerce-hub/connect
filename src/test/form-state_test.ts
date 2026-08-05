@@ -22,6 +22,7 @@ import {
   formatCardDraftFieldValue,
   hasRequiredCardDraftValues,
   isCardDraftReady,
+  isValidCvv,
   normalizeCardDraft,
   parseExpirationDate,
   resolveEncryptedCardFieldValue,
@@ -146,6 +147,7 @@ suite('form state models', () => {
     assert.equal(draft.cardNumber, '4111 1111 1111 1111');
     assert.equal(draft.expirationDate, '04 / 30');
     assert.equal(draft.cvv, '1234');
+    assert.equal(formatCardDraftFieldValue('cvv', '1a2-3 4x5'), '1234');
     assert.notProperty(createCardDraft(), 'markAsDefault');
     assert.notProperty(normalizedDraft, 'markAsDefault');
     assert.deepEqual(parseExpirationDate(draft.expirationDate), {
@@ -191,6 +193,14 @@ suite('form state models', () => {
         cvv: 'Encrypt the CVC before saving.',
       }
     );
+  });
+
+  test('accepts only three or four CVV digits', () => {
+    assert.isTrue(isValidCvv('123'));
+    assert.isTrue(isValidCvv('1234'));
+    assert.isFalse(isValidCvv('12'));
+    assert.isFalse(isValidCvv('12345'));
+    assert.isFalse(isValidCvv('12a3'));
   });
 
   test('separates required card presence from card validity', () => {

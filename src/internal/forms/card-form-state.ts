@@ -360,7 +360,7 @@ export const isValidCardNumber = (value: string): boolean => {
 };
 
 export const isValidCvv = (value: string): boolean =>
-  /^\d{3,4}$/.test(normalizeCvv(value));
+  /^\d{3,4}$/.test(value);
 
 export const parseExpirationDate = (
   value: string

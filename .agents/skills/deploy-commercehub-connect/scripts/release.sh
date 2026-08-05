@@ -165,7 +165,7 @@ TARBALL="commerce-hub-connect-sdk-$VERSION.tgz"
 EXPORT_DIR="$EXPORT_ROOT/$TAG"
 
 log "Building $TAG from $SOURCE_REF"
-run npm --prefix "$WORKTREE_DIR" ci
+(cd "$WORKTREE_DIR" && run npm ci)
 (cd "$WORKTREE_DIR" && run npm run build)
 (cd "$WORKTREE_DIR" && run npm run pack:dist)
 (cd "$WORKTREE_DIR" && run npm run docs)
