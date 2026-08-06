@@ -75,6 +75,8 @@ import {
 import {maskRevealText} from './internal/forms/mask-reveal.js';
 import {JsonFormsLit} from './internal/jsonforms-lit/index.js';
 import {
+  CARD_NUMBER_MAX_DISPLAY_LENGTH,
+  EXPIRATION_DATE_MAX_DISPLAY_LENGTH,
   NEW_BILLING_ADDRESS_VALUE,
   billingAddressFromCardDraft,
   buildCardEncryptionErrorMessage,
@@ -2148,6 +2150,7 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               autocomplete: 'cc-number',
               inputmode: 'numeric',
+              maxLength: CARD_NUMBER_MAX_DISPLAY_LENGTH,
               dataField: 'cardNumber',
               error: this.visibleCardDraftError('cardNumber'),
               disabled: isSaving,
@@ -2168,6 +2171,7 @@ export class CommerceHubConnect extends LitElement {
               variant: 'card-form',
               autocomplete: 'cc-exp',
               inputmode: 'numeric',
+              maxLength: EXPIRATION_DATE_MAX_DISPLAY_LENGTH,
               dataField: 'expirationDate',
               error: this.visibleCardDraftError('expirationDate'),
               disabled: isSaving,

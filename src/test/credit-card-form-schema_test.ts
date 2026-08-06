@@ -72,6 +72,9 @@ suite('credit card JSONForms data schema', () => {
     assert.isFalse(
       validate({...savedBillingAddressDraft, expirationDate: '13 / 30'})
     );
+    assert.isFalse(
+      validate({...savedBillingAddressDraft, expirationDate: '04 / 2030'})
+    );
   });
 
   test('rejects invalid new billing address values', async () => {

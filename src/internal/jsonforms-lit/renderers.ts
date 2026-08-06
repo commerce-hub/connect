@@ -227,6 +227,7 @@ export class JsonFormsSensitiveTextControlRenderer extends JsonFormsTextControlR
               spellcheck="false"
               data-lpignore="true"
               .value=${value}
+              maxlength=${ifDefined(props.schema.maxLength)}
               ?disabled=${disabled}
               ?required=${props.required}
               aria-invalid=${hasErrors ? 'true' : 'false'}
