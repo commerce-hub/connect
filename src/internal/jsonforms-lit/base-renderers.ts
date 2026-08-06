@@ -94,7 +94,9 @@ export class JsonFormsBaseRenderer extends LitElement {
   }
 
   protected override updated(changedProperties: PropertyValues<this>): void {
-    if ([...changedProperties.keys()].some((key) => storeAwareProperties.has(key))) {
+    if (
+      [...changedProperties.keys()].some((key) => storeAwareProperties.has(key))
+    ) {
       this.syncSubscription();
       this.updateMappedProps();
     }
@@ -155,7 +157,9 @@ export class JsonFormsControl extends JsonFormsBaseRenderer {
 
   protected override updated(changedProperties: PropertyValues<this>): void {
     super.updated(changedProperties);
-    if ([...changedProperties.keys()].some((key) => storeAwareProperties.has(key))) {
+    if (
+      [...changedProperties.keys()].some((key) => storeAwareProperties.has(key))
+    ) {
       this.ensureId();
       this.updateMappedProps();
     }
@@ -163,8 +167,26 @@ export class JsonFormsControl extends JsonFormsBaseRenderer {
 
   protected override mapStateToProps(state: JsonFormsState): ControlProps {
     const props = mapStateToControlProps(state, this.controlOwnProps());
+    const touchedValidation = (
+      props.config as
+        | {
+            touchedValidation?: {
+              fields?: readonly string[];
+              showAll?: boolean;
+            };
+          }
+        | undefined
+    )?.touchedValidation;
+    const errors =
+      touchedValidation === undefined ||
+      touchedValidation.showAll ||
+      touchedValidation.fields?.includes(props.path)
+        ? props.errors
+        : '';
+
     return {
       ...props,
+      errors,
       handleChange: (path: string, value: unknown) => {
         this.store?.dispatch(Actions.update(path, () => value));
       },
