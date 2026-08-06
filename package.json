@@ -1,7 +1,7 @@
 {
   "name": "commerce-hub-connect-sdk",
   "private": true,
-  "version": "0.10.5",
+  "version": "0.10.6",
   "description": "CommerceHub Connect Web SDK widget primitives",
   "main": "commerce-hub-connect.js",
   "module": "commerce-hub-connect.js",
