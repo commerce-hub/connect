@@ -13,6 +13,7 @@
 ### Task 1: Define singleton cascade behavior with failing flow tests
 
 **Files:**
+
 - Modify: `src/test/commerce-hub-connect-flow_test.ts`
 
 - [ ] **Step 1: Add a test for an implicit currency and a user-selected account path**
@@ -72,6 +73,7 @@ Expected: the new tests fail because singleton values remain empty and require m
 ### Task 2: Implement centralized singleton reconciliation
 
 **Files:**
+
 - Modify: `src/commerce-hub-connect.ts`
 - Test: `src/test/commerce-hub-connect-flow_test.ts`
 
@@ -168,6 +170,7 @@ Run the Task 1 browser command. Expected: all flow tests pass, including existin
 ### Task 3: Bump package metadata to 0.10.5
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 
@@ -190,6 +193,7 @@ Expected: exit 0.
 ### Task 4: Verify and commit
 
 **Files:**
+
 - Verify: `src/commerce-hub-connect.ts`
 - Verify: `src/test/commerce-hub-connect-flow_test.ts`
 - Verify: `package.json`
