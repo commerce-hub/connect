@@ -2365,6 +2365,7 @@ export class CommerceHubConnect extends LitElement {
               {value: '', label: 'Select currency'},
               ...currencyOptions,
             ],
+            disabled: currencyOptions.length === 1,
             span: 'full',
             variant: 'card-form',
           })}
@@ -2378,6 +2379,7 @@ export class CommerceHubConnect extends LitElement {
                   {value: '', label: 'Select account type'},
                   ...accountTypeOptions,
                 ],
+                disabled: accountTypeOptions.length === 1,
                 span: 'full',
                 variant: 'card-form',
               })
@@ -2392,6 +2394,7 @@ export class CommerceHubConnect extends LitElement {
                   {value: '', label: 'Select payment type'},
                   ...paymentTypeOptions,
                 ],
+                disabled: paymentTypeOptions.length === 1,
                 span: 'full',
                 variant: 'card-form',
               })
@@ -3263,6 +3266,7 @@ export class CommerceHubConnect extends LitElement {
       this.selectedBankAccountType = '';
       this.selectedBankPaymentType = '';
       this.selectedBankAccountInstrumentSchemaCode = undefined;
+      this.reconcileInstrumentSchemaSelection();
       return;
     }
 
@@ -3274,18 +3278,13 @@ export class CommerceHubConnect extends LitElement {
           : '';
       this.selectedBankPaymentType = '';
       this.selectedBankAccountInstrumentSchemaCode = undefined;
+      this.reconcileInstrumentSchemaSelection();
       return;
     }
 
     if (instrumentSchemaSelect?.name === 'instrumentSchemaPaymentType') {
       this.selectedBankPaymentType = instrumentSchemaSelect.value;
-      const schema = resolveInstrumentSchema(
-        selectableInstrumentSchemas(this.bankAccountInstrumentSchemas),
-        this.selectedBankCurrencyCode,
-        this.selectedBankAccountType,
-        this.selectedBankPaymentType
-      );
-      this.selectedBankAccountInstrumentSchemaCode = schema?.bavSupportedCode;
+      this.reconcileInstrumentSchemaSelection(false);
       return;
     }
 
@@ -3738,6 +3737,7 @@ export class CommerceHubConnect extends LitElement {
       this.bankAccountInstrumentSchemas = instrumentSchemas;
       this.bankAccountConfigError = undefined;
       this.bankFlowScreen = 'manual-schema-selection';
+      this.reconcileInstrumentSchemaSelection();
     } catch (cause) {
       if (
         !this.isCurrentManualBankAccountConfigRequest(
@@ -3776,6 +3776,76 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse?.interactionId === interactionId &&
       this.interactionResponse?.country?.trim() === country
     );
+  }
+
+  private reconcileInstrumentSchemaSelection(openDetailsWhenResolved = true) {
+    const selections = selectableInstrumentSchemas(
+      this.bankAccountInstrumentSchemas
+    );
+    const currencyOptions = instrumentSchemaCurrencyOptions(selections);
+
+    if (
+      !currencyOptions.some(
+        (option) => option.value === this.selectedBankCurrencyCode
+      )
+    ) {
+      this.selectedBankCurrencyCode =
+        currencyOptions.length === 1 ? currencyOptions[0].value : '';
+      this.selectedBankAccountType = '';
+      this.selectedBankPaymentType = '';
+    }
+
+    if (!this.selectedBankCurrencyCode) {
+      this.selectedBankAccountInstrumentSchemaCode = undefined;
+      return;
+    }
+
+    const accountTypeOptions = instrumentSchemaAccountTypeOptions(
+      selections,
+      this.selectedBankCurrencyCode
+    );
+
+    if (
+      !accountTypeOptions.some(
+        (option) => option.value === this.selectedBankAccountType
+      )
+    ) {
+      this.selectedBankAccountType =
+        accountTypeOptions.length === 1 ? accountTypeOptions[0].value : '';
+      this.selectedBankPaymentType = '';
+    }
+
+    if (!this.selectedBankAccountType) {
+      this.selectedBankAccountInstrumentSchemaCode = undefined;
+      return;
+    }
+
+    const paymentTypeOptions = instrumentSchemaPaymentTypeOptions(
+      selections,
+      this.selectedBankCurrencyCode,
+      this.selectedBankAccountType
+    );
+
+    if (
+      !paymentTypeOptions.some(
+        (option) => option.value === this.selectedBankPaymentType
+      )
+    ) {
+      this.selectedBankPaymentType =
+        paymentTypeOptions.length === 1 ? paymentTypeOptions[0].value : '';
+    }
+
+    const schema = resolveInstrumentSchema(
+      selections,
+      this.selectedBankCurrencyCode,
+      this.selectedBankAccountType,
+      this.selectedBankPaymentType
+    );
+    this.selectedBankAccountInstrumentSchemaCode = schema?.bavSupportedCode;
+
+    if (schema && openDetailsWhenResolved) {
+      this.initializeManualBankAccountScreen();
+    }
   }
 
   private initializeManualBankAccountScreen() {
