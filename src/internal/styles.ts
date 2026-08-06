@@ -1105,6 +1105,20 @@ export const primitiveStyles = css`
     box-shadow: 0 0 0 0.25rem var(--chc-focus-ring);
   }
 
+  .field-input:-webkit-autofill,
+  .field-input:-webkit-autofill:hover {
+    -webkit-text-fill-color: var(--chc-text);
+    caret-color: var(--chc-text);
+    box-shadow: 0 0 0 1000px var(--chc-surface) inset;
+  }
+
+  .field-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--chc-text);
+    caret-color: var(--chc-text);
+    box-shadow: 0 0 0 1000px var(--chc-surface) inset,
+      0 0 0 0.25rem var(--chc-focus-ring);
+  }
+
   .field-select {
     appearance: auto;
     text-align: left;
@@ -1218,6 +1232,12 @@ export const primitiveStyles = css`
     color: transparent;
   }
 
+  .field-input-mask-wrap .field-input-mask-hidden:-webkit-autofill,
+  .field-input-mask-wrap .field-input-mask-hidden:-webkit-autofill:hover,
+  .field-input-mask-wrap .field-input-mask-hidden:-webkit-autofill:focus {
+    -webkit-text-fill-color: transparent;
+  }
+
   .field-input-mask-overlay {
     position: absolute;
     inset: 0;
@@ -1245,6 +1265,26 @@ export const primitiveStyles = css`
   .field-card-form .field-input:focus {
     border-color: transparent;
     box-shadow: none;
+  }
+
+  .field-card-form .field-input:-webkit-autofill,
+  .field-card-form .field-input:-webkit-autofill:hover,
+  .field-card-form .field-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--chc-text);
+    caret-color: var(--chc-text);
+    box-shadow: 0 0 0 1000px var(--chc-surface) inset;
+  }
+
+  .field-card-form
+    .field-input-mask-wrap
+    .field-input-mask-hidden:-webkit-autofill,
+  .field-card-form
+    .field-input-mask-wrap
+    .field-input-mask-hidden:-webkit-autofill:hover,
+  .field-card-form
+    .field-input-mask-wrap
+    .field-input-mask-hidden:-webkit-autofill:focus {
+    -webkit-text-fill-color: transparent;
   }
 
   .field-control-card-form.field-with-select::after {
@@ -1334,6 +1374,21 @@ export const primitiveStyles = css`
     box-shadow: 0 0 0 0.25rem var(--chc-focus-ring);
   }
 
+  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill,
+  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:hover {
+    -webkit-text-fill-color: var(--chc-text);
+    caret-color: var(--chc-text);
+    box-shadow: 0 0 0 1000px
+      color-mix(in srgb, var(--chc-soft-surface) 82%, var(--chc-surface)) inset;
+  }
+
+  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--chc-text);
+    caret-color: var(--chc-text);
+    box-shadow: 0 0 0 1000px var(--chc-surface) inset,
+      0 0 0 0.25rem var(--chc-focus-ring);
+  }
+
   .bank-account-jsonforms .jsonforms-control input:disabled {
     border-color: var(--chc-border);
     background: color-mix(
@@ -1400,9 +1455,34 @@ export const primitiveStyles = css`
 
   .bank-account-jsonforms
     .jsonforms-control
+    input.jsonforms-mask-input:-webkit-autofill,
+  .bank-account-jsonforms
+    .jsonforms-control
+    input.jsonforms-mask-input:-webkit-autofill:hover,
+  .bank-account-jsonforms
+    .jsonforms-control
+    input.jsonforms-mask-input:-webkit-autofill:focus {
+    box-shadow: 0 0 0 1000px
+      color-mix(in srgb, var(--chc-soft-surface) 82%, var(--chc-surface)) inset;
+  }
+
+  .bank-account-jsonforms
+    .jsonforms-control
     input.jsonforms-mask-input.field-input-mask-hidden {
     color: transparent;
     caret-color: var(--chc-text);
+  }
+
+  .bank-account-jsonforms
+    .jsonforms-control
+    input.jsonforms-mask-input.field-input-mask-hidden:-webkit-autofill,
+  .bank-account-jsonforms
+    .jsonforms-control
+    input.jsonforms-mask-input.field-input-mask-hidden:-webkit-autofill:hover,
+  .bank-account-jsonforms
+    .jsonforms-control
+    input.jsonforms-mask-input.field-input-mask-hidden:-webkit-autofill:focus {
+    -webkit-text-fill-color: transparent;
   }
 
   .bank-account-jsonforms .jsonforms-mask-overlay {
