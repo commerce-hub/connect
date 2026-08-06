@@ -12,6 +12,9 @@ type Address = components['schemas']['Address'];
 type CardNetwork = components['schemas']['CardDetail']['network'];
 
 export const NEW_BILLING_ADDRESS_VALUE = '__new__';
+export const CARD_NUMBER_MAX_DIGITS = 19;
+export const CARD_NUMBER_MAX_DISPLAY_LENGTH = 23;
+export const EXPIRATION_DATE_MAX_DISPLAY_LENGTH = 7;
 
 export const createCardDraft = (): CardDraft => ({
   name: '',
@@ -73,7 +76,7 @@ export const formatCardDraftFieldValue = (
 };
 
 export const formatCardNumberForDisplay = (value: string): string => {
-  const digits = normalizeCardNumber(value).slice(0, 19);
+  const digits = normalizeCardNumber(value).slice(0, CARD_NUMBER_MAX_DIGITS);
 
   return formatDigitsByGroups(digits, resolveCardNumberGroupPattern(digits));
 };
@@ -114,7 +117,7 @@ export const formatDigitsByGroups = (
 };
 
 export const formatExpirationDateForDisplay = (value: string): string => {
-  const digits = value.replace(/\D/g, '').slice(0, 6);
+  const digits = value.replace(/\D/g, '').slice(0, 4);
 
   if (digits.length <= 2) {
     return digits.length === 2 ? `${digits} / ` : digits;
@@ -332,9 +335,13 @@ export const resolveEncryptedCardFieldValue = (
 };
 
 export const isValidCardNumber = (value: string): boolean => {
+  if (!/^\d(?: ?\d)*$/.test(value)) {
+    return false;
+  }
+
   const digits = normalizeCardNumber(value);
 
-  if (digits.length < 12 || digits.length > 19) {
+  if (digits.length < 12 || digits.length > CARD_NUMBER_MAX_DIGITS) {
     return false;
   }
 
@@ -363,26 +370,35 @@ export const isValidCvv = (value: string): boolean =>
   /^\d{3,4}$/.test(value);
 
 export const parseExpirationDate = (
-  value: string
+  value: string,
+  currentDate = new Date()
 ): {month: string; year: string} | undefined => {
-  const digits = value.replace(/\D/g, '');
-  const month = digits.slice(0, 2);
-  const yearDigits = digits.slice(2);
-  const monthNumber = Number(month);
+  const match = /^(\d{2}) \/ (\d{2})$/.exec(value);
 
-  if (month.length !== 2 || monthNumber < 1 || monthNumber > 12) {
+  if (!match) {
     return undefined;
   }
 
-  if (yearDigits.length === 2) {
-    return {month, year: `20${yearDigits}`};
+  const [, month, yearDigits] = match;
+  const monthNumber = Number(month);
+
+  if (monthNumber < 1 || monthNumber > 12) {
+    return undefined;
   }
 
-  if (yearDigits.length === 4) {
-    return {month, year: yearDigits};
+  const year = `20${yearDigits}`;
+  const yearNumber = Number(year);
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  if (
+    yearNumber < currentYear ||
+    (yearNumber === currentYear && monthNumber < currentMonth)
+  ) {
+    return undefined;
   }
 
-  return undefined;
+  return {month, year};
 };
 
 export const detectCardNetwork = (value: string): CardNetwork | undefined => {

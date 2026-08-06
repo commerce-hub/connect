@@ -153,6 +153,7 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
         spellcheck="false"
         data-lpignore="true"
         inputmode=${ifDefined(inputmode)}
+        maxlength=${ifDefined(props.schema.maxLength)}
         data-bank-account-field=${field}
         aria-invalid=${error ? 'true' : 'false'}
         aria-describedby=${ifDefined(

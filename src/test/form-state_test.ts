@@ -22,6 +22,7 @@ import {
   formatCardDraftFieldValue,
   hasRequiredCardDraftValues,
   isCardDraftReady,
+  isValidCardNumber,
   isValidCvv,
   normalizeCardDraft,
   parseExpirationDate,
@@ -154,6 +155,10 @@ suite('form state models', () => {
       month: '04',
       year: '2030',
     });
+    assert.equal(
+      formatCardDraftFieldValue('expirationDate', '04301234'),
+      '04 / 30'
+    );
     assert.equal(detectCardNetwork(draft.cardNumber), 'Visa');
     assert.deepEqual(validateCardDraft(normalizedDraft), {});
     assert.deepEqual(
@@ -201,6 +206,30 @@ suite('form state models', () => {
     assert.isFalse(isValidCvv('12'));
     assert.isFalse(isValidCvv('12345'));
     assert.isFalse(isValidCvv('12a3'));
+  });
+
+  test('accepts only a non-expired MM / YY expiration date', () => {
+    const currentDate = new Date(2026, 7, 1);
+
+    assert.deepEqual(parseExpirationDate('08 / 26', currentDate), {
+      month: '08',
+      year: '2026',
+    });
+    assert.isUndefined(parseExpirationDate('07 / 26', currentDate));
+    assert.isUndefined(parseExpirationDate('13 / 30', currentDate));
+    assert.isUndefined(parseExpirationDate('04 / 2030', currentDate));
+    assert.isUndefined(parseExpirationDate('04a/ 30', currentDate));
+  });
+
+  test('accepts only card numbers containing at most 19 digits', () => {
+    assert.isTrue(isValidCardNumber('4111 1111 1111 1111'));
+    assert.isFalse(isValidCardNumber('3214 1242 1424 2422'));
+    assert.isFalse(isValidCardNumber('4111a1111b1111c1111'));
+    assert.isFalse(isValidCardNumber('41111111111111111111'));
+    assert.equal(
+      formatCardDraftFieldValue('cardNumber', '4111a1111b1111c11112222'),
+      '4111 1111 1111 1111 222'
+    );
   });
 
   test('separates required card presence from card validity', () => {

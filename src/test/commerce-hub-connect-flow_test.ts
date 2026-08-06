@@ -2298,6 +2298,15 @@ suite('commerce-hub-connect flow', () => {
       false
     );
     assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#card-number')?.maxLength,
+      23
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>('#expiration-date')
+        ?.maxLength,
+      7
+    );
+    assert.equal(
       el.shadowRoot!.querySelector<HTMLInputElement>('#card-cvv')?.maxLength,
       4
     );
@@ -2992,6 +3001,7 @@ suite('commerce-hub-connect flow', () => {
     const accountNumber = el.shadowRoot!.querySelector<HTMLInputElement>(
       'input[name="accountNumber"]'
     )!;
+    assert.equal(accountNumber.maxLength, 12);
 
     await setSchemaBankField('accountHolderName', 'x');
     await setSchemaBankField('accountNumber', 'abc');
