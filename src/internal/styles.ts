@@ -621,6 +621,7 @@ export const primitiveStyles = css`
   .widget-shell-payment-methods
     .widget-content
     .primitive-stack.primitive-stack-menu-open {
+    padding-bottom: 6.5rem;
     -webkit-mask: none;
     mask: none;
     -webkit-mask-image: none;

@@ -2337,6 +2337,14 @@ suite('commerce-hub-connect payment selection', () => {
         ?.textContent?.trim(),
       'Remove'
     );
+    const list = el.shadowRoot!.querySelector<HTMLElement>('.primitive-stack')!;
+    const menu = el.shadowRoot!.querySelector<HTMLElement>('[role="menu"]')!;
+
+    assert.equal(getComputedStyle(list).paddingBottom, '104px');
+    assert.isAtMost(
+      menu.getBoundingClientRect().bottom,
+      list.getBoundingClientRect().bottom
+    );
   });
 
   test('ADD_ACCOUNT-only verified row actions include Mark as default', async () => {
