@@ -115,6 +115,10 @@ border, radius, padding, typography, surface color, focus ring, disabled state,
 and invalid state as the existing bank text inputs and SDK dropdowns. The
 control retains the platform-native dropdown arrow.
 
+Each enum dropdown prepends a blank-value option whose text is the field label,
+such as `State`. This prompt appears as the top item and keeps required enum
+controls invalid until the user selects a configured value.
+
 ## Acceptance criteria
 
 - Older responses without `uiSchema` continue using the current generated layout.
@@ -129,6 +133,7 @@ control retains the platform-native dropdown arrow.
 - Enum controls display `x-enumLabels` and submit the associated `enum` code.
 - Enum dropdowns visually match the other bank form controls in default,
   focused, disabled, and invalid states.
+- Enum dropdowns show their field label as the first blank-value option.
 
 ## Verification plan
 

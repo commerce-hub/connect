@@ -48,6 +48,8 @@
 
 - [ ] Write a failing renderer test with `enum: ['CA', 'NY']` and `x-enumLabels: {CA: 'California', NY: 'New York'}`.
 - [ ] Update `JsonFormsEnumControlRenderer` to use the label map for option text while retaining the enum code as the option value.
+- [ ] Prepend the control label as a blank-value prompt option.
+- [ ] Apply the bank form input dimensions, colors, focus ring, disabled state, and invalid state to enum selects.
 - [ ] Verify missing labels fall back to the enum code.
 
 ### Task 4: Integrate API UI schemas with billing-address selection
