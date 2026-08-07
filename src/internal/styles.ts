@@ -1695,6 +1695,16 @@ export const primitiveStyles = css`
     margin-bottom: 0.75rem;
   }
 
+  .payment-method-row-featured-informational::after {
+    content: '';
+    position: absolute;
+    right: 0.5625rem;
+    bottom: -0.4375rem;
+    left: 0.5625rem;
+    height: 0.0625rem;
+    background: var(--chc-border);
+  }
+
   .payment-method-row-has-overflow {
     grid-template-columns: minmax(0, 1fr) auto;
   }

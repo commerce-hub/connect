@@ -1570,6 +1570,10 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(nativeRow.querySelector('.payment-method-overflow'));
     assert.notExists(nativeRow.querySelector('.payment-method-chevron'));
     assert.notExists(nativeRow.querySelector('.verification-status-badge'));
+    assert.include(
+      primitiveStyles.cssText,
+      '.payment-method-row-featured-informational::after'
+    );
 
     const loadingRow = root.querySelector<HTMLElement>(
       '[data-payment-method-id="native-loading"]'

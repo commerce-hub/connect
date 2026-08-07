@@ -23,7 +23,8 @@ Map the Earnings source to an explicit `featured-informational` payment-method p
 The treatment applies only to the qualifying Earnings account. Other native-account types retain standard payment-method behavior if they become visible in the future.
 
 The featured row uses the standard payment-method surface and transparent
-border; separation comes only from the additional spacing below it.
+border. A one-pixel light-gray divider is centered within the additional space
+below it.
 
 ## Accessibility
 
