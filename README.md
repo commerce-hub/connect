@@ -257,15 +257,11 @@ Supported CSS custom properties are the stable `designConfig` tokens:
 `--chc-success-border`, `--chc-danger`, `--chc-danger-bg`,
 `--chc-danger-border`, `--chc-warning`, `--chc-warning-bg`,
 `--chc-warning-border`, `--chc-disabled-text`, `--chc-disabled-surface`,
-`--chc-font-weight`, `--chc-shell-padding`, and `--chc-shell-height`.
+`--chc-font-weight`, and `--chc-shell-padding`.
 
 ```css
 commerce-hub-connect::part(primary-action) {
   border-radius: 0.5rem;
-}
-
-commerce-hub-connect {
-  --chc-shell-height: 42rem;
 }
 ```
 

@@ -41,7 +41,6 @@ export const primitiveStyles = css`
     --chc-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
     --chc-spinner-duration: 900ms;
     --chc-shell-padding: 0;
-    --chc-shell-height: 35.25rem;
     display: block;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
@@ -91,8 +90,8 @@ export const primitiveStyles = css`
 
   .widget-shell {
     width: min(24.125rem, calc(100vw - 1.5rem));
-    height: min(var(--chc-shell-height), calc(100dvh - 1.5rem));
-    min-height: 22rem;
+    height: min(35.25rem, calc(100dvh - 1.5rem));
+    min-height: 20rem;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     position: relative;
@@ -2763,9 +2762,14 @@ export const primitiveStyles = css`
   .provider-frame-container,
   ::slotted(.provider-frame-container) {
     width: 100%;
-    min-height: 31.25rem;
+    min-height: 23.75rem;
     background: var(--chc-soft-surface);
     overflow: hidden;
+  }
+
+  .provider-frame-container-loading,
+  .provider-frame-loading ::slotted(.provider-frame-container) {
+    min-height: 31.25rem;
   }
 
   .provider-loading-overlay,

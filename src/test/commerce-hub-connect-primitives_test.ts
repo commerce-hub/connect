@@ -99,15 +99,6 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
 
-  test('exposes a viewport-capped configurable widget height', () => {
-    assert.include(primitiveStyles.cssText, '--chc-shell-height: 35.25rem');
-    assert.include(
-      primitiveStyles.cssText,
-      'height: min(var(--chc-shell-height), calc(100dvh - 1.5rem))'
-    );
-    assert.include(primitiveStyles.cssText, 'min-height: 22rem');
-  });
-
   test('visually distinguishes disabled config-driven bank fields', () => {
     assert.include(
       primitiveStyles.cssText,
@@ -985,22 +976,6 @@ suite('commerce-hub-connect primitives', () => {
       overlay.textContent?.replace(/\s+/g, ' ').trim(),
       'Connecting to your bank'
     );
-  });
-
-  test('retains the full provider height after loading completes', async () => {
-    const root = await renderHarness(html`
-      <style>
-        ${primitiveStyles.cssText}
-      </style>
-      ${renderProviderFrame({containerId: 'provider-container-ready'})}
-    `);
-
-    const container = root.querySelector<HTMLElement>(
-      '#provider-container-ready'
-    )!;
-
-    assert.equal(getComputedStyle(container).minHeight, '500px');
-    assert.notExists(root.querySelector('.provider-loading-overlay'));
   });
 
   test('renders payment method skeleton rows with status text for interaction refresh', async () => {

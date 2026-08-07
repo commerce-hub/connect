@@ -639,7 +639,6 @@ const LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
  * @cssproperty --chc-disabled-surface - Disabled control surface color.
  * @cssproperty --chc-font-weight - Inherited SDK font weight.
  * @cssproperty --chc-shell-padding - Widget shell padding.
- * @cssproperty --chc-shell-height - Preferred widget shell height, capped by the viewport.
  */
 @customElement('commerce-hub-connect')
 export class CommerceHubConnect extends LitElement {
