@@ -568,7 +568,7 @@ const setSelectValue = async (
 const blurField = async (el: CommerceHubConnect, id: string) => {
   const input = el.shadowRoot!.querySelector<HTMLInputElement>(`#${id}`)!;
 
-  input.dispatchEvent(new FocusEvent('blur', {bubbles: true}));
+  input.dispatchEvent(new FocusEvent('blur', {bubbles: true, composed: true}));
   await flushElement(el);
 };
 
@@ -2467,7 +2467,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(interactionRefreshCount(), 5);
   });
 
-  test('card validation stays hidden until Save and clears while editing', async () => {
+  test('card validation shows touched errors and all errors after Save', async () => {
     const requests: CapturedRequest[] = [];
 
     window.fetch = async (input: RequestInfo | URL) => {
@@ -2502,9 +2502,28 @@ suite('commerce-hub-connect flow', () => {
     assert.isTrue(saveButton.disabled);
     assert.notExists(el.shadowRoot!.querySelector('.field-error'));
 
+    await setFieldValue(el, 'card-number', '1');
+    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    await blurField(el, 'card-number');
+    assert.include(
+      el
+        .shadowRoot!.querySelector('#card-number')
+        ?.closest('.field')
+        ?.querySelector('.field-error')?.textContent ?? '',
+      'Enter a valid card number.'
+    );
+
+    await setFieldValue(el, 'card-number', '4111111111111111');
+    assert.notExists(
+      el
+        .shadowRoot!.querySelector('#card-number')
+        ?.closest('.field')
+        ?.querySelector('.field-error')
+    );
+
     await setFieldValue(el, 'card-label', 'Corporate@Card');
     await setFieldValue(el, 'name-on-card', 'x');
-    await setFieldValue(el, 'card-number', '1');
     await setFieldValue(el, 'expiration-date', '1');
     await setFieldValue(el, 'card-cvv', '1');
     await setSelectValue(el, 'billing-country', 'US');
@@ -2530,6 +2549,18 @@ suite('commerce-hub-connect flow', () => {
         ?.querySelector('.field-error')?.textContent ?? '',
       'Card name can only contain letters and numbers.'
     );
+
+    const expirationBounds = el
+      .shadowRoot!.querySelector('#expiration-date')!
+      .closest('.field-control')!
+      .getBoundingClientRect();
+    const cvcBounds = el
+      .shadowRoot!.querySelector('#card-cvv')!
+      .closest('.field-control')!
+      .getBoundingClientRect();
+
+    assert.closeTo(cvcBounds.top, expirationBounds.top, 0.5);
+    assert.closeTo(cvcBounds.height, expirationBounds.height, 0.5);
 
     await setFieldValue(el, 'billing-zip', '53045');
     assert.notExists(
@@ -3180,6 +3211,24 @@ suite('commerce-hub-connect flow', () => {
     )!;
     assert.equal(accountNumber.maxLength, 12);
 
+    await setSchemaBankField('accountNumber', 'abc');
+    assert.notInclude(
+      el.shadowRoot!.textContent,
+      'Enter a valid account number'
+    );
+
+    accountNumber.dispatchEvent(
+      new FocusEvent('blur', {bubbles: true, composed: true})
+    );
+    await flushElement(el);
+    assert.include(el.shadowRoot!.textContent, 'Enter a valid account number');
+
+    await setSchemaBankField('accountNumber', '1234567');
+    assert.notInclude(
+      el.shadowRoot!.textContent,
+      'Enter a valid account number'
+    );
+
     await setSchemaBankField('accountHolderName', 'x');
     await setSchemaBankField('accountNumber', 'abc');
     await setSchemaBankField('address.city', 'x');
@@ -3187,7 +3236,8 @@ suite('commerce-hub-connect flow', () => {
     await setSchemaBankField('transitNumber', 'x');
 
     assert.isFalse(saveBankAccountButton.disabled);
-    assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+    assert.include(el.shadowRoot!.textContent, 'Enter a valid account number');
+    assert.notInclude(el.shadowRoot!.textContent, 'City is required');
 
     await clickAction(el, 'save-bank-account');
 
@@ -3328,7 +3378,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('legacy bank validation stays hidden until Save and clears while editing', async () => {
+  test('legacy bank validation shows touched errors and all errors after Save', async () => {
     const requests: CapturedRequest[] = [];
 
     window.fetch = async (input: RequestInfo | URL) => {
@@ -3392,6 +3442,27 @@ suite('commerce-hub-connect flow', () => {
 
     assert.isFalse(saveButton.disabled);
     assert.notExists(el.shadowRoot!.querySelector('.field-error'));
+
+    el.shadowRoot!.querySelector<HTMLInputElement>(
+      'input[name="routingNumber"]'
+    )!.dispatchEvent(new FocusEvent('blur', {bubbles: true, composed: true}));
+    await flushElement(el);
+    assert.include(el.shadowRoot!.textContent, 'Enter a routing number');
+
+    await setLegacyBankField('routingNumber', '021000021');
+    assert.notInclude(el.shadowRoot!.textContent, 'Enter a routing number');
+
+    el.shadowRoot!.querySelector<HTMLInputElement>(
+      'input[name="confirmAccountNumber"]'
+    )!.dispatchEvent(new FocusEvent('blur', {bubbles: true, composed: true}));
+    await flushElement(el);
+    assert.include(el.shadowRoot!.textContent, 'Account numbers must match');
+
+    await setLegacyBankField('confirmAccountNumber', '2');
+    assert.notInclude(el.shadowRoot!.textContent, 'Account numbers must match');
+
+    await setLegacyBankField('confirmAccountNumber', '3');
+    assert.include(el.shadowRoot!.textContent, 'Account numbers must match');
 
     await clickAction(el, 'save-bank-account');
 

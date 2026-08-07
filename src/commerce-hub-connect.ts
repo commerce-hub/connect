@@ -34,7 +34,6 @@ import {
   normalizeBankAccountDraftForDisplay,
   normalizeBankAccountDraftForValidation,
   normalizeBankAccountNumber,
-  omitBankAccountDraftError,
   resolveBankAccountPayloadFieldValue,
   resolveBankAccountSourceName,
   updateBankAccountDraftFieldState,
@@ -736,6 +735,9 @@ export class CommerceHubConnect extends LitElement {
   private bankAccountValidationAttempted = false;
 
   @state()
+  private touchedBankFields: ReadonlySet<string> = new Set();
+
+  @state()
   private bankBillingAddressValue = '';
 
   @state()
@@ -798,6 +800,9 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private cardValidationAttempted = false;
+
+  @state()
+  private touchedCardFields: ReadonlySet<keyof CardDraft> = new Set();
 
   @state()
   private cardEncryption: CardEncryptionState = createCardEncryptionState();
@@ -2444,11 +2449,13 @@ export class CommerceHubConnect extends LitElement {
             .config=${{
               billingAddressTemplate:
                 this.renderBankBillingAddressControl(isSaving),
+              touchedValidation: {
+                fields: [...this.touchedBankFields],
+                showAll: this.bankAccountValidationAttempted,
+              },
             }}
             .readonly=${isSaving}
-            .validationMode=${this.bankAccountValidationAttempted
-              ? 'ValidateAndShow'
-              : 'ValidateAndHide'}
+            .validationMode=${'ValidateAndShow'}
             @data-change=${this.handleBankAccountFormDataChange}
             @errors-change=${this.handleBankAccountFormErrorsChange}
           ></commerce-hub-bank-account-jsonforms>
@@ -2564,9 +2571,13 @@ export class CommerceHubConnect extends LitElement {
             .readonly=${isSaving}
             .config=${{
               draft: this.legacyBankAccountDraft,
-              errors: this.bankAccountValidationAttempted
-                ? this.legacyBankAccountDraftErrors
-                : {},
+              errors: Object.fromEntries(
+                Object.entries(this.legacyBankAccountDraftErrors).filter(
+                  ([field]) =>
+                    this.bankAccountValidationAttempted ||
+                    this.touchedBankFields.has(field)
+                )
+              ),
               encryption: this.legacyBankAccountEncryption,
               disabled: isSaving,
             }}
@@ -3423,19 +3434,28 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleFocusLost = (event: Event) => {
-    const cardInput = event
+    const cardControl = event
       .composedPath()
       .find(
-        (item): item is HTMLInputElement =>
-          item instanceof HTMLInputElement &&
-          isSensitiveCardField(item.dataset.cardField)
+        (item): item is HTMLInputElement | HTMLSelectElement =>
+          (item instanceof HTMLInputElement ||
+            item instanceof HTMLSelectElement) &&
+          Boolean(item.dataset.cardField)
       );
 
-    if (cardInput) {
-      const cardField = cardInput.dataset.cardField as SensitiveCardField;
-      this.clearCardFieldLastCharReveal(cardField);
+    if (cardControl) {
+      const cardField = cardControl.dataset.cardField as CardDraftTextField;
+      this.touchCardField(cardField);
 
-      void this.trackCardFieldEncryption(cardField, cardInput.value);
+      if (
+        !(cardControl instanceof HTMLInputElement) ||
+        !isSensitiveCardField(cardField)
+      ) {
+        return;
+      }
+
+      this.clearCardFieldLastCharReveal(cardField);
+      void this.trackCardFieldEncryption(cardField, cardControl.value);
       return;
     }
 
@@ -3448,12 +3468,40 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (bankAccountInput) {
+      this.touchBankField(bankAccountInput.dataset.bankAccountField!);
       void this.encryptLegacyBankAccountField(
         bankAccountInput.dataset.bankAccountField as SensitiveBankAccountField,
         bankAccountInput.value
       );
+      return;
+    }
+
+    const configBankControl = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement | HTMLSelectElement =>
+          (item instanceof HTMLInputElement ||
+            item instanceof HTMLSelectElement) &&
+          Boolean(item.name)
+      );
+    const isInsideBankForm = event
+      .composedPath()
+      .some(
+        (item) =>
+          item instanceof HTMLElement &&
+          item.tagName === 'COMMERCE-HUB-BANK-ACCOUNT-JSONFORMS'
+      );
+
+    if (configBankControl && isInsideBankForm) {
+      this.touchBankField(configBankControl.name);
     }
   };
+
+  private touchBankField(field: string) {
+    if (!this.touchedBankFields.has(field)) {
+      this.touchedBankFields = new Set([...this.touchedBankFields, field]);
+    }
+  }
 
   private getOtpInputs(): HTMLInputElement[] {
     return [
@@ -3981,6 +4029,7 @@ export class CommerceHubConnect extends LitElement {
   private clearManualBankAccountForm() {
     this.manualBankAccountFormMode = undefined;
     this.bankAccountValidationAttempted = false;
+    this.touchedBankFields = new Set();
     this.bankAccountFormSchema = undefined;
     this.bankAccountFormUiSchema = undefined;
     this.bankAccountFormData = {};
@@ -4009,9 +4058,26 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private visibleCardDraftError(field: keyof CardDraft): string | undefined {
-    return this.cardValidationAttempted
+    return this.cardValidationAttempted || this.touchedCardFields.has(field)
       ? this.cardDraftErrors[field]
       : undefined;
+  }
+
+  private touchCardField(field: keyof CardDraft) {
+    if (!this.touchedCardFields.has(field)) {
+      this.touchedCardFields = new Set([...this.touchedCardFields, field]);
+    }
+
+    this.updateCardDraftFieldError(field, this.cardDraft);
+  }
+
+  private updateCardDraftFieldError(field: keyof CardDraft, draft: CardDraft) {
+    const fieldError = validateCardDraft(normalizeCardDraft(draft))[field];
+    const nextErrors = omitCardDraftError(this.cardDraftErrors, field);
+
+    this.cardDraftErrors = fieldError
+      ? {...nextErrors, [field]: fieldError}
+      : nextErrors;
   }
 
   private hasBlockingTransferValidationErrors(): boolean {
@@ -4146,15 +4212,8 @@ export class CommerceHubConnect extends LitElement {
 
     this.cardSubmitError = undefined;
 
-    if (this.cardValidationAttempted) {
-      const fieldError = validateCardDraft(normalizeCardDraft(nextDraft))[
-        field
-      ];
-      const nextErrors = omitCardDraftError(this.cardDraftErrors, field);
-
-      this.cardDraftErrors = fieldError
-        ? {...nextErrors, [field]: fieldError}
-        : nextErrors;
+    if (this.cardValidationAttempted || this.touchedCardFields.has(field)) {
+      this.updateCardDraftFieldError(field, nextDraft);
     }
 
     if (isSensitiveCardField(field)) {
@@ -4318,10 +4377,6 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
-    this.legacyBankAccountDraftErrors = omitBankAccountDraftError(
-      this.legacyBankAccountDraftErrors,
-      field
-    );
     this.legacyBankAccountEncryption = {
       ...this.legacyBankAccountEncryption,
       [field]: {
@@ -4564,6 +4619,7 @@ export class CommerceHubConnect extends LitElement {
       this.cardDraft = createCardDraft();
       this.cardDraftErrors = {};
       this.cardValidationAttempted = false;
+      this.touchedCardFields = new Set();
       this.cardEncryption = createCardEncryptionState();
       this.cardSubmitError = undefined;
       this.setInteractionResponseFromSdk(nextInteractionResponse);
@@ -6461,6 +6517,7 @@ export class CommerceHubConnect extends LitElement {
     this.cardDraft = createCardDraft();
     this.cardDraftErrors = {};
     this.cardValidationAttempted = false;
+    this.touchedCardFields = new Set();
     this.cardEncryption = createCardEncryptionState();
     this.cardSubmitError = undefined;
     this.billingAddressSelectorExpanded = false;
