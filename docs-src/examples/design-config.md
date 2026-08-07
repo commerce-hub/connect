@@ -84,7 +84,13 @@ Supported CSS custom properties are the stable tokens populated by
 `--chc-success-border`, `--chc-danger`, `--chc-danger-bg`,
 `--chc-danger-border`, `--chc-warning`, `--chc-warning-bg`,
 `--chc-warning-border`, `--chc-disabled-text`, `--chc-disabled-surface`,
-`--chc-font-weight`, and `--chc-shell-padding`.
+`--chc-font-weight`, `--chc-shell-padding`, and `--chc-shell-height`.
+
+```css
+commerce-hub-connect {
+  --chc-shell-height: 42rem;
+}
+```
 
 Prefer `designConfig` when a matching field exists. Use `::part` or custom
 properties only as additive escape hatches; private classes and internal spans

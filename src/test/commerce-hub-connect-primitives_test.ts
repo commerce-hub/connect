@@ -99,6 +99,15 @@ suite('commerce-hub-connect primitives', () => {
     assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
 
+  test('exposes a viewport-capped configurable widget height', () => {
+    assert.include(primitiveStyles.cssText, '--chc-shell-height: 35.25rem');
+    assert.include(
+      primitiveStyles.cssText,
+      'height: min(var(--chc-shell-height), calc(100dvh - 1.5rem))'
+    );
+    assert.include(primitiveStyles.cssText, 'min-height: 22rem');
+  });
+
   test('visually distinguishes disabled config-driven bank fields', () => {
     assert.include(
       primitiveStyles.cssText,
