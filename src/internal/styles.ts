@@ -2763,14 +2763,9 @@ export const primitiveStyles = css`
   .provider-frame-container,
   ::slotted(.provider-frame-container) {
     width: 100%;
-    min-height: 23.75rem;
+    min-height: 31.25rem;
     background: var(--chc-soft-surface);
     overflow: hidden;
-  }
-
-  .provider-frame-container-loading,
-  .provider-frame-loading ::slotted(.provider-frame-container) {
-    min-height: 31.25rem;
   }
 
   .provider-loading-overlay,

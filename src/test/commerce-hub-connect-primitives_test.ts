@@ -987,6 +987,22 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
+  test('retains the full provider height after loading completes', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderProviderFrame({containerId: 'provider-container-ready'})}
+    `);
+
+    const container = root.querySelector<HTMLElement>(
+      '#provider-container-ready'
+    )!;
+
+    assert.equal(getComputedStyle(container).minHeight, '500px');
+    assert.notExists(root.querySelector('.provider-loading-overlay'));
+  });
+
   test('renders payment method skeleton rows with status text for interaction refresh', async () => {
     const root = await renderHarness(html`
       ${renderPaymentMethodSkeletonRows({
