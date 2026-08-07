@@ -1501,6 +1501,82 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(row.querySelector('.payment-method-chevron'));
   });
 
+  test('renders native balance beside the account number', async () => {
+    const nativeMethod: PaymentMethod = {
+      id: 'native-earnings',
+      label: 'Primary - Earnings',
+      accountLabel: 'FFPTXNEARN xx 7890',
+      balanceLabel: '$125.50',
+      type: 'native',
+      brand: 'FFPTXNEARN',
+      last4: '7890',
+      status: 'verified',
+    };
+
+    const root = await renderHarness(html`
+      ${renderPaymentMethodRow(nativeMethod)}
+      ${renderPaymentMethodRow({
+        ...nativeMethod,
+        id: 'native-loading',
+        balanceLabel: undefined,
+        balanceLoading: true,
+      })}
+      ${renderPaymentMethodRow({
+        id: 'card-with-balance',
+        label: 'Corporate card',
+        accountLabel: 'Visa xx 4242',
+        balanceLabel: '$10.00',
+        type: 'card',
+        brand: 'Visa',
+        last4: '4242',
+        status: 'verified',
+      })}
+    `);
+
+    const nativeRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="native-earnings"]'
+    )!;
+    const nativeMetaRow = nativeRow.querySelector('.payment-method-meta-row')!;
+    assert.equal(
+      nativeMetaRow
+        .querySelector('.payment-method-balance')
+        ?.textContent?.trim(),
+      '$125.50'
+    );
+    assert.notExists(
+      nativeRow.querySelector(
+        '.payment-method-trailing .payment-method-balance'
+      )
+    );
+
+    const loadingRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="native-loading"]'
+    )!;
+    assert.exists(
+      loadingRow.querySelector(
+        '.payment-method-meta-row .payment-method-balance-loading'
+      )
+    );
+    assert.notExists(
+      loadingRow.querySelector(
+        '.payment-method-trailing .payment-method-balance-loading'
+      )
+    );
+
+    const cardRow = root.querySelector<HTMLElement>(
+      '[data-payment-method-id="card-with-balance"]'
+    )!;
+    assert.equal(
+      cardRow
+        .querySelector('.payment-method-trailing .payment-method-balance')
+        ?.textContent?.trim(),
+      '$10.00'
+    );
+    assert.notExists(
+      cardRow.querySelector('.payment-method-meta-row .payment-method-balance')
+    );
+  });
+
   test('renders require-info payment methods as clickable rows with a status badge', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',

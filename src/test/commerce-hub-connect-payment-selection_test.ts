@@ -1386,7 +1386,7 @@ suite('commerce-hub-connect payment selection', () => {
         {
           tenderType: 'NativeAccount',
           id: 'native-account-1',
-          name: 'Digital wallet',
+          name: 'Digital wallet - Earnings',
           verificationInfo: {status: 'VERIFIED'},
           account: {
             positionId: 'wallet-position-7890',
@@ -1429,6 +1429,80 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="add-ach-manually"]')
     );
+  });
+
+  test('shows only native accounts whose name ends with the Earnings suffix', async () => {
+    window.fetch = async () =>
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+
+    const nativeSource = (
+      id: string,
+      name: string | undefined,
+      positionId: string
+    ): PaymentSource => ({
+      tenderType: 'NativeAccount',
+      id,
+      name,
+      verificationInfo: {status: 'VERIFIED'},
+      account: {
+        positionId,
+        nickName: name ?? 'Unnamed native account',
+        productType: 'FFPTXNEARN',
+        token: `${id}-token`,
+      },
+    });
+
+    const el = await renderConnect({
+      interactionId: 'interaction-earnings-filter',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'NATIVE_ACCOUNT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+        {
+          tenderType: 'BankAccount',
+          id: 'bank-1',
+          name: 'Operating account',
+          verificationInfo: {status: 'VERIFIED'},
+          bankAccount: {
+            bankName: 'Commerce National Bank',
+            accountNumber: '9876543210',
+          },
+        },
+        nativeSource('native-exact', 'Primary - Earnings', 'position-exact'),
+        nativeSource(
+          'native-spaced',
+          'Reserve - Earnings   ',
+          'position-spaced'
+        ),
+        nativeSource(
+          'native-lowercase',
+          'Primary - earnings',
+          'position-lowercase'
+        ),
+        nativeSource('native-middle', 'Earnings - Reserve', 'position-middle'),
+        nativeSource('native-missing', undefined, 'position-missing'),
+      ],
+    });
+
+    const renderedIds = [
+      ...el.shadowRoot!.querySelectorAll<HTMLElement>('.payment-method-row'),
+    ].map((row) => row.dataset.paymentMethodId);
+
+    assert.deepEqual(renderedIds, [
+      'card-1',
+      'bank-1',
+      'native-exact',
+      'native-spaced',
+    ]);
   });
 
   test('fades a partially visible next payment method when the list overflows', async () => {
@@ -1519,7 +1593,7 @@ suite('commerce-hub-connect payment selection', () => {
     assert.include(getComputedStyle(list).webkitMaskImage, 'linear-gradient');
   });
 
-  test('fetches native account balances and renders them right aligned after row loading state', async () => {
+  test('fetches native account balances and renders them beside the account number after row loading state', async () => {
     const requests: CapturedRequest[] = [];
     const balanceResponse = createDeferred<Response>();
 
@@ -1556,6 +1630,7 @@ suite('commerce-hub-connect payment selection', () => {
         {
           tenderType: 'NativeAccount',
           id: 'native-account-1',
+          name: 'Commerce wallet - Earnings',
           verificationInfo: {status: 'VERIFIED'},
           account: {
             positionId: 'wallet-position-7890',
@@ -1567,6 +1642,7 @@ suite('commerce-hub-connect payment selection', () => {
         {
           tenderType: 'NativeAccount',
           id: 'native-account-2',
+          name: 'Rewards wallet - Earnings',
           verificationInfo: {status: 'VERIFIED'},
           account: {
             positionId: 'wallet-position-4321',
@@ -1600,14 +1676,18 @@ suite('commerce-hub-connect payment selection', () => {
         .shadowRoot!.querySelector(
           '[data-payment-method-id="native-account-1"]'
         )
-        ?.querySelector('.payment-method-balance-loading')
+        ?.querySelector(
+          '.payment-method-meta-row .payment-method-balance-loading'
+        )
     );
     assert.exists(
       el
         .shadowRoot!.querySelector(
           '[data-payment-method-id="native-account-2"]'
         )
-        ?.querySelector('.payment-method-balance-loading')
+        ?.querySelector(
+          '.payment-method-meta-row .payment-method-balance-loading'
+        )
     );
 
     balanceResponse.resolve(
@@ -1633,7 +1713,7 @@ suite('commerce-hub-connect payment selection', () => {
           .shadowRoot!.querySelector(
             '[data-payment-method-id="native-account-1"]'
           )
-          ?.querySelector('.payment-method-balance')
+          ?.querySelector('.payment-method-meta-row .payment-method-balance')
           ?.textContent?.trim() === '$125.50',
       'expected native account balance to render'
     );
@@ -1643,19 +1723,14 @@ suite('commerce-hub-connect payment selection', () => {
         .shadowRoot!.querySelector(
           '[data-payment-method-id="native-account-2"]'
         )
-        ?.querySelector('.payment-method-balance')
+        ?.querySelector('.payment-method-meta-row .payment-method-balance')
         ?.textContent?.trim(),
       '$9.00'
     );
-    assert.equal(
-      getComputedStyle(
-        el
-          .shadowRoot!.querySelector(
-            '[data-payment-method-id="native-account-1"]'
-          )!
-          .querySelector<HTMLElement>('.payment-method-balance')!
-      ).textAlign,
-      'right'
+    assert.notExists(
+      el.shadowRoot!.querySelector(
+        '[data-payment-method-id="native-account-1"] .payment-method-trailing .payment-method-balance'
+      )
     );
   });
 
@@ -1665,6 +1740,7 @@ suite('commerce-hub-connect payment selection', () => {
     const nativeSource: PaymentSource = {
       tenderType: 'NativeAccount',
       id: 'native-account-1',
+      name: 'Commerce wallet - Earnings',
       verificationInfo: {status: 'VERIFIED'},
       account: {
         positionId: 'wallet-position-7890',
@@ -1797,6 +1873,7 @@ suite('commerce-hub-connect payment selection', () => {
     const nativeSource: PaymentSource = {
       tenderType: 'NativeAccount',
       id: 'native-account-1',
+      name: 'Commerce wallet - Earnings',
       verificationInfo: {status: 'VERIFIED'},
       account: {
         positionId: 'wallet-position-7890',

@@ -127,7 +127,11 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
     normalizeCopyValue(method.accountLabel) ??
     paymentMethodFallbackAccountLabel(method);
   const title = normalizeCopyValue(method.label) ?? accountLabel;
-  const shouldRenderMeta = Boolean(accountLabel) || method.isDefault;
+  const hasInlineNativeBalance =
+    method.type === 'native' &&
+    (Boolean(method.balanceLabel) || method.balanceLoading === true);
+  const shouldRenderMeta =
+    Boolean(accountLabel) || method.isDefault || hasInlineNativeBalance;
 
   return html`
     <span class="payment-method-copy">
@@ -145,6 +149,9 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
             <span class="payment-method-meta-row">
               ${accountLabel
                 ? html`<span class="payment-method-meta">${accountLabel}</span>`
+                : ''}
+              ${method.type === 'native'
+                ? renderPaymentMethodBalance(method)
                 : ''}
               ${method.isDefault
                 ? html`<span class="payment-method-default-label"
@@ -184,7 +191,7 @@ const renderPaymentMethodTrailingContent = (
   _clickable: boolean
 ): TemplateResult => html`
   <span class="payment-method-trailing">
-    ${renderPaymentMethodBalance(method)}
+    ${method.type === 'native' ? '' : renderPaymentMethodBalance(method)}
   </span>
 `;
 
