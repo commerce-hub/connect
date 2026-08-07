@@ -124,6 +124,10 @@ Enum dropdowns use the SDK custom chevron rather than the platform-native arrow.
 The chevron is positioned one rem from the right edge to match other SDK
 dropdowns.
 
+Browser autofill must not apply a highlighted surface to enum dropdowns. An
+autofilled value keeps the same neutral background and text color as a manually
+selected value.
+
 ## Acceptance criteria
 
 - Older responses without `uiSchema` continue using the current generated layout.

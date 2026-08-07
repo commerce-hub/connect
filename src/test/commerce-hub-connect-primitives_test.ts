@@ -112,6 +112,17 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, 'opacity: 1');
   });
 
+  test('suppresses browser autofill highlighting on bank enum dropdowns', () => {
+    assert.include(
+      primitiveStyles.cssText,
+      '.bank-account-jsonforms .jsonforms-control select:-webkit-autofill'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      '.bank-account-jsonforms .jsonforms-control select:-webkit-autofill:focus'
+    );
+  });
+
   test('uses the POC typography hierarchy for headings, controls, and rows', () => {
     const hardCodedFontWeights =
       primitiveStyles.cssText.match(
@@ -1830,7 +1841,9 @@ suite('commerce-hub-connect primitives', () => {
     )!;
 
     assert.isTrue(
-      row.classList.contains('payment-method-row-has-overflow-without-affordance')
+      row.classList.contains(
+        'payment-method-row-has-overflow-without-affordance'
+      )
     );
     assert.exists(row.querySelector('.payment-method-overflow-button'));
     assert.notExists(row.querySelector('.payment-method-chevron'));

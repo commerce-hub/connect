@@ -1401,14 +1401,17 @@ export const primitiveStyles = css`
   }
 
   .bank-account-jsonforms .jsonforms-control input:-webkit-autofill,
-  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:hover {
+  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:hover,
+  .bank-account-jsonforms .jsonforms-control select:-webkit-autofill,
+  .bank-account-jsonforms .jsonforms-control select:-webkit-autofill:hover {
     -webkit-text-fill-color: var(--chc-text);
     caret-color: var(--chc-text);
     box-shadow: 0 0 0 1000px
       color-mix(in srgb, var(--chc-soft-surface) 82%, var(--chc-surface)) inset;
   }
 
-  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:focus {
+  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:focus,
+  .bank-account-jsonforms .jsonforms-control select:-webkit-autofill:focus {
     -webkit-text-fill-color: var(--chc-text);
     caret-color: var(--chc-text);
     box-shadow: 0 0 0 1000px var(--chc-surface) inset,
