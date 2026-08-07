@@ -4561,7 +4561,7 @@ suite('commerce-hub-connect flow', () => {
         label: option.textContent?.trim(),
       })),
       [
-        {value: '', label: 'Bank account type'},
+        {value: '', label: 'Select bank account type'},
         {value: 'CHECKING', label: 'Checking account'},
         {value: 'SAVINGS', label: 'Savings account'},
       ]
@@ -4575,6 +4575,11 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(selectStyles.borderRadius, inputStyles.borderRadius);
     assert.equal(selectStyles.backgroundColor, inputStyles.backgroundColor);
     assert.equal(selectStyles.paddingTop, inputStyles.paddingTop);
+    assert.equal(
+      bankAccountTypeInput.parentElement?.className,
+      'jsonforms-select-control'
+    );
+    assert.equal(selectStyles.appearance, 'none');
     const countryInput = el.shadowRoot!.querySelector<HTMLInputElement>(
       'input[name="address.country"]'
     )!;

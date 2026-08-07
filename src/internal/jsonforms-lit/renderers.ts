@@ -39,6 +39,9 @@ export const enumOptionLabel = (schema: object, option: unknown): string => {
     : optionValue;
 };
 
+export const enumPromptLabel = (label: string): string =>
+  `Select ${label.trim().toLocaleLowerCase()}`;
+
 const layoutStyles = {
   vertical: 'jsonforms-layout jsonforms-layout-vertical',
   horizontal: 'jsonforms-layout jsonforms-layout-horizontal',
@@ -354,32 +357,34 @@ export class JsonFormsEnumControlRenderer extends JsonFormsTextControlRenderer {
     return html`
       <div class="jsonforms-control">
         ${this.renderLabel(props.label, props.required)}
-        <select
-          id=${props.id}
-          name=${props.path}
-          .value=${props.data ?? ''}
-          ?disabled=${!props.enabled || props.readonly}
-          ?required=${props.required}
-          aria-invalid=${hasErrors ? 'true' : 'false'}
-          aria-describedby=${ifDefined(errorId)}
-          @change=${(event: Event) =>
-            props.handleChange(
-              props.path,
-              (event.currentTarget as HTMLSelectElement).value
+        <div class="jsonforms-select-control">
+          <select
+            id=${props.id}
+            name=${props.path}
+            .value=${props.data ?? ''}
+            ?disabled=${!props.enabled || props.readonly}
+            ?required=${props.required}
+            aria-invalid=${hasErrors ? 'true' : 'false'}
+            aria-describedby=${ifDefined(errorId)}
+            @change=${(event: Event) =>
+              props.handleChange(
+                props.path,
+                (event.currentTarget as HTMLSelectElement).value
+              )}
+          >
+            <option value="">${enumPromptLabel(props.label)}</option>
+            ${options.map(
+              (option) => html`
+                <option
+                  value=${String(option)}
+                  ?selected=${option === props.data}
+                >
+                  ${enumOptionLabel(props.schema, option)}
+                </option>
+              `
             )}
-        >
-          <option value="">${props.label}</option>
-          ${options.map(
-            (option) => html`
-              <option
-                value=${String(option)}
-                ?selected=${option === props.data}
-              >
-                ${enumOptionLabel(props.schema, option)}
-              </option>
-            `
-          )}
-        </select>
+          </select>
+        </div>
         ${this.renderDescription(props.description)}
         ${this.renderErrors(props.errors, errorId)}
       </div>

@@ -115,9 +115,14 @@ border, radius, padding, typography, surface color, focus ring, disabled state,
 and invalid state as the existing bank text inputs and SDK dropdowns. The
 control retains the platform-native dropdown arrow.
 
-Each enum dropdown prepends a blank-value option whose text is the field label,
-such as `State`. This prompt appears as the top item and keeps required enum
-controls invalid until the user selects a configured value.
+Each enum dropdown prepends a blank-value option whose text is `Select`
+followed by the lower-cased field label, such as `Select state`. This prompt
+appears as the top item and keeps required enum controls invalid until the user
+selects a configured value.
+
+Enum dropdowns use the SDK custom chevron rather than the platform-native arrow.
+The chevron is positioned one rem from the right edge to match other SDK
+dropdowns.
 
 ## Acceptance criteria
 

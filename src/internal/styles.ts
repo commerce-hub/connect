@@ -1370,6 +1370,28 @@ export const primitiveStyles = css`
       background-color var(--chc-motion-fast) var(--chc-ease-standard);
   }
 
+  .bank-account-jsonforms .jsonforms-select-control {
+    position: relative;
+  }
+
+  .bank-account-jsonforms .jsonforms-select-control::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 1rem;
+    width: 0.45rem;
+    aspect-ratio: 1;
+    border-right: 0.09375rem solid var(--chc-copy);
+    border-bottom: 0.09375rem solid var(--chc-copy);
+    transform: translateY(-65%) rotate(45deg);
+    pointer-events: none;
+  }
+
+  .bank-account-jsonforms .jsonforms-select-control select {
+    appearance: none;
+    padding-right: 2.5rem;
+  }
+
   .bank-account-jsonforms .jsonforms-control input:focus,
   .bank-account-jsonforms .jsonforms-control select:focus {
     border-color: var(--chc-primary);
