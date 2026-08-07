@@ -108,6 +108,13 @@ The SDK should reject or safely fall back when:
 When validation fails, use the existing SDK-generated `VerticalLayout`,
 preserving backward compatibility with older or malformed API responses.
 
+## Enum dropdown styling
+
+JSON Forms enum controls in the bank-account form use the same control height,
+border, radius, padding, typography, surface color, focus ring, disabled state,
+and invalid state as the existing bank text inputs and SDK dropdowns. The
+control retains the platform-native dropdown arrow.
+
 ## Acceptance criteria
 
 - Older responses without `uiSchema` continue using the current generated layout.
@@ -120,6 +127,8 @@ preserving backward compatibility with older or malformed API responses.
 - `USD-American-B` and `USD-American-P` retain their existing business/personal behavior.
 - Existing form styling and interaction behavior remain visually unchanged.
 - Enum controls display `x-enumLabels` and submit the associated `enum` code.
+- Enum dropdowns visually match the other bank form controls in default,
+  focused, disabled, and invalid states.
 
 ## Verification plan
 
@@ -134,3 +143,4 @@ Add tests covering:
 - new-address restoration and validation;
 - backward-compatible generated-layout fallback;
 - unchanged business/personal account-holder mapping.
+- enum dropdown style parity with existing bank form controls.
