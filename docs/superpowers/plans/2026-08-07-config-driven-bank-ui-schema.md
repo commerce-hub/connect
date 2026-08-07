@@ -13,6 +13,7 @@
 ### Task 1: Extend the Config API contract
 
 **Files:**
+
 - Modify: `config-swagger.yaml`
 - Regenerate: `src/generated/config-openapi.ts`
 - Test: `src/test/api-client_test.ts`
@@ -25,6 +26,7 @@
 ### Task 2: Validate and normalize the supplied schema
 
 **Files:**
+
 - Modify: `src/internal/forms/instrument-schema.ts`
 - Test: `src/test/instrument-schema-adapter_test.ts`
 
@@ -40,6 +42,7 @@
 ### Task 3: Render labeled enum controls
 
 **Files:**
+
 - Modify: `src/internal/jsonforms-lit/renderers.ts`
 - Test: `src/test/jsonforms-lit-renderers_test.ts`
 
@@ -50,6 +53,7 @@
 ### Task 4: Integrate API UI schemas with billing-address selection
 
 **Files:**
+
 - Modify: `src/commerce-hub-connect.ts`
 - Test: `src/test/commerce-hub-connect-flow_test.ts`
 

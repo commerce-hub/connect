@@ -49,10 +49,11 @@ import {
   createBankBillingAddressUiSchema,
   createInstrumentSchemaErrorTranslator,
   createInstrumentSchemaInitialData,
-  createInstrumentSchemaUiSchema,
+  filterInstrumentSchemaAddressControls,
   hasRequiredJsonSchemaValues,
   instrumentSchemaWithoutAddress,
   normalizeInstrumentSchema,
+  resolveInstrumentSchemaUiSchema,
   usableInstrumentSchemas,
   type ConfigInstrumentSchema,
 } from './internal/forms/instrument-schema.js';
@@ -3932,12 +3933,16 @@ export class CommerceHubConnect extends LitElement {
       formInstrumentSchema,
       interactionCountry
     );
+    const configuredUiSchema = resolveInstrumentSchemaUiSchema(selectedSchema);
+    const formUiSchema = isNewBillingAddress
+      ? configuredUiSchema
+      : filterInstrumentSchemaAddressControls(configuredUiSchema);
 
     this.bankAccountFormSchema = this.instrumentSchemaWithBillingAddressControl(
       normalizeInstrumentSchema(formInstrumentSchema, interactionCountry)
     );
     this.bankAccountFormUiSchema = createBankBillingAddressUiSchema(
-      createInstrumentSchemaUiSchema(formInstrumentSchema),
+      formUiSchema,
       BANK_BILLING_ADDRESS_CONTROL_SCOPE
     );
     this.bankAccountFormData = resetData

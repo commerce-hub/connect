@@ -30,6 +30,18 @@ const SENSITIVE_LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
 
 void JsonFormsDispatch;
 
+export const enumOptionLabel = (
+  schema: object,
+  option: unknown
+): string => {
+  const optionValue = String(option);
+  const labels = (schema as Record<string, unknown>)['x-enumLabels'];
+
+  return labels !== null && typeof labels === 'object' && !Array.isArray(labels)
+    ? String((labels as Record<string, unknown>)[optionValue] ?? optionValue)
+    : optionValue;
+};
+
 const layoutStyles = {
   vertical: 'jsonforms-layout jsonforms-layout-vertical',
   horizontal: 'jsonforms-layout jsonforms-layout-horizontal',
@@ -358,7 +370,7 @@ export class JsonFormsEnumControlRenderer extends JsonFormsTextControlRenderer {
                 value=${String(option)}
                 ?selected=${option === props.data}
               >
-                ${String(option)}
+                ${enumOptionLabel(props.schema, option)}
               </option>
             `
           )}

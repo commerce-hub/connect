@@ -4422,6 +4422,11 @@ suite('commerce-hub-connect flow', () => {
               bankAccountType: {
                 type: 'string',
                 title: 'Bank account type',
+                enum: ['CHECKING', 'SAVINGS'],
+                'x-enumLabels': {
+                  CHECKING: 'Checking account',
+                  SAVINGS: 'Savings account',
+                },
                 'x-errorMessages': {
                   required: 'Bank account type is required',
                 },
@@ -4441,6 +4446,19 @@ suite('commerce-hub-connect flow', () => {
               'bankAccountType',
               'address.country',
             ],
+            uiSchema: {
+              type: 'VerticalLayout',
+              elements: [
+                {type: 'Control', scope: '#/properties/accountNumber'},
+                {type: 'Control', scope: '#/properties/bankAccountType'},
+                {type: 'Control', scope: '#/properties/accountNickname'},
+                {type: 'Control', scope: '#/properties/bsbCode'},
+                {
+                  type: 'Control',
+                  scope: '#/properties/address/properties/country',
+                },
+              ],
+            },
           },
         ]);
       }
@@ -4520,6 +4538,33 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
     );
     assert.notExists(el.shadowRoot!.querySelector('#ach-routing-number'));
+    const renderedFieldNames = [
+      ...el.shadowRoot!.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+        '.bank-account-jsonforms input[name], .bank-account-jsonforms select[name]'
+      ),
+    ].map((field) => field.name);
+    assert.deepEqual(renderedFieldNames, [
+      'accountNumber',
+      'bankAccountType',
+      'accountNickname',
+      'bsbCode',
+      '__bankBillingAddress',
+      'address.country',
+    ]);
+    const bankAccountTypeInput =
+      el.shadowRoot!.querySelector<HTMLSelectElement>(
+        'select[name="bankAccountType"]'
+      )!;
+    assert.deepEqual(
+      [...bankAccountTypeInput.options].map((option) => ({
+        value: option.value,
+        label: option.textContent?.trim(),
+      })),
+      [
+        {value: 'CHECKING', label: 'Checking account'},
+        {value: 'SAVINGS', label: 'Savings account'},
+      ]
+    );
     const countryInput = el.shadowRoot!.querySelector<HTMLInputElement>(
       'input[name="address.country"]'
     )!;
@@ -4530,7 +4575,6 @@ suite('commerce-hub-connect flow', () => {
       ['accountNickname', 'Household checking'],
       ['bsbCode', '051034492'],
       ['accountNumber', '123456789012'],
-      ['bankAccountType', 'SAVINGS'],
     ] as const) {
       const input = el.shadowRoot!.querySelector<HTMLInputElement>(
         `input[name="${name}"]`
@@ -4540,6 +4584,9 @@ suite('commerce-hub-connect flow', () => {
       input.dispatchEvent(new InputEvent('input', {bubbles: true}));
       await flushElement(el);
     }
+    bankAccountTypeInput.value = 'SAVINGS';
+    bankAccountTypeInput.dispatchEvent(new Event('change', {bubbles: true}));
+    await flushElement(el);
 
     await waitForActionEnabled(el, 'save-bank-account');
     await clickAction(el, 'save-bank-account');

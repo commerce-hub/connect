@@ -4167,6 +4167,27 @@ components:
           description: Instrument field names that must be supplied.
           items:
             type: string
+        uiSchema:
+          $ref: '#/components/schemas/ConfigUiSchemaElement'
+
+    ConfigUiSchemaElement:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - VerticalLayout
+            - HorizontalLayout
+            - Group
+            - Control
+        scope:
+          type: string
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigUiSchemaElement'
 
     ConfigInstrumentSchemaProperty:
       type: object
@@ -4202,6 +4223,15 @@ components:
             use service full-value matching semantics; clients should remove the delimiters and
             preserve full-value matching when adapting them to JSON Schema.
           example: '$re$\d{7,12}$re$'
+        enum:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        x-enumLabels:
+          type: object
+          additionalProperties:
+            type: string
         x-errorMessages:
           $ref: '#/components/schemas/ConfigInstrumentSchemaErrorMessages'
 
