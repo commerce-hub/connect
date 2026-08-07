@@ -1693,8 +1693,6 @@ export const primitiveStyles = css`
 
   .payment-method-row-featured-informational {
     margin-bottom: 0.75rem;
-    border-color: var(--chc-border);
-    background: var(--chc-soft-surface);
   }
 
   .payment-method-row-has-overflow {
