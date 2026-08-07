@@ -7169,7 +7169,15 @@ const paymentMethodsFromInteractionResponse = (
       ? localTestingResponse.selectedSource?.id
       : undefined;
 
-  return paymentSources.filter(isVisiblePaymentListSource).map((source) =>
+  const visibleSources = paymentSources.filter(isVisiblePaymentListSource);
+  const orderedSources = [
+    ...visibleSources.filter(isEarningsNativePaymentSource),
+    ...visibleSources.filter(
+      (source) => !isEarningsNativePaymentSource(source)
+    ),
+  ];
+
+  return orderedSources.map((source) =>
     paymentSourceToPaymentMethod(source, {
       ...options,
       isDefault: Boolean(selectedSourceId && source.id === selectedSourceId),
@@ -7178,7 +7186,10 @@ const paymentMethodsFromInteractionResponse = (
 };
 
 const isVisiblePaymentListSource = (source: PaymentSource): boolean =>
-  !isNativePaymentSource(source) ||
+  !isNativePaymentSource(source) || isEarningsNativePaymentSource(source);
+
+const isEarningsNativePaymentSource = (source: PaymentSource): boolean =>
+  isNativePaymentSource(source) &&
   source.name?.trim().endsWith(EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX) === true;
 
 const allowedTenderOptionsFromInteractionResponse = (
@@ -7220,11 +7231,13 @@ const paymentSourceToPaymentMethod = (
     nativeBalance?.balance === undefined
       ? undefined
       : formatNativeAccountBalance(nativeBalance.balance);
+  const featuredInformational = isEarningsNativePaymentSource(source);
 
   return {
     id: sourceId,
     label: paymentSourceDisplayName(source, {selected}),
     type: paymentSourcePaymentMethodType(source),
+    presentation: featuredInformational ? 'featured-informational' : undefined,
     brand: paymentSourceBrand(source),
     accountLabel: paymentSourceAccountLabel(source),
     balanceLabel: balance,
@@ -7235,10 +7248,12 @@ const paymentSourceToPaymentMethod = (
     status: verificationStatusToPaymentMethodStatus(
       source.verificationInfo?.status
     ),
-    showVerificationStatus: Boolean(source.verificationInfo?.status),
+    showVerificationStatus:
+      !featuredInformational && Boolean(source.verificationInfo?.status),
     verificationLabel: paymentSourceVerificationLabel(source),
-    selectionEligible: isPaymentSourceSelectionEligible(source),
-    isDefault,
+    selectionEligible:
+      !featuredInformational && isPaymentSourceSelectionEligible(source),
+    isDefault: featuredInformational ? false : isDefault,
   };
 };
 

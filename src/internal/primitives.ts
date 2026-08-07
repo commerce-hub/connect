@@ -114,9 +114,11 @@ const isPaymentMethodStatusClickable = (
 ): boolean => status === 'require-info' || status === 'not-verified';
 
 const isPaymentMethodRowClickable = (method: PaymentMethod): boolean =>
+  method.presentation !== 'featured-informational' &&
   isPaymentMethodStatusClickable(method.status);
 
 const shouldRenderPaymentMethodStatus = (method: PaymentMethod): boolean =>
+  method.presentation !== 'featured-informational' &&
   method.showVerificationStatus !== false;
 
 const isPaymentMethodSelectionEligible = (method: PaymentMethod): boolean =>
@@ -293,6 +295,10 @@ const shouldRenderPaymentMethodOverflowAction = (
   method: PaymentMethod,
   showMarkAsDefault: boolean
 ): boolean => {
+  if (method.presentation === 'featured-informational') {
+    return false;
+  }
+
   const canMarkAsDefault =
     showMarkAsDefault && !method.isDefault && method.status === 'verified';
   const canRemove = !method.isDefault;
@@ -776,6 +782,7 @@ export const renderPaymentMethodRow = (
     label,
     status,
     type,
+    presentation,
     eyebrow,
     brand,
     accountLabel,
@@ -811,6 +818,7 @@ export const renderPaymentMethodRow = (
     label,
     status,
     type,
+    presentation,
     eyebrow,
     brand,
     accountLabel,
@@ -824,7 +832,11 @@ export const renderPaymentMethodRow = (
     disabled,
   };
 
-  if (confirmingDelete && !method.isDefault) {
+  if (
+    confirmingDelete &&
+    method.presentation !== 'featured-informational' &&
+    !method.isDefault
+  ) {
     return html`
       <div
         class=${joinClassNames(
@@ -842,7 +854,12 @@ export const renderPaymentMethodRow = (
     `;
   }
 
-  const rendersRadio = selectable && isPaymentMethodSelectionEligible(method);
+  const featuredInformational =
+    method.presentation === 'featured-informational';
+  const rendersRadio =
+    !featuredInformational &&
+    selectable &&
+    isPaymentMethodSelectionEligible(method);
   const rendersOverflow = shouldRenderPaymentMethodOverflowAction(
     method,
     showMarkAsDefault
@@ -854,6 +871,7 @@ export const renderPaymentMethodRow = (
     <div
       class=${joinClassNames(
         'payment-method-row',
+        featuredInformational && 'payment-method-row-featured-informational',
         rendersRadio || isPaymentMethodRowClickable(method)
           ? 'payment-method-row-action'
           : 'payment-method-row-static',

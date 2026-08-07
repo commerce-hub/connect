@@ -1519,13 +1519,17 @@ suite('commerce-hub-connect primitives', () => {
       accountLabel: 'FFPTXNEARN xx 7890',
       balanceLabel: '$125.50',
       type: 'native',
+      presentation: 'featured-informational',
       brand: 'FFPTXNEARN',
       last4: '7890',
       status: 'verified',
     };
 
     const root = await renderHarness(html`
-      ${renderPaymentMethodRow(nativeMethod)}
+      ${renderPaymentMethodRow(nativeMethod, {
+        selectable: true,
+        showMarkAsDefault: true,
+      })}
       ${renderPaymentMethodRow({
         ...nativeMethod,
         id: 'native-loading',
@@ -1559,6 +1563,13 @@ suite('commerce-hub-connect primitives', () => {
         '.payment-method-trailing .payment-method-balance'
       )
     );
+    assert.isTrue(
+      nativeRow.classList.contains('payment-method-row-featured-informational')
+    );
+    assert.notExists(nativeRow.querySelector('.payment-method-radio'));
+    assert.notExists(nativeRow.querySelector('.payment-method-overflow'));
+    assert.notExists(nativeRow.querySelector('.payment-method-chevron'));
+    assert.notExists(nativeRow.querySelector('.verification-status-badge'));
 
     const loadingRow = root.querySelector<HTMLElement>(
       '[data-payment-method-id="native-loading"]'
