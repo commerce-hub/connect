@@ -91,6 +91,7 @@ const TEST_INSTRUMENT_SCHEMAS = [
   {
     bavSupportedCode: 'CAD-Canadian-B',
     productId: 'POLOCALBANK',
+    productDescription: 'Bank Account',
     countryCode: 'CA',
     currencyCode: 'CAD',
     currencyName: 'Canadian Dollar',
@@ -3130,7 +3131,7 @@ suite('commerce-hub-connect flow', () => {
       [...paymentTypeSelect.options].map((option) =>
         option.textContent?.trim()
       ),
-      ['Select payment type', 'POLOCALBANK', 'POINTERAC']
+      ['Select payment type', 'Bank Account', 'POINTERAC']
     );
     assert.isTrue(continueButton.disabled);
 
