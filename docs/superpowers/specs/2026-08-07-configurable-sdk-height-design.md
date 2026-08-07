@@ -20,7 +20,9 @@ The widget shell uses the configured value while remaining capped by the availab
 height: min(var(--chc-shell-height), calc(100dvh - 1.5rem));
 ```
 
-The existing `20rem` minimum height and mobile full-viewport behavior remain unchanged. Overflowing content continues to scroll inside the widget.
+Increase the default minimum height from `20rem` to `22rem`. Mobile
+full-viewport behavior remains unchanged. Overflowing content continues to
+scroll inside the widget.
 
 ## Documentation and Testing
 
