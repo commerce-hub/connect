@@ -1347,7 +1347,8 @@ export const primitiveStyles = css`
     font-weight: inherit;
   }
 
-  .bank-account-jsonforms .jsonforms-control input {
+  .bank-account-jsonforms .jsonforms-control input,
+  .bank-account-jsonforms .jsonforms-control select {
     box-sizing: border-box;
     width: 100%;
     min-height: var(--chc-input-height);
@@ -1369,7 +1370,8 @@ export const primitiveStyles = css`
       background-color var(--chc-motion-fast) var(--chc-ease-standard);
   }
 
-  .bank-account-jsonforms .jsonforms-control input:focus {
+  .bank-account-jsonforms .jsonforms-control input:focus,
+  .bank-account-jsonforms .jsonforms-control select:focus {
     border-color: var(--chc-primary);
     outline: 0;
     background: var(--chc-surface);
@@ -1391,7 +1393,8 @@ export const primitiveStyles = css`
       0 0 0 0.25rem var(--chc-focus-ring);
   }
 
-  .bank-account-jsonforms .jsonforms-control input:disabled {
+  .bank-account-jsonforms .jsonforms-control input:disabled,
+  .bank-account-jsonforms .jsonforms-control select:disabled {
     border-color: var(--chc-border);
     background: color-mix(
       in srgb,
@@ -1401,6 +1404,12 @@ export const primitiveStyles = css`
     color: var(--chc-muted);
     cursor: not-allowed;
     opacity: 1;
+  }
+
+  .bank-account-jsonforms
+    .jsonforms-control
+    :is(input, select)[aria-invalid='true'] {
+    border-color: var(--chc-danger);
   }
 
   .bank-account-jsonforms .jsonforms-mask-control {

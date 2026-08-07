@@ -4561,10 +4561,20 @@ suite('commerce-hub-connect flow', () => {
         label: option.textContent?.trim(),
       })),
       [
+        {value: '', label: 'Bank account type'},
         {value: 'CHECKING', label: 'Checking account'},
         {value: 'SAVINGS', label: 'Savings account'},
       ]
     );
+    const accountNicknameInput = el.shadowRoot!.querySelector<HTMLInputElement>(
+      'input[name="accountNickname"]'
+    )!;
+    const selectStyles = getComputedStyle(bankAccountTypeInput);
+    const inputStyles = getComputedStyle(accountNicknameInput);
+    assert.equal(selectStyles.minHeight, inputStyles.minHeight);
+    assert.equal(selectStyles.borderRadius, inputStyles.borderRadius);
+    assert.equal(selectStyles.backgroundColor, inputStyles.backgroundColor);
+    assert.equal(selectStyles.paddingTop, inputStyles.paddingTop);
     const countryInput = el.shadowRoot!.querySelector<HTMLInputElement>(
       'input[name="address.country"]'
     )!;

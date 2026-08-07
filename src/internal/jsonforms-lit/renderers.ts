@@ -30,10 +30,7 @@ const SENSITIVE_LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
 
 void JsonFormsDispatch;
 
-export const enumOptionLabel = (
-  schema: object,
-  option: unknown
-): string => {
+export const enumOptionLabel = (schema: object, option: unknown): string => {
   const optionValue = String(option);
   const labels = (schema as Record<string, unknown>)['x-enumLabels'];
 
@@ -350,6 +347,10 @@ export class JsonFormsEnumControlRenderer extends JsonFormsTextControlRenderer {
       return html``;
     }
     const options = props.schema.enum ?? [];
+    const hasErrors = Array.isArray(props.errors)
+      ? props.errors.length > 0
+      : Boolean(props.errors);
+    const errorId = hasErrors ? `${props.id}-error` : undefined;
     return html`
       <div class="jsonforms-control">
         ${this.renderLabel(props.label, props.required)}
@@ -358,12 +359,16 @@ export class JsonFormsEnumControlRenderer extends JsonFormsTextControlRenderer {
           name=${props.path}
           .value=${props.data ?? ''}
           ?disabled=${!props.enabled || props.readonly}
+          ?required=${props.required}
+          aria-invalid=${hasErrors ? 'true' : 'false'}
+          aria-describedby=${ifDefined(errorId)}
           @change=${(event: Event) =>
             props.handleChange(
               props.path,
               (event.currentTarget as HTMLSelectElement).value
             )}
         >
+          <option value="">${props.label}</option>
           ${options.map(
             (option) => html`
               <option
@@ -376,7 +381,7 @@ export class JsonFormsEnumControlRenderer extends JsonFormsTextControlRenderer {
           )}
         </select>
         ${this.renderDescription(props.description)}
-        ${this.renderErrors(props.errors)}
+        ${this.renderErrors(props.errors, errorId)}
       </div>
     `;
   }
