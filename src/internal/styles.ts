@@ -1967,6 +1967,12 @@ export const primitiveStyles = css`
       var(--chc-ease-standard) infinite;
   }
 
+  .payment-method-meta-row > .payment-method-balance,
+  .payment-method-meta-row > .payment-method-balance-loading {
+    flex: 0 0 auto;
+    margin-left: 0.375rem;
+  }
+
   .payment-method-chevron {
     width: 1rem;
     height: 1rem;

@@ -7126,6 +7126,7 @@ const designConfigColorProperties: {
 
 const DESIGN_CONFIG_FONT_WEIGHT_PROPERTY = '--chc-font-weight';
 const DESIGN_CONFIG_SHELL_PADDING_PROPERTY = '--chc-shell-padding';
+const EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX = ' - Earnings';
 
 const designConfigStyleProperties = [
   ...designConfigColorProperties.map(({property}) => property),
@@ -7163,13 +7164,17 @@ const paymentMethodsFromInteractionResponse = (
       ? localTestingResponse.selectedSource?.id
       : undefined;
 
-  return paymentSources.map((source) =>
+  return paymentSources.filter(isVisiblePaymentListSource).map((source) =>
     paymentSourceToPaymentMethod(source, {
       ...options,
       isDefault: Boolean(selectedSourceId && source.id === selectedSourceId),
     })
   );
 };
+
+const isVisiblePaymentListSource = (source: PaymentSource): boolean =>
+  !isNativePaymentSource(source) ||
+  source.name?.trim().endsWith(EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX) === true;
 
 const allowedTenderOptionsFromInteractionResponse = (
   interactionResponse?: InteractionResponse
