@@ -7,8 +7,10 @@ import {
   createInstrumentSchemaErrorTranslator,
   createInstrumentSchemaInitialData,
   createInstrumentSchemaUiSchema,
+  filterInstrumentSchemaAddressControls,
   instrumentSchemaWithoutAddress,
   normalizeInstrumentSchema,
+  resolveInstrumentSchemaUiSchema,
   usableInstrumentSchemas,
   type ConfigInstrumentSchema,
 } from '../internal/forms/instrument-schema.js';
@@ -188,6 +190,85 @@ suite('instrument schema adapter', () => {
     assert.equal(country.pattern, '^CA$re$');
     assert.equal(reference.pattern, '$re$');
     assert.equal(emptyPattern.pattern, '^(?:)$');
+  });
+
+  test('preserves enum values and labels while normalizing dotted properties', () => {
+    const raw = canadianSchema();
+    raw.properties['address.state'] = {
+      type: 'string',
+      title: 'State',
+      enum: ['CA', 'NY'],
+      'x-enumLabels': {CA: 'California', NY: 'New York'},
+      'x-errorMessages': {required: 'State is required'},
+    };
+    raw.required.push('address.state');
+
+    const normalized = normalizeInstrumentSchema(raw);
+    const state = schemaProperties(schemaProperties(normalized).address)
+      .state as Record<string, unknown>;
+
+    assert.deepEqual(state.enum, ['CA', 'NY']);
+    assert.deepEqual(state['x-enumLabels'], {
+      CA: 'California',
+      NY: 'New York',
+    });
+  });
+
+  test('uses a valid supplied UI schema in exact element order', () => {
+    const raw = canadianSchema();
+    raw.uiSchema = {
+      type: 'VerticalLayout',
+      elements: [
+        {type: 'Control', scope: '#/properties/accountNumber'},
+        {type: 'Control', scope: '#/properties/accountHolderName'},
+        {type: 'Control', scope: '#/properties/address/properties/country'},
+        {type: 'Control', scope: '#/properties/address/properties/city'},
+      ],
+    };
+
+    assert.deepEqual(resolveInstrumentSchemaUiSchema(raw), raw.uiSchema);
+  });
+
+  test('falls back for invalid, unresolved, and duplicate supplied controls', () => {
+    const expected = createInstrumentSchemaUiSchema(canadianSchema());
+    const invalidUiSchemas = [
+      {type: 'Control', scope: '#/properties/accountNumber'},
+      {
+        type: 'VerticalLayout',
+        elements: [{type: 'Control', scope: '#/properties/unknown'}],
+      },
+      {
+        type: 'VerticalLayout',
+        elements: [
+          {type: 'Control', scope: '#/properties/accountNumber'},
+          {type: 'Control', scope: '#/properties/accountNumber'},
+        ],
+      },
+    ];
+
+    for (const uiSchema of invalidUiSchemas) {
+      const raw = {...canadianSchema(), uiSchema} as ConfigInstrumentSchema;
+      assert.deepEqual(resolveInstrumentSchemaUiSchema(raw), expected);
+    }
+  });
+
+  test('filters address controls without changing remaining supplied order', () => {
+    const uiSchema = {
+      type: 'VerticalLayout',
+      elements: [
+        {type: 'Control', scope: '#/properties/accountNumber'},
+        {type: 'Control', scope: '#/properties/address/properties/city'},
+        {type: 'Control', scope: '#/properties/accountHolderName'},
+      ],
+    };
+
+    assert.deepEqual(filterInstrumentSchemaAddressControls(uiSchema), {
+      type: 'VerticalLayout',
+      elements: [
+        {type: 'Control', scope: '#/properties/accountNumber'},
+        {type: 'Control', scope: '#/properties/accountHolderName'},
+      ],
+    });
   });
 
   test('creates leaf controls for dotted properties', () => {

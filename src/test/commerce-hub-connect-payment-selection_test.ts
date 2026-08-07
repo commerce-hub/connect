@@ -1498,11 +1498,25 @@ suite('commerce-hub-connect payment selection', () => {
     ].map((row) => row.dataset.paymentMethodId);
 
     assert.deepEqual(renderedIds, [
-      'card-1',
-      'bank-1',
       'native-exact',
       'native-spaced',
+      'card-1',
+      'bank-1',
     ]);
+
+    const earningsRow = el.shadowRoot!.querySelector<HTMLElement>(
+      '[data-payment-method-id="native-exact"]'
+    )!;
+    assert.isTrue(
+      earningsRow.classList.contains(
+        'payment-method-row-featured-informational'
+      )
+    );
+    assert.notExists(earningsRow.querySelector('.payment-method-radio'));
+    assert.notExists(
+      earningsRow.querySelector('[data-action="toggle-payment-source-menu"]')
+    );
+    assert.notExists(earningsRow.querySelector('.verification-status-badge'));
   });
 
   test('fades a partially visible next payment method when the list overflows', async () => {

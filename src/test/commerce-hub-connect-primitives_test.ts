@@ -112,6 +112,17 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, 'opacity: 1');
   });
 
+  test('suppresses browser autofill highlighting on bank enum dropdowns', () => {
+    assert.include(
+      primitiveStyles.cssText,
+      '.bank-account-jsonforms .jsonforms-control select:-webkit-autofill'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      '.bank-account-jsonforms .jsonforms-control select:-webkit-autofill:focus'
+    );
+  });
+
   test('uses the POC typography hierarchy for headings, controls, and rows', () => {
     const hardCodedFontWeights =
       primitiveStyles.cssText.match(
@@ -1508,13 +1519,17 @@ suite('commerce-hub-connect primitives', () => {
       accountLabel: 'FFPTXNEARN xx 7890',
       balanceLabel: '$125.50',
       type: 'native',
+      presentation: 'featured-informational',
       brand: 'FFPTXNEARN',
       last4: '7890',
       status: 'verified',
     };
 
     const root = await renderHarness(html`
-      ${renderPaymentMethodRow(nativeMethod)}
+      ${renderPaymentMethodRow(nativeMethod, {
+        selectable: true,
+        showMarkAsDefault: true,
+      })}
       ${renderPaymentMethodRow({
         ...nativeMethod,
         id: 'native-loading',
@@ -1547,6 +1562,17 @@ suite('commerce-hub-connect primitives', () => {
       nativeRow.querySelector(
         '.payment-method-trailing .payment-method-balance'
       )
+    );
+    assert.isTrue(
+      nativeRow.classList.contains('payment-method-row-featured-informational')
+    );
+    assert.notExists(nativeRow.querySelector('.payment-method-radio'));
+    assert.notExists(nativeRow.querySelector('.payment-method-overflow'));
+    assert.notExists(nativeRow.querySelector('.payment-method-chevron'));
+    assert.notExists(nativeRow.querySelector('.verification-status-badge'));
+    assert.include(
+      primitiveStyles.cssText,
+      '.payment-method-row-featured-informational::after'
     );
 
     const loadingRow = root.querySelector<HTMLElement>(
@@ -1830,7 +1856,9 @@ suite('commerce-hub-connect primitives', () => {
     )!;
 
     assert.isTrue(
-      row.classList.contains('payment-method-row-has-overflow-without-affordance')
+      row.classList.contains(
+        'payment-method-row-has-overflow-without-affordance'
+      )
     );
     assert.exists(row.querySelector('.payment-method-overflow-button'));
     assert.notExists(row.querySelector('.payment-method-chevron'));

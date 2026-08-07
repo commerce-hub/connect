@@ -265,6 +265,13 @@ export interface components {
             };
             /** @description Instrument field names that must be supplied. */
             required: string[];
+            uiSchema?: components["schemas"]["ConfigUiSchemaElement"];
+        };
+        ConfigUiSchemaElement: {
+            /** @enum {string} */
+            type: "VerticalLayout" | "HorizontalLayout" | "Group" | "Control";
+            scope?: string;
+            elements?: components["schemas"]["ConfigUiSchemaElement"][];
         };
         ConfigInstrumentSchemaProperty: {
             /**
@@ -293,6 +300,10 @@ export interface components {
              * @example $re$\d{7,12}$re$
              */
             pattern?: string;
+            enum?: string[];
+            "x-enumLabels"?: {
+                [key: string]: string;
+            };
             "x-errorMessages": components["schemas"]["ConfigInstrumentSchemaErrorMessages"];
         };
         ConfigInstrumentSchemaErrorMessages: {

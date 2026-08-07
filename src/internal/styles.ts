@@ -1347,7 +1347,8 @@ export const primitiveStyles = css`
     font-weight: inherit;
   }
 
-  .bank-account-jsonforms .jsonforms-control input {
+  .bank-account-jsonforms .jsonforms-control input,
+  .bank-account-jsonforms .jsonforms-control select {
     box-sizing: border-box;
     width: 100%;
     min-height: var(--chc-input-height);
@@ -1369,7 +1370,30 @@ export const primitiveStyles = css`
       background-color var(--chc-motion-fast) var(--chc-ease-standard);
   }
 
-  .bank-account-jsonforms .jsonforms-control input:focus {
+  .bank-account-jsonforms .jsonforms-select-control {
+    position: relative;
+  }
+
+  .bank-account-jsonforms .jsonforms-select-control::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 1rem;
+    width: 0.45rem;
+    aspect-ratio: 1;
+    border-right: 0.09375rem solid var(--chc-copy);
+    border-bottom: 0.09375rem solid var(--chc-copy);
+    transform: translateY(-65%) rotate(45deg);
+    pointer-events: none;
+  }
+
+  .bank-account-jsonforms .jsonforms-select-control select {
+    appearance: none;
+    padding-right: 2.5rem;
+  }
+
+  .bank-account-jsonforms .jsonforms-control input:focus,
+  .bank-account-jsonforms .jsonforms-control select:focus {
     border-color: var(--chc-primary);
     outline: 0;
     background: var(--chc-surface);
@@ -1377,21 +1401,25 @@ export const primitiveStyles = css`
   }
 
   .bank-account-jsonforms .jsonforms-control input:-webkit-autofill,
-  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:hover {
+  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:hover,
+  .bank-account-jsonforms .jsonforms-control select:-webkit-autofill,
+  .bank-account-jsonforms .jsonforms-control select:-webkit-autofill:hover {
     -webkit-text-fill-color: var(--chc-text);
     caret-color: var(--chc-text);
     box-shadow: 0 0 0 1000px
       color-mix(in srgb, var(--chc-soft-surface) 82%, var(--chc-surface)) inset;
   }
 
-  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:focus {
+  .bank-account-jsonforms .jsonforms-control input:-webkit-autofill:focus,
+  .bank-account-jsonforms .jsonforms-control select:-webkit-autofill:focus {
     -webkit-text-fill-color: var(--chc-text);
     caret-color: var(--chc-text);
     box-shadow: 0 0 0 1000px var(--chc-surface) inset,
       0 0 0 0.25rem var(--chc-focus-ring);
   }
 
-  .bank-account-jsonforms .jsonforms-control input:disabled {
+  .bank-account-jsonforms .jsonforms-control input:disabled,
+  .bank-account-jsonforms .jsonforms-control select:disabled {
     border-color: var(--chc-border);
     background: color-mix(
       in srgb,
@@ -1401,6 +1429,12 @@ export const primitiveStyles = css`
     color: var(--chc-muted);
     cursor: not-allowed;
     opacity: 1;
+  }
+
+  .bank-account-jsonforms
+    .jsonforms-control
+    :is(input, select)[aria-invalid='true'] {
+    border-color: var(--chc-danger);
   }
 
   .bank-account-jsonforms .jsonforms-mask-control {
@@ -1655,6 +1689,20 @@ export const primitiveStyles = css`
     grid-template-columns: minmax(0, 1fr);
     row-gap: 0.625rem;
     column-gap: 0.5rem;
+  }
+
+  .payment-method-row-featured-informational {
+    margin-bottom: 0.75rem;
+  }
+
+  .payment-method-row-featured-informational::after {
+    content: '';
+    position: absolute;
+    right: 0.5625rem;
+    bottom: -0.4375rem;
+    left: 0.5625rem;
+    height: 0.0625rem;
+    background: var(--chc-border);
   }
 
   .payment-method-row-has-overflow {

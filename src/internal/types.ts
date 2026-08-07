@@ -402,6 +402,7 @@ export interface PaymentMethod {
   balanceLabel?: string;
   balanceLoading?: boolean;
   type?: 'bank' | 'card' | 'native';
+  presentation?: 'featured-informational';
   eyebrow?: string;
   brand: string;
   last4: string;

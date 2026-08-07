@@ -91,13 +91,40 @@ const isInstrumentSchemaErrorMessages = (
 
 const isInstrumentSchemaProperty = (
   value: unknown
-): value is ConfigInstrumentSchemaProperty =>
-  isRecord(value) &&
-  value.type === 'string' &&
-  isNonBlankString(value.title) &&
-  hasValidLengthRange(value.minLength, value.maxLength) &&
-  hasValidPattern(value.pattern) &&
-  isInstrumentSchemaErrorMessages(value['x-errorMessages']);
+): value is ConfigInstrumentSchemaProperty => {
+  if (
+    !isRecord(value) ||
+    value.type !== 'string' ||
+    !isNonBlankString(value.title) ||
+    !hasValidLengthRange(value.minLength, value.maxLength) ||
+    !hasValidPattern(value.pattern) ||
+    !isInstrumentSchemaErrorMessages(value['x-errorMessages'])
+  ) {
+    return false;
+  }
+
+  const enumValues = value.enum;
+  const enumLabels = value['x-enumLabels'];
+
+  if (
+    enumValues !== undefined &&
+    (!Array.isArray(enumValues) ||
+      enumValues.length === 0 ||
+      !enumValues.every(isNonBlankString) ||
+      new Set(enumValues).size !== enumValues.length)
+  ) {
+    return false;
+  }
+
+  return (
+    enumLabels === undefined ||
+    (Array.isArray(enumValues) &&
+      isRecord(enumLabels) &&
+      Object.entries(enumLabels).every(
+        ([key, label]) => enumValues.includes(key) && isNonBlankString(label)
+      ))
+  );
+};
 
 const splitPropertyPath = (path: string): string[] => path.split('.');
 const unsafePropertyPathSegments = new Set([
@@ -202,6 +229,12 @@ const normalizeProperty = (
   }
   if (property.pattern !== undefined) {
     normalized.pattern = normalizePattern(property.pattern);
+  }
+  if (property.enum !== undefined) {
+    normalized.enum = [...property.enum];
+  }
+  if (property['x-enumLabels'] !== undefined) {
+    normalized['x-enumLabels'] = {...property['x-enumLabels']};
   }
   if (readOnly) {
     normalized.readOnly = true;
@@ -328,11 +361,8 @@ export const createBankBillingAddressUiSchema = (
   const elements = layout.elements ?? [];
   const scopeOf = (element: UISchemaElement) =>
     (element as {scope?: string}).scope ?? '';
-  const addressControls = elements.filter((element) =>
+  const firstAddressControlIndex = elements.findIndex((element) =>
     scopeOf(element).startsWith('#/properties/address/')
-  );
-  const bankControls = elements.filter(
-    (element) => !addressControls.includes(element)
   );
   const billingAddressControl = {
     type: 'Control',
@@ -341,7 +371,14 @@ export const createBankBillingAddressUiSchema = (
 
   return {
     ...layout,
-    elements: [...bankControls, billingAddressControl, ...addressControls],
+    elements:
+      firstAddressControlIndex === -1
+        ? [...elements, billingAddressControl]
+        : [
+            ...elements.slice(0, firstAddressControlIndex),
+            billingAddressControl,
+            ...elements.slice(firstAddressControlIndex),
+          ],
   };
 };
 
@@ -422,6 +459,100 @@ export const createInstrumentSchemaUiSchema = (
         .map(encodeJsonPointerSegment)
         .join('/properties/')}`,
     })),
+  };
+};
+
+const supportedUiSchemaLayoutTypes = new Set([
+  'VerticalLayout',
+  'HorizontalLayout',
+  'Group',
+]);
+
+const instrumentSchemaControlScopes = (
+  schema: ConfigInstrumentSchema
+): Set<string> =>
+  new Set(
+    Object.keys(schema.properties).map(
+      (path) =>
+        `#/properties/${splitPropertyPath(path)
+          .map(encodeJsonPointerSegment)
+          .join('/properties/')}`
+    )
+  );
+
+const isValidInstrumentUiSchema = (
+  value: unknown,
+  validScopes: Set<string>,
+  seenScopes: Set<string>,
+  root = true
+): value is UISchemaElement => {
+  if (!isRecord(value) || typeof value.type !== 'string') {
+    return false;
+  }
+
+  if (value.type === 'Control') {
+    if (
+      root ||
+      !isNonBlankString(value.scope) ||
+      !validScopes.has(value.scope)
+    ) {
+      return false;
+    }
+    if (seenScopes.has(value.scope)) {
+      return false;
+    }
+    seenScopes.add(value.scope);
+    return true;
+  }
+
+  if (
+    !supportedUiSchemaLayoutTypes.has(value.type) ||
+    !Array.isArray(value.elements)
+  ) {
+    return false;
+  }
+
+  return value.elements.every((element) =>
+    isValidInstrumentUiSchema(element, validScopes, seenScopes, false)
+  );
+};
+
+export const resolveInstrumentSchemaUiSchema = (
+  schema: ConfigInstrumentSchema
+): UISchemaElement => {
+  const uiSchema = schema.uiSchema;
+
+  return isValidInstrumentUiSchema(
+    uiSchema,
+    instrumentSchemaControlScopes(schema),
+    new Set()
+  )
+    ? (uiSchema as UISchemaElement)
+    : createInstrumentSchemaUiSchema(schema);
+};
+
+export const filterInstrumentSchemaAddressControls = (
+  uiSchema: UISchemaElement
+): UISchemaElement => {
+  const element = uiSchema as UISchemaElement & {
+    scope?: string;
+    elements?: UISchemaElement[];
+  };
+
+  if (!element.elements) {
+    return element;
+  }
+
+  return {
+    ...element,
+    elements: element.elements
+      .filter(
+        (child) =>
+          !(child as {scope?: string}).scope?.startsWith(
+            '#/properties/address/'
+          )
+      )
+      .map(filterInstrumentSchemaAddressControls),
   };
 };
 
