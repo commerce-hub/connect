@@ -229,6 +229,18 @@ export interface AllowedTenderOptions {
   nativeAccount: boolean;
 }
 
+export interface AddPaymentTenderOption {
+  action:
+    | 'add-card'
+    | 'add-bank-account'
+    | 'add-pay-by-bank'
+    | 'add-ach-manually';
+  title: string;
+  subtitle: string;
+  icon: 'card' | 'bank';
+  brandImage?: string;
+}
+
 export interface PaymentMethodsScreenCopy {
   title: string;
   subtitle: string;
