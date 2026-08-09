@@ -14,7 +14,6 @@ import {
   MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
   PAY_BY_BANK_SOURCE_ACTION_BRAND_IMAGE,
 } from '../internal/source-action-brand-images.js';
-import {BANK_SOURCE_ACTION_ICON_PATH} from '../internal/source-action-icons.js';
 
 interface CapturedRequest {
   url: string;
@@ -1748,13 +1747,18 @@ suite('commerce-hub-connect flow', () => {
       ),
       ['Credit or debit card', 'Pay by Bank', 'Manual bank details']
     );
-    assert.equal(
-      sheetOptions[1].querySelector('path')?.getAttribute('d'),
-      BANK_SOURCE_ACTION_ICON_PATH
-    );
-    assert.equal(
-      sheetOptions[2].querySelector('path')?.getAttribute('d'),
-      BANK_SOURCE_ACTION_ICON_PATH
+    assert.deepEqual(
+      sheetOptions.map(
+        (option) =>
+          option.querySelector<HTMLImageElement>(
+            '.add-payment-sheet-brand-image'
+          )?.src
+      ),
+      [
+        CARD_SOURCE_ACTION_BRAND_IMAGE,
+        PAY_BY_BANK_SOURCE_ACTION_BRAND_IMAGE,
+        MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
+      ]
     );
     await clickAction(el, 'add-card');
 

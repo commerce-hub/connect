@@ -1454,22 +1454,41 @@ export class CommerceHubConnect extends LitElement {
     title,
     subtitle,
     icon,
+    brandImage,
   }: AddPaymentTenderOption): TemplateResult {
+    const useBrandImage =
+      isUsaInteractionCountry(this.interactionResponse?.country) && brandImage;
+
     return html`
       <button
-        class="add-payment-sheet-option"
+        class="add-payment-sheet-option ${useBrandImage
+          ? 'add-payment-sheet-option-branded'
+          : ''}"
         type="button"
         data-action=${action}
       >
-        <span class="add-payment-sheet-icon" aria-hidden="true">
-          <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
-          <svg viewBox="0 0 640 640" focusable="false">
-            <path
-              d=${icon === 'card'
-                ? CARD_SOURCE_ACTION_ICON_PATH
-                : BANK_SOURCE_ACTION_ICON_PATH}
-            ></path>
-          </svg>
+        <span
+          class="add-payment-sheet-icon ${useBrandImage
+            ? 'add-payment-sheet-brand'
+            : ''}"
+          aria-hidden="true"
+        >
+          ${useBrandImage
+            ? html`<img
+                class="add-payment-sheet-brand-image"
+                src=${useBrandImage}
+                alt=""
+              />`
+            : html`
+                <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+                <svg viewBox="0 0 640 640" focusable="false">
+                  <path
+                    d=${icon === 'card'
+                      ? CARD_SOURCE_ACTION_ICON_PATH
+                      : BANK_SOURCE_ACTION_ICON_PATH}
+                  ></path>
+                </svg>
+              `}
         </span>
         <span class="add-payment-sheet-option-copy">
           <span class="add-payment-sheet-option-title">${title}</span>

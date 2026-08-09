@@ -366,6 +366,10 @@ export const primitiveStyles = css`
       transform var(--chc-motion-fast) var(--chc-ease-standard);
   }
 
+  .add-payment-sheet-option-branded {
+    grid-template-columns: 5rem minmax(0, 1fr) 1rem;
+  }
+
   .add-payment-sheet-option:hover,
   .add-payment-sheet-option:focus-visible {
     border-color: var(--chc-primary);
@@ -393,6 +397,21 @@ export const primitiveStyles = css`
     width: 1.25rem;
     height: 1.25rem;
     fill: currentColor;
+  }
+
+  .add-payment-sheet-brand {
+    width: 5rem;
+    height: 3rem;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .add-payment-sheet-brand-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    object-fit: contain;
   }
 
   .add-payment-sheet-option-copy {
