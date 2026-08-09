@@ -60,7 +60,7 @@ export const resolveAddPaymentTenders = ({
     },
     {
       action: 'add-ach-manually',
-      title: 'Manual Bank Link',
+      title: 'Manual bank details',
       subtitle: 'Add your account details manually',
       icon: 'bank',
       brandImage: MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,

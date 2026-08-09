@@ -7036,7 +7036,7 @@ const resolveNoSavedPaymentMethodsCopy = (
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle:
       copy?.addBankAccountSubtitle ?? 'Connect or enter an account',
-    addCardTitle: copy?.addCardTitle ?? 'Add credit or debit card',
+    addCardTitle: copy?.addCardTitle ?? 'Credit or debit card',
     addCardSubtitle: copy?.addCardSubtitle ?? 'Add your card details',
   };
 };
