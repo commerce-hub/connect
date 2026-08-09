@@ -197,14 +197,14 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, '.source-action-link:hover');
   });
 
-  test('allows source action subtitles to wrap on narrow hosts', () => {
+  test('allows source action subtitles to wrap at every viewport width', () => {
     assert.include(
       primitiveStyles.cssText,
-      '.source-action-title,\n    .source-action-subtitle,'
+      '.source-action-subtitle {\n    overflow: visible;'
     );
     assert.include(
       primitiveStyles.cssText,
-      '.source-action-subtitle {\n      overflow: visible;\n      text-overflow: clip;'
+      'line-height: 1.35;\n    text-overflow: clip;\n    white-space: normal;'
     );
   });
 
@@ -1199,8 +1199,29 @@ suite('commerce-hub-connect primitives', () => {
       BANK_SOURCE_ACTION_ICON_PATH
     );
     assert.notEqual(CARD_SOURCE_ACTION_ICON_PATH, BANK_SOURCE_ACTION_ICON_PATH);
-    assert.equal(getComputedStyle(emptySourceActions[0]).borderStyle, 'dashed');
-    assert.equal(getComputedStyle(emptySourceActions[1]).borderStyle, 'dashed');
+    const paymentActionLinks = emptyScreen.querySelector<HTMLElement>(
+      '.payment-action-links'
+    )!;
+    assert.equal(getComputedStyle(paymentActionLinks).borderStyle, 'solid');
+    assert.equal(
+      getComputedStyle(paymentActionLinks).backgroundColor,
+      'rgb(255, 255, 255)'
+    );
+    assert.equal(getComputedStyle(paymentActionLinks).rowGap, '0px');
+    assert.equal(getComputedStyle(emptySourceActions[0]).borderStyle, 'none');
+    assert.equal(getComputedStyle(emptySourceActions[0]).borderRadius, '0px');
+    assert.equal(
+      getComputedStyle(emptySourceActions[1]).borderTopStyle,
+      'solid'
+    );
+    assert.equal(getComputedStyle(emptySourceActions[0]).minHeight, '64px');
+    for (const button of emptySourceActions) {
+      assert.exists(
+        button.querySelector(
+          '.source-action-chevron[aria-hidden="true"]'
+        )
+      );
+    }
     assert.equal(getComputedStyle(transferAction).borderStyle, 'solid');
     assert.include(
       primitiveStyles.cssText,
@@ -1441,6 +1462,14 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.exists(
       root.querySelector('[data-action="add-card"] .source-action-link-chevron')
+    );
+    assert.exists(
+      root.querySelector(
+        '[data-action="add-bank-account"] .source-action-chevron'
+      )
+    );
+    assert.notExists(
+      root.querySelector('[data-action="add-card"] .source-action-chevron')
     );
     assert.notExists(
       root.querySelector(

@@ -1058,6 +1058,9 @@ export const renderSourceAction = ({
               ? html`<span class="source-action-subtitle">${subtitle}</span>`
               : ''}
           </span>
+          <span class="source-action-chevron" aria-hidden="true">
+            <span class="source-action-chevron-icon"></span>
+          </span>
         </button>
       `;
 

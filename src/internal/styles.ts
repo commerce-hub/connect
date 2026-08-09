@@ -690,8 +690,12 @@ export const primitiveStyles = css`
 
   .payment-action-links {
     display: grid;
-    gap: 0.625rem;
+    gap: 0;
     margin-top: 0;
+    overflow: hidden;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-card);
+    background: #fff;
     justify-items: stretch;
   }
 
@@ -2452,12 +2456,66 @@ export const primitiveStyles = css`
   }
 
   .source-action-subtitle {
-    overflow: hidden;
+    overflow: visible;
     color: var(--chc-muted);
     font-weight: inherit;
     font-size: 0.875em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.35;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .source-action-chevron {
+    width: 1rem;
+    height: 1rem;
+    display: inline-grid;
+    place-items: center;
+    color: var(--chc-muted);
+    justify-self: end;
+  }
+
+  .source-action-chevron-icon::before {
+    content: '';
+    width: 0.375rem;
+    height: 0.375rem;
+    display: block;
+    border-top: 0.09375rem solid currentColor;
+    border-right: 0.09375rem solid currentColor;
+    transform: rotate(45deg);
+  }
+
+  .payment-action-links .source-action {
+    min-height: 4rem;
+    grid-template-columns: auto minmax(0, 1fr) 1rem;
+    gap: 0.75rem;
+    border: 0;
+    border-radius: 0;
+    padding: 0.75rem 1rem;
+    background: #fff;
+    box-shadow: none;
+  }
+
+  .payment-action-links .source-action-branded {
+    grid-template-columns: 5rem minmax(0, 1fr) 1rem;
+  }
+
+  .payment-action-links .source-action + .source-action {
+    border-top: 0.0625rem solid var(--chc-border);
+  }
+
+  .payment-action-links .source-action:hover:not(:disabled),
+  .payment-action-links .source-action:focus-visible {
+    border-color: var(--chc-border);
+    border-style: solid;
+    background: color-mix(in srgb, var(--chc-soft-surface) 70%, #fff);
+    box-shadow: none;
+  }
+
+  .payment-action-links .source-action:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline-offset: -0.125rem;
   }
 
   .source-action-link {
@@ -3214,15 +3272,9 @@ export const primitiveStyles = css`
     }
 
     .source-action-title,
-    .source-action-subtitle,
     .source-action-link-title,
     .payment-method-title {
       white-space: normal;
-    }
-
-    .source-action-subtitle {
-      overflow: visible;
-      text-overflow: clip;
     }
   }
 
