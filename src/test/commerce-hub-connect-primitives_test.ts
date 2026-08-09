@@ -1099,11 +1099,20 @@ suite('commerce-hub-connect primitives', () => {
       </div>
       <div data-screen="empty">
         ${renderNoSavedPaymentMethodsScreen({
-          allowedTenderOptions: {
-            card: true,
-            bankAccount: true,
-            nativeAccount: false,
-          },
+          tenders: [
+            {
+              action: 'add-card',
+              title: 'Add card',
+              subtitle: 'Use card details',
+              icon: 'card',
+            },
+            {
+              action: 'add-bank-account',
+              title: 'Connect bank',
+              subtitle: 'Use your account',
+              icon: 'bank',
+            },
+          ],
           canAddPaymentSources: true,
           copy: {
             title: 'Add payment method',

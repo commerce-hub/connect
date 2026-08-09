@@ -9,6 +9,12 @@ import {
   type CommerceHubBaseURLInput,
 } from '../commerce-hub-connect.js';
 import type {CommerceHubConnect} from '../commerce-hub-connect.js';
+import {
+  CARD_SOURCE_ACTION_BRAND_IMAGE,
+  MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
+  PAY_BY_BANK_SOURCE_ACTION_BRAND_IMAGE,
+} from '../internal/source-action-brand-images.js';
+import {BANK_SOURCE_ACTION_ICON_PATH} from '../internal/source-action-icons.js';
 
 interface CapturedRequest {
   url: string;
@@ -1719,6 +1725,31 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'open-add-payment-source');
+    const sheetOptions = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.add-payment-sheet-option'
+      ),
+    ];
+    assert.deepEqual(
+      sheetOptions.map((option) => option.dataset.action),
+      ['add-card', 'add-pay-by-bank', 'add-ach-manually']
+    );
+    assert.deepEqual(
+      sheetOptions.map((option) =>
+        option
+          .querySelector('.add-payment-sheet-option-title')
+          ?.textContent?.trim()
+      ),
+      ['Credit or debit card', 'Pay by Bank', 'Manual Bank Link']
+    );
+    assert.equal(
+      sheetOptions[1].querySelector('path')?.getAttribute('d'),
+      BANK_SOURCE_ACTION_ICON_PATH
+    );
+    assert.equal(
+      sheetOptions[2].querySelector('path')?.getAttribute('d'),
+      BANK_SOURCE_ACTION_ICON_PATH
+    );
     await clickAction(el, 'add-card');
 
     assert.equal(
@@ -2001,14 +2032,57 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.notExists(el.shadowRoot!.querySelector('.empty-state'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
+    const emptyTenderButtons = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.payment-action-links .source-action'
+      ),
+    ];
     assert.deepEqual(
+      emptyTenderButtons.map((button) => ({
+        action: button.dataset.action,
+        title: button
+          .querySelector('.source-action-title')
+          ?.textContent?.trim(),
+        subtitle: button
+          .querySelector('.source-action-subtitle')
+          ?.textContent?.trim(),
+      })),
       [
-        ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
-          '.payment-action-links .source-action'
-        ),
-      ].map((button) => button.dataset.action),
-      ['add-card', 'add-bank-account']
+        {
+          action: 'add-card',
+          title: 'Credit or debit card',
+          subtitle: 'Add your card details',
+        },
+        {
+          action: 'add-pay-by-bank',
+          title: 'Pay by Bank',
+          subtitle: 'Directly connect with your bank account',
+        },
+        {
+          action: 'add-ach-manually',
+          title: 'Manual Bank Link',
+          subtitle: 'Add your account details manually',
+        },
+      ]
     );
+    assert.deepEqual(
+      emptyTenderButtons.map(
+        (button) =>
+          button.querySelector<HTMLImageElement>('.source-action-brand-image')
+            ?.src
+      ),
+      [
+        CARD_SOURCE_ACTION_BRAND_IMAGE,
+        PAY_BY_BANK_SOURCE_ACTION_BRAND_IMAGE,
+        MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
+      ]
+    );
+    for (const button of emptyTenderButtons) {
+      assert.equal(
+        getComputedStyle(button).backgroundColor,
+        'rgb(255, 255, 255)'
+      );
+    }
     assert.notExists(el.shadowRoot!.querySelector('.source-action-link'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
@@ -2022,6 +2096,61 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
     );
+  });
+
+  test('filters USA split bank tenders and preserves the non-USA bank tender', async () => {
+    const cases: Array<{
+      country?: string;
+      allowedTenderTypes: NonNullable<
+        InteractionResponse['allowedTenderTypes']
+      >;
+      actions: string[];
+    }> = [
+      {
+        country: ' usa ',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+        actions: ['add-card', 'add-pay-by-bank', 'add-ach-manually'],
+      },
+      {
+        country: 'US',
+        allowedTenderTypes: ['CARD'],
+        actions: ['add-card'],
+      },
+      {
+        country: 'USA',
+        allowedTenderTypes: ['BANK_ACCOUNT'],
+        actions: ['add-pay-by-bank', 'add-ach-manually'],
+      },
+      {
+        country: 'CA',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+        actions: ['add-card', 'add-bank-account'],
+      },
+      {
+        country: undefined,
+        allowedTenderTypes: ['BANK_ACCOUNT'],
+        actions: ['add-bank-account'],
+      },
+    ];
+
+    for (const testCase of cases) {
+      const el = await renderConnect({
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        country: testCase.country,
+        allowedTenderTypes: testCase.allowedTenderTypes,
+        paymentSources: [],
+      });
+
+      assert.deepEqual(
+        [
+          ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+            '.payment-action-links [data-action]'
+          ),
+        ].map((button) => button.dataset.action),
+        testCase.actions
+      );
+    }
   });
 
   test('shows payment method skeleton rows while refreshing interaction payment sources', async () => {
@@ -2089,6 +2218,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-payment',
         status: 'PAYMENT_SOURCE_REQUESTED',
+        country: 'CA',
         paymentSources: [],
       },
       {

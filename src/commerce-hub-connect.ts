@@ -125,6 +125,7 @@ import {
   normalizeTransferDraft,
   validateTransferDraft,
 } from './internal/forms/transfer-form-state.js';
+import {resolveAddPaymentTenders} from './internal/add-payment-tenders.js';
 import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
@@ -167,6 +168,7 @@ import {
   renderWidgetShell,
 } from './internal/primitives.js';
 import type {
+  AddPaymentTenderOption,
   AllowedTenderOptions,
   BankAccountDraft,
   BankAccountDraftErrors,
@@ -1404,9 +1406,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderAddPaymentSourceSheet(): TemplateResult {
-    const allowed = allowedTenderOptionsFromInteractionResponse(
-      this.interactionResponse
-    );
+    const tenders = this.addPaymentTenderOptions();
 
     return html`
       <div class="add-payment-sheet-layer">
@@ -1440,22 +1440,9 @@ export class CommerceHubConnect extends LitElement {
             </button>
           </div>
           <div class="add-payment-sheet-options">
-            ${allowed.card
-              ? this.renderAddPaymentSourceOption({
-                  action: 'add-card',
-                  title: 'Credit or debit card',
-                  subtitle: 'Add your card details',
-                  icon: 'card',
-                })
-              : ''}
-            ${allowed.bankAccount
-              ? this.renderAddPaymentSourceOption({
-                  action: 'add-bank-account',
-                  title: 'Bank account',
-                  subtitle: 'Connect or enter an account',
-                  icon: 'bank',
-                })
-              : ''}
+            ${tenders.map((tender) =>
+              this.renderAddPaymentSourceOption(tender)
+            )}
           </div>
         </section>
       </div>
@@ -1467,12 +1454,7 @@ export class CommerceHubConnect extends LitElement {
     title,
     subtitle,
     icon,
-  }: {
-    action: 'add-card' | 'add-bank-account';
-    title: string;
-    subtitle: string;
-    icon: 'card' | 'bank';
-  }): TemplateResult {
+  }: AddPaymentTenderOption): TemplateResult {
     return html`
       <button
         class="add-payment-sheet-option"
@@ -1750,17 +1732,30 @@ export class CommerceHubConnect extends LitElement {
     const canAddPaymentSources =
       isInteractionFeatureEnabled(this.interactionResponse, 'ADD_ACCOUNT') &&
       (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
+    const tenders = this.addPaymentTenderOptions();
     return this.renderWidgetShell({
       title: copy.title,
       subtitle: copy.subtitle,
       showClose: false,
       showDivider: false,
       content: renderNoSavedPaymentMethodsScreen({
-        allowedTenderOptions,
+        tenders,
         canAddPaymentSources,
         deletePending: isDeletePending,
         copy,
       }),
+    });
+  }
+
+  private addPaymentTenderOptions(): AddPaymentTenderOption[] {
+    const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
+
+    return resolveAddPaymentTenders({
+      isUsa: isUsaInteractionCountry(this.interactionResponse?.country),
+      allowedTenderOptions: allowedTenderOptionsFromInteractionResponse(
+        this.interactionResponse
+      ),
+      copy,
     });
   }
 
@@ -2777,16 +2772,18 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'open-add-payment-source') {
-      const allowed = allowedTenderOptionsFromInteractionResponse(
-        this.interactionResponse
-      );
+      const tenders = this.addPaymentTenderOptions();
       this.attachmentError = undefined;
-      if (allowed.card && allowed.bankAccount) {
+      if (tenders.length > 1) {
         this.addLauncherActive = true;
         this.focusAfterUpdate('[data-action="close-add-payment-source"]');
-      } else if (allowed.card) {
+      } else if (tenders[0]?.action === 'add-card') {
         void this.showAddCardScreen();
-      } else if (allowed.bankAccount) {
+      } else if (tenders[0]?.action === 'add-pay-by-bank') {
+        void this.startPayByBankFlow();
+      } else if (tenders[0]?.action === 'add-ach-manually') {
+        void this.showManualBankAccountScreen();
+      } else if (tenders[0]?.action === 'add-bank-account') {
         void this.startBankAccountFlow();
       }
       return;
@@ -2892,6 +2889,16 @@ export class CommerceHubConnect extends LitElement {
     if (action === 'back-to-instrument-schema-selection') {
       this.clearManualBankAccountForm();
       this.bankFlowScreen = 'manual-schema-selection';
+      return;
+    }
+
+    if (action === 'add-pay-by-bank') {
+      this.addLauncherActive = false;
+      this.paymentSourceView = 'list';
+      this.resetCardFlow();
+      this.resetRequiredInfo();
+      this.resetBankFlow();
+      void this.startPayByBankFlow();
       return;
     }
 
@@ -5572,6 +5579,8 @@ export class CommerceHubConnect extends LitElement {
       '[data-action="open-add-payment-source"]',
       '[data-action="toggle-payment-source-menu"]',
       '[data-action="add-card"]',
+      '[data-action="add-pay-by-bank"]',
+      '[data-action="add-ach-manually"]',
       '[data-action="add-bank-account"]'
     );
   }
@@ -7019,7 +7028,7 @@ const resolvePaymentMethodsCopy = (
     subtitle: copy?.subtitle ?? '',
     addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
-    addCardTitle: copy?.addCardTitle ?? 'Add credit or debit card',
+    addCardTitle: copy?.addCardTitle ?? 'Credit or debit card',
     addCardSubtitle: copy?.addCardSubtitle ?? '',
     continueButton: copy?.continueButton ?? 'Use selected method',
     continuingButton: copy?.continuingButton ?? 'Saving...',

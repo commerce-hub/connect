@@ -279,7 +279,7 @@ export interface PaymentMethodsScreenModel {
 }
 
 export interface NoSavedPaymentMethodsScreenModel {
-  allowedTenderOptions: AllowedTenderOptions;
+  tenders: AddPaymentTenderOption[];
   canAddPaymentSources: boolean;
   deletePending?: boolean;
   copy: NoSavedPaymentMethodsScreenCopy;
