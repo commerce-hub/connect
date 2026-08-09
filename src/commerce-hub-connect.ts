@@ -490,6 +490,22 @@ type PaymentSdkAppearanceBranding = Partial<{
   borderRadius: string;
 }>;
 
+const DEFAULT_PAYMENT_SDK_BRANDING: Required<PaymentSdkAppearanceBranding> = {
+  backgroundColor: '#ffffff',
+  primaryColor: '#533afd',
+  primaryTextColor: '#061b31',
+  secondaryTextColor: '#50617a',
+  buttonColor: '#533afd',
+  buttonTextColor: '#ffffff',
+  dangerColor: '#c2410c',
+  successColor: '#047857',
+  borderColor: '#e5edf5',
+  placeholderColor: '#9ca3af',
+  fontFamily:
+    "sohne-var, 'SF Pro Display', system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+  borderRadius: '8px',
+};
+
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const NO_INSTRUMENT_SCHEMAS_ERROR =
@@ -7045,7 +7061,9 @@ const resolvePaymentSdkAppearance = (
   designConfig?: DesignConfig
 ): PaymentSdkAppearance => {
   const colors = designConfig?.colors;
-  const branding: PaymentSdkAppearanceBranding = {};
+  const branding: PaymentSdkAppearanceBranding = {
+    ...DEFAULT_PAYMENT_SDK_BRANDING,
+  };
 
   setPaymentSdkBrandingValue(
     branding,

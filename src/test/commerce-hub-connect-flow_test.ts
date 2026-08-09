@@ -7503,10 +7503,14 @@ suite('commerce-hub-connect flow', () => {
         primaryTextColor: '#1f2937',
         secondaryTextColor: '#4b5563',
         buttonColor: '#123456',
+        buttonTextColor: '#ffffff',
         dangerColor: '#dc2626',
         successColor: '#059669',
         borderColor: '#d1d5db',
         placeholderColor: '#9ca3af',
+        fontFamily:
+          "sohne-var, 'SF Pro Display', system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+        borderRadius: '8px',
       },
     });
     assert.exists(providerContainer);
@@ -7570,6 +7574,23 @@ suite('commerce-hub-connect flow', () => {
       'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A'
     );
     assert.equal(initConfig?.configId, 'cce84049-0940-4926-9a54-9eaca0c09830');
+    assert.deepEqual(initConfig?.appearance, {
+      branding: {
+        backgroundColor: '#ffffff',
+        primaryColor: '#533afd',
+        primaryTextColor: '#061b31',
+        secondaryTextColor: '#50617a',
+        buttonColor: '#533afd',
+        buttonTextColor: '#ffffff',
+        dangerColor: '#c2410c',
+        successColor: '#047857',
+        borderColor: '#e5edf5',
+        placeholderColor: '#9ca3af',
+        fontFamily:
+          "sohne-var, 'SF Pro Display', system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+        borderRadius: '8px',
+      },
+    });
   });
 
   test('Pay by Bank startup errors are printed to the console', async () => {
