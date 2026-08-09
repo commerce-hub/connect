@@ -1205,7 +1205,7 @@ const completePayByBankFlow = async ({
   });
   const events = recordOutputEvents(el);
 
-  await clickAction(el, 'add-bank-account');
+  await clickAction(el, 'add-pay-by-bank');
   await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
   await initConfig!.onEvent({type: 'success'});
   await flushElement(el);
@@ -5693,7 +5693,7 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'use-different-method');
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
