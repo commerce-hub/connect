@@ -7476,7 +7476,7 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.exists(alternateAction);
     assert.equal(alternateAction?.textContent?.trim(), 'Connect another way');
-    assert.isTrue(alternateAction?.classList.contains('button-secondary'));
+    assert.isTrue(alternateAction?.classList.contains('button-primary'));
     assert.isFalse(alternateAction?.disabled);
     assert.notExists(el.shadowRoot!.querySelector('.widget-action-footer'));
     assert.equal(getComputedStyle(alternateAction!).fontSize, '12px');

@@ -2291,7 +2291,7 @@ export class CommerceHubConnect extends LitElement {
         <div class="bank-provider-alternate-action">
           ${renderButton({
             label: 'Connect another way',
-            variant: 'secondary',
+            variant: 'primary',
             action: 'add-ach-manually',
             disabled: this.bankLinkLoading,
           })}
