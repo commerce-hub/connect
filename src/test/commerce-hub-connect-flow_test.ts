@@ -222,6 +222,7 @@ const renderConnect = async (
   baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL,
   options: {
     initialInteractionResponse?: InteractionResponse | false;
+    defaultCountry?: boolean;
     defaultFeatures?: boolean;
     defaultSourceMetadata?: boolean;
   } = {}
@@ -231,7 +232,8 @@ const renderConnect = async (
   const interactionResponseForTest = interactionResponseWithTestFeatures(
     interactionResponse,
     options.defaultFeatures,
-    options.defaultSourceMetadata
+    options.defaultSourceMetadata,
+    options.defaultCountry
   );
 
   if (shouldStubInitialInteraction) {
@@ -243,7 +245,8 @@ const renderConnect = async (
         : interactionResponseWithTestFeatures(
             options.initialInteractionResponse ?? interactionResponse,
             options.defaultFeatures,
-            options.defaultSourceMetadata
+            options.defaultSourceMetadata,
+            options.defaultCountry
           );
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -292,13 +295,16 @@ const renderConnect = async (
 const interactionResponseWithTestFeatures = (
   interactionResponse: InteractionResponse,
   defaultFeatures = true,
-  defaultSourceMetadata = true
+  defaultSourceMetadata = true,
+  defaultCountry = true
 ): InteractionResponse => {
   const nextInteractionResponse =
     defaultFeatures || interactionResponse.features
       ? {
           ...interactionResponse,
-          country: interactionResponse.country ?? 'USA',
+          country: defaultCountry
+            ? interactionResponse.country ?? 'USA'
+            : interactionResponse.country,
           features: interactionResponse.features ?? [
             ...TEST_INTERACTION_FEATURES,
           ],
@@ -2134,13 +2140,18 @@ suite('commerce-hub-connect flow', () => {
     ];
 
     for (const testCase of cases) {
-      const el = await renderConnect({
-        interactionId: 'interaction-payment',
-        status: 'PAYMENT_SOURCE_REQUESTED',
-        country: testCase.country,
-        allowedTenderTypes: testCase.allowedTenderTypes,
-        paymentSources: [],
-      });
+      const el = await renderConnect(
+        {
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          country: testCase.country,
+          allowedTenderTypes: testCase.allowedTenderTypes,
+          paymentSources: [],
+        },
+        undefined,
+        TEST_COMMERCE_HUB_BASE_URL,
+        {defaultCountry: testCase.country !== undefined}
+      );
 
       assert.deepEqual(
         [
