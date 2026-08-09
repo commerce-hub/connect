@@ -2334,6 +2334,33 @@ export const primitiveStyles = css`
     cursor: not-allowed;
   }
 
+  .source-action-branded {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+
+  .source-action-branded,
+  .source-action-branded:hover:not(:disabled),
+  .source-action-branded:focus-visible,
+  .source-action-branded:disabled {
+    background: #fff;
+  }
+
+  .source-action-brand {
+    width: 5rem;
+    height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .source-action-brand-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+  }
+
   .source-action-icon {
     flex: 0 0 auto;
     display: inline-flex;

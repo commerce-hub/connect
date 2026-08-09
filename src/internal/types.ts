@@ -91,6 +91,7 @@ export type FlowActionName =
   | 'submit-required-info'
   | 'transfer'
   | 'add-bank-account'
+  | 'add-pay-by-bank'
   | 'add-ach-manually'
   | 'select-instrument-schema'
   | 'save-bank-account'
@@ -422,6 +423,7 @@ export interface SourceActionOptions {
   subtitle?: string;
   action: FlowActionName;
   icon: SourceActionIcon;
+  brandImage?: string;
   variant?: SourceActionVariant;
   disabled?: boolean;
 }

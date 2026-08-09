@@ -1447,6 +1447,34 @@ suite('commerce-hub-connect primitives', () => {
     assert.exists(root.querySelector('.detail-list-compact'));
   });
 
+  test('renders a decorative brand image without replacing tender copy', async () => {
+    const root = await renderHarness(
+      renderSourceAction({
+        label: 'Pay by Bank',
+        subtitle: 'Directly connect with your bank account',
+        action: 'add-pay-by-bank',
+        icon: 'bank',
+        brandImage: 'data:image/jpeg;base64,dGVzdA==',
+      })
+    );
+
+    const button = root.querySelector<HTMLButtonElement>(
+      '[data-action="add-pay-by-bank"]'
+    )!;
+    const image = button.querySelector<HTMLImageElement>(
+      '.source-action-brand-image'
+    )!;
+
+    assert.isTrue(button.classList.contains('source-action-branded'));
+    assert.equal(image.src, 'data:image/jpeg;base64,dGVzdA==');
+    assert.equal(image.alt, '');
+    assert.equal(image.getAttribute('aria-hidden'), 'true');
+    assert.equal(
+      button.querySelector('.source-action-title')?.textContent?.trim(),
+      'Pay by Bank'
+    );
+  });
+
   test('renders non-verified payment methods as clickable action-required rows', async () => {
     const method: PaymentMethod = {
       id: 'bank-1',
