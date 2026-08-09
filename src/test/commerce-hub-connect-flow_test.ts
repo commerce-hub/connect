@@ -7356,6 +7356,11 @@ suite('commerce-hub-connect flow', () => {
       ).minHeight,
       '500px'
     );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '.widget-title-action [data-action="add-ach-manually"]'
+      )?.disabled
+    );
 
     pendingSession.resolve(
       new Response(
@@ -7413,6 +7418,10 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
+      if (new URL(request.url).pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse();
+      }
+
       return new Response(
         JSON.stringify({
           aggregatorSessionId: 'agg-session-1',
@@ -7428,6 +7437,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-payment',
         status: 'PAYMENT_SOURCE_REQUESTED',
+        country: 'USA',
         paymentSources: [],
       },
       {
@@ -7461,6 +7471,16 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.provider-frame-header'));
     assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
+    const alternateAction = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '.widget-title-action .bank-provider-alternate-action .button'
+    );
+    assert.exists(alternateAction);
+    assert.equal(alternateAction?.textContent?.trim(), 'Connect another way');
+    assert.isTrue(alternateAction?.classList.contains('button-secondary'));
+    assert.isFalse(alternateAction?.disabled);
+    assert.notExists(el.shadowRoot!.querySelector('.widget-action-footer'));
+    assert.equal(getComputedStyle(alternateAction!).fontSize, '12px');
+    assert.equal(getComputedStyle(alternateAction!).minHeight, '32px');
     const backButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.widget-back-button[data-action="back-to-payment-methods"]'
     );
@@ -7505,6 +7525,14 @@ suite('commerce-hub-connect flow', () => {
       'interaction-payment'
     );
     assert.equal(requests[0].credentials, 'include');
+
+    await clickAction(el, 'add-ach-manually');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Select bank account type',
+      'US instrument schema chooser did not load'
+    );
   });
 
   test('add bank account uses built-in Pay by Bank credentials when designConfig omits them', async () => {

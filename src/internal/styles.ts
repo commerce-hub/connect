@@ -2697,9 +2697,13 @@ export const primitiveStyles = css`
     min-height: 31.25rem;
   }
 
-  .bank-provider-manual-link {
-    display: flex;
-    justify-content: center;
+  .bank-provider-alternate-action .button {
+    width: auto;
+    min-height: 2rem;
+    padding: 0 0.625rem;
+    font-size: 0.75rem;
+    letter-spacing: 0;
+    white-space: nowrap;
   }
 
   .instrument-schema-selection {

@@ -2271,6 +2271,16 @@ export class CommerceHubConnect extends LitElement {
       backDisabled: this.bankLinkLoading,
       showClose: false,
       showDivider: false,
+      titleAction: html`
+        <div class="bank-provider-alternate-action">
+          ${renderButton({
+            label: 'Connect another way',
+            variant: 'secondary',
+            action: 'add-ach-manually',
+            disabled: this.bankLinkLoading,
+          })}
+        </div>
+      `,
       busy: this.bankLinkLoading,
       overlay: this.bankLinkLoading
         ? renderWidgetLoadingOverlay({
@@ -2283,15 +2293,6 @@ export class CommerceHubConnect extends LitElement {
         loading: this.bankLinkLoading,
         loadingLabel: 'Connecting to your bank',
       }),
-      footer: html`
-        <div class="bank-provider-manual-link">
-          ${renderTextLinkButton({
-            label: 'Connect another way',
-            action: 'add-ach-manually',
-            disabled: this.bankLinkLoading,
-          })}
-        </div>
-      `,
     });
   }
 
