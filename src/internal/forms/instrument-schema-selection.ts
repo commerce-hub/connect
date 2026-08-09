@@ -125,10 +125,17 @@ export const instrumentSchemaPaymentTypeOptions = (
           selection.currencyCode === currencyCode &&
           selection.accountType === accountType
       )
-      .map(({paymentType, schema}) => ({
-        value: paymentType,
-        label: schema.productId,
-      }))
+      .map(({paymentType, schema}) => {
+        const productDescription =
+          typeof schema.productDescription === 'string'
+            ? schema.productDescription.trim()
+            : '';
+
+        return {
+          value: paymentType,
+          label: productDescription || schema.productId,
+        };
+      })
   );
 
 export const resolveInstrumentSchema = (

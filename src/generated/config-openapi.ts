@@ -239,6 +239,11 @@ export interface components {
              */
             productId: string;
             /**
+             * @description Human-readable product name displayed in instrument selection controls.
+             * @example Bank Account
+             */
+            productDescription?: string;
+            /**
              * @description ISO 3166-1 alpha-2 country code associated with the instrument.
              * @example CA
              */

@@ -4135,6 +4135,10 @@ components:
           type: string
           description: Product identifier associated with the tender instrument.
           example: "POLOCALBANK"
+        productDescription:
+          type: string
+          description: Human-readable product name displayed in instrument selection controls.
+          example: "Bank Account"
         countryCode:
           type: string
           pattern: '^[A-Z]{2}$'
