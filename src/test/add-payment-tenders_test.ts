@@ -44,7 +44,7 @@ suite('add payment tenders', () => {
         },
         {
           action: 'add-ach-manually',
-          title: 'Manual Bank Link',
+          title: 'Manual bank details',
           subtitle: 'Add your account details manually',
           icon: 'bank',
           branded: true,

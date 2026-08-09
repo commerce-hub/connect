@@ -1746,7 +1746,7 @@ suite('commerce-hub-connect flow', () => {
           .querySelector('.add-payment-sheet-option-title')
           ?.textContent?.trim()
       ),
-      ['Credit or debit card', 'Pay by Bank', 'Manual Bank Link']
+      ['Credit or debit card', 'Pay by Bank', 'Manual bank details']
     );
     assert.equal(
       sheetOptions[1].querySelector('path')?.getAttribute('d'),
@@ -2066,7 +2066,7 @@ suite('commerce-hub-connect flow', () => {
         },
         {
           action: 'add-ach-manually',
-          title: 'Manual Bank Link',
+          title: 'Manual bank details',
           subtitle: 'Add your account details manually',
         },
       ]

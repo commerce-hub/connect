@@ -2015,7 +2015,7 @@ suite('commerce-hub-connect payment selection', () => {
       [
         {
           action: 'add-card',
-          title: 'Add credit or debit card',
+          title: 'Credit or debit card',
           subtitle: 'Add your card details',
         },
         {
