@@ -2706,6 +2706,10 @@ export const primitiveStyles = css`
     white-space: nowrap;
   }
 
+  .widget-heading-row:has(.bank-provider-alternate-action) {
+    align-items: center;
+  }
+
   .instrument-schema-selection {
     display: grid;
     gap: 0.875rem;

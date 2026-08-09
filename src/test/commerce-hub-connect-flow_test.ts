@@ -7481,6 +7481,10 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(el.shadowRoot!.querySelector('.widget-action-footer'));
     assert.equal(getComputedStyle(alternateAction!).fontSize, '12px');
     assert.equal(getComputedStyle(alternateAction!).minHeight, '32px');
+    const headingRow = alternateAction?.closest<HTMLElement>(
+      '.widget-heading-row'
+    );
+    assert.equal(getComputedStyle(headingRow!).alignItems, 'center');
     const backButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.widget-back-button[data-action="back-to-payment-methods"]'
     );
