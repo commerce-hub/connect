@@ -2724,19 +2724,6 @@ export const primitiveStyles = css`
     min-height: 31.25rem;
   }
 
-  .bank-provider-alternate-action .button {
-    width: auto;
-    min-height: 2rem;
-    padding: 0 0.625rem;
-    font-size: 0.75rem;
-    letter-spacing: 0;
-    white-space: nowrap;
-  }
-
-  .widget-heading-row:has(.bank-provider-alternate-action) {
-    align-items: center;
-  }
-
   .instrument-schema-selection {
     display: grid;
     gap: 0.875rem;

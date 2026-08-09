@@ -2282,16 +2282,6 @@ export class CommerceHubConnect extends LitElement {
       backDisabled: this.bankLinkLoading,
       showClose: false,
       showDivider: false,
-      titleAction: html`
-        <div class="bank-provider-alternate-action">
-          ${renderButton({
-            label: 'Connect another way',
-            variant: 'primary',
-            action: 'add-ach-manually',
-            disabled: this.bankLinkLoading,
-          })}
-        </div>
-      `,
       busy: this.bankLinkLoading,
       overlay: this.bankLinkLoading
         ? renderWidgetLoadingOverlay({
@@ -3832,9 +3822,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private manualBankAccountExitAction(): FlowActionName {
-    return isUsaInteractionCountry(this.interactionResponse?.country)
-      ? 'back-to-bank-provider'
-      : 'back-to-payment-methods';
+    return 'back-to-payment-methods';
   }
 
   private isCurrentManualBankAccountConfigRequest(

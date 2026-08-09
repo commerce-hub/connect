@@ -4623,9 +4623,6 @@ suite('commerce-hub-connect flow', () => {
     });
     const {addPaymentMethodEvents, errorEvents} = recordOutputEvents(el);
 
-    await clickAction(el, 'add-bank-account');
-    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
-    assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
     await clickAction(el, 'add-ach-manually');
     await waitFor(
       () =>
@@ -4633,7 +4630,11 @@ suite('commerce-hub-connect flow', () => {
         'Select bank account type',
       'US instrument schema chooser did not load'
     );
+    assert.isUndefined(initConfig);
     assert.exists(
+      el.shadowRoot!.querySelector('[data-action="back-to-payment-methods"]')
+    );
+    assert.notExists(
       el.shadowRoot!.querySelector('[data-action="back-to-bank-provider"]')
     );
 
@@ -6957,7 +6958,7 @@ suite('commerce-hub-connect flow', () => {
       'https://custom-commercehub.example.test'
     );
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
     assert.equal(
@@ -7448,7 +7449,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
@@ -7486,10 +7487,10 @@ suite('commerce-hub-connect flow', () => {
       ).minHeight,
       '500px'
     );
-    assert.isTrue(
-      el.shadowRoot!.querySelector<HTMLButtonElement>(
+    assert.notExists(
+      el.shadowRoot!.querySelector(
         '.widget-title-action [data-action="add-ach-manually"]'
-      )?.disabled
+      )
     );
 
     pendingSession.resolve(
@@ -7590,7 +7591,7 @@ suite('commerce-hub-connect flow', () => {
       }
     );
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
     assert.equal(
@@ -7601,20 +7602,16 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.provider-frame-header'));
     assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
-    const alternateAction = el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '.widget-title-action .bank-provider-alternate-action .button'
+    assert.notExists(
+      el.shadowRoot!.querySelector(
+        '.widget-title-action [data-action="add-ach-manually"]'
+      )
     );
-    assert.exists(alternateAction);
-    assert.equal(alternateAction?.textContent?.trim(), 'Connect another way');
-    assert.isTrue(alternateAction?.classList.contains('button-primary'));
-    assert.isFalse(alternateAction?.disabled);
+    assert.notInclude(
+      el.shadowRoot!.querySelector('.widget-header')?.textContent ?? '',
+      'Connect another way'
+    );
     assert.notExists(el.shadowRoot!.querySelector('.widget-action-footer'));
-    assert.equal(getComputedStyle(alternateAction!).fontSize, '12px');
-    assert.equal(getComputedStyle(alternateAction!).minHeight, '32px');
-    const headingRow = alternateAction?.closest<HTMLElement>(
-      '.widget-heading-row'
-    );
-    assert.equal(getComputedStyle(headingRow!).alignItems, 'center');
     const backButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.widget-back-button[data-action="back-to-payment-methods"]'
     );
@@ -7664,13 +7661,6 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(requests[0].credentials, 'include');
 
-    await clickAction(el, 'add-ach-manually');
-    await waitFor(
-      () =>
-        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
-        'Select bank account type',
-      'US instrument schema chooser did not load'
-    );
   });
 
   test('add bank account uses built-in Pay by Bank credentials when designConfig omits them', async () => {
@@ -7700,7 +7690,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
     assert.equal(
@@ -7750,7 +7740,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await flushElement(el);
 
     assert.lengthOf(errors, 1);
@@ -7838,7 +7828,7 @@ suite('commerce-hub-connect flow', () => {
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
     await initConfig!.onEvent({type: 'success'});
     await flushElement(el);
@@ -8970,7 +8960,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
     await initConfig!.onEvent({type: 'success'});
     await flushElement(el);
@@ -9054,7 +9044,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
     await initConfig!.onEvent({type: 'success'});
     await flushElement(el);
@@ -9137,7 +9127,7 @@ suite('commerce-hub-connect flow', () => {
         paymentSources: [],
       });
 
-      await clickAction(el, 'add-bank-account');
+      await clickAction(el, 'add-pay-by-bank');
       await waitFor(
         () => Boolean(initConfig),
         'PaymentSDK.init was not called'
@@ -9192,7 +9182,7 @@ suite('commerce-hub-connect flow', () => {
       {payByBank: {paymentSdkUrl: 'https://example.test/PaymentSDK.js'}}
     );
 
-    await clickAction(scriptFailureEl, 'add-bank-account');
+    await clickAction(scriptFailureEl, 'add-pay-by-bank');
     const paymentSdkScriptSelector =
       'script[data-commerce-hub-pay-by-bank-sdk="true"]';
 
@@ -9231,7 +9221,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(incompleteSessionEl, 'add-bank-account');
+    await clickAction(incompleteSessionEl, 'add-pay-by-bank');
     await flushElement(incompleteSessionEl);
 
     assert.equal(
@@ -9275,7 +9265,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => initCount === 1, 'PaymentSDK.init was not called');
     await initConfig!.onEvent({type: 'failure'});
     await flushElement(el);
@@ -9288,7 +9278,7 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
     );
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(
       () => initCount === 2,
       'PaymentSDK.init was not called again'
