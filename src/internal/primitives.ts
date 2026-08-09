@@ -997,6 +997,7 @@ export const renderSourceAction = ({
   subtitle,
   action,
   icon,
+  brandImage,
   variant = 'card',
   disabled = false,
 }: SourceActionOptions): TemplateResult =>
@@ -1030,17 +1031,35 @@ export const renderSourceAction = ({
       `
     : html`
         <button
-          class="source-action source-action-${icon}"
+          class=${joinClassNames(
+            'source-action',
+            `source-action-${icon}`,
+            brandImage && 'source-action-branded'
+          )}
           type="button"
           data-action=${action}
           ?disabled=${disabled}
         >
-          ${renderSourceActionIcon(icon)}
+          ${brandImage
+            ? html`
+                <span class="source-action-brand" aria-hidden="true">
+                  <img
+                    class="source-action-brand-image"
+                    src=${brandImage}
+                    alt=""
+                    aria-hidden="true"
+                  />
+                </span>
+              `
+            : renderSourceActionIcon(icon)}
           <span class="source-action-copy">
             <span class="source-action-title">${label}</span>
             ${subtitle
               ? html`<span class="source-action-subtitle">${subtitle}</span>`
               : ''}
+          </span>
+          <span class="source-action-chevron" aria-hidden="true">
+            <span class="source-action-chevron-icon"></span>
           </span>
         </button>
       `;

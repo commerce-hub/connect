@@ -66,16 +66,14 @@ export const renderPaymentMethodsScreen = ({
 };
 
 export const renderNoSavedPaymentMethodsScreen = ({
-  allowedTenderOptions,
+  tenders,
   canAddPaymentSources,
   deletePending = false,
   copy,
   showTransferAction = false,
 }: NoSavedPaymentMethodsScreenModel): TemplateResult => {
   const showHelperCopy = Boolean(copy.emptyTitle || copy.emptyMessage);
-  const hasAddPaymentActions =
-    canAddPaymentSources &&
-    (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
+  const hasAddPaymentActions = canAddPaymentSources && tenders.length > 0;
 
   return html`
     <div class="payment-flow">
@@ -88,24 +86,16 @@ export const renderNoSavedPaymentMethodsScreen = ({
       ${hasAddPaymentActions
         ? html`
             <div class="payment-action-links">
-              ${allowedTenderOptions.card
-                ? renderSourceAction({
-                    label: copy.addCardTitle,
-                    subtitle: copy.addCardSubtitle,
-                    action: 'add-card',
-                    icon: 'card',
-                    disabled: deletePending,
-                  })
-                : ''}
-              ${allowedTenderOptions.bankAccount
-                ? renderSourceAction({
-                    label: copy.addBankAccountTitle,
-                    subtitle: copy.addBankAccountSubtitle,
-                    action: 'add-bank-account',
-                    icon: 'bank',
-                    disabled: deletePending,
-                  })
-                : ''}
+              ${tenders.map((tender) =>
+                renderSourceAction({
+                  label: tender.title,
+                  subtitle: tender.subtitle,
+                  action: tender.action,
+                  icon: tender.icon,
+                  brandImage: tender.brandImage,
+                  disabled: deletePending,
+                })
+              )}
               ${showTransferAction
                 ? renderSourceAction({
                     label: 'Transfer funds',

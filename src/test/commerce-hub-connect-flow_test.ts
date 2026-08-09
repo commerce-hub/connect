@@ -9,6 +9,11 @@ import {
   type CommerceHubBaseURLInput,
 } from '../commerce-hub-connect.js';
 import type {CommerceHubConnect} from '../commerce-hub-connect.js';
+import {
+  CARD_SOURCE_ACTION_BRAND_IMAGE,
+  MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
+  PAY_BY_BANK_SOURCE_ACTION_BRAND_IMAGE,
+} from '../internal/source-action-brand-images.js';
 
 interface CapturedRequest {
   url: string;
@@ -216,6 +221,7 @@ const renderConnect = async (
   baseURL: CommerceHubBaseURLInput = TEST_COMMERCE_HUB_BASE_URL,
   options: {
     initialInteractionResponse?: InteractionResponse | false;
+    defaultCountry?: boolean;
     defaultFeatures?: boolean;
     defaultSourceMetadata?: boolean;
   } = {}
@@ -225,7 +231,8 @@ const renderConnect = async (
   const interactionResponseForTest = interactionResponseWithTestFeatures(
     interactionResponse,
     options.defaultFeatures,
-    options.defaultSourceMetadata
+    options.defaultSourceMetadata,
+    options.defaultCountry
   );
 
   if (shouldStubInitialInteraction) {
@@ -237,7 +244,8 @@ const renderConnect = async (
         : interactionResponseWithTestFeatures(
             options.initialInteractionResponse ?? interactionResponse,
             options.defaultFeatures,
-            options.defaultSourceMetadata
+            options.defaultSourceMetadata,
+            options.defaultCountry
           );
 
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -286,13 +294,16 @@ const renderConnect = async (
 const interactionResponseWithTestFeatures = (
   interactionResponse: InteractionResponse,
   defaultFeatures = true,
-  defaultSourceMetadata = true
+  defaultSourceMetadata = true,
+  defaultCountry = true
 ): InteractionResponse => {
   const nextInteractionResponse =
     defaultFeatures || interactionResponse.features
       ? {
           ...interactionResponse,
-          country: interactionResponse.country ?? 'USA',
+          country: defaultCountry
+            ? interactionResponse.country ?? 'USA'
+            : interactionResponse.country,
           features: interactionResponse.features ?? [
             ...TEST_INTERACTION_FEATURES,
           ],
@@ -1193,7 +1204,7 @@ const completePayByBankFlow = async ({
   });
   const events = recordOutputEvents(el);
 
-  await clickAction(el, 'add-bank-account');
+  await clickAction(el, 'add-pay-by-bank');
   await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
   await initConfig!.onEvent({type: 'success'});
   await flushElement(el);
@@ -1719,6 +1730,36 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'open-add-payment-source');
+    const sheetOptions = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.add-payment-sheet-option'
+      ),
+    ];
+    assert.deepEqual(
+      sheetOptions.map((option) => option.dataset.action),
+      ['add-card', 'add-pay-by-bank', 'add-ach-manually']
+    );
+    assert.deepEqual(
+      sheetOptions.map((option) =>
+        option
+          .querySelector('.add-payment-sheet-option-title')
+          ?.textContent?.trim()
+      ),
+      ['Credit or debit card', 'Pay by Bank', 'Manual bank details']
+    );
+    assert.deepEqual(
+      sheetOptions.map(
+        (option) =>
+          option.querySelector<HTMLImageElement>(
+            '.add-payment-sheet-brand-image'
+          )?.src
+      ),
+      [
+        CARD_SOURCE_ACTION_BRAND_IMAGE,
+        PAY_BY_BANK_SOURCE_ACTION_BRAND_IMAGE,
+        MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
+      ]
+    );
     await clickAction(el, 'add-card');
 
     assert.equal(
@@ -2001,14 +2042,57 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(el.shadowRoot!.querySelector('.widget-divider'));
     assert.notExists(el.shadowRoot!.querySelector('.empty-state'));
     assert.notExists(el.shadowRoot!.querySelector('.widget-header-action'));
+    const emptyTenderButtons = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.payment-action-links .source-action'
+      ),
+    ];
     assert.deepEqual(
+      emptyTenderButtons.map((button) => ({
+        action: button.dataset.action,
+        title: button
+          .querySelector('.source-action-title')
+          ?.textContent?.trim(),
+        subtitle: button
+          .querySelector('.source-action-subtitle')
+          ?.textContent?.trim(),
+      })),
       [
-        ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
-          '.payment-action-links .source-action'
-        ),
-      ].map((button) => button.dataset.action),
-      ['add-card', 'add-bank-account']
+        {
+          action: 'add-card',
+          title: 'Credit or debit card',
+          subtitle: 'Add your card details',
+        },
+        {
+          action: 'add-pay-by-bank',
+          title: 'Pay by Bank',
+          subtitle: 'Directly connect with your bank account',
+        },
+        {
+          action: 'add-ach-manually',
+          title: 'Manual bank details',
+          subtitle: 'Add your account details manually',
+        },
+      ]
     );
+    assert.deepEqual(
+      emptyTenderButtons.map(
+        (button) =>
+          button.querySelector<HTMLImageElement>('.source-action-brand-image')
+            ?.src
+      ),
+      [
+        CARD_SOURCE_ACTION_BRAND_IMAGE,
+        PAY_BY_BANK_SOURCE_ACTION_BRAND_IMAGE,
+        MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
+      ]
+    );
+    for (const button of emptyTenderButtons) {
+      assert.equal(
+        getComputedStyle(button).backgroundColor,
+        'rgb(255, 255, 255)'
+      );
+    }
     assert.notExists(el.shadowRoot!.querySelector('.source-action-link'));
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="open-add-payment-source"]')
@@ -2022,6 +2106,66 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(
       el.shadowRoot!.querySelector('[data-action="confirm-payment-source"]')
     );
+  });
+
+  test('filters USA split bank tenders and preserves the non-USA bank tender', async () => {
+    const cases: Array<{
+      country?: string;
+      allowedTenderTypes: NonNullable<
+        InteractionResponse['allowedTenderTypes']
+      >;
+      actions: string[];
+    }> = [
+      {
+        country: ' usa ',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+        actions: ['add-card', 'add-pay-by-bank', 'add-ach-manually'],
+      },
+      {
+        country: 'US',
+        allowedTenderTypes: ['CARD'],
+        actions: ['add-card'],
+      },
+      {
+        country: 'USA',
+        allowedTenderTypes: ['BANK_ACCOUNT'],
+        actions: ['add-pay-by-bank', 'add-ach-manually'],
+      },
+      {
+        country: 'CA',
+        allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+        actions: ['add-card', 'add-bank-account'],
+      },
+      {
+        country: undefined,
+        allowedTenderTypes: ['BANK_ACCOUNT'],
+        actions: ['add-bank-account'],
+      },
+    ];
+
+    for (const testCase of cases) {
+      const el = await renderConnect(
+        {
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_REQUESTED',
+          country: testCase.country,
+          allowedTenderTypes: testCase.allowedTenderTypes,
+          paymentSources: [],
+        },
+        undefined,
+        TEST_COMMERCE_HUB_BASE_URL,
+        {defaultCountry: testCase.country !== undefined}
+      );
+
+      assert.deepEqual(
+        [
+          ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+            '.payment-action-links [data-action]'
+          ),
+        ].map((button) => button.dataset.action),
+        testCase.actions
+      );
+    }
   });
 
   test('shows payment method skeleton rows while refreshing interaction payment sources', async () => {
@@ -2089,6 +2233,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-payment',
         status: 'PAYMENT_SOURCE_REQUESTED',
+        country: 'CA',
         paymentSources: [],
       },
       {
@@ -4493,9 +4638,6 @@ suite('commerce-hub-connect flow', () => {
     });
     const {addPaymentMethodEvents, errorEvents} = recordOutputEvents(el);
 
-    await clickAction(el, 'add-bank-account');
-    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
-    assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
     await clickAction(el, 'add-ach-manually');
     await waitFor(
       () =>
@@ -4503,7 +4645,11 @@ suite('commerce-hub-connect flow', () => {
         'Select bank account type',
       'US instrument schema chooser did not load'
     );
+    assert.isUndefined(initConfig);
     assert.exists(
+      el.shadowRoot!.querySelector('[data-action="back-to-payment-methods"]')
+    );
+    assert.notExists(
       el.shadowRoot!.querySelector('[data-action="back-to-bank-provider"]')
     );
 
@@ -5551,7 +5697,7 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'use-different-method');
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(
       () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
@@ -6827,7 +6973,7 @@ suite('commerce-hub-connect flow', () => {
       'https://custom-commercehub.example.test'
     );
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
     assert.equal(
@@ -7318,7 +7464,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
@@ -7355,6 +7501,11 @@ suite('commerce-hub-connect flow', () => {
         el.querySelector<HTMLElement>('#commerce-hub-pbb-provider')!
       ).minHeight,
       '500px'
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector(
+        '.widget-title-action [data-action="add-ach-manually"]'
+      )
     );
 
     pendingSession.resolve(
@@ -7413,6 +7564,10 @@ suite('commerce-hub-connect flow', () => {
         credentials: request.credentials,
       });
 
+      if (new URL(request.url).pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse();
+      }
+
       return new Response(
         JSON.stringify({
           aggregatorSessionId: 'agg-session-1',
@@ -7428,6 +7583,7 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-payment',
         status: 'PAYMENT_SOURCE_REQUESTED',
+        country: 'USA',
         paymentSources: [],
       },
       {
@@ -7450,7 +7606,7 @@ suite('commerce-hub-connect flow', () => {
       }
     );
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
     assert.equal(
@@ -7461,6 +7617,16 @@ suite('commerce-hub-connect flow', () => {
     assert.notExists(el.shadowRoot!.querySelector('.widget-subtitle'));
     assert.notExists(el.shadowRoot!.querySelector('.provider-frame-header'));
     assert.exists(el.shadowRoot!.querySelector('#commerce-hub-pbb-provider'));
+    assert.notExists(
+      el.shadowRoot!.querySelector(
+        '.widget-title-action [data-action="add-ach-manually"]'
+      )
+    );
+    assert.notInclude(
+      el.shadowRoot!.querySelector('.widget-header')?.textContent ?? '',
+      'Connect another way'
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-action-footer'));
     const backButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.widget-back-button[data-action="back-to-payment-methods"]'
     );
@@ -7483,10 +7649,14 @@ suite('commerce-hub-connect flow', () => {
         primaryTextColor: '#1f2937',
         secondaryTextColor: '#4b5563',
         buttonColor: '#123456',
+        buttonTextColor: '#ffffff',
         dangerColor: '#dc2626',
         successColor: '#059669',
         borderColor: '#d1d5db',
         placeholderColor: '#9ca3af',
+        fontFamily:
+          "sohne-var, 'SF Pro Display', system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+        borderRadius: '8px',
       },
     });
     assert.exists(providerContainer);
@@ -7505,6 +7675,7 @@ suite('commerce-hub-connect flow', () => {
       'interaction-payment'
     );
     assert.equal(requests[0].credentials, 'include');
+
   });
 
   test('add bank account uses built-in Pay by Bank credentials when designConfig omits them', async () => {
@@ -7534,7 +7705,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
     assert.equal(
@@ -7542,6 +7713,23 @@ suite('commerce-hub-connect flow', () => {
       'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A'
     );
     assert.equal(initConfig?.configId, 'cce84049-0940-4926-9a54-9eaca0c09830');
+    assert.deepEqual(initConfig?.appearance, {
+      branding: {
+        backgroundColor: '#ffffff',
+        primaryColor: '#533afd',
+        primaryTextColor: '#061b31',
+        secondaryTextColor: '#50617a',
+        buttonColor: '#533afd',
+        buttonTextColor: '#ffffff',
+        dangerColor: '#c2410c',
+        successColor: '#047857',
+        borderColor: '#e5edf5',
+        placeholderColor: '#9ca3af',
+        fontFamily:
+          "sohne-var, 'SF Pro Display', system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+        borderRadius: '8px',
+      },
+    });
   });
 
   test('Pay by Bank startup errors are printed to the console', async () => {
@@ -7567,7 +7755,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await flushElement(el);
 
     assert.lengthOf(errors, 1);
@@ -7655,7 +7843,7 @@ suite('commerce-hub-connect flow', () => {
     });
     const {successEvents, errorEvents} = recordOutputEvents(el);
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
     await initConfig!.onEvent({type: 'success'});
     await flushElement(el);
@@ -8787,7 +8975,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
     await initConfig!.onEvent({type: 'success'});
     await flushElement(el);
@@ -8871,7 +9059,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
     await initConfig!.onEvent({type: 'success'});
     await flushElement(el);
@@ -8954,7 +9142,7 @@ suite('commerce-hub-connect flow', () => {
         paymentSources: [],
       });
 
-      await clickAction(el, 'add-bank-account');
+      await clickAction(el, 'add-pay-by-bank');
       await waitFor(
         () => Boolean(initConfig),
         'PaymentSDK.init was not called'
@@ -9009,7 +9197,7 @@ suite('commerce-hub-connect flow', () => {
       {payByBank: {paymentSdkUrl: 'https://example.test/PaymentSDK.js'}}
     );
 
-    await clickAction(scriptFailureEl, 'add-bank-account');
+    await clickAction(scriptFailureEl, 'add-pay-by-bank');
     const paymentSdkScriptSelector =
       'script[data-commerce-hub-pay-by-bank-sdk="true"]';
 
@@ -9048,7 +9236,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(incompleteSessionEl, 'add-bank-account');
+    await clickAction(incompleteSessionEl, 'add-pay-by-bank');
     await flushElement(incompleteSessionEl);
 
     assert.equal(
@@ -9092,7 +9280,7 @@ suite('commerce-hub-connect flow', () => {
       paymentSources: [],
     });
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => initCount === 1, 'PaymentSDK.init was not called');
     await initConfig!.onEvent({type: 'failure'});
     await flushElement(el);
@@ -9105,7 +9293,7 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('[data-action="retry-bank-provider"]')
     );
 
-    await clickAction(el, 'add-bank-account');
+    await clickAction(el, 'add-pay-by-bank');
     await waitFor(
       () => initCount === 2,
       'PaymentSDK.init was not called again'

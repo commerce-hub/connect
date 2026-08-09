@@ -91,6 +91,7 @@ export type FlowActionName =
   | 'submit-required-info'
   | 'transfer'
   | 'add-bank-account'
+  | 'add-pay-by-bank'
   | 'add-ach-manually'
   | 'select-instrument-schema'
   | 'save-bank-account'
@@ -228,6 +229,18 @@ export interface AllowedTenderOptions {
   nativeAccount: boolean;
 }
 
+export interface AddPaymentTenderOption {
+  action:
+    | 'add-card'
+    | 'add-bank-account'
+    | 'add-pay-by-bank'
+    | 'add-ach-manually';
+  title: string;
+  subtitle: string;
+  icon: 'card' | 'bank';
+  brandImage?: string;
+}
+
 export interface PaymentMethodsScreenCopy {
   title: string;
   subtitle: string;
@@ -266,7 +279,7 @@ export interface PaymentMethodsScreenModel {
 }
 
 export interface NoSavedPaymentMethodsScreenModel {
-  allowedTenderOptions: AllowedTenderOptions;
+  tenders: AddPaymentTenderOption[];
   canAddPaymentSources: boolean;
   deletePending?: boolean;
   copy: NoSavedPaymentMethodsScreenCopy;
@@ -422,6 +435,7 @@ export interface SourceActionOptions {
   subtitle?: string;
   action: FlowActionName;
   icon: SourceActionIcon;
+  brandImage?: string;
   variant?: SourceActionVariant;
   disabled?: boolean;
 }
