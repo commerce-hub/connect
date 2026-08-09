@@ -2936,6 +2936,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'add-ach-manually') {
+      this.addLauncherActive = false;
       this.paymentSourceView = 'list';
       this.resetCardFlow();
       this.resetRequiredInfo();

@@ -2027,6 +2027,34 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('dismisses the add-payment sheet immediately when manual bank details is selected', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'USA',
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
+      ],
+    });
+
+    await clickAction(el, 'open-add-payment-source');
+    el.shadowRoot!
+      .querySelector<HTMLButtonElement>('[data-action="add-ach-manually"]')!
+      .click();
+    await el.updateComplete;
+
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
+  });
+
   test('renders no saved payment methods without a Continue CTA', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
