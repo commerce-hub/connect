@@ -514,6 +514,80 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
+  test('recipient provisioning controls verified card labels and selection radios', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-without-recipient',
+          name: 'Existing card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {cardNumber: '4111111111111111'},
+        },
+        {
+          tenderType: 'Card',
+          id: 'card-status-provisioned',
+          name: 'Status-provisioned card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-1', status: 'PROVISIONED'},
+          card: {cardNumber: '4222222222222222'},
+        },
+        {
+          tenderType: 'Card',
+          id: 'card-provision-status-provisioned',
+          name: 'Provision-status-provisioned card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {
+            id: 'recipient-2',
+            provisionStatus: 'PROVISIONED',
+          },
+          card: {cardNumber: '4333333333333333'},
+        },
+        {
+          tenderType: 'Card',
+          id: 'card-recipient-pending',
+          name: 'Pending recipient card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {
+            id: 'recipient-3',
+            provisionStatus: 'PENDING_PROVISIONING',
+          },
+          card: {cardNumber: '4444444444444444'},
+        },
+      ],
+    });
+    const rows = [
+      ...el.shadowRoot!.querySelectorAll<HTMLElement>('.payment-method-row'),
+    ];
+    const radios = [
+      ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+        '.payment-method-radio'
+      ),
+    ];
+
+    assert.deepEqual(
+      rows.map((row) =>
+        row.querySelector('.verification-status-badge')?.textContent?.trim()
+      ),
+      [
+        'Verified',
+        'Verified, Provisioned',
+        'Verified, Provisioned',
+        'Verified, Pending',
+      ]
+    );
+    assert.deepEqual(
+      radios.map((radio) => radio.value),
+      ['card-status-provisioned', 'card-provision-status-provisioned']
+    );
+    assert.isTrue(radios[0].checked);
+    assert.notExists(rows[0].querySelector('.payment-method-radio'));
+    assert.notExists(rows[3].querySelector('.payment-method-radio'));
+  });
+
   test('initial interaction refresh replaces stale host payment sources with the server response', async () => {
     const requests: CapturedRequest[] = [];
 
@@ -3221,6 +3295,10 @@ suite('commerce-hub-connect payment selection', () => {
             },
           ],
           billerAddress: [
+            {
+              id: 'billing-without-address-details',
+              recipientNameOrAddress: 'Ada Lovelace',
+            },
             {
               id: 'billing-1',
               recipientNameOrAddress: 'Ada Lovelace',

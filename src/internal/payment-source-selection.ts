@@ -1,15 +1,12 @@
 import type {PaymentSource} from './types.js';
 
-type BankPaymentSource = Extract<PaymentSource, {tenderType: 'BankAccount'}>;
-
-const isBankPaymentSource = (
-  source: PaymentSource
-): source is BankPaymentSource =>
-  source.tenderType === 'BankAccount' ||
-  (source.tenderType as string) === 'BANK_ACCOUNT';
+const requiresRecipientProvisioning = (source: PaymentSource): boolean =>
+  ['BankAccount', 'BANK_ACCOUNT', 'Card', 'CARD'].includes(
+    source.tenderType as string
+  );
 
 const normalizedRecipientStatus = (
-  source: BankPaymentSource
+  source: PaymentSource
 ): string | undefined => {
   const status =
     source.recipient?.status?.trim() ||
@@ -18,9 +15,8 @@ const normalizedRecipientStatus = (
   return status ? status.toUpperCase() : undefined;
 };
 
-// A verified bank is selectable only once its recipient is PROVISIONED; a bank
-// with any other or absent recipient status is not yet selectable. Non-bank
-// sources have no recipient and remain selectable when verified.
+// Verified cards and banks are selectable only once their recipient is
+// PROVISIONED. Other source types remain selectable when verified.
 export const isPaymentSourceSelectionEligible = (
   source: PaymentSource
 ): boolean => {
@@ -28,7 +24,7 @@ export const isPaymentSourceSelectionEligible = (
     return false;
   }
 
-  if (!isBankPaymentSource(source)) {
+  if (!requiresRecipientProvisioning(source)) {
     return true;
   }
 
@@ -46,7 +42,7 @@ export const paymentSourceVerificationLabel = (
     return undefined;
   }
 
-  if (!isBankPaymentSource(source)) {
+  if (!requiresRecipientProvisioning(source)) {
     return 'Verified';
   }
 
