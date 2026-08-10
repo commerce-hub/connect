@@ -7,10 +7,6 @@ type GeneratedInteractionResponse =
 type GeneratedPaymentSource = NonNullable<
   GeneratedInteractionResponse['paymentSources']
 >[number];
-type GeneratedBankPaymentSource = Extract<
-  GeneratedPaymentSource,
-  {tenderType: 'BankAccount'}
->;
 type LegacyInteractionStatus = 'PAYMENT_SOURCE_REQUESTED';
 export type InteractionStatus =
   | GeneratedInteractionResponse['status']
@@ -43,11 +39,9 @@ export interface PaymentSourceRecipient {
   provisionStatus?: string;
 }
 
-export type PaymentSource =
-  | Exclude<GeneratedPaymentSource, GeneratedBankPaymentSource>
-  | (GeneratedBankPaymentSource & {
-      recipient?: PaymentSourceRecipient;
-    });
+export type PaymentSource = GeneratedPaymentSource & {
+  recipient?: PaymentSourceRecipient;
+};
 
 export type InteractionResponse = Omit<
   GeneratedInteractionResponse,

@@ -13,6 +13,13 @@ const bankSource = (verificationStatus, recipient) => ({
   ...(recipient === undefined ? {} : {recipient}),
 });
 
+const cardSource = (verificationStatus, recipient) => ({
+  tenderType: 'Card',
+  id: 'card-1',
+  verificationInfo: {status: verificationStatus},
+  ...(recipient === undefined ? {} : {recipient}),
+});
+
 test('verified bank recipient status controls selection and labels', () => {
   const cases = [
     {
@@ -91,13 +98,34 @@ test('non-verified sources are not selectable and have no verification label', (
   }
 });
 
-test('verified non-bank sources remain selectable and labeled Verified', () => {
-  const source = {
-    tenderType: 'Card',
-    id: 'card-1',
-    verificationInfo: {status: 'VERIFIED'},
-  };
+test('verified card recipient status controls selection and labels', () => {
+  const cases = [
+    {
+      source: cardSource('VERIFIED'),
+      eligible: false,
+      label: 'Verified',
+    },
+    {
+      source: cardSource('VERIFIED', {status: 'PROVISIONED'}),
+      eligible: true,
+      label: 'Verified, Provisioned',
+    },
+    {
+      source: cardSource('VERIFIED', {provisionStatus: 'PROVISIONED'}),
+      eligible: true,
+      label: 'Verified, Provisioned',
+    },
+    {
+      source: cardSource('VERIFIED', {
+        provisionStatus: 'PENDING_PROVISIONING',
+      }),
+      eligible: false,
+      label: 'Verified, Pending',
+    },
+  ];
 
-  assert.equal(isPaymentSourceSelectionEligible(source), true);
-  assert.equal(paymentSourceVerificationLabel(source), 'Verified');
+  for (const {source, eligible, label} of cases) {
+    assert.equal(isPaymentSourceSelectionEligible(source), eligible);
+    assert.equal(paymentSourceVerificationLabel(source), label);
+  }
 });

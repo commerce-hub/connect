@@ -6417,7 +6417,8 @@ export class CommerceHubConnect extends LitElement {
     }
 
     this.billingAddresses = interactionResponse.billerAddress.filter(
-      (address) => Boolean(address.id?.trim())
+      (address) =>
+        Boolean(address.id?.trim()) && hasBillingAddressDetails(address)
     );
     this.cardDraft = reconcileCardDraftBillingAddress(
       this.cardDraft,
@@ -6877,6 +6878,10 @@ const billingAddressLabel = (address: Address): string => {
 
   return label || address.id || 'Saved billing address';
 };
+
+const hasBillingAddressDetails = (address: Address): boolean =>
+  [address.street, address.city, address.stateOrProvince, address.postalCode]
+    .some((value) => Boolean(value?.trim()));
 
 const cardPaymentSourceFromPayload = (
   source: CardSourcePayload,
