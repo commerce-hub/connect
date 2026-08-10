@@ -11,7 +11,9 @@ const isBankPaymentSource = (
 const normalizedRecipientStatus = (
   source: BankPaymentSource
 ): string | undefined => {
-  const status = source.recipient?.status?.trim();
+  const status =
+    source.recipient?.status?.trim() ||
+    source.recipient?.provisionStatus?.trim();
 
   return status ? status.toUpperCase() : undefined;
 };

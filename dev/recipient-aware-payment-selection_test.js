@@ -31,13 +31,38 @@ test('verified bank recipient status controls selection and labels', () => {
     {
       source: bankSource('VERIFIED', {
         id: 'recipient-2',
+        provisionStatus: 'PROVISIONED',
+      }),
+      eligible: true,
+      label: 'Verified, Provisioned',
+    },
+    {
+      source: bankSource('VERIFIED', {
+        id: 'recipient-3',
+        status: '   ',
+        provisionStatus: ' provisioned ',
+      }),
+      eligible: true,
+      label: 'Verified, Provisioned',
+    },
+    {
+      source: bankSource('VERIFIED', {
+        id: 'recipient-4',
         status: 'PENDING',
       }),
       eligible: false,
       label: 'Verified, Pending',
     },
     {
-      source: bankSource('VERIFIED', {id: 'recipient-3', status: '   '}),
+      source: bankSource('VERIFIED', {
+        id: 'recipient-5',
+        provisionStatus: 'PENDING_PROVISIONING',
+      }),
+      eligible: false,
+      label: 'Verified, Pending',
+    },
+    {
+      source: bankSource('VERIFIED', {id: 'recipient-6', status: '   '}),
       eligible: false,
       label: 'Verified',
     },
