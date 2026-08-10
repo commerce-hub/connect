@@ -419,17 +419,28 @@ suite('commerce-hub-connect payment selection', () => {
         {
           tenderType: 'BankAccount',
           id: 'bank-provisioned',
-          name: 'Provisioned bank',
+          name: 'Status-provisioned bank',
           verificationInfo: {status: 'VERIFIED'},
           recipient: {id: 'recipient-1', status: 'PROVISIONED'},
           bankAccount: {accountNumber: '2222222222'},
         },
         {
           tenderType: 'BankAccount',
+          id: 'bank-provision-status-provisioned',
+          name: 'Provision-status-provisioned bank',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {
+            id: 'recipient-2',
+            provisionStatus: 'PROVISIONED',
+          },
+          bankAccount: {accountNumber: '5555555555'},
+        },
+        {
+          tenderType: 'BankAccount',
           id: 'bank-recipient-pending',
           name: 'Pending recipient bank',
           verificationInfo: {status: 'VERIFIED'},
-          recipient: {id: 'recipient-2', status: 'PENDING'},
+          recipient: {id: 'recipient-3', status: 'PENDING'},
           bankAccount: {accountNumber: '3333333333'},
         },
         {
@@ -437,7 +448,7 @@ suite('commerce-hub-connect payment selection', () => {
           id: 'bank-recipient-blank',
           name: 'Blank recipient bank',
           verificationInfo: {status: 'VERIFIED'},
-          recipient: {id: 'recipient-3', status: '   '},
+          recipient: {id: 'recipient-4', status: '   '},
           bankAccount: {accountNumber: '4444444444'},
         },
       ],
@@ -455,15 +466,21 @@ suite('commerce-hub-connect payment selection', () => {
       rows.map((row) =>
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
-      ['Verified', 'Verified, Provisioned', 'Verified, Pending', 'Verified']
+      [
+        'Verified',
+        'Verified, Provisioned',
+        'Verified, Provisioned',
+        'Verified, Pending',
+        'Verified',
+      ]
     );
     assert.deepEqual(
       radios.map((radio) => radio.value),
-      ['bank-provisioned']
+      ['bank-provisioned', 'bank-provision-status-provisioned']
     );
     assert.isTrue(radios[0].checked);
-    assert.notExists(rows[2].querySelector('.payment-method-radio'));
     assert.notExists(rows[3].querySelector('.payment-method-radio'));
+    assert.notExists(rows[4].querySelector('.payment-method-radio'));
   });
 
   test('verified bank with a non-provisioned recipient leaves selection disabled', async () => {

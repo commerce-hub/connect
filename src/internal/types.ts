@@ -40,6 +40,7 @@ export interface InteractionOAuth {
 export interface PaymentSourceRecipient {
   id?: string;
   status?: string;
+  provisionStatus?: string;
 }
 
 export type PaymentSource =
