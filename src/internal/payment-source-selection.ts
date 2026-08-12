@@ -48,10 +48,6 @@ export const paymentSourceVerificationLabel = (
 
   const recipientStatus = normalizedRecipientStatus(source);
 
-  if (!recipientStatus) {
-    return 'Verified';
-  }
-
   if (recipientStatus === 'PROVISIONED') {
     return 'Verified, Provisioned';
   }

@@ -1730,28 +1730,28 @@ suite('commerce-hub-connect flow', () => {
     );
 
     await clickAction(el, 'open-add-payment-source');
-    const sheetOptions = [
+    const tenderOptions = [
       ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
-        '.add-payment-sheet-option'
+        '.payment-action-links .source-action'
       ),
     ];
     assert.deepEqual(
-      sheetOptions.map((option) => option.dataset.action),
+      tenderOptions.map((option) => option.dataset.action),
       ['add-card', 'add-pay-by-bank', 'add-ach-manually']
     );
     assert.deepEqual(
-      sheetOptions.map((option) =>
+      tenderOptions.map((option) =>
         option
-          .querySelector('.add-payment-sheet-option-title')
+          .querySelector('.source-action-title')
           ?.textContent?.trim()
       ),
       ['Credit or debit card', 'Pay by Bank', 'Manual bank details']
     );
     assert.deepEqual(
-      sheetOptions.map(
+      tenderOptions.map(
         (option) =>
           option.querySelector<HTMLImageElement>(
-            '.add-payment-sheet-brand-image'
+            '.source-action-brand-image'
           )?.src
       ),
       [

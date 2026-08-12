@@ -95,6 +95,36 @@ suite('commerce-hub-connect primitives', () => {
     assert.isUndefined(customElements.get('chc-text-field'));
   });
 
+  test('defaults to dialog presentation and reflects embedded presentation', async () => {
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .interactionResponse=${createStyleInteractionResponse()}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+
+    assert.equal(el.presentationMode, 'dialog');
+    assert.isTrue(
+      el.shadowRoot!
+        .querySelector('.widget-shell')!
+        .classList.contains('widget-shell-dialog')
+    );
+
+    el.setAttribute('presentation-mode', 'embedded');
+    await el.updateComplete;
+
+    assert.equal(el.presentationMode, 'embedded');
+    assert.isTrue(
+      el.shadowRoot!
+        .querySelector('.widget-shell')!
+        .classList.contains('widget-shell-embedded')
+    );
+
+    el.presentationMode = 'dialog';
+    await el.updateComplete;
+
+    assert.equal(el.getAttribute('presentation-mode'), 'dialog');
+  });
+
   test('does not use explicit line-height declarations in shared styles', () => {
     assert.notInclude(primitiveStyles.cssText, 'line-height');
   });
@@ -140,7 +170,6 @@ suite('commerce-hub-connect primitives', () => {
       primitiveStyles.cssText,
       '.widget-toolbar .text-link-button'
     );
-    assert.include(primitiveStyles.cssText, '.add-payment-sheet-option');
   });
 
   test('uses rem units in shared styles instead of px sizing tokens', () => {
@@ -1345,12 +1374,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, '@keyframes chc-spinner-rotate');
     assert.include(primitiveStyles.cssText, '@keyframes chc-loading-dot');
     assert.include(primitiveStyles.cssText, '@keyframes chc-shell-enter');
-    assert.include(primitiveStyles.cssText, '@keyframes chc-sheet-enter');
-    assert.include(
-      primitiveStyles.cssText,
-      'animation: chc-sheet-enter var(--chc-motion-sheet)'
-    );
-    assert.include(primitiveStyles.cssText, 'transform: translateY(100%)');
+    assert.notInclude(primitiveStyles.cssText, '.add-payment-sheet');
     assert.include(primitiveStyles.cssText, '@media (max-width: 26.25rem)');
     assert.include(primitiveStyles.cssText, 'width: calc(100vw - 1rem)');
     assert.include(
@@ -1359,6 +1383,23 @@ suite('commerce-hub-connect primitives', () => {
     );
     assert.include(primitiveStyles.cssText, 'animation: none');
     assert.include(primitiveStyles.cssText, 'transform: none');
+  });
+
+  test('declares parent-responsive embedded shell behavior', () => {
+    assert.notMatch(
+      primitiveStyles.cssText,
+      /:host\s*\{[^}]*container-type:\s*inline-size/s
+    );
+    assert.match(
+      primitiveStyles.cssText,
+      /:host\(\[presentation-mode='embedded'\]\)\s*\{[^}]*container-type:\s*inline-size/s
+    );
+    assert.include(primitiveStyles.cssText, '.widget-shell-embedded');
+    assert.include(primitiveStyles.cssText, 'height: 100%');
+    assert.include(primitiveStyles.cssText, 'min-height: 0');
+    assert.include(primitiveStyles.cssText, 'border: 0');
+    assert.include(primitiveStyles.cssText, 'box-shadow: none');
+    assert.include(primitiveStyles.cssText, '@container (max-width: 26.25rem)');
   });
 
   test('renders OTP inputs with inherited typography and compact SDK v3 sizing', async () => {

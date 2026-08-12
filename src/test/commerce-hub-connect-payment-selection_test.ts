@@ -362,6 +362,169 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
+  test('embedded SELECT-only renders a dropdown and emits after attach completes', async () => {
+    const attachResponse = createDeferred<Response>();
+    const sources: PaymentSource[] = [
+      {
+        tenderType: 'Card',
+        id: 'card-1',
+        name: 'Corporate card',
+        verificationInfo: {status: 'VERIFIED'},
+        card: {network: 'Visa', cardNumber: '4111111111111111'},
+      },
+      {
+        tenderType: 'BankAccount',
+        id: 'bank-review',
+        name: 'Review account',
+        verificationInfo: {status: 'UNDER_REVIEW'},
+        bankAccount: {accountNumber: '9876543210'},
+      },
+    ];
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: sources,
+    });
+    el.presentationMode = 'embedded';
+    await flushElement(el);
+    const {successEvents} = recordOutputEvents(el);
+    const select = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '[data-embedded-payment-select]'
+    )!;
+
+    assert.exists(select);
+    assert.strictEqual(
+      select.parentElement,
+      el.shadowRoot!.querySelector('.widget-frame')
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-shell'));
+    assert.notExists(el.shadowRoot!.querySelector('.embedded-payment-select-label'));
+    assert.deepEqual(
+      [...select.options].map(({value}) => value),
+      ['', 'card-1']
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="attach-payment-source"]')
+    );
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      if (pathname.endsWith('/attach')) {
+        return attachResponse.promise;
+      }
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: sources[0],
+          paymentSources: sources,
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    select.value = 'card-1';
+    select.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+    await flushElement(el);
+    assert.isTrue(select.disabled);
+    assert.lengthOf(successEvents, 0);
+
+    attachResponse.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: sources[0],
+          paymentSources: sources,
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await waitFor(() => successEvents.length === 1);
+    assert.equal(successEvents[0].detail.id, 'card-1');
+  });
+
+  test('embedded SELECT-only disables a No payment methods dropdown when empty', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [],
+    });
+    el.presentationMode = 'embedded';
+    await flushElement(el);
+    const select = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '[data-embedded-payment-select]'
+    )!;
+
+    assert.exists(select);
+    assert.isTrue(select.disabled);
+    assert.deepEqual(
+      [...select.options].map(({value, text}) => ({value, text})),
+      [{value: '', text: 'No payment methods'}]
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-shell'));
+  });
+
+  test('embedded SELECT-only does not show payment methods chrome while refreshing', async () => {
+    const refreshResponse = createDeferred<Response>();
+    window.fetch = async () => refreshResponse.promise;
+    const interactionResponse: InteractionResponse = {
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [],
+    };
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .presentationMode=${'embedded'}
+        .interactionResponse=${interactionResponse}
+        .baseURL=${TEST_COMMERCE_HUB_BASE_URL}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+    await flushElement(el);
+
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-embedded-payment-select]')
+    );
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Payment methods');
+    assert.notExists(el.shadowRoot!.querySelector('.widget-shell'));
+
+    refreshResponse.resolve(
+      new Response(JSON.stringify(interactionResponse), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      })
+    );
+  });
+
+  test('dialog SELECT-only keeps the payment method list', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '4111111111111111'},
+        },
+      ],
+    });
+
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-embedded-payment-select]')
+    );
+    assert.exists(el.shadowRoot!.querySelector('.payment-method-row'));
+  });
+
   test('missing verification status is not selectable or markable as default', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
@@ -467,11 +630,11 @@ suite('commerce-hub-connect payment selection', () => {
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
       [
-        'Verified',
+        'Verified, Pending',
         'Verified, Provisioned',
         'Verified, Provisioned',
         'Verified, Pending',
-        'Verified',
+        'Verified, Pending',
       ]
     );
     assert.deepEqual(
@@ -573,7 +736,7 @@ suite('commerce-hub-connect payment selection', () => {
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
       [
-        'Verified',
+        'Verified, Pending',
         'Verified, Provisioned',
         'Verified, Provisioned',
         'Verified, Pending',
@@ -2279,7 +2442,7 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
-  test('Add payment method opens an icon option sheet without helper copy', async () => {
+  test('Add payment method opens an in-shell tender list without a bottom sheet', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -2301,52 +2464,21 @@ suite('commerce-hub-connect payment selection', () => {
 
     await clickAction(el, 'open-add-payment-source');
 
-    const dialog =
-      el.shadowRoot!.querySelector<HTMLElement>('.add-payment-sheet')!;
-    const frame = el.shadowRoot!.querySelector<HTMLElement>('.widget-frame')!;
-    const layer = el.shadowRoot!.querySelector<HTMLElement>(
-      '.add-payment-sheet-layer'
-    )!;
-    const cardOption = dialog.querySelector<HTMLButtonElement>(
+    const shell = el.shadowRoot!.querySelector<HTMLElement>('.widget-shell')!;
+    const cardOption = shell.querySelector<HTMLButtonElement>(
       '[data-action="add-card"]'
     )!;
-    const bankOption = dialog.querySelector<HTMLButtonElement>(
+    const bankOption = shell.querySelector<HTMLButtonElement>(
       '[data-action="add-bank-account"]'
     )!;
 
-    assert.equal(dialog.getAttribute('role'), 'dialog');
-    assert.equal(dialog.getAttribute('aria-modal'), 'true');
-    assert.equal(getComputedStyle(layer).position, 'absolute');
-    assert.strictEqual(layer.parentElement, frame);
-    assert.closeTo(
-      layer.getBoundingClientRect().left,
-      frame.getBoundingClientRect().left,
-      0.01
-    );
-    assert.closeTo(
-      layer.getBoundingClientRect().right,
-      frame.getBoundingClientRect().right,
-      0.01
-    );
-    assert.closeTo(
-      layer.getBoundingClientRect().top,
-      frame.getBoundingClientRect().top,
-      0.01
-    );
-    assert.closeTo(
-      layer.getBoundingClientRect().bottom,
-      frame.getBoundingClientRect().bottom,
-      0.01
-    );
     assert.equal(
-      dialog.querySelector('.add-payment-sheet-title')?.textContent?.trim(),
+      shell.querySelector('.widget-title')?.textContent?.trim(),
       'Add payment method'
     );
-    assert.notInclude(dialog.textContent ?? '', 'Choose how you’d like to pay');
-    assert.notInclude(
-      dialog.textContent ?? '',
-      'Choose the type of payment method to add.'
-    );
+    assert.exists(shell.querySelector('[data-action="back-to-payment-methods"]'));
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet-layer'));
     assert.equal(
       cardOption.textContent?.replace(/\s+/g, ' ').trim(),
       'Credit or debit card Add your card details'
@@ -2355,38 +2487,43 @@ suite('commerce-hub-connect payment selection', () => {
       bankOption.textContent?.replace(/\s+/g, ' ').trim(),
       'Bank account Connect or enter an account'
     );
-    assert.exists(cardOption.querySelector('.add-payment-sheet-icon svg path'));
-    assert.exists(bankOption.querySelector('.add-payment-sheet-icon svg path'));
-    assert.notEqual(
-      cardOption.querySelector('path')?.getAttribute('d'),
-      bankOption.querySelector('path')?.getAttribute('d')
-    );
-    assert.equal(
-      dialog
-        .querySelector('[data-action="close-add-payment-source"] path')
-        ?.getAttribute('d'),
-      'M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z'
-    );
-    assert.equal(getComputedStyle(cardOption).minHeight, '72px');
-    assert.notEqual(getComputedStyle(cardOption).borderStyle, 'dotted');
-    assert.notEqual(getComputedStyle(bankOption).borderStyle, 'dotted');
-    const optionList = dialog.querySelector('.add-payment-sheet-options')!;
-    assert.equal(getComputedStyle(optionList).gap, '12px');
-    assert.equal(getComputedStyle(optionList).maskImage, 'none');
-    assert.equal(
-      getComputedStyle(cardOption.querySelector('.add-payment-sheet-icon')!)
-        .width,
-      '40px'
-    );
-    assert.equal(
-      getComputedStyle(
-        dialog.querySelector('[data-action="close-add-payment-source"]')!
-      ).width,
-      '44px'
-    );
+    assert.isTrue(cardOption.classList.contains('source-action'));
+    assert.isTrue(bankOption.classList.contains('source-action'));
   });
 
-  test('a single allowed tender renders a direct add action without a sheet', async () => {
+  test('embedded presentation uses the same in-shell tender list', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['ADD_ACCOUNT', 'SELECT'],
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '4111111111111111'},
+        },
+      ],
+    });
+    el.presentationMode = 'embedded';
+    await flushElement(el);
+
+    await clickAction(el, 'open-add-payment-source');
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add payment method'
+    );
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll('.payment-action-links .source-action'),
+      2
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
+  });
+
+  test('a single allowed tender still opens the in-shell tender list', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -2412,8 +2549,8 @@ suite('commerce-hub-connect payment selection', () => {
     const addButtons = addFooter.querySelectorAll<HTMLButtonElement>('button');
 
     assert.lengthOf(addButtons, 1);
-    assert.equal(addButtons[0].dataset.action, 'add-card');
-    assert.equal(addButtons[0].textContent?.trim(), 'Add card');
+    assert.equal(addButtons[0].dataset.action, 'open-add-payment-source');
+    assert.include(addButtons[0].textContent ?? '', 'Add payment method');
     assert.closeTo(
       addButtons[0].getBoundingClientRect().width,
       addFooter.getBoundingClientRect().width,
@@ -2421,6 +2558,15 @@ suite('commerce-hub-connect payment selection', () => {
     );
 
     addButtons[0].click();
+    await flushElement(el);
+
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Add payment method'
+    );
+    el.shadowRoot!
+      .querySelector<HTMLButtonElement>('[data-action="add-card"]')!
+      .click();
     await flushElement(el);
 
     assert.exists(

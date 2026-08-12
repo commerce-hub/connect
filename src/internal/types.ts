@@ -71,7 +71,6 @@ export type FlowActionName =
   | 'resend-otp'
   | 'attach-payment-source'
   | 'open-add-payment-source'
-  | 'close-add-payment-source'
   | 'retry-interaction-refresh'
   | 'change-payment-source'
   | 'toggle-payment-source-menu'
@@ -497,6 +496,8 @@ export interface DetailItem {
   value: string | TemplateResult;
 }
 
+export type CommerceHubPresentationMode = 'dialog' | 'embedded';
+
 export interface WidgetShellOptions {
   title: string;
   subtitle?: string;
@@ -508,6 +509,7 @@ export interface WidgetShellOptions {
   footer?: TemplateResult;
   width?: 'default' | 'wide';
   layout?: 'default' | 'payment-methods';
+  presentationMode?: CommerceHubPresentationMode;
   ariaLabel?: string;
   closeAction?: string;
   showClose?: boolean;

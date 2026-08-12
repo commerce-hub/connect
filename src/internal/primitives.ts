@@ -1290,6 +1290,7 @@ export const renderWidgetShell = ({
   footer,
   width = 'default',
   layout = 'default',
+  presentationMode = 'dialog',
   ariaLabel = 'Commerce Hub Connect',
   closeAction = 'close',
   showClose = true,
@@ -1303,6 +1304,8 @@ export const renderWidgetShell = ({
       'widget-shell',
       width === 'wide' && 'widget-shell-wide',
       layout === 'payment-methods' && 'widget-shell-payment-methods',
+      presentationMode === 'dialog' && 'widget-shell-dialog',
+      presentationMode === 'embedded' && 'widget-shell-embedded',
       busy && 'widget-shell-busy'
     )}
     part="shell"

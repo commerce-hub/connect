@@ -16,6 +16,7 @@ const host = document.querySelector('#commerce-hub-widget-host');
 const widget = document.createElement('commerce-hub-connect');
 
 widget.baseURL = 'QA';
+widget.presentationMode = 'embedded';
 widget.designConfig = {
   colors: {
     primary: '#084acc',

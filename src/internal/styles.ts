@@ -89,9 +89,6 @@ export const primitiveStyles = css`
   }
 
   .widget-shell {
-    width: min(24.125rem, calc(100vw - 1.5rem));
-    height: min(35.25rem, calc(100dvh - 1.5rem));
-    min-height: 20rem;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     position: relative;
@@ -100,11 +97,39 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-border);
     border-radius: 0.5rem;
     background: var(--chc-widget-background);
-    box-shadow: 0 1.5rem 5rem
-      color-mix(in srgb, var(--chc-text) 10%, transparent);
     text-align: left;
     animation: chc-shell-enter var(--chc-motion-base) var(--chc-ease-emphasized)
       both;
+  }
+
+  .widget-shell-dialog {
+    width: min(24.125rem, calc(100vw - 1.5rem));
+    height: min(35.25rem, calc(100dvh - 1.5rem));
+    min-height: 20rem;
+    box-shadow: 0 1.5rem 5rem
+      color-mix(in srgb, var(--chc-text) 10%, transparent);
+  }
+
+  :host([presentation-mode='embedded']) {
+    container-type: inline-size;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: 100%;
+  }
+
+  :host([presentation-mode='embedded']) .widget-frame {
+    width: 100%;
+    height: 100%;
+    display: grid;
+  }
+
+  .widget-shell-embedded {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    box-shadow: none;
   }
 
   .widget-shell-busy {
@@ -267,172 +292,35 @@ export const primitiveStyles = css`
     color: var(--chc-primary);
   }
 
-  .add-payment-sheet-layer {
-    position: absolute;
-    z-index: 20;
-    inset: 0;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 0.5rem;
-    padding: 0.75rem 0.75rem 0;
-  }
-
-  .add-payment-sheet-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.48);
-  }
-
-  .add-payment-sheet {
-    width: min(100%, 32rem);
-    max-height: calc(100% - 0.75rem);
-    position: relative;
-    z-index: 1;
-    display: grid;
-    gap: 1rem;
-    overflow: auto;
-    border: 0.0625rem solid var(--chc-border);
-    border-bottom: 0;
-    border-radius: 1.25rem 1.25rem 0 0;
-    padding: 1.25rem;
-    background: var(--chc-surface);
-    box-shadow: 0 -0.75rem 2.5rem rgba(15, 23, 42, 0.2);
-    transform-origin: bottom center;
-    animation: chc-sheet-enter var(--chc-motion-sheet)
-      var(--chc-ease-emphasized) both;
-  }
-
-  .add-payment-sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .add-payment-sheet-title {
-    margin: 0;
-    color: var(--chc-text);
-    font-size: 1.25rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-  }
-
-  .add-payment-sheet-close {
-    width: 2.75rem;
-    min-width: 2.75rem;
-    height: 2.75rem;
-    min-height: 2.75rem;
-    display: inline-grid;
-    place-items: center;
-    border: 0.0625rem solid var(--chc-border);
-    border-radius: 999rem;
-    padding: 0;
-    background: var(--chc-soft-surface);
-    color: var(--chc-text);
-    cursor: pointer;
-  }
-
-  .add-payment-sheet-close svg {
-    width: 1rem;
-    height: 1rem;
-    fill: currentColor;
-  }
-
-  .add-payment-sheet-options {
-    display: grid;
-    gap: 0.75rem;
-  }
-
-  .add-payment-sheet-option {
+  .embedded-payment-select {
+    appearance: none;
     width: 100%;
-    min-height: 4.5rem;
-    display: grid;
-    grid-template-columns: 2.5rem minmax(0, 1fr) 1rem;
-    gap: 0.875rem;
-    align-items: center;
+    min-height: var(--chc-input-height);
     border: 0.0625rem solid var(--chc-border);
-    border-radius: 0.875rem;
-    padding: 0.75rem;
-    background: var(--chc-surface);
+    border-radius: var(--chc-radius-control);
+    padding: 0 2.5rem 0 0.75rem;
+    background-color: var(--chc-surface);
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--chc-copy) 50%),
+      linear-gradient(135deg, var(--chc-copy) 50%, transparent 50%);
+    background-position:
+      calc(100% - 1rem) 50%,
+      calc(100% - 0.75rem) 50%;
+    background-repeat: no-repeat;
+    background-size: 0.25rem 0.25rem;
     color: var(--chc-text);
-    font-family: inherit;
-    font-size: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
-      background-color var(--chc-motion-fast) var(--chc-ease-standard),
-      transform var(--chc-motion-fast) var(--chc-ease-standard);
+    font: inherit;
   }
 
-  .add-payment-sheet-option-branded {
-    grid-template-columns: 5rem minmax(0, 1fr) 1rem;
-  }
-
-  .add-payment-sheet-option:hover,
-  .add-payment-sheet-option:focus-visible {
+  .embedded-payment-select:focus-visible {
     border-color: var(--chc-primary);
-    background: color-mix(in srgb, var(--chc-primary) 4%, var(--chc-surface));
-    transform: translateY(-0.0625rem);
+    outline: 0.1875rem solid var(--chc-focus-ring);
+    outline-offset: 0.0625rem;
   }
 
-  .add-payment-sheet-close:focus-visible,
-  .add-payment-sheet-option:focus-visible {
-    outline: 0.125rem solid var(--chc-focus-ring);
-    outline-offset: 0.125rem;
-  }
-
-  .add-payment-sheet-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    display: inline-grid;
-    place-items: center;
-    border-radius: 0.75rem;
-    background: color-mix(in srgb, var(--chc-primary) 10%, var(--chc-surface));
-    color: var(--chc-primary);
-  }
-
-  .add-payment-sheet-icon svg {
-    width: 1.25rem;
-    height: 1.25rem;
-    fill: currentColor;
-  }
-
-  .add-payment-sheet-brand {
-    width: 5rem;
-    height: 3rem;
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .add-payment-sheet-brand-image {
-    width: 100%;
-    height: 100%;
-    display: block;
-    border-radius: inherit;
-    object-fit: contain;
-  }
-
-  .add-payment-sheet-option-copy {
-    min-width: 0;
-    display: grid;
-    gap: 0.1875rem;
-  }
-
-  .add-payment-sheet-option-title {
-    font-weight: 600;
-  }
-
-  .add-payment-sheet-option-subtitle {
-    color: var(--chc-copy);
-    font-size: 0.8125rem;
-  }
-
-  .add-payment-sheet-option-chevron {
+  .embedded-payment-select:disabled {
     color: var(--chc-muted);
-    font-size: 1.5rem;
-    justify-self: end;
+    cursor: wait;
   }
 
   .payment-method-radio {
@@ -3201,16 +3089,6 @@ export const primitiveStyles = css`
     }
   }
 
-  @keyframes chc-sheet-enter {
-    from {
-      transform: translateY(100%);
-    }
-
-    to {
-      transform: none;
-    }
-  }
-
   .powered-by-footer {
     display: flex;
     justify-content: center;
@@ -3227,7 +3105,7 @@ export const primitiveStyles = css`
   }
 
   @media (max-width: 26.25rem) {
-    .widget-shell {
+    .widget-shell-dialog {
       width: calc(100vw - 1rem);
       height: calc(100dvh - 1rem);
       border-radius: 0.5rem;
@@ -3243,20 +3121,6 @@ export const primitiveStyles = css`
 
     .payment-method-add-footer {
       grid-template-columns: minmax(0, 1fr);
-    }
-
-    .add-payment-sheet-layer {
-      padding: 0;
-    }
-
-    .add-payment-sheet {
-      width: 100%;
-      max-height: calc(100dvh - 1rem);
-      border-right: 0;
-      border-bottom: 0;
-      border-left: 0;
-      border-radius: 1.25rem 1.25rem 0 0;
-      padding: 1rem;
     }
 
     .widget-header {
@@ -3297,6 +3161,42 @@ export const primitiveStyles = css`
     }
   }
 
+  @container (max-width: 26.25rem) {
+    .widget-shell-embedded .form-grid,
+    .widget-shell-embedded .payment-method-add-footer {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .widget-shell-embedded .widget-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .widget-shell-embedded .widget-header-action,
+    .widget-shell-embedded .widget-toolbar {
+      width: 100%;
+    }
+
+    .widget-shell-embedded .widget-toolbar > * {
+      flex: 1 1 0;
+    }
+
+    .widget-shell-embedded .payment-method-row,
+    .widget-shell-embedded .source-action-link,
+    .widget-shell-embedded .upload-row,
+    .widget-shell-embedded .loading-row {
+      padding-right: 0.75rem;
+      padding-left: 0.75rem;
+    }
+
+    .widget-shell-embedded .source-action-title,
+    .widget-shell-embedded .source-action-link-title,
+    .widget-shell-embedded .payment-method-title {
+      white-space: normal;
+    }
+
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .widget-shell,
     .widget-close,
@@ -3307,12 +3207,6 @@ export const primitiveStyles = css`
     .source-action-link,
     .payment-method-delete-button,
     .payment-method-delete-confirm-button {
-      transition: none;
-      animation: none;
-    }
-
-    .add-payment-sheet,
-    .add-payment-sheet-option {
       transition: none;
       animation: none;
     }

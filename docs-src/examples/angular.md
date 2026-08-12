@@ -29,6 +29,7 @@ import type {
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   template: `
     <commerce-hub-connect
+      [presentationMode]="'embedded'"
       [baseURL]="baseUrl"
       [interactionResponse]="interactionResponse()"
       [designConfig]="designConfig()"
@@ -72,3 +73,7 @@ Angular 22 components are standalone by default, so this example does not set
 and `designConfig` through Angular property bindings rather than serializing
 them into HTML attributes. Keep `onSelect` as the widget boundary and complete
 the merchant interaction from the Angular host.
+
+The embedded wallet fills its parent width. Give the element and its wrapper a
+definite height only when the wallet should scroll within a bounded host;
+otherwise it grows naturally with the page.
