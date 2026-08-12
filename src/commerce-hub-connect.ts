@@ -2429,7 +2429,7 @@ export class CommerceHubConnect extends LitElement {
     const isSaving = this.pendingAction === 'save-bank-account';
     return this.renderWidgetShell({
       title: 'Enter bank details',
-      backAction: 'back-to-instrument-schema-selection',
+      backAction: this.manualBankAccountDetailsBackAction(),
       showClose: false,
       showDivider: false,
       content: html`
@@ -3784,6 +3784,13 @@ export class CommerceHubConnect extends LitElement {
 
   private manualBankAccountExitAction(): FlowActionName {
     return 'back-to-payment-methods';
+  }
+
+  private manualBankAccountDetailsBackAction(): FlowActionName {
+    return selectableInstrumentSchemas(this.bankAccountInstrumentSchemas)
+      .length === 1
+      ? 'back-to-payment-methods'
+      : 'back-to-instrument-schema-selection';
   }
 
   private isCurrentManualBankAccountConfigRequest(
