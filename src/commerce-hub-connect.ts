@@ -177,6 +177,7 @@ import type {
   CardDraftErrors,
   CardDraftTextField,
   CardEncryptionState,
+  CommerceHubPresentationMode,
   FlowActionName,
   InteractionFeature,
   InteractionResponse,
@@ -215,6 +216,7 @@ export {
 } from './internal/api-client.js';
 export type {components, operations, paths} from './generated/openapi.js';
 export type {
+  CommerceHubPresentationMode,
   InteractionFeature,
   InteractionOAuth,
   InteractionResponse,
@@ -683,6 +685,10 @@ export class CommerceHubConnect extends LitElement {
   @property({attribute: false})
   designConfig?: DesignConfig;
 
+  /** Controls whether the widget uses dialog or inline embedded sizing. */
+  @property({attribute: 'presentation-mode', reflect: true})
+  presentationMode: CommerceHubPresentationMode = 'dialog';
+
   /**
    * CommerceHub API base URL preset or custom origin for SDK-managed requests.
    */
@@ -1134,6 +1140,7 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       ...options,
+      presentationMode: this.presentationMode,
       busy: busy || Boolean(minimumOverlay),
       overlay: overlay ?? minimumOverlay,
     });

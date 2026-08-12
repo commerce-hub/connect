@@ -124,6 +124,39 @@ Assign object-valued SDK inputs such as `.interactionResponse` and
 attributes can only carry strings. The `base-url` attribute is available only
 for the string `.baseURL` value.
 
+## Presentation modes
+
+The default `dialog` presentation keeps the viewport-sized framed widget used
+by existing integrations. Use `embedded` when the wallet belongs inside a host
+page or card:
+
+```ts
+widget.presentationMode = 'embedded';
+```
+
+Embedded mode fills the available parent width and responds to its container.
+With no height constraint it grows naturally with its content. The SDK does not
+impose an embedded maximum height. To keep the wallet within a bounded region,
+the host supplies the height:
+
+```css
+.wallet-host commerce-hub-connect {
+  width: 100%;
+}
+
+.wallet-host--bounded {
+  height: min(36rem, calc(100dvh - 8rem));
+}
+
+.wallet-host--bounded commerce-hub-connect {
+  width: 100%;
+  height: 100%;
+}
+```
+
+In a bounded host, the wallet header and footer remain visible while its central
+content scrolls.
+
 ## SDK-managed requests
 
 When the widget performs CommerceHub calls, it uses the `PROD` preset by

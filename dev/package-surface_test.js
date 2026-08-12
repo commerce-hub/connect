@@ -24,6 +24,22 @@ test('built SDK imports the internal JSONForms Lit binding', () => {
   );
 });
 
+test('published types and docs expose embedded presentation mode', () => {
+  const declarations = readFileSync('commerce-hub-connect.d.ts', 'utf8');
+  const readme = readFileSync('README.md', 'utf8');
+  const angularExample = readFileSync('docs-src/examples/angular.md', 'utf8');
+  const javascriptExample = readFileSync(
+    'docs-src/examples/plain-javascript.md',
+    'utf8'
+  );
+
+  assert.match(declarations, /CommerceHubPresentationMode/);
+  assert.match(readme, /presentationMode = 'embedded'/);
+  assert.match(angularExample, /\[presentationMode\]="'embedded'"/);
+  assert.match(javascriptExample, /presentationMode = 'embedded'/);
+  assert.match(readme, /wallet-host--bounded/);
+});
+
 test('npm package includes internal JSONForms Lit output only', () => {
   const packOutput = execFileSync('npm', ['pack', '--dry-run', '--json'], {
     encoding: 'utf8',

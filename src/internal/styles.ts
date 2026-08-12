@@ -42,6 +42,7 @@ export const primitiveStyles = css`
     --chc-spinner-duration: 900ms;
     --chc-shell-padding: 0;
     display: block;
+    container-type: inline-size;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
     font-size: 1rem;
@@ -89,9 +90,6 @@ export const primitiveStyles = css`
   }
 
   .widget-shell {
-    width: min(24.125rem, calc(100vw - 1.5rem));
-    height: min(35.25rem, calc(100dvh - 1.5rem));
-    min-height: 20rem;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     position: relative;
@@ -100,11 +98,38 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-border);
     border-radius: 0.5rem;
     background: var(--chc-widget-background);
-    box-shadow: 0 1.5rem 5rem
-      color-mix(in srgb, var(--chc-text) 10%, transparent);
     text-align: left;
     animation: chc-shell-enter var(--chc-motion-base) var(--chc-ease-emphasized)
       both;
+  }
+
+  .widget-shell-dialog {
+    width: min(24.125rem, calc(100vw - 1.5rem));
+    height: min(35.25rem, calc(100dvh - 1.5rem));
+    min-height: 20rem;
+    box-shadow: 0 1.5rem 5rem
+      color-mix(in srgb, var(--chc-text) 10%, transparent);
+  }
+
+  :host([presentation-mode='embedded']) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: 100%;
+  }
+
+  :host([presentation-mode='embedded']) .widget-frame {
+    width: 100%;
+    height: 100%;
+    display: grid;
+  }
+
+  .widget-shell-embedded {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    box-shadow: none;
   }
 
   .widget-shell-busy {
@@ -3227,7 +3252,7 @@ export const primitiveStyles = css`
   }
 
   @media (max-width: 26.25rem) {
-    .widget-shell {
+    .widget-shell-dialog {
       width: calc(100vw - 1rem);
       height: calc(100dvh - 1rem);
       border-radius: 0.5rem;
@@ -3295,6 +3320,42 @@ export const primitiveStyles = css`
     .payment-method-title {
       white-space: normal;
     }
+  }
+
+  @container (max-width: 26.25rem) {
+    .widget-shell-embedded .form-grid,
+    .widget-shell-embedded .payment-method-add-footer {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .widget-shell-embedded .widget-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .widget-shell-embedded .widget-header-action,
+    .widget-shell-embedded .widget-toolbar {
+      width: 100%;
+    }
+
+    .widget-shell-embedded .widget-toolbar > * {
+      flex: 1 1 0;
+    }
+
+    .widget-shell-embedded .payment-method-row,
+    .widget-shell-embedded .source-action-link,
+    .widget-shell-embedded .upload-row,
+    .widget-shell-embedded .loading-row {
+      padding-right: 0.75rem;
+      padding-left: 0.75rem;
+    }
+
+    .widget-shell-embedded .source-action-title,
+    .widget-shell-embedded .source-action-link-title,
+    .widget-shell-embedded .payment-method-title {
+      white-space: normal;
+    }
+
   }
 
   @media (prefers-reduced-motion: reduce) {
