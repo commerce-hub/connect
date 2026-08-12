@@ -1386,7 +1386,14 @@ suite('commerce-hub-connect primitives', () => {
   });
 
   test('declares parent-responsive embedded shell behavior', () => {
-    assert.include(primitiveStyles.cssText, 'container-type: inline-size');
+    assert.notMatch(
+      primitiveStyles.cssText,
+      /:host\s*\{[^}]*container-type:\s*inline-size/s
+    );
+    assert.match(
+      primitiveStyles.cssText,
+      /:host\(\[presentation-mode='embedded'\]\)\s*\{[^}]*container-type:\s*inline-size/s
+    );
     assert.include(primitiveStyles.cssText, '.widget-shell-embedded');
     assert.include(primitiveStyles.cssText, 'height: 100%');
     assert.include(primitiveStyles.cssText, 'min-height: 0');

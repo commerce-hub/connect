@@ -42,7 +42,6 @@ export const primitiveStyles = css`
     --chc-spinner-duration: 900ms;
     --chc-shell-padding: 0;
     display: block;
-    container-type: inline-size;
     color: var(--chc-text);
     font-family: var(--chc-font-family);
     font-size: 1rem;
@@ -112,6 +111,7 @@ export const primitiveStyles = css`
   }
 
   :host([presentation-mode='embedded']) {
+    container-type: inline-size;
     width: 100%;
     max-width: 100%;
     min-width: 0;
