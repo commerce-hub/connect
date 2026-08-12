@@ -46,6 +46,7 @@ export const resolveAddPaymentTenders = ({
       title: copy.addBankAccountTitle,
       subtitle: copy.addBankAccountSubtitle,
       icon: 'bank',
+      brandImage: MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
     });
     return tenders;
   }

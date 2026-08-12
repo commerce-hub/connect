@@ -1,6 +1,7 @@
 import {assert} from '@open-wc/testing';
 
 import {resolveAddPaymentTenders} from '../internal/add-payment-tenders.js';
+import {MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE} from '../internal/source-action-brand-images.js';
 
 const copy = {
   addCardTitle: 'Credit or debit card',
@@ -80,7 +81,7 @@ suite('add payment tenders', () => {
           title: 'Connect bank',
           subtitle: 'Connect checking or savings',
           icon: 'bank',
-          brandImage: undefined,
+          brandImage: MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
         },
       ]
     );
