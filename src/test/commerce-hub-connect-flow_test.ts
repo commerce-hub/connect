@@ -2143,6 +2143,7 @@ suite('commerce-hub-connect flow', () => {
         InteractionResponse['allowedTenderTypes']
       >;
       actions: string[];
+      brandImages?: string[];
     }> = [
       {
         country: ' usa ',
@@ -2163,6 +2164,10 @@ suite('commerce-hub-connect flow', () => {
         country: 'CA',
         allowedTenderTypes: ['CARD', 'BANK_ACCOUNT'],
         actions: ['add-card', 'add-bank-account'],
+        brandImages: [
+          CARD_SOURCE_ACTION_BRAND_IMAGE,
+          MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
+        ],
       },
       {
         country: undefined,
@@ -2193,6 +2198,16 @@ suite('commerce-hub-connect flow', () => {
         ].map((button) => button.dataset.action),
         testCase.actions
       );
+      if (testCase.brandImages) {
+        assert.deepEqual(
+          [
+            ...el.shadowRoot!.querySelectorAll<HTMLImageElement>(
+              '.payment-action-links .source-action-brand-image'
+            ),
+          ].map((image) => image.src),
+          testCase.brandImages
+        );
+      }
     }
   });
 
