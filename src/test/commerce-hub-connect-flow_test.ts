@@ -5065,29 +5065,14 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelector('[data-action="save-ach-manual"]')
     );
 
-    await clickAction(el, 'back-to-instrument-schema-selection');
-
-    const currencySelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
-      '#instrument-schema-currency'
-    )!;
-    const accountTypeSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
-      '#instrument-schema-account-type'
-    )!;
-    const paymentTypeSelect = el.shadowRoot!.querySelector<HTMLSelectElement>(
-      '#instrument-schema-payment-type'
-    )!;
-    assert.equal(currencySelect.value, 'CAD');
-    assert.isTrue(currencySelect.disabled);
-    assert.equal(accountTypeSelect.value, 'BUSINESS');
-    assert.isTrue(accountTypeSelect.disabled);
-    assert.equal(paymentTypeSelect.value, 'Canadian');
-    assert.isTrue(paymentTypeSelect.disabled);
-
     await clickAction(el, 'back-to-payment-methods');
 
     assert.equal(
       el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
       'Payment methods'
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('#instrument-schema-currency')
     );
     assert.notInclude(
       requests.map((request) => new URL(request.url).pathname),
