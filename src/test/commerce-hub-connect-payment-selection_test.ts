@@ -362,6 +362,169 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
+  test('embedded SELECT-only renders a dropdown and emits after attach completes', async () => {
+    const attachResponse = createDeferred<Response>();
+    const sources: PaymentSource[] = [
+      {
+        tenderType: 'Card',
+        id: 'card-1',
+        name: 'Corporate card',
+        verificationInfo: {status: 'VERIFIED'},
+        card: {network: 'Visa', cardNumber: '4111111111111111'},
+      },
+      {
+        tenderType: 'BankAccount',
+        id: 'bank-review',
+        name: 'Review account',
+        verificationInfo: {status: 'UNDER_REVIEW'},
+        bankAccount: {accountNumber: '9876543210'},
+      },
+    ];
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: sources,
+    });
+    el.presentationMode = 'embedded';
+    await flushElement(el);
+    const {successEvents} = recordOutputEvents(el);
+    const select = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '[data-embedded-payment-select]'
+    )!;
+
+    assert.exists(select);
+    assert.strictEqual(
+      select.parentElement,
+      el.shadowRoot!.querySelector('.widget-frame')
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-shell'));
+    assert.notExists(el.shadowRoot!.querySelector('.embedded-payment-select-label'));
+    assert.deepEqual(
+      [...select.options].map(({value}) => value),
+      ['', 'card-1']
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.payment-method-row'));
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="attach-payment-source"]')
+    );
+
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      if (pathname.endsWith('/attach')) {
+        return attachResponse.promise;
+      }
+
+      return new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: sources[0],
+          paymentSources: sources,
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+    };
+
+    select.value = 'card-1';
+    select.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+    await flushElement(el);
+    assert.isTrue(select.disabled);
+    assert.lengthOf(successEvents, 0);
+
+    attachResponse.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-payment',
+          status: 'PAYMENT_SOURCE_ATTACHED',
+          selectedSource: sources[0],
+          paymentSources: sources,
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await waitFor(() => successEvents.length === 1);
+    assert.equal(successEvents[0].detail.id, 'card-1');
+  });
+
+  test('embedded SELECT-only disables a No payment methods dropdown when empty', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [],
+    });
+    el.presentationMode = 'embedded';
+    await flushElement(el);
+    const select = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '[data-embedded-payment-select]'
+    )!;
+
+    assert.exists(select);
+    assert.isTrue(select.disabled);
+    assert.deepEqual(
+      [...select.options].map(({value, text}) => ({value, text})),
+      [{value: '', text: 'No payment methods'}]
+    );
+    assert.notExists(el.shadowRoot!.querySelector('.widget-shell'));
+  });
+
+  test('embedded SELECT-only does not show payment methods chrome while refreshing', async () => {
+    const refreshResponse = createDeferred<Response>();
+    window.fetch = async () => refreshResponse.promise;
+    const interactionResponse: InteractionResponse = {
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [],
+    };
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .presentationMode=${'embedded'}
+        .interactionResponse=${interactionResponse}
+        .baseURL=${TEST_COMMERCE_HUB_BASE_URL}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+    await flushElement(el);
+
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-embedded-payment-select]')
+    );
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Payment methods');
+    assert.notExists(el.shadowRoot!.querySelector('.widget-shell'));
+
+    refreshResponse.resolve(
+      new Response(JSON.stringify(interactionResponse), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      })
+    );
+  });
+
+  test('dialog SELECT-only keeps the payment method list', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '4111111111111111'},
+        },
+      ],
+    });
+
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-embedded-payment-select]')
+    );
+    assert.exists(el.shadowRoot!.querySelector('.payment-method-row'));
+  });
+
   test('missing verification status is not selectable or markable as default', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',

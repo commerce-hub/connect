@@ -1298,6 +1298,10 @@ export class CommerceHubConnect extends LitElement {
       this.pendingAction === 'attach-payment-source' ||
       this.pendingAction === 'verify-payment-source' ||
       this.pendingAction === 'delete-payment-source';
+    if (this.shouldRenderEmbeddedSelectOnly()) {
+      return this.renderEmbeddedPaymentSourceSelect(paymentMethods);
+    }
+
     if (this.shouldRenderPaymentSourceRefreshSkeleton()) {
       return this.renderWidgetShell({
         title: copy.title,
@@ -3203,6 +3207,21 @@ export class CommerceHubConnect extends LitElement {
   };
 
   private handleChange = (event: Event) => {
+    const embeddedPaymentSelect = event
+      .composedPath()
+      .find(
+        (item): item is HTMLSelectElement =>
+          item instanceof HTMLSelectElement &&
+          Boolean(item.dataset.embeddedPaymentSelect)
+      );
+
+    if (embeddedPaymentSelect) {
+      if (embeddedPaymentSelect.value) {
+        void this.attachPaymentSource(embeddedPaymentSelect.value);
+      }
+      return;
+    }
+
     const paymentMethodRadio = event
       .composedPath()
       .find(
