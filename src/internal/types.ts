@@ -71,7 +71,6 @@ export type FlowActionName =
   | 'resend-otp'
   | 'attach-payment-source'
   | 'open-add-payment-source'
-  | 'close-add-payment-source'
   | 'retry-interaction-refresh'
   | 'change-payment-source'
   | 'toggle-payment-source-menu'

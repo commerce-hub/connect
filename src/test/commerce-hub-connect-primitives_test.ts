@@ -170,7 +170,6 @@ suite('commerce-hub-connect primitives', () => {
       primitiveStyles.cssText,
       '.widget-toolbar .text-link-button'
     );
-    assert.include(primitiveStyles.cssText, '.add-payment-sheet-option');
   });
 
   test('uses rem units in shared styles instead of px sizing tokens', () => {
@@ -1375,12 +1374,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.include(primitiveStyles.cssText, '@keyframes chc-spinner-rotate');
     assert.include(primitiveStyles.cssText, '@keyframes chc-loading-dot');
     assert.include(primitiveStyles.cssText, '@keyframes chc-shell-enter');
-    assert.include(primitiveStyles.cssText, '@keyframes chc-sheet-enter');
-    assert.include(
-      primitiveStyles.cssText,
-      'animation: chc-sheet-enter var(--chc-motion-sheet)'
-    );
-    assert.include(primitiveStyles.cssText, 'transform: translateY(100%)');
+    assert.notInclude(primitiveStyles.cssText, '.add-payment-sheet');
     assert.include(primitiveStyles.cssText, '@media (max-width: 26.25rem)');
     assert.include(primitiveStyles.cssText, 'width: calc(100vw - 1rem)');
     assert.include(

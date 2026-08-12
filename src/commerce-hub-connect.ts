@@ -131,10 +131,6 @@ import {
   resolvePaymentMethodIconName,
 } from './internal/payment-method-icons.js';
 import {
-  BANK_SOURCE_ACTION_ICON_PATH,
-  CARD_SOURCE_ACTION_ICON_PATH,
-} from './internal/source-action-icons.js';
-import {
   isPaymentSourceMarkAsDefaultEligible,
   isPaymentSourceSelectionEligible,
   paymentSourceVerificationLabel,
@@ -987,7 +983,6 @@ export class CommerceHubConnect extends LitElement {
           >${flowActionLiveMessage(this.pendingAction)}</span
         >
         ${this.renderCurrentScreen()}
-        ${this.addLauncherActive ? this.renderAddPaymentSourceSheet() : ''}
       </div>
     `;
   }
@@ -1329,6 +1324,10 @@ export class CommerceHubConnect extends LitElement {
       return this.renderNoSavedPaymentMethods();
     }
 
+    if (this.addLauncherActive) {
+      return this.renderAddPaymentSourceScreen();
+    }
+
     if (this.shouldRenderSelectedPaymentSourceScreen()) {
       return this.renderSelectedPaymentSourceScreen();
     }
@@ -1412,99 +1411,65 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
-  private renderAddPaymentSourceSheet(): TemplateResult {
+  private renderAddPaymentSourceScreen(): TemplateResult {
     const tenders = this.addPaymentTenderOptions();
+    const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
 
-    return html`
-      <div class="add-payment-sheet-layer">
-        <div
-          class="add-payment-sheet-backdrop"
-          data-action="close-add-payment-source"
-          aria-hidden="true"
-        ></div>
-        <section
-          class="add-payment-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-payment-sheet-title"
-        >
-          <div class="add-payment-sheet-header">
-            <h2 class="add-payment-sheet-title" id="add-payment-sheet-title">
-              Add payment method
-            </h2>
-            <button
-              class="add-payment-sheet-close"
-              type="button"
-              data-action="close-add-payment-source"
-              aria-label="Close add payment method"
-            >
-              <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
-              <svg viewBox="0 0 640 640" aria-hidden="true" focusable="false">
-                <path
-                  d="M183.1 137.4C170.6 124.9 150.3 124.9 137.8 137.4C125.3 149.9 125.3 170.2 137.8 182.7L275.2 320L137.9 457.4C125.4 469.9 125.4 490.2 137.9 502.7C150.4 515.2 170.7 515.2 183.2 502.7L320.5 365.3L457.9 502.6C470.4 515.1 490.7 515.1 503.2 502.6C515.7 490.1 515.7 469.8 503.2 457.3L365.8 320L503.1 182.6C515.6 170.1 515.6 149.8 503.1 137.3C490.6 124.8 470.3 124.8 457.8 137.3L320.5 274.7L183.1 137.4z"
-                ></path>
-              </svg>
-            </button>
-          </div>
-          <div class="add-payment-sheet-options">
-            ${tenders.map((tender) =>
-              this.renderAddPaymentSourceOption(tender)
-            )}
-          </div>
-        </section>
-      </div>
-    `;
+    return this.renderWidgetShell({
+      title: 'Add payment method',
+      backAction: 'back-to-payment-methods',
+      showClose: false,
+      content: renderNoSavedPaymentMethodsScreen({
+        tenders,
+        canAddPaymentSources: true,
+        copy: {...copy, emptyTitle: '', emptyMessage: ''},
+      }),
+    });
   }
 
-  private renderAddPaymentSourceOption({
-    action,
-    title,
-    subtitle,
-    icon,
-    brandImage,
-  }: AddPaymentTenderOption): TemplateResult {
-    const useBrandImage =
-      isUsaInteractionCountry(this.interactionResponse?.country) && brandImage;
+  private shouldRenderEmbeddedSelectOnly(): boolean {
+    const features = this.interactionResponse?.features ?? [];
+
+    return (
+      this.presentationMode === 'embedded' &&
+      features.length === 1 &&
+      features[0] === 'SELECT'
+    );
+  }
+
+  private renderEmbeddedPaymentSourceSelect(
+    paymentMethods: PaymentMethod[]
+  ): TemplateResult {
+    const eligibleMethods = paymentMethods.filter(
+      (method) => method.selectionEligible
+    );
+    const selectedSourceId = this.interactionResponse?.selectedSource?.id ?? '';
+    const attaching = this.pendingAction === 'attach-payment-source';
+    const hasPaymentMethods = eligibleMethods.length > 0;
 
     return html`
-      <button
-        class="add-payment-sheet-option ${useBrandImage
-          ? 'add-payment-sheet-option-branded'
-          : ''}"
-        type="button"
-        data-action=${action}
+      <select
+        class="embedded-payment-select"
+        data-embedded-payment-select="true"
+        aria-label="Payment method"
+        ?disabled=${attaching || !hasPaymentMethods}
       >
-        <span
-          class="add-payment-sheet-icon ${useBrandImage
-            ? 'add-payment-sheet-brand'
-            : ''}"
-          aria-hidden="true"
-        >
-          ${useBrandImage
-            ? html`<img
-                class="add-payment-sheet-brand-image"
-                src=${useBrandImage}
-                alt=""
-              />`
-            : html`
-                <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
-                <svg viewBox="0 0 640 640" focusable="false">
-                  <path
-                    d=${icon === 'card'
-                      ? CARD_SOURCE_ACTION_ICON_PATH
-                      : BANK_SOURCE_ACTION_ICON_PATH}
-                  ></path>
-                </svg>
-              `}
-        </span>
-        <span class="add-payment-sheet-option-copy">
-          <span class="add-payment-sheet-option-title">${title}</span>
-          <span class="add-payment-sheet-option-subtitle">${subtitle}</span>
-        </span>
-        <span class="add-payment-sheet-option-chevron" aria-hidden="true"
-          >›</span
-        >
-      </button>
+        <option value="" ?selected=${!selectedSourceId}>
+          ${hasPaymentMethods ? 'Select payment method' : 'No payment methods'}
+        </option>
+        ${eligibleMethods.map(
+          (method) => html`
+            <option
+              value=${method.id}
+              ?selected=${method.id === selectedSourceId}
+            >
+              ${[method.label, method.brand, method.last4 && `xx ${method.last4}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </option>
+          `
+        )}
+      </select>
     `;
   }
 
@@ -2788,25 +2753,14 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'open-add-payment-source') {
-      const tenders = this.addPaymentTenderOptions();
       this.attachmentError = undefined;
-      if (tenders.length > 1) {
-        this.addLauncherActive = true;
-        this.focusAfterUpdate('[data-action="close-add-payment-source"]');
-      } else if (tenders[0]?.action === 'add-card') {
-        void this.showAddCardScreen();
-      } else if (tenders[0]?.action === 'add-pay-by-bank') {
-        void this.startPayByBankFlow();
-      } else if (tenders[0]?.action === 'add-ach-manually') {
-        void this.showManualBankAccountScreen();
-      } else if (tenders[0]?.action === 'add-bank-account') {
-        void this.startBankAccountFlow();
-      }
-      return;
-    }
-
-    if (action === 'close-add-payment-source') {
-      this.closeAddPaymentSourceSheet();
+      this.addLauncherActive = true;
+      this.focusAfterUpdate(
+        '[data-action="add-card"]',
+        '[data-action="add-pay-by-bank"]',
+        '[data-action="add-ach-manually"]',
+        '[data-action="add-bank-account"]'
+      );
       return;
     }
 
@@ -3133,45 +3087,6 @@ export class CommerceHubConnect extends LitElement {
           )
           ?.focus();
       });
-      return;
-    }
-
-    if (this.addLauncherActive && event.key === 'Tab') {
-      const focusableElements = [
-        ...this.renderRoot.querySelectorAll<HTMLButtonElement>(
-          '.add-payment-sheet button:not(:disabled)'
-        ),
-      ];
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-      const activeElement = this.shadowRoot?.activeElement;
-
-      if (!firstElement || !lastElement) {
-        return;
-      }
-
-      if (event.shiftKey && activeElement === firstElement) {
-        event.preventDefault();
-        lastElement.focus();
-      } else if (!event.shiftKey && activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      } else if (
-        !focusableElements.includes(activeElement as HTMLButtonElement)
-      ) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-      return;
-    }
-
-    if (
-      this.addLauncherActive &&
-      event.key === 'Escape' &&
-      !this.pendingAction
-    ) {
-      event.preventDefault();
-      this.closeAddPaymentSourceSheet();
       return;
     }
 
@@ -5619,11 +5534,6 @@ export class CommerceHubConnect extends LitElement {
     return (
       availableBelow < estimatedMenuHeight && availableAbove > availableBelow
     );
-  }
-
-  private closeAddPaymentSourceSheet() {
-    this.addLauncherActive = false;
-    this.focusAfterUpdate('[data-action="open-add-payment-source"]');
   }
 
   private async refreshPaymentSourcesForList() {
