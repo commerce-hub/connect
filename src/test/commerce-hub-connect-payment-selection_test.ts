@@ -630,11 +630,11 @@ suite('commerce-hub-connect payment selection', () => {
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
       [
-        'Verified',
+        'Verified, Pending',
         'Verified, Provisioned',
         'Verified, Provisioned',
         'Verified, Pending',
-        'Verified',
+        'Verified, Pending',
       ]
     );
     assert.deepEqual(
@@ -736,7 +736,7 @@ suite('commerce-hub-connect payment selection', () => {
         row.querySelector('.verification-status-badge')?.textContent?.trim()
       ),
       [
-        'Verified',
+        'Verified, Pending',
         'Verified, Provisioned',
         'Verified, Provisioned',
         'Verified, Pending',
