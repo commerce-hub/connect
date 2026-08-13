@@ -7618,6 +7618,7 @@ suite('commerce-hub-connect flow', () => {
         colors: {
           widgetBackground: '#fafafa',
           primary: '#123456',
+          buttonTextColor: '#fef3c7',
           text: '#1f2937',
           copy: '#4b5563',
           border: '#d1d5db',
@@ -7677,7 +7678,7 @@ suite('commerce-hub-connect flow', () => {
         primaryTextColor: '#1f2937',
         secondaryTextColor: '#4b5563',
         buttonColor: '#123456',
-        buttonTextColor: '#ffffff',
+        buttonTextColor: '#fef3c7',
         dangerColor: '#dc2626',
         successColor: '#059669',
         borderColor: '#d1d5db',
