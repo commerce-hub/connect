@@ -425,6 +425,7 @@ suite('commerce-hub-connect primitives', () => {
         .designConfig=${{
           colors: {
             primary: '#0f766e',
+            buttonTextColor: '#102a43',
             surface: '#f4f7fb',
           },
           baseFontSize: '20px',
@@ -451,6 +452,10 @@ suite('commerce-hub-connect primitives', () => {
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-primary').trim(),
       '#0f766e'
+    );
+    assert.equal(
+      getComputedStyle(el).getPropertyValue('--chc-button-text').trim(),
+      '#102a43'
     );
     assert.equal(
       getComputedStyle(el).getPropertyValue('--chc-font-weight').trim(),

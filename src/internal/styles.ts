@@ -13,6 +13,7 @@ export const primitiveStyles = css`
     --chc-border-strong: #8596a8;
     --chc-payment-method-background: var(--chc-surface);
     --chc-primary: #533afd;
+    --chc-button-text: #ffffff;
     --chc-success: #047857;
     --chc-success-bg: #ecfdf3;
     --chc-success-border: #a6f4c5;
@@ -877,7 +878,7 @@ export const primitiveStyles = css`
 
   .button-primary {
     background: var(--chc-primary);
-    color: #fff;
+    color: var(--chc-button-text);
   }
 
   .widget-action-footer .button {

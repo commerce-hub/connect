@@ -632,6 +632,7 @@ const LAST_CHAR_REVEAL_TIMEOUT_MS = 1500;
  * @csspart provider-frame - Pay by Bank provider handoff frame.
  *
  * @cssproperty --chc-primary - Primary brand color.
+ * @cssproperty --chc-button-text - Primary button text color.
  * @cssproperty --chc-text - Primary text color.
  * @cssproperty --chc-copy - Secondary copy color.
  * @cssproperty --chc-muted - Muted text color.
@@ -6730,6 +6731,7 @@ export interface DesignConfigPayByBank {
  */
 export interface DesignConfigColors {
   primary?: string;
+  buttonTextColor?: string;
   text?: string;
   copy?: string;
   muted?: string;
@@ -7037,6 +7039,11 @@ const resolvePaymentSdkAppearance = (
   );
   setPaymentSdkBrandingValue(branding, 'primaryColor', colors?.primary);
   setPaymentSdkBrandingValue(branding, 'buttonColor', colors?.primary);
+  setPaymentSdkBrandingValue(
+    branding,
+    'buttonTextColor',
+    colors?.buttonTextColor
+  );
   setPaymentSdkBrandingValue(branding, 'primaryTextColor', colors?.text);
   setPaymentSdkBrandingValue(
     branding,
@@ -7081,6 +7088,7 @@ const designConfigColorProperties: {
   property: string;
 }[] = [
   {field: 'primary', property: '--chc-primary'},
+  {field: 'buttonTextColor', property: '--chc-button-text'},
   {field: 'text', property: '--chc-text'},
   {field: 'copy', property: '--chc-copy'},
   {field: 'muted', property: '--chc-muted'},
