@@ -6183,7 +6183,7 @@ export class CommerceHubConnect extends LitElement {
         configId: payByBank.configId,
         environment: payByBank.environment,
         locale: payByBank.locale,
-        appearance: resolvePaymentSdkAppearance(this.designConfig, this),
+        appearance: resolvePaymentSdkAppearance(this.designConfig),
         publicKey,
         pToken,
         aggregatorSessionId,
@@ -6655,7 +6655,7 @@ export class CommerceHubConnect extends LitElement {
       this.style.removeProperty(property);
     }
 
-    const colors = resolveDesignConfigColors(this.designConfig?.colors, this);
+    const colors = this.designConfig?.colors;
 
     if (colors) {
       for (const {field, property} of designConfigColorProperties) {
@@ -7025,10 +7025,9 @@ const resolvePayByBankOptions = (
 };
 
 const resolvePaymentSdkAppearance = (
-  designConfig?: DesignConfig,
-  colorContext?: Element
+  designConfig?: DesignConfig
 ): PaymentSdkAppearance => {
-  const colors = resolveDesignConfigColors(designConfig?.colors, colorContext);
+  const colors = designConfig?.colors;
   const branding: PaymentSdkAppearanceBranding = {
     ...DEFAULT_PAYMENT_SDK_BRANDING,
   };
@@ -7071,57 +7070,6 @@ const firstPaymentSdkBrandingValue = (
   ...values: (string | undefined)[]
 ): string | undefined =>
   values.map((value) => value?.trim()).find((value) => Boolean(value));
-
-const resolveDesignConfigColor = (
-  value: string | undefined,
-  colorContext?: Element,
-  resolvedProperties = new Set<string>()
-): string | undefined => {
-  const trimmedValue = value?.trim();
-
-  if (!trimmedValue || !colorContext) {
-    return trimmedValue;
-  }
-
-  const customProperty = /^var\(\s*(--[\w-]+)\s*\)$/.exec(trimmedValue)?.[1];
-
-  if (customProperty && !resolvedProperties.has(customProperty)) {
-    const resolvedValue = getComputedStyle(colorContext)
-      .getPropertyValue(customProperty)
-      .trim();
-
-    if (resolvedValue) {
-      resolvedProperties.add(customProperty);
-      return resolveDesignConfigColor(
-        resolvedValue,
-        colorContext,
-        resolvedProperties
-      );
-    }
-  }
-
-  return (
-    getComputedStyle(colorContext)
-      .getPropertyValue(`--color-${trimmedValue}`)
-      .trim() || trimmedValue
-  );
-};
-
-const resolveDesignConfigColors = (
-  colors: DesignConfigColors | undefined,
-  colorContext?: Element
-): DesignConfigColors | undefined => {
-  if (!colors) {
-    return undefined;
-  }
-
-  return Object.fromEntries(
-    Object.entries(colors).map(([field, value]) => [
-      field,
-      resolveDesignConfigColor(value, colorContext),
-    ])
-  ) as DesignConfigColors;
-};
 
 const setPaymentSdkBrandingValue = (
   branding: PaymentSdkAppearanceBranding,

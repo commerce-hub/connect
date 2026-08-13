@@ -480,7 +480,7 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(el.shadowRoot!.querySelector('.powered-by-footer'));
   });
 
-  test('resolves Tailwind color tokens from inherited theme variables', async () => {
+  test('applies design config colors without resolving host tokens', async () => {
     const el = (await fixture(
       testingHtml`<commerce-hub-connect
         style="--primary: var(--color-blue-600); --color-blue-600: #2563eb; --color-slate-900: #0f172a"
@@ -496,14 +496,8 @@ suite('commerce-hub-connect primitives', () => {
 
     await el.updateComplete;
 
-    assert.equal(
-      getComputedStyle(el).getPropertyValue('--chc-primary').trim(),
-      '#2563eb'
-    );
-    assert.equal(
-      getComputedStyle(el).getPropertyValue('--chc-button-text').trim(),
-      '#0f172a'
-    );
+    assert.equal(el.style.getPropertyValue('--chc-primary'), 'var(--primary)');
+    assert.equal(el.style.getPropertyValue('--chc-button-text'), 'slate-900');
   });
 
   test('renders payment sources from an interaction response input', async () => {
