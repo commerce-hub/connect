@@ -215,7 +215,7 @@ export const primitiveStyles = css`
     border: 0;
     border-radius: 999rem;
     background: transparent;
-    color: var(--chc-primary);
+    color: var(--chc-text);
     cursor: pointer;
     touch-action: manipulation;
   }

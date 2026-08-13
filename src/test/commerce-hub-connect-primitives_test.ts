@@ -480,6 +480,32 @@ suite('commerce-hub-connect primitives', () => {
     assert.notExists(el.shadowRoot!.querySelector('.powered-by-footer'));
   });
 
+  test('resolves Tailwind color tokens from inherited theme variables', async () => {
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        style="--primary: var(--color-blue-600); --color-blue-600: #2563eb; --color-slate-900: #0f172a"
+        .interactionResponse=${createStyleInteractionResponse()}
+        .designConfig=${{
+          colors: {
+            primary: 'var(--primary)',
+            buttonTextColor: 'slate-900',
+          },
+        }}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+
+    await el.updateComplete;
+
+    assert.equal(
+      getComputedStyle(el).getPropertyValue('--chc-primary').trim(),
+      '#2563eb'
+    );
+    assert.equal(
+      getComputedStyle(el).getPropertyValue('--chc-button-text').trim(),
+      '#0f172a'
+    );
+  });
+
   test('renders payment sources from an interaction response input', async () => {
     const interactionResponse: InteractionResponse = {
       features: [...TEST_INTERACTION_FEATURES],

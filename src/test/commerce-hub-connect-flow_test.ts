@@ -7662,6 +7662,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(backButton?.getAttribute('aria-label'), 'Back');
     assert.equal(backButton?.textContent?.trim(), '');
     assert.exists(backButton?.closest('.widget-heading-row'));
+    assert.equal(getComputedStyle(backButton!).color, 'rgb(31, 41, 55)');
     assert.equal(initConfig?.apiKey, 'override-api-key');
     assert.equal(initConfig?.configId, 'override-config-id');
     assert.equal(initConfig?.accessToken, 'access-token-1');
