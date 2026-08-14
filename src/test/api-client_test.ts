@@ -24,12 +24,16 @@ suite('commerce-hub-connect api client', () => {
     window.fetch = originalFetch;
   });
 
-  test('resolves DEV, QA, and PROD presets to the configured CommerceHub origin', () => {
+  test('resolves named presets to the configured CommerceHub origin', () => {
     assert.equal(
       resolveCommerceHubBaseURL('DEV'),
       'https://connect-dev.fiservapis.com/chc'
     );
     assert.equal(resolveCommerceHubBaseURL('QA'), COMMERCE_HUB_BASE_URLS.QA);
+    assert.equal(
+      resolveCommerceHubBaseURL('CERT'),
+      'https://connect-cert.fiservapis.com/chc'
+    );
     assert.equal(
       resolveCommerceHubBaseURL('PROD'),
       PROD_COMMERCE_HUB_BASE_URL
