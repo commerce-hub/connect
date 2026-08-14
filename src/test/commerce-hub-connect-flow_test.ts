@@ -907,6 +907,9 @@ interface TestPaymentSdkInitConfiguration {
   aggregatorSessionId?: string;
   publicKey?: string;
   pToken?: string;
+  embed?: boolean;
+  width?: string | number;
+  height?: string | number;
   onEvent: (event: TestPaymentSdkEvent) => void | Promise<void>;
 }
 
@@ -7527,7 +7530,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(
       getComputedStyle(
         el.querySelector<HTMLElement>('#commerce-hub-pbb-provider')!
-      ).minHeight,
+      ).height,
       '500px'
     );
     assert.notExists(
@@ -7635,6 +7638,11 @@ suite('commerce-hub-connect flow', () => {
       }
     );
 
+    el.style.setProperty(
+      '--chc-font-family',
+      '"Merchant Sans", "Helvetica Neue", sans-serif'
+    );
+
     await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
@@ -7672,6 +7680,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(initConfig?.environment, 'sandbox');
     assert.equal(initConfig?.locale, 'en-CA');
     assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
+    assert.isTrue(initConfig?.embed);
     assert.deepEqual(initConfig?.appearance, {
       branding: {
         backgroundColor: '#fafafa',
@@ -7684,8 +7693,7 @@ suite('commerce-hub-connect flow', () => {
         successColor: '#059669',
         borderColor: '#d1d5db',
         placeholderColor: '#9ca3af',
-        fontFamily:
-          "sohne-var, 'SF Pro Display', system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+        fontFamily: '"Merchant Sans", "Helvetica Neue", sans-serif',
         borderRadius: '8px',
       },
     });

@@ -1019,7 +1019,9 @@ suite('commerce-hub-connect primitives', () => {
 
     assert.equal(frame.getAttribute('aria-busy'), 'true');
     assert.exists(container);
+    assert.equal(getComputedStyle(container).height, '500px');
     assert.equal(getComputedStyle(container).minHeight, '500px');
+    assert.equal(getComputedStyle(container).display, 'flex');
     assert.equal(overlay.getAttribute('role'), 'status');
     assert.equal(
       getComputedStyle(overlay).backgroundColor,
@@ -1030,6 +1032,31 @@ suite('commerce-hub-connect primitives', () => {
       overlay.textContent?.replace(/\s+/g, ' ').trim(),
       'Connecting to your bank'
     );
+  });
+
+  test('embedded shells stretch the provider container instead of applying the dialog height', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      <div style="height: 40rem">
+        ${renderWidgetShell({
+          title: 'Connect your bank',
+          presentationMode: 'embedded',
+          showClose: false,
+          content: renderProviderFrame({containerId: 'embedded-provider'}),
+        })}
+      </div>
+    `);
+    const frame = root.querySelector<HTMLElement>('.provider-frame')!;
+    const container = root.querySelector<HTMLElement>('#embedded-provider')!;
+
+    assert.equal(getComputedStyle(container).minHeight, '0px');
+    assert.equal(
+      getComputedStyle(container).height,
+      getComputedStyle(frame).height
+    );
+    assert.notEqual(getComputedStyle(container).height, '500px');
   });
 
   test('renders payment method skeleton rows with status text for interaction refresh', async () => {

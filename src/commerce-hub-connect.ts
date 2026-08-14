@@ -469,6 +469,9 @@ type PaymentSdkInitConfiguration = {
   aggregatorSessionId?: string;
   publicKey?: string;
   pToken?: string;
+  embed?: boolean;
+  width?: string | number;
+  height?: string | number;
 };
 
 type PaymentSdkAppearance = {
@@ -508,6 +511,8 @@ const DEFAULT_PAYMENT_SDK_BRANDING: Required<PaymentSdkAppearanceBranding> = {
 
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
+const FONT_FAMILY_PROPERTY = '--chc-font-family';
+const EMBEDDED_ADD_PAYMENT_OPTION_VALUE = '__chc_add_payment__';
 const NO_INSTRUMENT_SCHEMAS_ERROR =
   'No instrument schemas are available for this country. Try again.';
 const LEGACY_BANK_ACCOUNT_UI_SCHEMA = generateDefaultUISchema(
@@ -865,6 +870,9 @@ export class CommerceHubConnect extends LitElement {
   private addLauncherActive = false;
 
   @state()
+  private embeddedAddPaymentDialogActive = false;
+
+  @state()
   private attachmentError?: string;
 
   @state()
@@ -915,6 +923,7 @@ export class CommerceHubConnect extends LitElement {
         previousInteractionResponse?.interactionId !==
         this.interactionResponse.interactionId
       ) {
+        this.embeddedAddPaymentDialogActive = false;
         this.pendingAction = undefined;
         this.clearDeletePaymentSourceConfirmation();
         this.paymentSourceView = undefined;
@@ -967,6 +976,8 @@ export class CommerceHubConnect extends LitElement {
   }
 
   override render() {
+    const currentScreen = this.renderCurrentScreen();
+
     return html`
       <div
         class="widget-frame"
@@ -983,7 +994,31 @@ export class CommerceHubConnect extends LitElement {
         <span class="screen-reader-status" role="status" aria-live="polite"
           >${flowActionLiveMessage(this.pendingAction)}</span
         >
-        ${this.renderCurrentScreen()}
+        ${this.embeddedAddPaymentDialogActive
+          ? html`
+              ${this.renderEmbeddedPaymentSourceControl()}
+              <div
+                class="embedded-add-payment-dialog-backdrop"
+                data-embedded-add-payment-dialog
+                role="dialog"
+                aria-modal="true"
+                aria-label="Add payment method"
+              >
+                <div class="embedded-add-payment-dialog-content">
+                  ${currentScreen}
+                  <button
+                    class="embedded-add-payment-dialog-close"
+                    type="button"
+                    aria-label="Close add payment method dialog"
+                    data-action="close-embedded-add-payment-dialog"
+                    ?disabled=${Boolean(this.pendingAction)}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            `
+          : currentScreen}
       </div>
     `;
   }
@@ -1136,7 +1171,9 @@ export class CommerceHubConnect extends LitElement {
 
     return renderWidgetShell({
       ...options,
-      presentationMode: this.presentationMode,
+      presentationMode: this.embeddedAddPaymentDialogActive
+        ? 'dialog'
+        : this.presentationMode,
       busy: busy || Boolean(minimumOverlay),
       overlay: overlay ?? minimumOverlay,
     });
@@ -1299,8 +1336,14 @@ export class CommerceHubConnect extends LitElement {
       this.pendingAction === 'attach-payment-source' ||
       this.pendingAction === 'verify-payment-source' ||
       this.pendingAction === 'delete-payment-source';
-    if (this.shouldRenderEmbeddedSelectOnly()) {
-      return this.renderEmbeddedPaymentSourceSelect(paymentMethods);
+    if (
+      this.shouldRenderEmbeddedPaymentSourceSelect() &&
+      !this.embeddedAddPaymentDialogActive
+    ) {
+      return this.renderEmbeddedPaymentSourceSelect(
+        paymentMethods,
+        canAddPaymentSources
+      );
     }
 
     if (this.shouldRenderPaymentSourceRefreshSkeleton()) {
@@ -1432,18 +1475,43 @@ export class CommerceHubConnect extends LitElement {
     });
   }
 
-  private shouldRenderEmbeddedSelectOnly(): boolean {
+  private shouldRenderEmbeddedPaymentSourceSelect(): boolean {
     const features = this.interactionResponse?.features ?? [];
+    const supportedFeatures = features.every(
+      (feature) => feature === 'SELECT' || feature === 'ADD_ACCOUNT'
+    );
 
     return (
       this.presentationMode === 'embedded' &&
-      features.length === 1 &&
-      features[0] === 'SELECT'
+      features.includes('SELECT') &&
+      supportedFeatures
+    );
+  }
+
+  private renderEmbeddedPaymentSourceControl(): TemplateResult {
+    const paymentMethods = paymentMethodsFromInteractionResponse(
+      this.interactionResponse,
+      {
+        nativeBalances: this.nativeBalance.balances,
+        nativeBalanceLoadingSourceIds: this.nativeBalance.loadingSourceIds,
+      }
+    );
+    const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
+      this.interactionResponse
+    );
+    const canAddPaymentSources =
+      isInteractionFeatureEnabled(this.interactionResponse, 'ADD_ACCOUNT') &&
+      (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
+
+    return this.renderEmbeddedPaymentSourceSelect(
+      paymentMethods,
+      canAddPaymentSources
     );
   }
 
   private renderEmbeddedPaymentSourceSelect(
-    paymentMethods: PaymentMethod[]
+    paymentMethods: PaymentMethod[],
+    canAddPaymentSources = false
   ): TemplateResult {
     const eligibleMethods = paymentMethods.filter(
       (method) => method.selectionEligible
@@ -1457,7 +1525,7 @@ export class CommerceHubConnect extends LitElement {
         class="embedded-payment-select"
         data-embedded-payment-select="true"
         aria-label="Payment method"
-        ?disabled=${attaching || !hasPaymentMethods}
+        ?disabled=${attaching || (!hasPaymentMethods && !canAddPaymentSources)}
       >
         <option value="" ?selected=${!selectedSourceId}>
           ${hasPaymentMethods ? 'Select payment method' : 'No payment methods'}
@@ -1474,6 +1542,13 @@ export class CommerceHubConnect extends LitElement {
             </option>
           `
         )}
+        ${canAddPaymentSources
+          ? html`
+              <option value=${EMBEDDED_ADD_PAYMENT_OPTION_VALUE}>
+                Add payment method
+              </option>
+            `
+          : ''}
       </select>
     `;
   }
@@ -2769,6 +2844,11 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'close-embedded-add-payment-dialog') {
+      this.closeEmbeddedAddPaymentDialog();
+      return;
+    }
+
     if (action === 'change-payment-source') {
       this.resetRequiredInfo();
       this.showPaymentSourceList({refresh: true});
@@ -2911,6 +2991,19 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'back-to-payment-methods') {
+      if (this.embeddedAddPaymentDialogActive) {
+        if (this.addLauncherActive) {
+          this.closeEmbeddedAddPaymentDialog();
+          return;
+        }
+
+        this.resetCardFlow();
+        this.resetBankFlow();
+        this.resetRequiredInfo();
+        this.addLauncherActive = true;
+        return;
+      }
+
       this.addLauncherActive = false;
       this.resetCardFlow();
       this.resetBankFlow();
@@ -2920,6 +3013,11 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'continue-bank-outcome' || action === 'done-bank-outcome') {
+      if (this.embeddedAddPaymentDialogActive) {
+        this.closeEmbeddedAddPaymentDialog();
+        return;
+      }
+
       this.resetBankFlow();
       this.showPaymentSourceList({refresh: true});
       return;
@@ -3096,6 +3194,12 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (event.key === 'Escape' && !this.pendingAction) {
+      if (this.embeddedAddPaymentDialogActive) {
+        event.preventDefault();
+        this.closeEmbeddedAddPaymentDialog();
+        return;
+      }
+
       if (
         this.addLauncherActive ||
         this.cardFlowScreen ||
@@ -3217,7 +3321,11 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (embeddedPaymentSelect) {
-      if (embeddedPaymentSelect.value) {
+      if (embeddedPaymentSelect.value === EMBEDDED_ADD_PAYMENT_OPTION_VALUE) {
+        embeddedPaymentSelect.value =
+          this.interactionResponse?.selectedSource?.id ?? '';
+        this.openEmbeddedAddPaymentDialog();
+      } else if (embeddedPaymentSelect.value) {
         void this.attachPaymentSource(embeddedPaymentSelect.value);
       }
       return;
@@ -5531,6 +5639,29 @@ export class CommerceHubConnect extends LitElement {
     this.focusPaymentSourceList();
   }
 
+  private openEmbeddedAddPaymentDialog() {
+    this.attachmentError = undefined;
+    this.embeddedAddPaymentDialogActive = true;
+    this.addLauncherActive = true;
+    this.focusAfterUpdate(
+      '[data-action="add-card"]',
+      '[data-action="add-pay-by-bank"]',
+      '[data-action="add-ach-manually"]',
+      '[data-action="add-bank-account"]'
+    );
+  }
+
+  private closeEmbeddedAddPaymentDialog() {
+    this.embeddedAddPaymentDialogActive = false;
+    this.addLauncherActive = false;
+    this.paymentSourceView = 'list';
+    this.resetCardFlow();
+    this.resetBankFlow();
+    this.resetRequiredInfo();
+    this.resetSavedSourceVerification();
+    this.focusAfterUpdate('[data-embedded-payment-select]');
+  }
+
   private focusPaymentSourceList() {
     this.focusAfterUpdate(
       '[data-action="open-add-payment-source"]',
@@ -5655,6 +5786,11 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private showAddedPaymentSourceStatus(source: PaymentSource) {
+    if (this.embeddedAddPaymentDialogActive) {
+      this.closeEmbeddedAddPaymentDialog();
+      return;
+    }
+
     const sourceId = source.id?.trim();
 
     this.resetSavedSourceVerification();
@@ -6183,11 +6319,15 @@ export class CommerceHubConnect extends LitElement {
         configId: payByBank.configId,
         environment: payByBank.environment,
         locale: payByBank.locale,
-        appearance: resolvePaymentSdkAppearance(this.designConfig),
+        appearance: resolvePaymentSdkAppearance(
+          this.designConfig,
+          getComputedStyle(this).getPropertyValue(FONT_FAMILY_PROPERTY)
+        ),
         publicKey,
         pToken,
         aggregatorSessionId,
         containerId,
+        embed: true,
         onEvent: async (event) => {
           if (
             settled ||
@@ -7025,7 +7165,8 @@ const resolvePayByBankOptions = (
 };
 
 const resolvePaymentSdkAppearance = (
-  designConfig?: DesignConfig
+  designConfig?: DesignConfig,
+  fontFamily?: string
 ): PaymentSdkAppearance => {
   const colors = designConfig?.colors;
   const branding: PaymentSdkAppearanceBranding = {
@@ -7062,6 +7203,7 @@ const resolvePaymentSdkAppearance = (
     )
   );
   setPaymentSdkBrandingValue(branding, 'placeholderColor', colors?.placeholder);
+  setPaymentSdkBrandingValue(branding, 'fontFamily', fontFamily);
 
   return {branding};
 };

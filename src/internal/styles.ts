@@ -125,6 +125,43 @@ export const primitiveStyles = css`
     display: grid;
   }
 
+  .embedded-add-payment-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 0.75rem;
+    background: color-mix(in srgb, var(--chc-text) 45%, transparent);
+  }
+
+  .embedded-add-payment-dialog-content {
+    position: relative;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .embedded-add-payment-dialog-close {
+    width: 2rem;
+    height: 2rem;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 1;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--chc-muted);
+    font: inherit;
+    font-size: 1.25rem;
+    cursor: pointer;
+  }
+
+  .embedded-add-payment-dialog-close:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
   .widget-shell-embedded {
     width: 100%;
     height: 100%;
@@ -2764,14 +2801,33 @@ export const primitiveStyles = css`
   .provider-frame-container,
   ::slotted(.provider-frame-container) {
     width: 100%;
-    min-height: 23.75rem;
+    height: 31.25rem;
+    min-height: 31.25rem;
+    display: flex;
     background: var(--chc-soft-surface);
     overflow: hidden;
   }
 
   .provider-frame-container-loading,
   .provider-frame-loading ::slotted(.provider-frame-container) {
+    height: 31.25rem;
     min-height: 31.25rem;
+  }
+
+  .widget-shell-embedded .provider-frame,
+  .widget-shell-embedded .provider-frame-slot {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .widget-shell-embedded .provider-frame-container,
+  .widget-shell-embedded ::slotted(.provider-frame-container),
+  .widget-shell-embedded .provider-frame-container-loading,
+  .widget-shell-embedded
+    .provider-frame-loading
+    ::slotted(.provider-frame-container) {
+    height: 100%;
+    min-height: 0;
   }
 
   .provider-loading-overlay,
@@ -3150,9 +3206,10 @@ export const primitiveStyles = css`
       padding-left: 0.75rem;
     }
 
-    .provider-frame-container,
-    ::slotted(.provider-frame-container) {
-      min-height: 22.5rem;
+    .widget-shell-dialog .provider-frame-container,
+    .widget-shell-dialog ::slotted(.provider-frame-container) {
+      height: 34rem;
+      min-height: 34rem;
     }
 
     .source-action-title,

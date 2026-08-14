@@ -100,6 +100,7 @@ export type FlowActionName =
   | 'retry-bank-provider'
   | 'back-to-bank-provider'
   | 'back-to-payment-methods'
+  | 'close-embedded-add-payment-dialog'
   | 'continue-bank-outcome'
   | 'done-bank-outcome'
   | 'use-different-bank-account'
