@@ -13,7 +13,7 @@ export const DEFAULT_COMMERCE_HUB_BASE_URL =
   'https://connect.fiservapis.com/chc';
 
 /** Named CommerceHub environment presets accepted by the SDK. */
-export type CommerceHubBaseURLPreset = 'DEV' | 'QA' | 'PROD';
+export type CommerceHubBaseURLPreset = 'DEV' | 'QA' | 'CERT' | 'PROD';
 
 /** CommerceHub preset name or custom origin URL. */
 export type CommerceHubBaseURLInput = CommerceHubBaseURLPreset | string;
@@ -23,6 +23,7 @@ export const COMMERCE_HUB_BASE_URLS: Record<CommerceHubBaseURLPreset, string> =
   {
     DEV: 'https://connect-dev.fiservapis.com/chc',
     QA: 'https://connect-qa.fiservapis.com/chc',
+    CERT: 'https://connect-cert.fiservapis.com/chc',
     PROD: 'https://connect.fiservapis.com/chc',
   };
 
