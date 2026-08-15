@@ -3167,7 +3167,6 @@ const LA=Symbol.for(""),MA=e=>{if(e?.r===LA)return e?._$litStatic$},FA=new Map,U
   .provider-frame-container,
   ::slotted(.provider-frame-container) {
     width: 100%;
-    height: 31.25rem;
     min-height: 31.25rem;
     display: flex;
     background: var(--chc-soft-surface);
@@ -3176,7 +3175,6 @@ const LA=Symbol.for(""),MA=e=>{if(e?.r===LA)return e?._$litStatic$},FA=new Map,U
 
   .provider-frame-container-loading,
   .provider-frame-loading ::slotted(.provider-frame-container) {
-    height: 31.25rem;
     min-height: 31.25rem;
   }
 
@@ -3193,7 +3191,7 @@ const LA=Symbol.for(""),MA=e=>{if(e?.r===LA)return e?._$litStatic$},FA=new Map,U
     .provider-frame-loading
     ::slotted(.provider-frame-container) {
     height: 100%;
-    min-height: 0;
+    min-height: 31.25rem;
   }
 
   .provider-loading-overlay,
@@ -3574,7 +3572,6 @@ const LA=Symbol.for(""),MA=e=>{if(e?.r===LA)return e?._$litStatic$},FA=new Map,U
 
     .widget-shell-dialog .provider-frame-container,
     .widget-shell-dialog ::slotted(.provider-frame-container) {
-      height: 34rem;
       min-height: 34rem;
     }
 
