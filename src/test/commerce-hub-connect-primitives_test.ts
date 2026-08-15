@@ -1034,7 +1034,7 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
-  test('embedded shells stretch the provider container instead of applying the dialog height', async () => {
+  test('embedded shells stretch the provider container while preserving the PBB minimum height', async () => {
     const root = await renderHarness(html`
       <style>
         ${primitiveStyles.cssText}
@@ -1051,7 +1051,7 @@ suite('commerce-hub-connect primitives', () => {
     const frame = root.querySelector<HTMLElement>('.provider-frame')!;
     const container = root.querySelector<HTMLElement>('#embedded-provider')!;
 
-    assert.equal(getComputedStyle(container).minHeight, '0px');
+    assert.equal(getComputedStyle(container).minHeight, '500px');
     assert.equal(
       getComputedStyle(container).height,
       getComputedStyle(frame).height
