@@ -2801,7 +2801,7 @@ export const primitiveStyles = css`
   .provider-frame-container,
   ::slotted(.provider-frame-container) {
     width: 100%;
-    min-height: 31.25rem;
+    min-height: 23.75rem;
     display: flex;
     background: var(--chc-soft-surface);
     overflow: hidden;
@@ -3206,7 +3206,7 @@ export const primitiveStyles = css`
 
     .widget-shell-dialog .provider-frame-container,
     .widget-shell-dialog ::slotted(.provider-frame-container) {
-      min-height: 34rem;
+      min-height: 22.5rem;
     }
 
     .source-action-title,

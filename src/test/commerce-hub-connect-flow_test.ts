@@ -7680,7 +7680,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(initConfig?.environment, 'sandbox');
     assert.equal(initConfig?.locale, 'en-CA');
     assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
-    assert.isTrue(initConfig?.embed);
+    assert.isUndefined(initConfig?.embed);
     assert.deepEqual(initConfig?.appearance, {
       branding: {
         backgroundColor: '#fafafa',

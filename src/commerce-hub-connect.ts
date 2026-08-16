@@ -6327,7 +6327,11 @@ export class CommerceHubConnect extends LitElement {
         pToken,
         aggregatorSessionId,
         containerId,
-        embed: true,
+        embed:
+          this.presentationMode === 'embedded' &&
+          !this.embeddedAddPaymentDialogActive
+            ? true
+            : undefined,
         onEvent: async (event) => {
           if (
             settled ||
