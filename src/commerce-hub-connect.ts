@@ -3751,7 +3751,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (instrumentSchemaSelect?.name === 'instrumentSchemaPaymentType') {
       this.selectedBankPaymentType = instrumentSchemaSelect.value;
-      this.reconcileInstrumentSchemaSelection(false);
+      this.reconcileInstrumentSchemaSelection();
       return;
     }
 
@@ -4228,11 +4228,9 @@ export class CommerceHubConnect extends LitElement {
       }
 
       const instrumentSchemas = usableInstrumentSchemas(rawInstrumentSchemas);
+      const selections = selectableInstrumentSchemas(instrumentSchemas);
 
-      if (
-        instrumentSchemas.length === 0 ||
-        selectableInstrumentSchemas(instrumentSchemas).length === 0
-      ) {
+      if (instrumentSchemas.length === 0 || selections.length === 0) {
         this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
         this.bankFlowScreen = 'manual-config-error';
         return;
@@ -4242,6 +4240,10 @@ export class CommerceHubConnect extends LitElement {
       this.bankAccountConfigError = undefined;
       this.bankFlowScreen = 'manual-schema-selection';
       this.reconcileInstrumentSchemaSelection();
+
+      if (selections.length === 1) {
+        this.initializeManualBankAccountScreen();
+      }
     } catch (cause) {
       if (
         !this.isCurrentManualBankAccountConfigRequest(
@@ -4287,7 +4289,7 @@ export class CommerceHubConnect extends LitElement {
     );
   }
 
-  private reconcileInstrumentSchemaSelection(openDetailsWhenResolved = true) {
+  private reconcileInstrumentSchemaSelection() {
     const selections = selectableInstrumentSchemas(
       this.bankAccountInstrumentSchemas
     );
@@ -4351,10 +4353,6 @@ export class CommerceHubConnect extends LitElement {
       this.selectedBankPaymentType
     );
     this.selectedBankAccountInstrumentSchemaCode = schema?.bavSupportedCode;
-
-    if (schema && openDetailsWhenResolved) {
-      this.initializeManualBankAccountScreen();
-    }
   }
 
   private initializeManualBankAccountScreen() {
