@@ -330,6 +330,11 @@ export const primitiveStyles = css`
     color: var(--chc-primary);
   }
 
+  .embedded-payment-select-region {
+    width: 100%;
+    position: relative;
+  }
+
   .embedded-payment-select {
     appearance: none;
     width: 100%;
@@ -359,6 +364,206 @@ export const primitiveStyles = css`
   .embedded-payment-select:disabled {
     color: var(--chc-muted);
     cursor: wait;
+  }
+
+  .embedded-attach-progress {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    color: var(--chc-text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .embedded-attach-progress-overlay {
+    position: absolute;
+    inset: 0;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    background: color-mix(in srgb, var(--chc-surface) 94%, var(--chc-primary));
+    pointer-events: none;
+  }
+
+  .embedded-attach-spinner {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    border: 0.125rem solid
+      color-mix(in srgb, var(--chc-primary) 22%, var(--chc-border));
+    border-right-color: var(--chc-primary);
+    border-radius: 50%;
+    animation: chc-spinner-rotate var(--chc-spinner-duration) linear infinite;
+  }
+
+  .embedded-payment-radio-trigger[aria-busy='true'] {
+    border-color: color-mix(in srgb, var(--chc-primary) 42%, var(--chc-border));
+    background: color-mix(in srgb, var(--chc-surface) 96%, var(--chc-primary));
+    cursor: wait;
+  }
+
+  .embedded-payment-radio-list {
+    position: relative;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .embedded-payment-radio-trigger {
+    width: 100%;
+    min-height: 3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    padding: 0.5rem 0.75rem;
+    background: var(--chc-surface);
+    color: var(--chc-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .embedded-payment-radio-trigger:focus-visible {
+    border-color: var(--chc-primary);
+    outline: 0.1875rem solid var(--chc-focus-ring);
+    outline-offset: 0.0625rem;
+  }
+
+  .embedded-payment-radio-trigger[aria-expanded='true']
+    .embedded-payment-radio-chevron {
+    transform: rotate(180deg);
+  }
+
+  .embedded-payment-radio-popup {
+    position: absolute;
+    z-index: 50;
+    top: calc(100% + 0.375rem);
+    right: 0;
+    left: 0;
+    overflow: hidden;
+    border: 0.0625rem solid var(--chc-border);
+    border-radius: var(--chc-radius-control);
+    background: var(--chc-surface);
+    box-shadow: 0 0.75rem 2rem
+      color-mix(in srgb, var(--chc-text) 16%, transparent);
+  }
+
+  .embedded-payment-radio-scroll {
+    max-height: 11.625rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .embedded-payment-radio-option {
+    width: 100%;
+    min-width: 0;
+    min-height: 3.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 0;
+    border-bottom: 0.0625rem solid var(--chc-border);
+    padding: 0.625rem 0.75rem;
+    background: var(--chc-payment-method-background);
+    color: var(--chc-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .embedded-payment-radio-option:last-child {
+    border-bottom: 0;
+  }
+
+  .embedded-payment-radio-option[aria-selected='true'] {
+    background: var(--chc-payment-selection-background);
+  }
+
+  .embedded-payment-radio-option:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 0.125rem solid var(--chc-focus-ring);
+    outline-offset: -0.125rem;
+  }
+
+  .embedded-payment-radio-option:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .embedded-payment-radio-indicator {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    border: 0.125rem solid var(--chc-border-strong);
+    border-radius: 50%;
+    background: var(--chc-surface);
+  }
+
+  .embedded-payment-radio-option[aria-selected='true']
+    .embedded-payment-radio-indicator {
+    border: 0.3125rem solid var(--chc-primary);
+  }
+
+  .embedded-payment-radio-icon,
+  .embedded-payment-radio-add-icon {
+    width: 2.375rem;
+    height: 1.875rem;
+    flex: 0 0 auto;
+    object-fit: contain;
+    border-radius: 0.375rem;
+  }
+
+  .embedded-payment-radio-add-icon {
+    display: grid;
+    place-items: center;
+    border: 0.0625rem dashed var(--chc-primary);
+    background: color-mix(in srgb, var(--chc-primary) 6%, var(--chc-surface));
+    color: var(--chc-primary);
+    font-size: 1.25rem;
+  }
+
+  .embedded-payment-radio-copy {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: grid;
+    gap: 0.125rem;
+  }
+
+  .embedded-payment-radio-copy strong,
+  .embedded-payment-radio-copy span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .embedded-payment-radio-copy strong {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .embedded-payment-radio-copy span {
+    color: var(--chc-copy);
+    font-size: 0.75rem;
+  }
+
+  .embedded-payment-radio-chevron {
+    color: var(--chc-muted);
+    font-size: 1.25rem;
+    transition: transform var(--chc-motion-fast) var(--chc-ease-standard);
+  }
+
+  .embedded-payment-radio-empty {
+    min-height: 3.875rem;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 0.0625rem solid var(--chc-border);
+    color: var(--chc-copy);
+    font-size: 0.875rem;
   }
 
   .payment-method-radio {

@@ -173,6 +173,7 @@ import type {
   CardDraftErrors,
   CardDraftTextField,
   CardEncryptionState,
+  CommerceHubEmbeddedSelectorMode,
   CommerceHubPresentationMode,
   FlowActionName,
   InteractionFeature,
@@ -212,6 +213,7 @@ export {
 } from './internal/api-client.js';
 export type {components, operations, paths} from './generated/openapi.js';
 export type {
+  CommerceHubEmbeddedSelectorMode,
   CommerceHubPresentationMode,
   InteractionFeature,
   InteractionOAuth,
@@ -691,6 +693,10 @@ export class CommerceHubConnect extends LitElement {
   @property({attribute: 'presentation-mode', reflect: true})
   presentationMode: CommerceHubPresentationMode = 'dialog';
 
+  /** Controls the embedded saved-payment selector presentation. */
+  @property({attribute: 'embedded-selector-mode', reflect: true})
+  embeddedSelectorMode: CommerceHubEmbeddedSelectorMode = 'dropdown';
+
   /**
    * CommerceHub API base URL preset or custom origin for SDK-managed requests.
    */
@@ -873,6 +879,9 @@ export class CommerceHubConnect extends LitElement {
   private embeddedAddPaymentDialogActive = false;
 
   @state()
+  private embeddedPaymentSelectorOpen = false;
+
+  @state()
   private attachmentError?: string;
 
   @state()
@@ -975,6 +984,11 @@ export class CommerceHubConnect extends LitElement {
     this.emitScreenLoadEvent();
   }
 
+  override connectedCallback() {
+    super.connectedCallback();
+    this.ownerDocument.addEventListener('click', this.handleDocumentClick);
+  }
+
   override render() {
     const currentScreen = this.renderCurrentScreen();
 
@@ -1024,6 +1038,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   override disconnectedCallback() {
+    this.ownerDocument.removeEventListener('click', this.handleDocumentClick);
     super.disconnectedCallback();
     this.clearDeletePaymentSourceConfirmation();
     this.clearAllCardFieldLastCharReveal();
@@ -1340,7 +1355,7 @@ export class CommerceHubConnect extends LitElement {
       this.shouldRenderEmbeddedPaymentSourceSelect() &&
       !this.embeddedAddPaymentDialogActive
     ) {
-      return this.renderEmbeddedPaymentSourceSelect(
+      return this.renderEmbeddedPaymentSourceSelector(
         paymentMethods,
         canAddPaymentSources
       );
@@ -1503,10 +1518,239 @@ export class CommerceHubConnect extends LitElement {
       isInteractionFeatureEnabled(this.interactionResponse, 'ADD_ACCOUNT') &&
       (allowedTenderOptions.card || allowedTenderOptions.bankAccount);
 
-    return this.renderEmbeddedPaymentSourceSelect(
+    return this.renderEmbeddedPaymentSourceSelector(
       paymentMethods,
       canAddPaymentSources
     );
+  }
+
+  private renderEmbeddedPaymentSourceSelector(
+    paymentMethods: PaymentMethod[],
+    canAddPaymentSources = false
+  ): TemplateResult {
+    const selector =
+      this.embeddedSelectorMode === 'radio-list'
+        ? this.renderEmbeddedPaymentSourceRadioList(
+            paymentMethods,
+            canAddPaymentSources
+          )
+        : this.renderEmbeddedPaymentSourceSelect(
+            paymentMethods,
+            canAddPaymentSources
+          );
+
+    return html`
+      ${selector}
+      ${this.attachmentError
+        ? renderAlert({variant: 'danger', message: this.attachmentError})
+        : ''}
+    `;
+  }
+
+  private renderEmbeddedPaymentSourceRadioList(
+    paymentMethods: PaymentMethod[],
+    canAddPaymentSources = false
+  ): TemplateResult {
+    const visibleMethods = paymentMethods.filter(
+      (method) =>
+        method.type === 'native' ||
+        method.selectionEligible
+    );
+    const selectedSourceId =
+      defaultPaymentSourceIdFromInteractionResponse(this.interactionResponse) ??
+      '';
+    const nativeMethods = visibleMethods.filter(
+      (method) => method.type === 'native'
+    );
+    const savedMethods = [
+      ...visibleMethods.filter(
+        (method) => method.type !== 'native' && method.id === selectedSourceId
+      ),
+      ...visibleMethods.filter(
+        (method) => method.type !== 'native' && method.id !== selectedSourceId
+      ),
+    ];
+    const orderedMethods = [...nativeMethods, ...savedMethods];
+    const attaching = this.pendingAction === 'attach-payment-source';
+    const focusableMethodId =
+      orderedMethods.find(
+        (method) =>
+          method.id === selectedSourceId &&
+          this.isEmbeddedRichSelectorEligible(method.id)
+      )?.id ??
+      orderedMethods.find((method) =>
+        this.isEmbeddedRichSelectorEligible(method.id)
+      )?.id;
+    // lit-analyzer's ARIA schema only types this attribute as a boolean token,
+    // but ARIA 1.1 also permits the semantically specific `listbox` value.
+    const listboxPopup = 'listbox' as 'true';
+
+    return html`
+      <div
+        class="embedded-payment-radio-list"
+        data-embedded-payment-radio-list
+        part="embedded-payment-method-list"
+      >
+        <button
+          class="embedded-payment-radio-trigger"
+          type="button"
+          data-action="toggle-embedded-payment-selector"
+          aria-haspopup=${listboxPopup}
+          aria-expanded=${this.embeddedPaymentSelectorOpen ? 'true' : 'false'}
+          aria-busy=${attaching ? 'true' : 'false'}
+          part="embedded-payment-method-trigger"
+          ?disabled=${attaching}
+        >
+          ${attaching
+            ? html`
+                <span
+                  class="embedded-attach-progress"
+                  data-embedded-attach-progress
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span
+                    class="embedded-attach-spinner"
+                    aria-hidden="true"
+                  ></span>
+                  <span>Securing payment method…</span>
+                </span>
+              `
+            : html`<span class="embedded-payment-radio-copy">
+            <strong>
+              ${selectedSourceId
+                ? orderedMethods.find((method) => method.id === selectedSourceId)
+                    ?.label ?? 'Selected payment method'
+                : 'Select a payment method'}
+            </strong>
+            <span>
+              ${selectedSourceId
+                ? orderedMethods.find((method) => method.id === selectedSourceId)
+                    ?.last4
+                  ? `Ending in ${visibleMethods.find(
+                      (method) => method.id === selectedSourceId
+                    )?.last4}`
+                  : ''
+                : 'Choose a saved card or bank account'}
+            </span>
+          </span>
+          <span class="embedded-payment-radio-chevron" aria-hidden="true">⌄</span>
+          `}
+        </button>
+        ${this.embeddedPaymentSelectorOpen
+          ? html`
+              <div
+                class="embedded-payment-radio-popup"
+                role="listbox"
+                aria-label="Fiserv Wallet payment methods"
+                part="embedded-payment-method-popup"
+              >
+                <div class="embedded-payment-radio-scroll">
+                  ${nativeMethods.map((method) =>
+                    this.renderEmbeddedPaymentSourceRadioOption(
+                      method,
+                      selectedSourceId,
+                      focusableMethodId,
+                      attaching
+                    )
+                  )}
+                  ${savedMethods.map((method) =>
+                    this.renderEmbeddedPaymentSourceRadioOption(
+                      method,
+                      selectedSourceId,
+                      focusableMethodId,
+                      attaching
+                    )
+                  )}
+                  ${orderedMethods.length || canAddPaymentSources
+                    ? ''
+                    : html`
+              <div class="embedded-payment-radio-empty" role="status">
+                No payment methods
+              </div>
+            `}
+                </div>
+                ${canAddPaymentSources
+                  ? html`
+                      <button
+                        class="embedded-payment-radio-option embedded-payment-radio-add"
+                        type="button"
+                        role="option"
+                        aria-selected="false"
+                        tabindex=${focusableMethodId ? '-1' : '0'}
+                        data-action="open-embedded-add-payment-dialog"
+                        part="embedded-add-payment-method-option"
+                        ?disabled=${attaching}
+                      >
+                        <span
+                          class="embedded-payment-radio-add-icon"
+                          aria-hidden="true"
+                          >+</span
+                        >
+                        <span class="embedded-payment-radio-copy">
+                          <strong>Add payment method</strong>
+                          <span>Add a card or connect a bank account</span>
+                        </span>
+                        <span
+                          class="embedded-payment-radio-chevron"
+                          aria-hidden="true"
+                          >›</span
+                        >
+                      </button>
+                    `
+                  : ''}
+              </div>
+            `
+          : ''}
+      </div>
+    `;
+  }
+
+  private renderEmbeddedPaymentSourceRadioOption(
+    method: PaymentMethod,
+    selectedSourceId: string,
+    focusableMethodId: string | undefined,
+    attaching: boolean
+  ): TemplateResult {
+    const selectionEligible = this.isEmbeddedRichSelectorEligible(method.id);
+
+    return html`
+      <button
+        class="embedded-payment-radio-option"
+        type="button"
+        role="option"
+        aria-selected=${method.id === selectedSourceId ? 'true' : 'false'}
+        aria-disabled=${selectionEligible ? 'false' : 'true'}
+        tabindex=${method.id === focusableMethodId ? '0' : '-1'}
+        data-action="attach-payment-source"
+        data-payment-method-id=${method.id}
+        part="embedded-payment-method-option"
+        ?disabled=${attaching || !selectionEligible}
+      >
+        <span
+          class="embedded-payment-radio-indicator"
+          aria-hidden="true"
+        ></span>
+        <img
+          class="embedded-payment-radio-icon"
+          src=${resolvePaymentMethodIconDataUri(method)}
+          alt=""
+          aria-hidden="true"
+        />
+        <span class="embedded-payment-radio-copy">
+          <strong>${method.label}</strong>
+          <span>
+            ${[
+              method.brand,
+              method.last4 && `ending in ${method.last4}`,
+              !method.selectionEligible && method.verificationLabel,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </span>
+      </button>
+    `;
   }
 
   private renderEmbeddedPaymentSourceSelect(
@@ -1514,14 +1758,39 @@ export class CommerceHubConnect extends LitElement {
     canAddPaymentSources = false
   ): TemplateResult {
     const eligibleMethods = paymentMethods.filter(
-      (method) => method.selectionEligible
+      (method) => method.type === 'native' || method.selectionEligible
     );
-    const selectedSourceId = this.interactionResponse?.selectedSource?.id ?? '';
+    const selectedSourceId =
+      defaultPaymentSourceIdFromInteractionResponse(this.interactionResponse) ??
+      '';
+    const nativeMethods = eligibleMethods.filter(
+      (method) => method.type === 'native'
+    );
+    const savedMethods = [
+      ...eligibleMethods.filter(
+        (method) => method.type !== 'native' && method.id === selectedSourceId
+      ),
+      ...eligibleMethods.filter(
+        (method) => method.type !== 'native' && method.id !== selectedSourceId
+      ),
+    ];
+    const displayedMethods = [...nativeMethods, ...savedMethods];
+    const displayedNativeMethods = displayedMethods.filter(
+      (method) => method.type === 'native'
+    );
+    const displayedSavedMethods = displayedMethods.filter(
+      (method) => method.type !== 'native'
+    );
     const attaching = this.pendingAction === 'attach-payment-source';
-    const hasPaymentMethods = eligibleMethods.length > 0;
+    const hasPaymentMethods = displayedMethods.length > 0;
 
     return html`
-      <select
+      <div
+        class="embedded-payment-select-region"
+        data-embedded-payment-select-region
+        aria-busy=${attaching ? 'true' : 'false'}
+      >
+        <select
         class="embedded-payment-select"
         data-embedded-payment-select="true"
         aria-label="Payment method"
@@ -1530,7 +1799,20 @@ export class CommerceHubConnect extends LitElement {
         <option value="" ?selected=${!selectedSourceId}>
           ${hasPaymentMethods ? 'Select payment method' : 'No payment methods'}
         </option>
-        ${eligibleMethods.map(
+        ${displayedNativeMethods.map(
+          (method) => html`
+            <option
+              value=${method.id}
+              ?selected=${method.id === selectedSourceId}
+              ?disabled=${!method.selectionEligible}
+            >
+              ${[method.label, method.brand, method.last4 && `xx ${method.last4}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </option>
+          `
+        )}
+        ${displayedSavedMethods.map(
           (method) => html`
             <option
               value=${method.id}
@@ -1549,7 +1831,24 @@ export class CommerceHubConnect extends LitElement {
               </option>
             `
           : ''}
-      </select>
+        </select>
+        ${attaching
+          ? html`
+              <div
+                class="embedded-attach-progress embedded-attach-progress-overlay"
+                data-embedded-attach-progress
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  class="embedded-attach-spinner"
+                  aria-hidden="true"
+                ></span>
+                <span>Securing payment method…</span>
+              </div>
+            `
+          : ''}
+      </div>
     `;
   }
 
@@ -2844,6 +3143,25 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    if (action === 'open-embedded-add-payment-dialog') {
+      this.embeddedPaymentSelectorOpen = false;
+      this.openEmbeddedAddPaymentDialog();
+      return;
+    }
+
+    if (action === 'toggle-embedded-payment-selector') {
+      const opening = !this.embeddedPaymentSelectorOpen;
+
+      this.embeddedPaymentSelectorOpen = opening;
+      if (opening) {
+        this.focusAfterUpdate(
+          '.embedded-payment-radio-option[role="option"][aria-selected="true"]:not(:disabled)',
+          '.embedded-payment-radio-option[role="option"]:not(:disabled)'
+        );
+      }
+      return;
+    }
+
     if (action === 'close-embedded-add-payment-dialog') {
       this.closeEmbeddedAddPaymentDialog();
       return;
@@ -3171,7 +3489,60 @@ export class CommerceHubConnect extends LitElement {
     );
   };
 
+  private handleDocumentClick = (event: MouseEvent) => {
+    if (
+      this.embeddedPaymentSelectorOpen &&
+      !event.composedPath().includes(this)
+    ) {
+      this.embeddedPaymentSelectorOpen = false;
+    }
+  };
+
   private handleKeyDown = (event: KeyboardEvent) => {
+    const embeddedPaymentOption = event
+      .composedPath()
+      .find(
+        (item): item is HTMLButtonElement =>
+          item instanceof HTMLButtonElement &&
+          item.matches('.embedded-payment-radio-option[role="option"]')
+      );
+
+    if (
+      embeddedPaymentOption &&
+      ['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft'].includes(event.key)
+    ) {
+      event.preventDefault();
+      const options = [
+        ...this.renderRoot.querySelectorAll<HTMLButtonElement>(
+          '.embedded-payment-radio-option[role="option"]:not(:disabled)'
+        ),
+      ];
+      const currentIndex = options.indexOf(embeddedPaymentOption);
+      const direction =
+        event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
+      const nextIndex = (currentIndex + direction + options.length) % options.length;
+      const nextOption = options[nextIndex];
+
+      for (const option of options) {
+        option.tabIndex = option === nextOption ? 0 : -1;
+      }
+      nextOption?.focus();
+      return;
+    }
+
+    if (
+      event.key === 'Escape' &&
+      this.embeddedPaymentSelectorOpen &&
+      !this.pendingAction
+    ) {
+      event.preventDefault();
+      this.embeddedPaymentSelectorOpen = false;
+      this.focusAfterUpdate(
+        '[data-action="toggle-embedded-payment-selector"]'
+      );
+      return;
+    }
+
     if (
       event.key === 'Escape' &&
       this.openPaymentSourceMenuId &&
@@ -5309,6 +5680,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     this.selectedPaymentSourceId = paymentSourceId;
+    this.embeddedPaymentSelectorOpen = false;
     this.paymentSourceView = 'list';
     this.attachmentError = undefined;
     this.pendingAction = 'attach-payment-source';
@@ -5356,6 +5728,12 @@ export class CommerceHubConnect extends LitElement {
     } finally {
       this.clearPendingMutationAction(interactionId, 'attach-payment-source');
     }
+  }
+
+  private isEmbeddedRichSelectorEligible(paymentSourceId: string): boolean {
+    const source = this.findPaymentSourceById(paymentSourceId);
+
+    return Boolean(source && isPaymentSourceSelectionEligible(source));
   }
 
   // Marks a saved payment source as the default via
@@ -7308,17 +7686,26 @@ const paymentMethodsFromInteractionResponse = (
       : undefined;
 
   const visibleSources = paymentSources.filter(isVisiblePaymentListSource);
+  const isDefaultSource = (source: PaymentSource): boolean =>
+    Boolean(
+      source.isDefault || (selectedSourceId && source.id === selectedSourceId)
+    );
   const orderedSources = [
     ...visibleSources.filter(isEarningsNativePaymentSource),
     ...visibleSources.filter(
-      (source) => !isEarningsNativePaymentSource(source)
+      (source) =>
+        !isEarningsNativePaymentSource(source) && isDefaultSource(source)
+    ),
+    ...visibleSources.filter(
+      (source) =>
+        !isEarningsNativePaymentSource(source) && !isDefaultSource(source)
     ),
   ];
 
   return orderedSources.map((source) =>
     paymentSourceToPaymentMethod(source, {
       ...options,
-      isDefault: Boolean(selectedSourceId && source.id === selectedSourceId),
+      isDefault: isDefaultSource(source),
     })
   );
 };
@@ -7504,6 +7891,14 @@ const paymentSourceLast4 = (source: PaymentSource): string => {
 
 const paymentSourceId = (source: PaymentSource): string =>
   source.id?.trim() || source.name?.trim() || source.tenderType;
+
+const defaultPaymentSourceIdFromInteractionResponse = (
+  interactionResponse?: InteractionResponse
+): string | undefined =>
+  interactionResponse?.selectedSource?.id?.trim() ||
+  interactionResponse?.paymentSources
+    ?.find((source) => source.isDefault)
+    ?.id?.trim();
 
 const paymentSourcePaymentMethodType = (
   source: PaymentSource

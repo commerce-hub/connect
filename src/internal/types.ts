@@ -41,6 +41,7 @@ export interface PaymentSourceRecipient {
 
 export type PaymentSource = GeneratedPaymentSource & {
   recipient?: PaymentSourceRecipient;
+  isDefault?: boolean;
 };
 
 export type InteractionResponse = Omit<
@@ -71,6 +72,8 @@ export type FlowActionName =
   | 'resend-otp'
   | 'attach-payment-source'
   | 'open-add-payment-source'
+  | 'open-embedded-add-payment-dialog'
+  | 'toggle-embedded-payment-selector'
   | 'retry-interaction-refresh'
   | 'change-payment-source'
   | 'toggle-payment-source-menu'
@@ -498,6 +501,7 @@ export interface DetailItem {
 }
 
 export type CommerceHubPresentationMode = 'dialog' | 'embedded';
+export type CommerceHubEmbeddedSelectorMode = 'dropdown' | 'radio-list';
 
 export interface WidgetShellOptions {
   title: string;
