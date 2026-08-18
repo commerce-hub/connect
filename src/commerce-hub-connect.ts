@@ -14,6 +14,7 @@ import {
   createCommerceHubClient,
   resolveCommerceHubBaseURL,
   type CommerceHubBaseURLInput,
+  type CommerceHubBaseURLPreset,
 } from './internal/api-client.js';
 import {
   InteractionRefreshController,
@@ -435,6 +436,8 @@ type PartyConfigurationResponse =
   ConfigComponents['schemas']['PartyConfigurationResponse'];
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
+  apiKey?: string;
+  configurationId?: string;
 };
 type TransferFlowScreen = 'form' | 'confirm';
 type PaymentSourceToPaymentMethodOptions = {
@@ -601,6 +604,13 @@ const DEFAULT_PAY_BY_BANK_OPTIONS = {
   paymentSdkUrl:
     'https://connect-qa.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js',
 } satisfies Required<DesignConfigPayByBank>;
+const PAY_BY_BANK_ENVIRONMENTS: Record<CommerceHubBaseURLPreset, string> = {
+  DEV: 'dev',
+  QA: 'qa',
+  CERT: 'cert',
+  PROD: 'prod',
+};
+
 const DELETE_CONFIRMATION_TIMEOUT_MS = 10000;
 
 // How long the last typed sensitive character stays visible before it masks.
@@ -6652,7 +6662,11 @@ export class CommerceHubConnect extends LitElement {
 
     const {aggregatorSessionId, accessToken, pToken, publicKey} =
       resolvePayByBankSession(session);
-    const payByBank = resolvePayByBankOptions(this.designConfig?.payByBank);
+    const payByBank = resolvePayByBankOptions(
+      this.designConfig?.payByBank,
+      this.baseURL,
+      session
+    );
 
     await loadPaymentSdkScript(payByBank.paymentSdkUrl);
 
@@ -7522,16 +7536,58 @@ const resolveNoSavedPaymentMethodsCopy = (
 };
 
 const resolvePayByBankOptions = (
-  options?: DesignConfigPayByBank
+  options?: DesignConfigPayByBank,
+  baseURL?: CommerceHubBaseURLInput,
+  session?: Pick<PayByBankSession, 'apiKey' | 'configurationId'>
 ): Required<DesignConfigPayByBank> => {
   const definedOverrides = Object.fromEntries(
     Object.entries(options ?? {}).filter(([, value]) => value !== undefined)
   ) as DesignConfigPayByBank;
+  const apiCredentials = Object.fromEntries(
+    Object.entries({
+      apiKey: session?.apiKey,
+      configId: session?.configurationId,
+    }).filter(([, value]) => value !== undefined)
+  ) as Pick<DesignConfigPayByBank, 'apiKey' | 'configId'>;
+  const preset = payByBankBaseURLPreset(baseURL);
 
   return {
     ...DEFAULT_PAY_BY_BANK_OPTIONS,
     ...definedOverrides,
+    ...apiCredentials,
+    ...(preset
+      ? {
+          paymentSdkUrl: payByBankSdkUrl(baseURL),
+          environment: PAY_BY_BANK_ENVIRONMENTS[preset],
+        }
+      : baseURL && !definedOverrides.paymentSdkUrl
+      ? {paymentSdkUrl: payByBankSdkUrl(baseURL)}
+      : {}),
   };
+};
+
+const payByBankSdkUrl = (baseURL?: CommerceHubBaseURLInput): string => {
+  const url = new URL(resolveCommerceHubBaseURL(baseURL));
+
+  url.pathname = '/pbb/sdk/web/v2/js/PaymentSDK.js';
+  url.search = '';
+  url.hash = '';
+
+  return url.toString();
+};
+
+const payByBankBaseURLPreset = (
+  baseURL?: CommerceHubBaseURLInput
+): CommerceHubBaseURLPreset | undefined => {
+  if (!baseURL) {
+    return 'PROD';
+  }
+
+  const normalizedBaseURL = baseURL.toUpperCase();
+
+  return normalizedBaseURL in PAY_BY_BANK_ENVIRONMENTS
+    ? (normalizedBaseURL as CommerceHubBaseURLPreset)
+    : undefined;
 };
 
 const resolvePaymentSdkAppearance = (
