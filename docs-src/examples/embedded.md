@@ -92,9 +92,7 @@ The native dropdown menu overlays surrounding host content when opened.
 
 The optional `radio-list` mode renders an SDK-styled trigger and popup containing payment-method rows. Give its container enough vertical space for the expanded popup, and keep host overflow visible (or otherwise account for clipping) so the list remains usable.
 
-```{=typst}
-#pagebreak()
-```
+<!-- PDF page break: #pagebreak() -->
 
 ## Angular integration
 
@@ -172,9 +170,7 @@ Create the interaction with both capabilities when the embedded selector should 
 }
 ```
 
-```{=typst}
-#pagebreak()
-```
+<!-- PDF page break: #pagebreak() -->
 
 ## ADD_ACCOUNT-only interactions
 
@@ -221,9 +217,7 @@ The SDK presents the supported tender options defined by the interaction. After 
 
 Use the standard embedded container height because ADD_ACCOUNT may open multi-step card, bank-account, verification, or required-information forms.
 
-```{=typst}
-#pagebreak()
-```
+<!-- PDF page break: #pagebreak() -->
 
 ## Design configuration
 
