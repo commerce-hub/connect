@@ -434,8 +434,6 @@ type PartyConfigurationResponse =
   ConfigComponents['schemas']['PartyConfigurationResponse'];
 type PayByBankSession = components['schemas']['SessionData'] & {
   accessToken?: string;
-  apiKey?: string;
-  configurationId?: string;
 };
 type TransferFlowScreen = 'form' | 'confirm';
 type PaymentSourceToPaymentMethodOptions = {
@@ -6289,7 +6287,7 @@ export class CommerceHubConnect extends LitElement {
     const payByBank = resolvePayByBankOptions(
       this.designConfig?.payByBank,
       this.baseURL,
-      session
+      this.interactionResponse
     );
 
     await loadPaymentSdkScript(payByBank.paymentSdkUrl);
@@ -7158,15 +7156,15 @@ const resolveNoSavedPaymentMethodsCopy = (
 const resolvePayByBankOptions = (
   options?: DesignConfigPayByBank,
   baseURL?: CommerceHubBaseURLInput,
-  session?: Pick<PayByBankSession, 'apiKey' | 'configurationId'>
+  interactionResponse?: Pick<InteractionResponse, 'apiKey' | 'configurationId'>
 ): Required<DesignConfigPayByBank> => {
   const definedOverrides = Object.fromEntries(
     Object.entries(options ?? {}).filter(([, value]) => value !== undefined)
   ) as DesignConfigPayByBank;
   const apiCredentials = Object.fromEntries(
     Object.entries({
-      apiKey: session?.apiKey,
-      configId: session?.configurationId,
+      apiKey: interactionResponse?.apiKey,
+      configId: interactionResponse?.configurationId,
     }).filter(([, value]) => value !== undefined)
   ) as Pick<DesignConfigPayByBank, 'apiKey' | 'configId'>;
   const preset = payByBankBaseURLPreset(baseURL);

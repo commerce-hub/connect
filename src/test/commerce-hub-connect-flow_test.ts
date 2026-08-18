@@ -7846,8 +7846,6 @@ suite('commerce-hub-connect flow', () => {
           tokenID: 'access-token-1',
           pToken: 'p-token-1',
           publicKey: 'public-key-1',
-          apiKey: 'api-session-key',
-          configurationId: 'api-session-config-id',
         }),
         {status: 200, headers: {'Content-Type': 'application/json'}}
       );
@@ -7856,6 +7854,8 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-payment',
         status: 'PAYMENT_SOURCE_REQUESTED',
+        apiKey: 'api-interaction-key',
+        configurationId: 'api-interaction-config-id',
         paymentSources: [],
       },
       {
@@ -7869,8 +7869,8 @@ suite('commerce-hub-connect flow', () => {
     await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
-    assert.equal(initConfig?.apiKey, 'api-session-key');
-    assert.equal(initConfig?.configId, 'api-session-config-id');
+    assert.equal(initConfig?.apiKey, 'api-interaction-key');
+    assert.equal(initConfig?.configId, 'api-interaction-config-id');
   });
 
   test('Pay by Bank startup errors are printed to the console', async () => {
