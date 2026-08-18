@@ -59,7 +59,9 @@ export type NativePaymentSource = Extract<
 >;
 
 export type NativeAccountBalanceInfo =
-  components['schemas']['NativeAccountBalanceInfo'];
+  components['schemas']['NativeAccountBalanceInfo'] & {
+    availableBalance?: number;
+  };
 export type NativeAccountBalanceMap = Record<string, NativeAccountBalanceInfo>;
 
 export type InteractionFlowStatus = NonNullable<

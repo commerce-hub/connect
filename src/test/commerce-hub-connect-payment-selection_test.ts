@@ -2052,7 +2052,7 @@ suite('commerce-hub-connect payment selection', () => {
             balance: 125.5,
           },
           'wallet-position-4321': {
-            balance: 9,
+            availableBalance: 9,
           },
         }),
         {

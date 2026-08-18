@@ -7361,10 +7361,11 @@ const paymentSourceToPaymentMethod = (
   const nativeBalance = isNativePaymentSource(source)
     ? nativeAccountBalanceForSource(source, nativeBalances)
     : undefined;
+  const balanceValue = nativeBalance?.balance ?? nativeBalance?.availableBalance;
   const balance =
-    nativeBalance?.balance === undefined
+    balanceValue === undefined
       ? undefined
-      : formatNativeAccountBalance(nativeBalance.balance);
+      : formatNativeAccountBalance(balanceValue);
   const featuredInformational = isEarningsNativePaymentSource(source);
 
   return {
