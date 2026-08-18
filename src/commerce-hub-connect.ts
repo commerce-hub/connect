@@ -3852,7 +3852,8 @@ export class CommerceHubConnect extends LitElement {
         (Array.isArray(rawInstrumentSchemas) &&
           rawInstrumentSchemas.length === 0)
       ) {
-        this.initializeLegacyManualBankAccountScreen();
+        this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
+        this.bankFlowScreen = 'manual-config-error';
         return;
       }
 
@@ -4107,17 +4108,6 @@ export class CommerceHubConnect extends LitElement {
       this.billingAddresses[0]?.id ?? NEW_BILLING_ADDRESS_VALUE;
     this.bankBillingAddressSelectorExpanded =
       this.bankBillingAddressValue === NEW_BILLING_ADDRESS_VALUE;
-  }
-
-  private initializeLegacyManualBankAccountScreen() {
-    this.bankAccountValidationAttempted = false;
-    this.manualBankAccountFormMode = 'legacy';
-    this.bankFlowScreen = 'manual';
-    this.legacyBankAccountDraft = createBankAccountDraft();
-    this.legacyBankAccountDraftErrors = {};
-    this.legacyBankAccountEncryption = createBankAccountEncryptionState();
-    this.bankAccountSubmitError = undefined;
-    this.bankAccountConfigError = undefined;
   }
 
   private clearManualBankAccountForm() {
