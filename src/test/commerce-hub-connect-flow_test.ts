@@ -3098,9 +3098,36 @@ suite('commerce-hub-connect flow', () => {
 
     await waitFor(
       () =>
+        el.shadowRoot!.querySelector<HTMLSelectElement>(
+          '#instrument-schema-payment-type'
+        )?.value === 'Canadian',
+      'singleton payment type was not selected'
+    );
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Select bank account type'
+    );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLSelectElement>(
+        '#instrument-schema-payment-type'
+      )!.disabled
+    );
+    assert.isFalse(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '[data-action="select-instrument-schema"]'
+      )!.disabled
+    );
+    assert.notExists(
+      el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
+    );
+
+    await clickAction(el, 'select-instrument-schema');
+
+    await waitFor(
+      () =>
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
         'Enter bank details',
-      'singleton payment type did not open bank details'
+      'Continue did not open bank details'
     );
     assert.exists(
       el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
@@ -3146,6 +3173,58 @@ suite('commerce-hub-connect flow', () => {
         el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
         'Enter bank details',
       'fully singleton schema did not open bank details'
+    );
+
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="select-instrument-schema"]')
+    );
+    assert.exists(
+      el.shadowRoot!.querySelector('commerce-hub-bank-account-jsonforms')
+    );
+  });
+
+  test('single selectable schema opens bank details automatically', async () => {
+    const requests: CapturedRequest[] = [];
+    window.fetch = async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      const pathname = new URL(request.url).pathname;
+
+      requests.push({
+        url: request.url,
+        method: request.method,
+        headers: new Headers(request.headers),
+        bodyText: await request.clone().text(),
+        credentials: request.credentials,
+      });
+
+      if (pathname === '/party/configuration-inquiry') {
+        return bankAccountCountryConfigResponse([
+          TEST_INSTRUMENT_SCHEMAS[0],
+          {...TEST_INSTRUMENT_SCHEMAS[0], bavSupportedCode: ' '},
+        ]);
+      }
+
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    const el = await renderConnect({
+      interactionId: 'interaction-single-selectable-schema',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'CAN',
+      allowedTenderTypes: ['BANK_ACCOUNT'],
+      paymentSources: [],
+    });
+
+    await clickAction(el, 'add-bank-account');
+    await waitForRequest(requests, '/party/configuration-inquiry');
+    await waitFor(
+      () =>
+        el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim() ===
+        'Enter bank details',
+      'single selectable schema did not open bank details'
     );
 
     assert.notExists(
@@ -7680,7 +7759,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(initConfig?.environment, 'sandbox');
     assert.equal(initConfig?.locale, 'en-CA');
     assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
-    assert.isTrue(initConfig?.embed);
+    assert.isUndefined(initConfig?.embed);
     assert.deepEqual(initConfig?.appearance, {
       branding: {
         backgroundColor: '#fafafa',

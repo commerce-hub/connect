@@ -1034,6 +1034,23 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
+  test('dialog provider containers preserve the pre-0.11.4 intrinsic minimum height', async () => {
+    const root = await renderHarness(html`
+      <style>
+        ${primitiveStyles.cssText}
+      </style>
+      ${renderWidgetShell({
+        title: 'Connect your bank',
+        presentationMode: 'dialog',
+        showClose: false,
+        content: renderProviderFrame({containerId: 'dialog-provider'}),
+      })}
+    `);
+    const container = root.querySelector<HTMLElement>('#dialog-provider')!;
+
+    assert.equal(getComputedStyle(container).minHeight, '380px');
+  });
+
   test('embedded shells stretch the provider container while preserving the PBB minimum height', async () => {
     const root = await renderHarness(html`
       <style>

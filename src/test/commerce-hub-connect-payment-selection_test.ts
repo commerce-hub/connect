@@ -471,6 +471,55 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notExists(el.shadowRoot!.querySelector('.widget-shell'));
   });
 
+  test('embedded selector exposes attach failures and remains available for retry', async () => {
+    let attachAttempts = 0;
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-1', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+      ],
+    });
+    el.presentationMode = 'embedded';
+    await flushElement(el);
+    window.fetch = async () => {
+      attachAttempts += 1;
+      return new Response(JSON.stringify({message: 'Attach was declined'}), {
+        status: 409,
+        headers: {'Content-Type': 'application/json'},
+      });
+    };
+
+    let select = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '[data-embedded-payment-select]'
+    )!;
+    select.value = 'card-1';
+    select.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+    await waitFor(
+      () => Boolean(el.shadowRoot!.querySelector('[role="alert"]')),
+      'embedded attach error did not render'
+    );
+
+    const alert = el.shadowRoot!.querySelector<HTMLElement>('[role="alert"]')!;
+    assert.include(alert.textContent ?? '', 'Attach was declined');
+    select = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '[data-embedded-payment-select]'
+    )!;
+    assert.isFalse(select.disabled);
+
+    select.value = 'card-1';
+    select.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+    await waitFor(() => attachAttempts === 2, 'embedded attach retry did not run');
+  });
+
   test('embedded SELECT with ADD_ACCOUNT appends Add payment method and opens it in a dialog', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
@@ -558,6 +607,407 @@ suite('commerce-hub-connect payment selection', () => {
     );
   });
 
+  test('embedded radio-list mode renders unselected instruments and Add payment method as list rows', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT', 'ADD_ACCOUNT'],
+      allowedTenderTypes: ['CARD'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-1', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+      ],
+    });
+    el.presentationMode = 'embedded';
+    el.setAttribute('embedded-selector-mode', 'radio-list');
+    await flushElement(el);
+
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-embedded-payment-select]')
+    );
+    const group = el.shadowRoot!.querySelector<HTMLElement>(
+      '[data-embedded-payment-radio-list]'
+    )!;
+    const trigger = group.querySelector<HTMLButtonElement>(
+      '[data-action="toggle-embedded-payment-selector"]'
+    )!;
+
+    assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+    assert.equal(trigger.getAttribute('aria-haspopup'), 'listbox');
+    assert.notExists(group.querySelector('[role="listbox"]'));
+    trigger.click();
+    await flushElement(el);
+
+    const option = group.querySelector<HTMLButtonElement>(
+      '[data-action="attach-payment-source"]'
+    )!;
+    const addOption = group.querySelector<HTMLButtonElement>(
+      '[data-action="open-embedded-add-payment-dialog"]'
+    )!;
+
+    assert.equal(group.getAttribute('part'), 'embedded-payment-method-list');
+    assert.equal(group.querySelector('[role="listbox"]')?.getAttribute('part'), 'embedded-payment-method-popup');
+    assert.equal(option.getAttribute('role'), 'option');
+    assert.equal(option.getAttribute('aria-selected'), 'false');
+    assert.equal(option.tabIndex, 0);
+    assert.equal(option.getAttribute('part'), 'embedded-payment-method-option');
+    assert.include(option.textContent ?? '', 'Corporate card');
+    assert.include(option.textContent ?? '', '4242');
+    assert.equal(
+      addOption.getAttribute('part'),
+      'embedded-add-payment-method-option'
+    );
+    assert.include(addOption.textContent ?? '', 'Add payment method');
+    assert.strictEqual(
+      addOption,
+      group.querySelector('[role="listbox"]')?.lastElementChild
+    );
+
+    addOption.click();
+    await flushElement(el);
+    assert.exists(
+      el.shadowRoot!.querySelector('[data-embedded-add-payment-dialog]')
+    );
+  });
+
+  test('embedded radio-list mode shows attach progress inside its trigger', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-1', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+      ],
+    });
+    el.presentationMode = 'embedded';
+    el.setAttribute('embedded-selector-mode', 'radio-list');
+    (
+      el as unknown as {
+        pendingAction?: string;
+      }
+    ).pendingAction = 'attach-payment-source';
+    el.requestUpdate();
+    await flushElement(el);
+
+    const trigger = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="toggle-embedded-payment-selector"]'
+    )!;
+    const progress = trigger.querySelector<HTMLElement>(
+      '[data-embedded-attach-progress]'
+    );
+
+    assert.equal(trigger.getAttribute('aria-busy'), 'true');
+    assert.isTrue(trigger.disabled);
+    assert.include(progress?.textContent ?? '', 'Securing payment method…');
+    assert.exists(progress?.querySelector('.embedded-attach-spinner'));
+  });
+
+  test('embedded radio-list arrow keys move focus through payment and Add options', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT', 'ADD_ACCOUNT'],
+      allowedTenderTypes: ['CARD'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-1', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+        {
+          tenderType: 'Card',
+          id: 'card-2',
+          name: 'Travel card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-2', status: 'PROVISIONED'},
+          card: {network: 'Mastercard', cardNumber: '5555555555554444'},
+        },
+      ],
+    });
+    el.presentationMode = 'embedded';
+    el.setAttribute('embedded-selector-mode', 'radio-list');
+    await flushElement(el);
+
+    el.shadowRoot!
+      .querySelector<HTMLButtonElement>(
+        '[data-action="toggle-embedded-payment-selector"]'
+      )!
+      .click();
+    await flushElement(el);
+
+    const options = [
+      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+        '.embedded-payment-radio-option[role="option"]:not(:disabled)'
+      ),
+    ];
+    assert.lengthOf(options, 3);
+    assert.deepEqual(
+      options.map((option) => option.tabIndex),
+      [0, -1, -1]
+    );
+
+    options[0].focus();
+    options[0].dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        bubbles: true,
+        composed: true,
+      })
+    );
+    assert.strictEqual(el.shadowRoot!.activeElement, options[1]);
+    assert.deepEqual(
+      options.map((option) => option.tabIndex),
+      [-1, 0, -1]
+    );
+
+    options[1].dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        bubbles: true,
+        composed: true,
+      })
+    );
+    assert.strictEqual(el.shadowRoot!.activeElement, options[2]);
+    assert.equal(options[2].dataset.action, 'open-embedded-add-payment-dialog');
+    assert.deepEqual(
+      options.map((option) => option.tabIndex),
+      [-1, -1, 0]
+    );
+
+    options[2].dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowUp',
+        bubbles: true,
+        composed: true,
+      })
+    );
+    assert.strictEqual(el.shadowRoot!.activeElement, options[1]);
+  });
+
+  test('embedded radio-list popup manages focus, Escape, and outside click', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT', 'ADD_ACCOUNT'],
+      allowedTenderTypes: ['CARD'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          isDefault: true,
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-1', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+        {
+          tenderType: 'Card',
+          id: 'card-2',
+          name: 'Travel card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-2', status: 'PROVISIONED'},
+          card: {network: 'Mastercard', cardNumber: '5555555555554444'},
+        },
+      ],
+    });
+    el.presentationMode = 'embedded';
+    el.setAttribute('embedded-selector-mode', 'radio-list');
+    await flushElement(el);
+    const trigger = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="toggle-embedded-payment-selector"]'
+    )!;
+
+    trigger.click();
+    await flushElement(el);
+    const selectedOption = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[role="option"][aria-selected="true"]'
+    )!;
+    assert.strictEqual(el.shadowRoot!.activeElement, selectedOption);
+
+    selectedOption.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        composed: true,
+      })
+    );
+    await flushElement(el);
+    assert.notExists(el.shadowRoot!.querySelector('[role="listbox"]'));
+    assert.strictEqual(el.shadowRoot!.activeElement, trigger);
+
+    trigger.click();
+    await flushElement(el);
+    document.body.dispatchEvent(
+      new MouseEvent('click', {bubbles: true, composed: true})
+    );
+    await flushElement(el);
+    assert.notExists(el.shadowRoot!.querySelector('[role="listbox"]'));
+  });
+
+  test('embedded radio-list focuses Add when it is the only enabled option', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT', 'ADD_ACCOUNT'],
+      allowedTenderTypes: ['CARD'],
+      paymentSources: [],
+    });
+    el.presentationMode = 'embedded';
+    el.setAttribute('embedded-selector-mode', 'radio-list');
+    await flushElement(el);
+
+    el.shadowRoot!
+      .querySelector<HTMLButtonElement>(
+        '[data-action="toggle-embedded-payment-selector"]'
+      )!
+      .click();
+    await flushElement(el);
+
+    const addOption = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[role="option"][data-action="open-embedded-add-payment-dialog"]'
+    )!;
+    assert.equal(addOption.tabIndex, 0);
+    assert.strictEqual(el.shadowRoot!.activeElement, addOption);
+  });
+
+  test('embedded standard select shows attach progress in the dropdown area', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-1', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+      ],
+    });
+    el.presentationMode = 'embedded';
+    (
+      el as unknown as {
+        pendingAction?: string;
+      }
+    ).pendingAction = 'attach-payment-source';
+    el.requestUpdate();
+    await flushElement(el);
+
+    const region = el.shadowRoot!.querySelector<HTMLElement>(
+      '[data-embedded-payment-select-region]'
+    )!;
+
+    assert.equal(region.getAttribute('aria-busy'), 'true');
+    assert.include(region.textContent ?? '', 'Securing payment method…');
+    assert.exists(region.querySelector('.embedded-attach-spinner'));
+  });
+
+  test('embedded selectors promote native and default options while keeping add last', async () => {
+    const interactionResponse: InteractionResponse = {
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT', 'ADD_ACCOUNT'],
+      allowedTenderTypes: ['CARD', 'BANK_ACCOUNT', 'NATIVE_ACCOUNT'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-other',
+          name: 'Other card',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-other', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111111111'},
+        },
+        {
+          tenderType: 'Card',
+          id: 'card-default',
+          name: 'Default card',
+          isDefault: true,
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-default', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+        {
+          tenderType: 'NativeAccount',
+          id: 'native-account-1',
+          name: 'Commerce wallet - Earnings',
+          verificationInfo: {status: 'VERIFIED'},
+          account: {
+            positionId: 'wallet-position-7890',
+            nickName: 'Commerce wallet',
+            productType: 'Wallet',
+            token: 'native-token-1',
+          },
+        },
+      ],
+    };
+    const el = (await fixture(
+      testingHtml`<commerce-hub-connect
+        .presentationMode=${'embedded'}
+        .interactionResponse=${interactionResponse}
+        .baseURL=${TEST_COMMERCE_HUB_BASE_URL}
+      ></commerce-hub-connect>`
+    )) as CommerceHubConnect;
+    await flushElement(el);
+
+    const select = el.shadowRoot!.querySelector<HTMLSelectElement>(
+      '[data-embedded-payment-select]'
+    )!;
+    const orderedSelectOptions = [...select.options]
+      .filter((option) => option.value)
+      .map((option) => option.value);
+    assert.deepEqual(orderedSelectOptions, [
+      'native-account-1',
+      'card-default',
+      'card-other',
+      '__chc_add_payment__',
+    ]);
+    assert.equal(select.value, 'card-default');
+
+    el.setAttribute('embedded-selector-mode', 'radio-list');
+    await flushElement(el);
+    el.shadowRoot!
+      .querySelector<HTMLButtonElement>(
+        '[data-action="toggle-embedded-payment-selector"]'
+      )!
+      .click();
+    await flushElement(el);
+
+    const orderedRows = [
+      ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+        '[role="listbox"] [data-payment-method-id], [role="listbox"] [data-action="open-embedded-add-payment-dialog"]'
+      ),
+    ].map((row) => row.dataset.paymentMethodId ?? '__chc_add_payment__');
+    assert.deepEqual(orderedRows, [
+      'native-account-1',
+      'card-default',
+      'card-other',
+      '__chc_add_payment__',
+    ]);
+    assert.include(
+      el.shadowRoot!.querySelector('[data-action="toggle-embedded-payment-selector"]')
+        ?.textContent ?? '',
+      'Default card'
+    );
+  });
+
   test('embedded SELECT-only does not show payment methods chrome while refreshing', async () => {
     const refreshResponse = createDeferred<Response>();
     window.fetch = async () => refreshResponse.promise;
@@ -627,6 +1077,17 @@ suite('commerce-hub-connect payment selection', () => {
             cardNumber: '4111111111111111',
           },
         },
+        {
+          tenderType: 'Card',
+          id: 'card-default',
+          name: 'Default card',
+          isDefault: true,
+          verificationInfo: {status: 'VERIFIED'},
+          card: {
+            network: 'Visa',
+            cardNumber: '4111111111114242',
+          },
+        },
       ],
     });
 
@@ -650,6 +1111,14 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.notExists(
       row.querySelector('[data-action="mark-payment-source-default"]')
+    );
+    assert.deepEqual(
+      [
+        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+          '.payment-method-row'
+        ),
+      ].map((row) => row.dataset.paymentMethodId),
+      ['card-default', 'card-1']
     );
   });
 

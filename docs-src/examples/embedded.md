@@ -30,10 +30,26 @@ import 'commerce-hub-connect-sdk';
 const wallet = document.querySelector('commerce-hub-connect');
 
 wallet.presentationMode = 'embedded';
+wallet.embeddedSelectorMode = 'dropdown';
 wallet.interactionResponse = interactionResponse;
 ```
 
 `presentationMode` defaults to `dialog`. Set it to `embedded` explicitly for inline integrations.
+
+`embeddedSelectorMode` defaults to `dropdown`, which renders the compact native payment-method select. Set it to `radio-list` to use the richer expandable selector instead:
+
+```ts
+wallet.embeddedSelectorMode = 'radio-list';
+```
+
+The property reflects to the `embedded-selector-mode` HTML attribute, so static markup can configure the same mode:
+
+```html
+<commerce-hub-connect
+  presentation-mode="embedded"
+  embedded-selector-mode="radio-list"
+></commerce-hub-connect>
+```
 
 Object-valued inputs such as `interactionResponse` and `designConfig` must be assigned as DOM properties rather than serialized HTML attributes.
 
@@ -58,9 +74,9 @@ Use a bounded, responsive height for workflows that can contain forms, payment-m
 }
 ```
 
-### SELECT-only flow
+### Compact dropdown flow
 
-An embedded interaction containing only `SELECT` renders a native payment-method dropdown. A compact parent height is sufficient.
+The default `dropdown` selector uses a native select. A compact parent height is sufficient.
 
 ```css
 .wallet-container--select-only {
@@ -72,15 +88,38 @@ An embedded interaction containing only `SELECT` renders a native payment-method
 
 The native dropdown menu overlays surrounding host content when opened.
 
+### Radio-list flow
+
+The optional `radio-list` mode renders an SDK-styled trigger and popup containing payment-method rows. Give its container enough vertical space for the expanded popup, and keep host overflow visible (or otherwise account for clipping) so the list remains usable.
+
+```{=typst}
+#pagebreak()
+```
+
 ## Angular integration
 
 Derive the layout state in the component instead of placing feature-selection logic directly in the template.
 
 ```ts
+import type {
+  OnAddPaymentMethodEvent,
+  OnSelectEvent,
+} from 'commerce-hub-connect-sdk';
+
 readonly isSelectOnly = computed(() => {
   const features = this.interactionResponse()?.features ?? [];
   return features.length === 1 && features[0] === 'SELECT';
 });
+
+handleSelect(event: Event): void {
+  const {detail: selectedSource} = event as OnSelectEvent;
+  // Continue the host checkout or payout workflow.
+}
+
+handleAddPaymentMethod(event: Event): void {
+  const {detail: createdSource} = event as OnAddPaymentMethodEvent;
+  // Update the host workflow or refresh its interaction state.
+}
 ```
 
 ```html
@@ -90,6 +129,7 @@ readonly isSelectOnly = computed(() => {
 >
   <commerce-hub-connect
     [presentationMode]="'embedded'"
+    [embeddedSelectorMode]="'dropdown'"
     [interactionResponse]="interactionResponse()"
     [designConfig]="designConfig"
     (onSelect)="handleSelect($event)"
@@ -98,7 +138,7 @@ readonly isSelectOnly = computed(() => {
 </div>
 ```
 
-The conditional class is required only when the same container supports both compact SELECT-only interactions and full-height embedded workflows. A host dedicated to one workflow can apply the appropriate sizing class statically.
+The conditional class is required only when the same container supports both compact dropdown interactions and full-height embedded workflows. A host dedicated to one workflow can apply the appropriate sizing class statically. When switching the binding to `'radio-list'`, allow additional height for the expanded rows and ensure the host container's overflow does not clip them.
 
 ## SELECT-only interactions
 
@@ -110,53 +150,31 @@ Create an interaction with exactly one feature:
 }
 ```
 
-In embedded mode, the SDK renders only a payment-method dropdown:
+In embedded mode, the SDK renders the configured selector:
 
-- Only selection-eligible payment methods are included.
-- Verified cards and bank accounts require a provisioned recipient.
+- `dropdown` is the default compact native select; `radio-list` is the optional expandable row presentation.
+- Native payment methods appear first, followed by the default saved payment method and then the remaining saved methods.
 - If no eligible methods exist, the dropdown displays `No payment methods` and is disabled.
-- Selecting a method calls the CommerceHub attach operation.
+- Selecting a method calls the CommerceHub attach operation and displays loading feedback while it completes.
 - The SDK emits `onSelect` only after the attach API succeeds.
-
-```ts
-handleSelect(event: CustomEvent<PaymentSource>): void {
-  const selectedSource = event.detail;
-  // Continue the host checkout or payout workflow.
-}
-```
 
 The host should handle SDK errors according to its application-level error and retry strategy.
 
-## Adding payment methods from a SELECT-only page
+## Adding payment methods from the selector
 
-Do not mutate a SELECT-only interaction to enable account creation. Create a separate interaction with the same merchant and party context:
+When the interaction includes `ADD_ACCOUNT` and allows a supported tender, the selector appends an **Add payment method** row after the available methods. Selecting it opens the add-payment-method experience.
 
-```ts
-const addRequest = {
-  ...selectRequest,
-  features: ['ADD_ACCOUNT'],
-};
+Create the interaction with both capabilities when the embedded selector should offer this action:
 
-const addInteraction = await createInteraction(addRequest);
+```json
+{
+  "features": ["SELECT", "ADD_ACCOUNT"]
+}
 ```
 
-Present the ADD_ACCOUNT interaction using the SDK’s default dialog mode:
-
-```html
-<commerce-hub-connect
-  [presentationMode]="'dialog'"
-  [interactionResponse]="addInteraction"
-  (onAddPaymentMethod)="handleAddPaymentMethod($event)"
-></commerce-hub-connect>
+```{=typst}
+#pagebreak()
 ```
-
-After `onAddPaymentMethod`:
-
-1. Close the dialog.
-2. Recreate or refresh the original SELECT interaction.
-3. Assign the refreshed response to the embedded SDK.
-
-The host may pre-create the ADD_ACCOUNT interaction in the background to reduce perceived dialog-launch latency.
 
 ## ADD_ACCOUNT-only interactions
 
@@ -168,29 +186,44 @@ Create an interaction containing only the add-account capability:
 }
 ```
 
-Render it in embedded mode when adding a payment method is the page’s primary purpose:
+Render it in embedded mode when adding a payment method is the page’s primary purpose. For a framework-neutral integration, assign object-valued inputs as DOM properties and listen for the SDK event:
 
 ```html
 <div class="wallet-container">
-  <commerce-hub-connect
-    [presentationMode]="'embedded'"
-    [interactionResponse]="addAccountInteraction"
-    [designConfig]="designConfig"
-    (onAddPaymentMethod)="handleAddPaymentMethod($event)"
-  ></commerce-hub-connect>
+  <commerce-hub-connect id="add-account-wallet"></commerce-hub-connect>
 </div>
+```
+
+```ts
+import type {
+  CommerceHubConnect,
+  OnAddPaymentMethodEvent,
+} from 'commerce-hub-connect-sdk';
+
+const addAccountWallet = document.querySelector<CommerceHubConnect>(
+  '#add-account-wallet'
+);
+
+if (!addAccountWallet) {
+  throw new Error('Add-account wallet element was not found');
+}
+
+addAccountWallet.presentationMode = 'embedded';
+addAccountWallet.interactionResponse = addAccountInteraction;
+addAccountWallet.designConfig = designConfig;
+addAccountWallet.addEventListener('onAddPaymentMethod', (event: Event) => {
+  const {detail: createdSource} = event as OnAddPaymentMethodEvent;
+  // Update the host workflow or refresh its interaction state.
+});
 ```
 
 The SDK presents the supported tender options defined by the interaction. After a payment method is created successfully, it emits `onAddPaymentMethod` with the created payment source.
 
-```ts
-handleAddPaymentMethod(event: CustomEvent<PaymentSource>): void {
-  const createdSource = event.detail;
-  // Update the host workflow or refresh its interaction state.
-}
-```
-
 Use the standard embedded container height because ADD_ACCOUNT may open multi-step card, bank-account, verification, or required-information forms.
+
+```{=typst}
+#pagebreak()
+```
 
 ## Design configuration
 
