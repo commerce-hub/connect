@@ -914,9 +914,12 @@ suite('commerce-hub-connect payment selection', () => {
     const region = el.shadowRoot!.querySelector<HTMLElement>(
       '[data-embedded-payment-select-region]'
     )!;
+    const progress = region.querySelector<HTMLElement>(
+      '[data-embedded-attach-progress]'
+    )!;
 
     assert.equal(region.getAttribute('aria-busy'), 'true');
-    assert.include(region.textContent ?? '', 'Securing payment method…');
+    assert.equal(progress.getAttribute('aria-label'), 'Securing payment method');
     assert.exists(region.querySelector('.embedded-attach-spinner'));
   });
 

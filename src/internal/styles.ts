@@ -332,12 +332,16 @@ export const primitiveStyles = css`
 
   .embedded-payment-select-region {
     width: 100%;
-    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .embedded-payment-select {
     appearance: none;
     width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
     min-height: var(--chc-input-height);
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-control);
@@ -364,6 +368,13 @@ export const primitiveStyles = css`
   .embedded-payment-select:disabled {
     color: var(--chc-muted);
     cursor: wait;
+  }
+
+  .embedded-payment-select-progress {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
   }
 
   .embedded-attach-progress {

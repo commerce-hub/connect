@@ -1799,11 +1799,11 @@ export class CommerceHubConnect extends LitElement {
         aria-busy=${attaching ? 'true' : 'false'}
       >
         <select
-        class="embedded-payment-select"
-        data-embedded-payment-select="true"
-        aria-label="Payment method"
-        ?disabled=${attaching || (!hasPaymentMethods && !canAddPaymentSources)}
-      >
+          class="embedded-payment-select"
+          data-embedded-payment-select="true"
+          aria-label="Payment method"
+          ?disabled=${attaching || (!hasPaymentMethods && !canAddPaymentSources)}
+        >
         <option value="" ?selected=${!selectedSourceId}>
           ${hasPaymentMethods ? 'Select payment method' : 'No payment methods'}
         </option>
@@ -1843,16 +1843,16 @@ export class CommerceHubConnect extends LitElement {
         ${attaching
           ? html`
               <div
-                class="embedded-attach-progress embedded-attach-progress-overlay"
+                class="embedded-payment-select-progress"
                 data-embedded-attach-progress
                 role="status"
                 aria-live="polite"
+                aria-label="Securing payment method"
               >
                 <span
                   class="embedded-attach-spinner"
                   aria-hidden="true"
                 ></span>
-                <span>Securing payment method…</span>
               </div>
             `
           : ''}
