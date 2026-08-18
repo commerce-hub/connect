@@ -52,6 +52,8 @@ export type InteractionResponse = Omit<
   paymentSources?: PaymentSource[];
   selectedSource?: PaymentSource;
   oauth?: InteractionOAuth;
+  apiKey?: string;
+  configurationId?: string;
 };
 
 export type NativePaymentSource = Extract<
