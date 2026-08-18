@@ -7566,6 +7566,65 @@ suite('commerce-hub-connect flow', () => {
     await flushElement(el);
   });
 
+  test('Pay by Bank derives provider routing from the CommerceHub base URL preset', async () => {
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = undefined;
+    window.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      {
+        payByBank: {
+          paymentSdkUrl:
+            'https://connect-qa.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js',
+          environment: 'qa',
+        },
+      },
+      'CERT'
+    );
+
+    await clickAction(el, 'add-pay-by-bank');
+    const selector = 'script[data-commerce-hub-pay-by-bank-sdk="true"]';
+    await waitFor(
+      () => Boolean(document.querySelector(selector)),
+      'PaymentSDK script was not added'
+    );
+    const script = document.querySelector<HTMLScriptElement>(selector)!;
+
+    assert.equal(
+      script.src,
+      'https://connect-cert.fiservapis.com/pbb/sdk/web/v2/js/PaymentSDK.js'
+    );
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    script.dispatchEvent(new Event('load'));
+
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+    assert.equal(initConfig?.environment, 'cert');
+
+    await initConfig!.onEvent({type: 'cancel'});
+    await flushElement(el);
+  });
+
   test('add bank account initializes PaymentSDK with a compact Connect your bank handoff', async () => {
     const requests: CapturedRequest[] = [];
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
@@ -7768,6 +7827,50 @@ suite('commerce-hub-connect flow', () => {
         borderRadius: '8px',
       },
     });
+  });
+
+  test('Pay by Bank session credentials override host credentials', async () => {
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+
+    window.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+          apiKey: 'api-session-key',
+          configurationId: 'api-session-config-id',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+
+    const el = await renderConnect(
+      {
+        interactionId: 'interaction-payment',
+        status: 'PAYMENT_SOURCE_REQUESTED',
+        paymentSources: [],
+      },
+      {
+        payByBank: {
+          apiKey: 'host-api-key',
+          configId: 'host-config-id',
+        },
+      }
+    );
+
+    await clickAction(el, 'add-pay-by-bank');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+
+    assert.equal(initConfig?.apiKey, 'api-session-key');
+    assert.equal(initConfig?.configId, 'api-session-config-id');
   });
 
   test('Pay by Bank startup errors are printed to the console', async () => {
