@@ -36,6 +36,7 @@ export type SourceValueEncryptor = (value: string) => Promise<string>;
 
 const CONFIG_DRIVEN_ENCRYPTED_FIELDS = [
   'accountNumber',
+  'iban',
   'routingCode',
   'bsbCode',
   'interacAccount',
@@ -131,30 +132,81 @@ export const createConfigDrivenBankAccountRequest = ({
   };
 };
 
+const isConfigDrivenEncryptedField = (key: string): boolean =>
+  CONFIG_DRIVEN_ENCRYPTED_FIELDS.some(
+    (field) => field.toLowerCase() === key.toLowerCase()
+  );
+
+const encryptConfigDrivenValue = async (
+  value: unknown,
+  encryptValue: SourceValueEncryptor
+): Promise<unknown> => {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const encryptedEntries = await Promise.all(
+    Object.entries(value).map(async ([key, entryValue]) => {
+      if (isConfigDrivenEncryptedField(key)) {
+        const entryStringValue = stringValue(entryValue);
+
+        return [
+          key,
+          entryStringValue ? await encryptValue(entryStringValue) : entryValue,
+        ];
+      }
+
+      return [key, await encryptConfigDrivenValue(entryValue, encryptValue)];
+    })
+  );
+
+  return Object.fromEntries(encryptedEntries);
+};
+
+const IBAN_ACCOUNT_TYPE = 'IBAN';
+
+// Only a top-level `iban` maps to the API's ACH-style account number fields;
+// a nested bankAccount.iban (if present) is left encrypted in place.
+const withIbanAsAccountNumber = (
+  request: ConfigDrivenBankAccountRequest
+): ConfigDrivenBankAccountRequest => {
+  const ibanKey = Object.keys(request).find(
+    (key) => key.toLowerCase() === 'iban'
+  );
+  const ibanValue = ibanKey ? stringValue(request[ibanKey]) : '';
+
+  if (!ibanKey || !ibanValue) {
+    return request;
+  }
+
+  const {[ibanKey]: _discardedIban, ...rest} = request as Record<
+    string,
+    unknown
+  >;
+
+  return {
+    ...rest,
+    accountType: IBAN_ACCOUNT_TYPE,
+    accountNumber: ibanValue,
+    accountNumberReEntered: ibanValue,
+    accountIdentificationNumberType: IBAN_ACCOUNT_TYPE,
+  } as unknown as ConfigDrivenBankAccountRequest;
+};
+
 export const encryptConfigDrivenBankAccountRequest = async (
   request: ConfigDrivenBankAccountRequest,
   encryptValue: SourceValueEncryptor
 ): Promise<ConfigDrivenBankAccountRequest> => {
-  const encryptedEntries = await Promise.all(
-    CONFIG_DRIVEN_ENCRYPTED_FIELDS.flatMap((field) => {
-      const value = stringValue(request[field]);
-
-      return value
-        ? [
-            encryptValue(value).then((encryptedValue) => [
-              field,
-              encryptedValue,
-            ]),
-          ]
-        : [];
-    })
+  const encryptedRequest = withIbanAsAccountNumber(
+    (await encryptConfigDrivenValue(
+      request,
+      encryptValue
+    )) as ConfigDrivenBankAccountRequest
   );
-  const encryptedValues = Object.fromEntries(encryptedEntries);
-  const encryptedAccountNumber = encryptedValues.accountNumber;
+  const encryptedAccountNumber = encryptedRequest.accountNumber;
 
   return {
-    ...request,
-    ...encryptedValues,
+    ...encryptedRequest,
     ...(typeof encryptedAccountNumber === 'string' &&
     encryptedAccountNumber.trim()
       ? {accountNumberReEntered: encryptedAccountNumber}

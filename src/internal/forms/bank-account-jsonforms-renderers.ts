@@ -1,4 +1,12 @@
-import {or, rankWith, scopeEndsWith} from '@jsonforms/core';
+import {
+  and,
+  isControl,
+  or,
+  rankWith,
+  scopeEndsWith,
+  type ControlElement,
+  type Tester,
+} from '@jsonforms/core';
 import {
   JsonFormsControl,
   litRenderers,
@@ -274,9 +282,17 @@ export const bankAccountJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] 
 // until the instrument schema carries a `writeOnly`/`x-sensitive` flag.
 const CONFIG_DRIVEN_SENSITIVE_SCOPES = [
   'accountNumber',
+  'iban',
   'bsbCode',
   'interacAccount',
 ];
+
+const scopeEndsWithCaseInsensitive = (expected: string): Tester =>
+  and(isControl, (uischema) =>
+    (uischema as ControlElement).scope
+      .toLowerCase()
+      .endsWith(expected.toLowerCase())
+  );
 
 export const configDrivenBankAccountJsonFormsRenderers: LitJsonFormsRendererRegistryEntry[] =
   [
@@ -285,7 +301,9 @@ export const configDrivenBankAccountJsonFormsRenderers: LitJsonFormsRendererRegi
       tester: rankWith(
         20,
         or(
-          ...CONFIG_DRIVEN_SENSITIVE_SCOPES.map((scope) => scopeEndsWith(scope))
+          ...CONFIG_DRIVEN_SENSITIVE_SCOPES.map((scope) =>
+            scopeEndsWithCaseInsensitive(scope)
+          )
         )
       ),
       renderer: 'jsonforms-lit-sensitive-text-control',
