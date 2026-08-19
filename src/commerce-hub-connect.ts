@@ -107,6 +107,7 @@ import {
   writeOtpDigits,
 } from './internal/forms/otp-form-state.js';
 import {
+  REQUIRED_INFO_DOCUMENT_ACCEPT,
   REQUIRED_INFO_SSN_SEGMENT_LENGTHS,
   hasRequiredInfoFile,
   hasRequiredInfoTextValue,
@@ -115,6 +116,7 @@ import {
   requiredInfoSsnSegments,
   storeRequiredInfoFile,
   storeRequiredInfoValue,
+  validateRequiredInfoDocumentFileContent,
   validateRequiredInfoSsn,
 } from './internal/forms/required-info-form-state.js';
 import {
@@ -188,6 +190,7 @@ import type {
   PaymentMethod,
   PaymentMethodsScreenCopy,
   PaymentSource,
+  RequiredInfoFileErrors,
   RequiredInfoFileNames,
   RequiredInfoFiles,
   RequiredInfoValues,
@@ -919,6 +922,9 @@ export class CommerceHubConnect extends LitElement {
   private requiredInfoValidationAttempted = false;
 
   private requiredInfoFiles: RequiredInfoFiles = {};
+
+  @state()
+  private requiredInfoFileErrors: RequiredInfoFileErrors = {};
 
   private pendingRequiredInfoDocKey?: string;
 
@@ -2075,6 +2081,7 @@ export class CommerceHubConnect extends LitElement {
                 <input
                   class="required-info-file-input"
                   type="file"
+                  accept=${REQUIRED_INFO_DOCUMENT_ACCEPT}
                   data-required-info-file-input="true"
                   hidden
                 />
@@ -3785,7 +3792,7 @@ export class CommerceHubConnect extends LitElement {
       );
 
     if (requiredInfoFileInput) {
-      this.storeRequiredInfoSelectedFile(requiredInfoFileInput.files?.[0]);
+      void this.storeRequiredInfoSelectedFile(requiredInfoFileInput.files?.[0]);
       requiredInfoFileInput.value = '';
       return;
     }
@@ -6203,6 +6210,7 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoValues = {};
     this.requiredInfoFileNames = {};
     this.requiredInfoFiles = {};
+    this.requiredInfoFileErrors = {};
     this.requiredInfoSubmitError = undefined;
     this.requiredInfoValidationAttempted = false;
     this.pendingRequiredInfoDocKey = undefined;
@@ -6213,6 +6221,7 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoValues = {};
     this.requiredInfoFileNames = {};
     this.requiredInfoFiles = {};
+    this.requiredInfoFileErrors = {};
     this.requiredInfoSubmitError = undefined;
     this.requiredInfoValidationAttempted = false;
     this.pendingRequiredInfoDocKey = undefined;
@@ -6235,7 +6244,7 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoSubmitError = undefined;
   }
 
-  private storeRequiredInfoSelectedFile(file?: File) {
+  private async storeRequiredInfoSelectedFile(file?: File) {
     const source = this.requiredInfoSource;
 
     if (!source || !file) {
@@ -6245,6 +6254,20 @@ export class CommerceHubConnect extends LitElement {
 
     const key =
       this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
+    const fileTypeError = await validateRequiredInfoDocumentFileContent(file);
+
+    if (this.requiredInfoSource !== source) {
+      return;
+    }
+
+    if (fileTypeError) {
+      this.requiredInfoFileErrors = {
+        ...this.requiredInfoFileErrors,
+        [key]: fileTypeError,
+      };
+      this.pendingRequiredInfoDocKey = undefined;
+      return;
+    }
 
     const nextState = storeRequiredInfoFile({
       files: this.requiredInfoFiles,
@@ -6255,6 +6278,11 @@ export class CommerceHubConnect extends LitElement {
 
     this.requiredInfoFiles = nextState.files;
     this.requiredInfoFileNames = nextState.fileNames;
+
+    const {[key]: _removedFileError, ...remainingFileErrors} =
+      this.requiredInfoFileErrors;
+    this.requiredInfoFileErrors = remainingFileErrors;
+
     this.requiredInfoSubmitError = undefined;
     this.pendingRequiredInfoDocKey = undefined;
   }
@@ -6284,6 +6312,13 @@ export class CommerceHubConnect extends LitElement {
     doc: RequiredInfoDoc,
     index: number
   ): string | undefined {
+    const fileError =
+      this.requiredInfoFileErrors[requiredInfoDocKey(doc, index)];
+
+    if (fileError) {
+      return fileError;
+    }
+
     return this.requiredInfoValidationAttempted
       ? this.requiredInfoValidationError(doc, index)
       : undefined;
@@ -6293,6 +6328,13 @@ export class CommerceHubConnect extends LitElement {
     doc: RequiredInfoDoc,
     index: number
   ): string | undefined {
+    const key = requiredInfoDocKey(doc, index);
+    const fileError = this.requiredInfoFileErrors[key];
+
+    if (fileError) {
+      return fileError;
+    }
+
     const hasValue = this.hasRequiredInfoValue(doc, index);
 
     if (!hasValue) {
@@ -6303,7 +6345,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
       return validateRequiredInfoSsn(
-        this.requiredInfoValues[requiredInfoDocKey(doc, index)] ?? ''
+        this.requiredInfoValues[key] ?? ''
       );
     }
 
@@ -6417,6 +6459,7 @@ export class CommerceHubConnect extends LitElement {
         this.requiredInfoValues = {};
         this.requiredInfoFileNames = {};
         this.requiredInfoFiles = {};
+        this.requiredInfoFileErrors = {};
         this.requiredInfoValidationAttempted = false;
         return;
       }

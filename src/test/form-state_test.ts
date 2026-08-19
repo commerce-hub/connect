@@ -41,11 +41,15 @@ import {
 import {
   hasRequiredInfoFile,
   hasRequiredInfoTextValue,
+  hasValidRequiredInfoDocumentSignature,
+  isAllowedRequiredInfoDocumentFile,
   normalizeRequiredInfoSsn,
   requiredInfoSsnSegmentMaxLength,
   requiredInfoSsnSegments,
   storeRequiredInfoFile,
   storeRequiredInfoValue,
+  validateRequiredInfoDocumentFile,
+  validateRequiredInfoDocumentFileContent,
   validateRequiredInfoSsn,
 } from '../internal/forms/required-info-form-state.js';
 import {
@@ -503,8 +507,8 @@ suite('form state models', () => {
       'SOCIAL_SECURITY_NUMBER-0',
       '123'
     );
-    const file = new File(['synthetic'], 'synthetic-document.txt', {
-      type: 'text/plain',
+    const file = new File(['synthetic'], 'synthetic-document.pdf', {
+      type: 'application/pdf',
     });
     const fileState = storeRequiredInfoFile({
       files: {},
@@ -527,6 +531,59 @@ suite('form state models', () => {
     assert.isUndefined(validateRequiredInfoSsn('123456789'));
     assert.isTrue(hasRequiredInfoTextValue(values, 'SOCIAL_SECURITY_NUMBER-0'));
     assert.isTrue(hasRequiredInfoFile(fileState.files, 'DOCUMENT-0'));
-    assert.equal(fileState.fileNames['DOCUMENT-0'], 'synthetic-document.txt');
+    assert.equal(fileState.fileNames['DOCUMENT-0'], 'synthetic-document.pdf');
+  });
+
+  test('accepts only PDF, JPEG, and PNG document uploads', () => {
+    const pdf = new File(['%PDF'], 'statement.pdf', {
+      type: 'application/pdf',
+    });
+    const jpeg = new File(['jpeg'], 'letter.jpeg', {type: 'image/jpeg'});
+    const png = new File(['png'], 'check.png', {type: 'image/png'});
+    const text = new File(['text'], 'statement.txt', {type: 'text/plain'});
+    const noMimeType = new File(['jpg'], 'check.JPG', {type: ''});
+    const noMimeTypeUnknownExtension = new File(['exe'], 'malware.exe', {
+      type: '',
+    });
+
+    assert.isTrue(isAllowedRequiredInfoDocumentFile(pdf));
+    assert.isTrue(isAllowedRequiredInfoDocumentFile(jpeg));
+    assert.isTrue(isAllowedRequiredInfoDocumentFile(png));
+    assert.isTrue(isAllowedRequiredInfoDocumentFile(noMimeType));
+    assert.isFalse(isAllowedRequiredInfoDocumentFile(text));
+    assert.isFalse(isAllowedRequiredInfoDocumentFile(noMimeTypeUnknownExtension));
+
+    assert.isUndefined(validateRequiredInfoDocumentFile(pdf));
+    assert.equal(
+      validateRequiredInfoDocumentFile(text),
+      'Upload a PDF, JPEG, or PNG file.'
+    );
+  });
+
+  test('rejects files whose content does not match their claimed type', async () => {
+    const realPdf = new File(['%PDF-1.4 synthetic contents'], 'statement.pdf', {
+      type: 'application/pdf',
+    });
+    const realPng = new File(
+      [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])],
+      'check.png',
+      {type: 'image/png'}
+    );
+    // A zip archive (starts with "PK\x03\x04") renamed to claim a .pdf/MIME type.
+    const zipRenamedToPdf = new File(
+      [new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3])],
+      'malware.pdf',
+      {type: 'application/pdf'}
+    );
+
+    assert.isTrue(await hasValidRequiredInfoDocumentSignature(realPdf));
+    assert.isTrue(await hasValidRequiredInfoDocumentSignature(realPng));
+    assert.isFalse(await hasValidRequiredInfoDocumentSignature(zipRenamedToPdf));
+
+    assert.isUndefined(await validateRequiredInfoDocumentFileContent(realPdf));
+    assert.equal(
+      await validateRequiredInfoDocumentFileContent(zipRenamedToPdf),
+      'Upload a PDF, JPEG, or PNG file.'
+    );
   });
 });

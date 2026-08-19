@@ -146,6 +146,75 @@ suite('manual bank account request', () => {
     assert.deepEqual(request, original);
   });
 
+  test('converts a top-level iban into an encrypted ACH-style account number, leaving a nested iban encrypted in place', async () => {
+    const request = {
+      ...createConfigDrivenBankAccountRequest({
+        data: {
+          accountHolderName: 'Ada Lovelace',
+          iban: 'FR43435435435345',
+        },
+        schema: schema({bavSupportedCode: 'EUR-ACH-P'}),
+        addressSelection: {kind: 'new'},
+        id: 'source-id',
+      }),
+      bankAccount: {iban: 'FR43435435435345'},
+    };
+
+    const encrypted = await encryptConfigDrivenBankAccountRequest(
+      request,
+      encryptValue
+    );
+
+    assert.notProperty(encrypted, 'iban');
+    assert.equal(encrypted.accountType, 'IBAN');
+    assert.equal(encrypted.accountIdentificationNumberType, 'IBAN');
+    assert.equal(encrypted.accountNumber, 'encrypted:FR43435435435345');
+    assert.equal(
+      encrypted.accountNumberReEntered,
+      'encrypted:FR43435435435345'
+    );
+    assert.deepEqual(
+      (encrypted.bankAccount as Record<string, unknown>).iban,
+      'encrypted:FR43435435435345'
+    );
+  });
+
+  test('converts an uppercase IBAN field into an encrypted ACH-style account number', async () => {
+    const request = createConfigDrivenBankAccountRequest({
+      data: {
+        accountHolderName: 'test Name',
+        IBAN: 'FR7617515900001234567890135',
+        address: {id: 'KN9AUFWA'},
+      },
+      schema: schema({
+        bavSupportedCode: 'EUR-IBAN-B',
+        productId: 'POIBAN',
+        countryCode: 'DE',
+        currencyCode: 'EUR',
+      }),
+      addressSelection: {kind: 'existing', id: 'KN9AUFWA'},
+      id: 'source-id',
+    });
+
+    const encrypted = await encryptConfigDrivenBankAccountRequest(
+      request,
+      encryptValue
+    );
+
+    assert.notProperty(encrypted, 'IBAN');
+    assert.notProperty(encrypted, 'iban');
+    assert.equal(encrypted.accountType, 'IBAN');
+    assert.equal(encrypted.accountIdentificationNumberType, 'IBAN');
+    assert.equal(
+      encrypted.accountNumber,
+      'encrypted:FR7617515900001234567890135'
+    );
+    assert.equal(
+      encrypted.accountNumberReEntered,
+      'encrypted:FR7617515900001234567890135'
+    );
+  });
+
   test('maps configured address fields to a billing address', () => {
     assert.deepEqual(
       createManualBankBillingAddress(

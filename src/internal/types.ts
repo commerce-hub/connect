@@ -199,6 +199,8 @@ export type RequiredInfoFiles = Record<string, File>;
 
 export type RequiredInfoFileNames = Record<string, string>;
 
+export type RequiredInfoFileErrors = Record<string, string>;
+
 export interface OtpScreenModel {
   status: Extract<
     InteractionFlowStatus,
