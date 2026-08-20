@@ -285,6 +285,33 @@ const addRequiredPath = (
   });
 };
 
+const ensureRequiredStringValidation = (
+  root: NormalizedInstrumentSchema,
+  path: string[]
+): void => {
+  let parent = root;
+
+  path.slice(0, -1).forEach((segment) => {
+    parent = parent.properties[segment] as NormalizedInstrumentSchema;
+  });
+
+  const property = parent.properties[path[path.length - 1]];
+
+  if (
+    !property ||
+    property.type !== 'string' ||
+    property.minLength !== undefined
+  ) {
+    return;
+  }
+
+  property.minLength = 1;
+  property['x-errorMessages'] = {
+    ...property['x-errorMessages'],
+    minLength: property['x-errorMessages']?.required,
+  };
+};
+
 export const normalizeInstrumentSchema = (
   schema: ConfigInstrumentSchema,
   interactionCountry?: string
@@ -304,7 +331,10 @@ export const normalizeInstrumentSchema = (
   }
 
   for (const path of schema.required) {
-    addRequiredPath(normalized, splitPropertyPath(path));
+    const propertyPath = splitPropertyPath(path);
+
+    addRequiredPath(normalized, propertyPath);
+    ensureRequiredStringValidation(normalized, propertyPath);
   }
 
   return normalized as JsonSchema;
@@ -592,7 +622,18 @@ export const createInstrumentSchemaErrorTranslator = (
         | Record<string, string | undefined>
         | undefined
     )?.[error.keyword];
+    const requiredMessage = (
+      messagesByPointer.get(pointer) as
+        | Record<string, string | undefined>
+        | undefined
+    )?.required;
 
-    return customMessage ?? defaultErrorTranslator(error, translate, uischema);
+    return (
+      customMessage ??
+      (error.keyword === 'minLength' && error.params.limit === 1
+        ? requiredMessage
+        : undefined) ??
+      defaultErrorTranslator(error, translate, uischema)
+    );
   };
 };
