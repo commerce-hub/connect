@@ -7598,7 +7598,7 @@ const resolvePayByBankOptions = (
     ...apiCredentials,
     ...(preset
       ? {
-          paymentSdkUrl: payByBankSdkUrl(baseURL),
+          paymentSdkUrl: payByBankSdkUrl(preset),
           environment: PAY_BY_BANK_ENVIRONMENTS[preset],
         }
       : baseURL && !definedOverrides.paymentSdkUrl
