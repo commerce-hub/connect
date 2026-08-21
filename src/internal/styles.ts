@@ -437,6 +437,19 @@ export const primitiveStyles = css`
     cursor: pointer;
   }
 
+  .embedded-payment-radio-trigger-selected {
+    border-left-width: 0.1875rem;
+    border-left-color: var(--chc-success);
+  }
+
+  .embedded-payment-radio-selected-check {
+    flex: 0 0 auto;
+    color: var(--chc-success);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
   .embedded-payment-radio-trigger:focus-visible {
     border-color: var(--chc-primary);
     outline: 0.1875rem solid var(--chc-focus-ring);

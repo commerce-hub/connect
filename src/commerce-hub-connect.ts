@@ -516,6 +516,8 @@ const DEFAULT_PAYMENT_SDK_BRANDING: Required<PaymentSdkAppearanceBranding> = {
 };
 
 const VERIFICATION_OVERLAY_MIN_DURATION_MS = 2000;
+const AUTO_SEND_INITIAL_OTP = true;
+const initialOtpInteractionIds = new Set<string>();
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const FONT_FAMILY_PROPERTY = '--chc-font-family';
 const EMBEDDED_ADD_PAYMENT_OPTION_VALUE = '__chc_add_payment__';
@@ -722,6 +724,9 @@ export class CommerceHubConnect extends LitElement {
 
   @state()
   private pendingAction?: FlowActionName;
+
+  @state()
+  private initialOtpSendPending = false;
 
   @state()
   private minimumVerificationOverlayAction?: VerificationOverlayAction;
@@ -993,6 +998,9 @@ export class CommerceHubConnect extends LitElement {
 
     if (changedProperties.has('interactionResponse')) {
       void this.refreshPaymentSourcesFromInteraction();
+      if (AUTO_SEND_INITIAL_OTP) {
+        this.sendInitialOtpIfNeeded();
+      }
     }
 
     this.emitScreenLoadEvent();
@@ -1020,7 +1028,9 @@ export class CommerceHubConnect extends LitElement {
         @blur=${this.handleFocusLost}
       >
         <span class="screen-reader-status" role="status" aria-live="polite"
-          >${flowActionLiveMessage(this.pendingAction)}</span
+          >${flowActionLiveMessage(
+            this.initialOtpSendPending ? undefined : this.pendingAction
+          )}</span
         >
         ${this.embeddedAddPaymentDialogActive
           ? html`
@@ -1302,7 +1312,8 @@ export class CommerceHubConnect extends LitElement {
   ): TemplateResult {
     const copy = resolveOtpCopy(this.designConfig);
     const isSubmitting = this.pendingAction === 'verify-otp';
-    const isResending = this.pendingAction === 'resend-otp';
+    const isResending =
+      this.pendingAction === 'resend-otp' && !this.initialOtpSendPending;
     const destination = resolveOtpDestination(this.interactionResponse);
     let overlay: TemplateResult | undefined;
 
@@ -1606,7 +1617,9 @@ export class CommerceHubConnect extends LitElement {
         part="embedded-payment-method-list"
       >
         <button
-          class="embedded-payment-radio-trigger"
+          class=${selectedSourceId
+            ? 'embedded-payment-radio-trigger embedded-payment-radio-trigger-selected'
+            : 'embedded-payment-radio-trigger'}
           type="button"
           data-action="toggle-embedded-payment-selector"
           aria-haspopup=${listboxPopup}
@@ -1648,6 +1661,13 @@ export class CommerceHubConnect extends LitElement {
                 : 'Choose a saved card or bank account'}
             </span>
           </span>
+          ${selectedSourceId
+            ? html`<span
+                class="embedded-payment-radio-selected-check"
+                aria-hidden="true"
+                >✓</span
+              >`
+            : ''}
           <span class="embedded-payment-radio-chevron" aria-hidden="true">⌄</span>
           `}
         </button>
@@ -5638,7 +5658,7 @@ export class CommerceHubConnect extends LitElement {
     }
   }
 
-  private async resendOtp() {
+  private async resendOtp(initialSend = false) {
     if (this.pendingAction === 'resend-otp') {
       return;
     }
@@ -5649,6 +5669,7 @@ export class CommerceHubConnect extends LitElement {
       return;
     }
 
+    this.initialOtpSendPending = initialSend;
     this.pendingAction = 'resend-otp';
 
     try {
@@ -5662,8 +5683,24 @@ export class CommerceHubConnect extends LitElement {
     } catch (cause) {
       void cause;
     } finally {
+      this.initialOtpSendPending = false;
       this.pendingAction = undefined;
     }
+  }
+
+  private sendInitialOtpIfNeeded() {
+    const interactionId = this.interactionResponse?.interactionId;
+
+    if (
+      this.interactionResponse?.status !== 'OTP_VALIDATION_PENDING' ||
+      !interactionId ||
+      initialOtpInteractionIds.has(interactionId)
+    ) {
+      return;
+    }
+
+    initialOtpInteractionIds.add(interactionId);
+    void this.resendOtp(true);
   }
 
   private async attachPaymentSource(paymentSourceId: string) {

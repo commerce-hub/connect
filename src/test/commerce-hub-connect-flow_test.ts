@@ -7014,27 +7014,58 @@ suite('commerce-hub-connect flow', () => {
       },
     });
 
+    await waitForRequest(requests, '/interaction/otp/send/email', 'POST');
     await clickAction(el, 'resend-otp');
+    await waitFor(() => requests.length === 2, 'manual OTP resend was not sent');
 
-    assert.lengthOf(requests, 1);
+    assert.lengthOf(requests, 2);
     assert.equal(
-      requests[0].url,
+      requests[1].url,
       `${TEST_COMMERCE_HUB_BASE_URL}/interaction/otp/send/email`
     );
-    assert.equal(requests[0].method, 'POST');
+    assert.equal(requests[1].method, 'POST');
     assert.equal(
-      requests[0].headers.get('x-interaction-id'),
+      requests[1].headers.get('x-interaction-id'),
       'interaction-otp'
     );
     assert.equal(
-      requests[0].headers.get('Authorization'),
-      'Bearer gateway-access-token-1'
+      requests[1].headers.get('Authorization'),
+      'Bearer gateway-access-token-2'
     );
-    assert.equal(requests[0].bodyText, '');
+    assert.equal(requests[1].bodyText, '');
     assert.equal(
       el.interactionResponse?.oauth?.access_token,
       'gateway-access-token-2'
     );
+  });
+
+  test('initial email OTP send does not show the sending overlay or loader', async () => {
+    const pendingOtp = deferredResponse();
+
+    window.fetch = async () => pendingOtp.promise;
+
+    const el = await renderConnect({
+      interactionId: 'interaction-initial-otp',
+      status: 'OTP_VALIDATION_PENDING',
+      email: 'shopper@example.com',
+    });
+
+    await flushElement(el);
+
+    assert.notExists(el.shadowRoot!.querySelector('.widget-loading-overlay'));
+    assert.notInclude(el.shadowRoot!.textContent ?? '', 'Sending code');
+
+    pendingOtp.resolve(
+      new Response(
+        JSON.stringify({
+          interactionId: 'interaction-initial-otp',
+          status: 'OTP_VALIDATION_PENDING',
+          email: 'shopper@example.com',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      )
+    );
+    await flushElement(el);
   });
 
   test('custom baseURL routes direct SDK-managed CommerceHub JSON requests to the custom origin', async () => {
@@ -7880,6 +7911,8 @@ suite('commerce-hub-connect flow', () => {
       status: 'PAYMENT_SOURCE_REQUESTED',
       paymentSources: [],
     });
+    el.presentationMode = 'embedded';
+    await flushElement(el);
 
     await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
@@ -7889,6 +7922,7 @@ suite('commerce-hub-connect flow', () => {
       'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A'
     );
     assert.equal(initConfig?.configId, 'cce84049-0940-4926-9a54-9eaca0c09830');
+    assert.isTrue(initConfig?.embed);
     assert.deepEqual(initConfig?.appearance, {
       branding: {
         backgroundColor: '#ffffff',
