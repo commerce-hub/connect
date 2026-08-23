@@ -256,4 +256,3 @@ Expected: only design, plan, resolver/model, PBB initialization, and related tes
 git add docs/superpowers/plans/2026-08-23-pbb-kyc-customer-details.md
 git commit -m "Add PBB KYC implementation plan"
 ```
-
