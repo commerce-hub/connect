@@ -129,6 +129,7 @@ import {
   validateTransferDraft,
 } from './internal/forms/transfer-form-state.js';
 import {resolveAddPaymentTenders} from './internal/add-payment-tenders.js';
+import {resolvePayByBankCustomerDetails} from './internal/pay-by-bank-customer-details.js';
 import {
   resolvePaymentMethodIconDataUri,
   resolvePaymentMethodIconName,
@@ -475,6 +476,10 @@ type PaymentSdkInitConfiguration = {
   aggregatorSessionId?: string;
   publicKey?: string;
   pToken?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
   embed?: boolean;
   width?: string | number;
   height?: string | number;
@@ -6745,6 +6750,9 @@ export class CommerceHubConnect extends LitElement {
       this.baseURL,
       this.interactionResponse
     );
+    const customerDetails = resolvePayByBankCustomerDetails(
+      this.interactionResponse?.entityData
+    );
 
     await loadPaymentSdkScript(payByBank.paymentSdkUrl);
 
@@ -6784,6 +6792,7 @@ export class CommerceHubConnect extends LitElement {
         publicKey,
         pToken,
         aggregatorSessionId,
+        ...customerDetails,
         containerId,
         embed:
           this.presentationMode === 'embedded' &&

@@ -44,6 +44,20 @@ export type PaymentSource = GeneratedPaymentSource & {
   isDefault?: boolean;
 };
 
+export interface InteractionEntityData {
+  partyId?: string;
+  email?: string;
+  phoneDetails?: {
+    countryCode?: string;
+    phoneNumber?: string;
+    verifiedTimestamp?: number;
+  };
+  firstName?: string;
+  lastName?: string;
+  countryCode?: string;
+  businessName?: string;
+}
+
 export type InteractionResponse = Omit<
   GeneratedInteractionResponse,
   'status' | 'paymentSources' | 'selectedSource'
@@ -54,6 +68,7 @@ export type InteractionResponse = Omit<
   oauth?: InteractionOAuth;
   apiKey?: string;
   configurationId?: string;
+  entityData?: InteractionEntityData;
 };
 
 export type NativePaymentSource = Extract<

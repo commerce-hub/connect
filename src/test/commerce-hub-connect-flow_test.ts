@@ -907,6 +907,10 @@ interface TestPaymentSdkInitConfiguration {
   aggregatorSessionId?: string;
   publicKey?: string;
   pToken?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
   embed?: boolean;
   width?: string | number;
   height?: string | number;
@@ -7849,6 +7853,10 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(initConfig?.environment, 'sandbox');
     assert.equal(initConfig?.locale, 'en-CA');
     assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
+    assert.notProperty(initConfig, 'firstName');
+    assert.notProperty(initConfig, 'lastName');
+    assert.notProperty(initConfig, 'email');
+    assert.notProperty(initConfig, 'phone');
     assert.isUndefined(initConfig?.embed);
     assert.deepEqual(initConfig?.appearance, {
       branding: {
@@ -7883,6 +7891,53 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.equal(requests[0].credentials, 'include');
 
+  });
+
+  test('passes interaction customer details to Pay by Bank initialization', async () => {
+    let initConfig: TestPaymentSdkInitConfiguration | undefined;
+
+    paymentSdkWindow.PaymentSDK = {
+      init: (configuration) => {
+        initConfig = configuration;
+      },
+      destroy: () => undefined,
+    };
+    window.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          aggregatorSessionId: 'agg-session-1',
+          tokenID: 'access-token-1',
+          pToken: 'p-token-1',
+          publicKey: 'public-key-1',
+        }),
+        {status: 200, headers: {'Content-Type': 'application/json'}}
+      );
+
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      country: 'USA',
+      paymentSources: [],
+      entityData: {
+        firstName: ' John ',
+        lastName: ' Doe ',
+        email: ' john@example.com ',
+        phoneDetails: {countryCode: '+1', phoneNumber: ' 2145550123 '},
+      },
+    });
+
+    await clickAction(el, 'add-pay-by-bank');
+    await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
+
+    assert.include(initConfig, {
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john@example.com',
+      phone: '2145550123',
+    });
+
+    await initConfig!.onEvent({type: 'cancel'});
+    await flushElement(el);
   });
 
   test('add bank account uses built-in Pay by Bank credentials when designConfig omits them', async () => {
