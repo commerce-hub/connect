@@ -19,7 +19,7 @@ The phone country code is deliberately not concatenated. PBB receives only `phon
 
 ## Wallet SDK changes
 
-The checked-in wallet OpenAPI artifacts currently omit `entityData` from `InteractionResponse`, although the latest MPP model includes it. Refresh the wallet OpenAPI schema and generated TypeScript client from the latest MPP contract so the property is represented by generated types rather than a handwritten override.
+The checked-in wallet OpenAPI artifacts currently omit `entityData` from `InteractionResponse`, although the latest MPP model includes it, and MPP core does not provide a checked-in generated OpenAPI artifact to consume. Model the latest `entityData` shape in the wallet's existing `InteractionResponse` compatibility extension, alongside other response additions absent from the older generated snapshot. Do not hand-edit `src/generated/openapi.ts`.
 
 Extend the internal `PaymentSdkInitConfiguration` type with optional `firstName`, `lastName`, `email`, and `phone` properties. Resolve these values from the current interaction response immediately before launching PBB and include them in the existing `PaymentSDK.init` call.
 
@@ -40,4 +40,3 @@ Add focused browser tests around the Pay by Bank initialization boundary:
 - phone mapping uses `phoneNumber` only and excludes `countryCode`.
 
 Run the focused Chromium test while iterating, followed by the repository build, lint, and full test commands before completion where the local environment supports them.
-
