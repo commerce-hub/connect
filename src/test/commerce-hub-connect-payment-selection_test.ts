@@ -715,6 +715,49 @@ suite('commerce-hub-connect payment selection', () => {
     assert.exists(progress?.querySelector('.embedded-attach-spinner'));
   });
 
+  test('embedded radio-list marks only the collapsed selected trigger with an accent check', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-payment',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      allowedTenderTypes: ['CARD'],
+      paymentSources: [
+        {
+          tenderType: 'Card',
+          id: 'card-1',
+          name: 'Corporate card',
+          isDefault: true,
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {id: 'recipient-1', status: 'PROVISIONED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+      ],
+    });
+    el.presentationMode = 'embedded';
+    el.setAttribute('embedded-selector-mode', 'radio-list');
+    await flushElement(el);
+
+    const trigger = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="toggle-embedded-payment-selector"]'
+    )!;
+    assert.isTrue(
+      trigger.classList.contains('embedded-payment-radio-trigger-selected')
+    );
+    assert.exists(
+      trigger.querySelector('.embedded-payment-radio-selected-check')
+    );
+
+    trigger.click();
+    await flushElement(el);
+
+    const selectedOption = el.shadowRoot!.querySelector(
+      '[role="option"][aria-selected="true"]'
+    )!;
+    assert.notExists(
+      selectedOption.querySelector('.embedded-payment-radio-selected-check')
+    );
+  });
+
   test('embedded radio-list arrow keys move focus through payment and Add options', async () => {
     const el = await renderConnect({
       interactionId: 'interaction-payment',
