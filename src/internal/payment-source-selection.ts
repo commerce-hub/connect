@@ -1,4 +1,8 @@
 import type {PaymentSource} from './types.js';
+import {
+  createTranslator,
+  type Translator,
+} from './localization/localization.js';
 
 const requiresRecipientProvisioning = (source: PaymentSource): boolean =>
   ['BankAccount', 'BANK_ACCOUNT', 'Card', 'CARD'].includes(
@@ -36,21 +40,36 @@ export const isPaymentSourceMarkAsDefaultEligible = (
 ): boolean => source.verificationInfo?.status === 'VERIFIED';
 
 export const paymentSourceVerificationLabel = (
-  source: PaymentSource
+  source: PaymentSource,
+  translator: Translator = createTranslator()
 ): string | undefined => {
-  if (source.verificationInfo?.status !== 'VERIFIED') {
-    return undefined;
+  const status = source.verificationInfo?.status;
+
+  if (status === 'UNDER_REVIEW') {
+    return translator.message('status.needsReview');
+  }
+
+  if (status === 'REQUIRE_INFO') {
+    return translator.message('status.needsInfo');
+  }
+
+  if (status === 'DECLINED') {
+    return translator.message('status.cannotUse');
+  }
+
+  if (status !== 'VERIFIED') {
+    return translator.message('status.needsInfo');
   }
 
   if (!requiresRecipientProvisioning(source)) {
-    return 'Verified';
+    return translator.message('status.verified');
   }
 
   const recipientStatus = normalizedRecipientStatus(source);
 
   if (recipientStatus === 'PROVISIONED') {
-    return 'Verified, Provisioned';
+    return translator.message('status.verifiedProvisioned');
   }
 
-  return 'Verified, Pending';
+  return translator.message('status.verifiedPending');
 };

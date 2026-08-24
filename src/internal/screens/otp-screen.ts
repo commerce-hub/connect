@@ -7,9 +7,18 @@ import {
   renderOtpResend,
 } from '../primitives.js';
 import type {OtpScreenModel} from '../types.js';
+import {
+  createTranslator,
+  type Translator,
+} from '../localization/localization.js';
 
-export const defaultOtpSubtitle = (destination?: string): string =>
-  `We sent a one-time code to ${destination ?? 'your contact method'}.`;
+export const defaultOtpSubtitle = (
+  destination?: string,
+  translator: Translator = createTranslator()
+): string =>
+  translator.message('otp.sentTo', {
+    destination: destination ?? translator.message('otp.contactMethod'),
+  });
 
 export const findOtpInput = (event: Event): HTMLInputElement | undefined =>
   event
@@ -39,11 +48,12 @@ export const renderOtpScreen = ({
           })
         : ''}
       ${renderOtpGroup({
-        label: 'Verification code',
+        label: copy.verificationCodeLabel ?? 'Verification code',
         value,
         length,
         disabled: submitting,
         error: isFailed,
+        digitLabel: copy.digitLabel,
       })}
       <div class="primitive-footer">
         ${renderButton({

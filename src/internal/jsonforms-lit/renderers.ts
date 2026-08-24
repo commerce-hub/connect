@@ -210,6 +210,9 @@ export class JsonFormsSensitiveTextControlRenderer extends JsonFormsTextControlR
       return html``;
     }
 
+    const revealLabels = props.config as
+      | {revealShowLabel?: string; revealHideLabel?: string}
+      | undefined;
     const hasErrors = Array.isArray(props.errors)
       ? props.errors.length > 0
       : Boolean(props.errors);
@@ -260,7 +263,10 @@ export class JsonFormsSensitiveTextControlRenderer extends JsonFormsTextControlR
           <button
             class="field-reveal-toggle"
             type="button"
-            aria-label=${revealFieldButtonLabel(this.revealed)}
+            aria-label=${revealFieldButtonLabel(this.revealed, {
+              show: revealLabels?.revealShowLabel ?? 'Show value',
+              hide: revealLabels?.revealHideLabel ?? 'Hide value',
+            })}
             aria-pressed=${this.revealed ? 'true' : 'false'}
             aria-controls=${props.id}
             ?disabled=${disabled}

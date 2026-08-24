@@ -27,6 +27,7 @@ import {
   buildBankAccountEncryptionErrorMessage,
   createBankAccountDraft,
   createBankAccountEncryptionState,
+  createLegacyBankAccountFormSchema,
   hasRequiredBankAccountDraftValues,
   isEncryptedBankAccountDisplayValue,
   isSensitiveBankAccountField,
@@ -131,6 +132,7 @@ import {
 import {resolveAddPaymentTenders} from './internal/add-payment-tenders.js';
 import {
   createTranslator,
+  resolveSupportedLocale,
   type Translator,
 } from './internal/localization/localization.js';
 import {resolvePayByBankCustomerDetails} from './internal/pay-by-bank-customer-details.js';
@@ -451,6 +453,7 @@ type PaymentSourceToPaymentMethodOptions = {
   isDefault?: boolean;
   nativeBalances?: NativeAccountBalanceMap;
   nativeBalanceLoadingSourceIds?: readonly string[];
+  translator?: Translator;
 };
 type VerificationOverlayAction =
   | 'verify-payment-source'
@@ -480,10 +483,12 @@ type PaymentSdkInitConfiguration = {
   aggregatorSessionId?: string;
   publicKey?: string;
   pToken?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
+  customer?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+  };
   embed?: boolean;
   width?: string | number;
   height?: string | number;
@@ -530,8 +535,6 @@ const initialOtpInteractionIds = new Set<string>();
 const PAY_BY_BANK_PROVIDER_CONTAINER_ID = 'commerce-hub-pbb-provider';
 const FONT_FAMILY_PROPERTY = '--chc-font-family';
 const EMBEDDED_ADD_PAYMENT_OPTION_VALUE = '__chc_add_payment__';
-const NO_INSTRUMENT_SCHEMAS_ERROR =
-  'No instrument schemas are available for this country. Try again.';
 const LEGACY_BANK_ACCOUNT_UI_SCHEMA = generateDefaultUISchema(
   legacyBankAccountFormSchema as JsonSchema,
   'VerticalLayout'
@@ -547,10 +550,6 @@ class CommerceHubBankAccountJsonForms extends JsonFormsLit {
 void CommerceHubBankAccountJsonForms;
 const PAYMENT_SELECTION_READY_STATUS = 'OTP_VALIDATION_SUCCESS' as const;
 const LEGACY_PAYMENT_SELECTION_READY_STATUS = 'PAYMENT_SOURCE_REQUESTED';
-const BILLING_COUNTRY_OPTIONS = [
-  {value: '', label: 'Select country or region'},
-  {value: 'US', label: 'United States'},
-];
 const BILLING_STATE_OPTIONS = [
   ['AL', 'Alabama'],
   ['AK', 'Alaska'],
@@ -604,10 +603,6 @@ const BILLING_STATE_OPTIONS = [
   ['WY', 'Wyoming'],
   ['DC', 'District of Columbia'],
 ].map(([value, label]) => ({value, label}));
-const BILLING_STATE_SELECT_OPTIONS = [
-  {value: '', label: 'Select state'},
-  ...BILLING_STATE_OPTIONS,
-];
 const DEFAULT_PAY_BY_BANK_OPTIONS = {
   apiKey: 'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A',
   configId: 'cce84049-0940-4926-9a54-9eaca0c09830',
@@ -955,11 +950,57 @@ export class CommerceHubConnect extends LitElement {
     return createTranslator(this.locale);
   }
 
+  private get localizedLegacyBankAccountFormSchema() {
+    return createLegacyBankAccountFormSchema(this.translator);
+  }
+
+  private relocalizeSdkValidationErrors() {
+    if (Object.keys(this.cardDraftErrors).length > 0) {
+      const draft = normalizeCardDraft(this.cardDraft);
+      this.cardDraftErrors = {
+        ...validateCardDraft(draft, this.translator),
+        ...validateCardEncryptionReadiness(
+          draft,
+          this.cardEncryption,
+          this.translator
+        ),
+      };
+    }
+
+    if (Object.keys(this.transferDraftErrors).length > 0) {
+      this.transferDraftErrors = validateTransferDraft(
+        normalizeTransferDraft(this.transferDraft),
+        transferPaymentSourcesFromInteractionResponse(this.interactionResponse),
+        this.translator
+      );
+    }
+
+    if (Object.keys(this.legacyBankAccountDraftErrors).length > 0) {
+      this.legacyBankAccountDraftErrors = validateBankAccountDraft(
+        normalizeBankAccountDraftForValidation(
+          this.legacyBankAccountDraft,
+          this.legacyBankAccountEncryption
+        ),
+        this.localizedLegacyBankAccountFormSchema
+      );
+    }
+
+    if (Object.keys(this.requiredInfoFileErrors).length > 0) {
+      this.requiredInfoFileErrors = Object.fromEntries(
+        Object.keys(this.requiredInfoFileErrors).map((key) => [
+          key,
+          this.translator.message('document.fileTypeError'),
+        ])
+      );
+    }
+  }
+
   protected override willUpdate(changedProperties: PropertyValues<this>) {
     if (changedProperties.has('locale')) {
       const translator = this.translator;
       this.lang = translator.locale;
       this.dir = translator.direction;
+      this.relocalizeSdkValidationErrors();
     }
 
     if (
@@ -1007,6 +1048,17 @@ export class CommerceHubConnect extends LitElement {
   }
 
   protected override updated(changedProperties: PropertyValues<this>) {
+    const previousLocale = changedProperties.get('locale');
+    if (
+      previousLocale !== undefined &&
+      resolveSupportedLocale(String(previousLocale)) !==
+        this.translator.locale &&
+      this.bankFlowScreen === 'provider'
+    ) {
+      this.cancelPayByBankProvider();
+      void this.startPayByBankFlow();
+    }
+
     if (changedProperties.has('designConfig')) {
       this.syncDesignConfigStyles();
     }
@@ -1052,7 +1104,8 @@ export class CommerceHubConnect extends LitElement {
       >
         <span class="screen-reader-status" role="status" aria-live="polite"
           >${flowActionLiveMessage(
-            this.initialOtpSendPending ? undefined : this.pendingAction
+            this.initialOtpSendPending ? undefined : this.pendingAction,
+            this.translator
           )}</span
         >
         ${this.embeddedAddPaymentDialogActive
@@ -1063,14 +1116,18 @@ export class CommerceHubConnect extends LitElement {
                 data-embedded-add-payment-dialog
                 role="dialog"
                 aria-modal="true"
-                aria-label="Add payment method"
+                aria-label=${this.translator.message(
+                  'actions.addPaymentMethod'
+                )}
               >
                 <div class="embedded-add-payment-dialog-content">
                   ${currentScreen}
                   <button
                     class="embedded-add-payment-dialog-close"
                     type="button"
-                    aria-label="Close add payment method dialog"
+                    aria-label=${this.translator.message(
+                      'actions.closeAddPaymentMethod'
+                    )}
                     data-action="close-embedded-add-payment-dialog"
                     ?disabled=${Boolean(this.pendingAction)}
                   >
@@ -1228,11 +1285,14 @@ export class CommerceHubConnect extends LitElement {
     ...options
   }: WidgetShellOptions): TemplateResult {
     const minimumOverlay = verificationActionLoadingOverlay(
-      this.minimumVerificationOverlayAction
+      this.minimumVerificationOverlayAction,
+      this.translator
     );
 
     return renderWidgetShell({
       ...options,
+      backLabel: this.translator.message('actions.back'),
+      closeLabel: this.translator.message('actions.close'),
       presentationMode: this.embeddedAddPaymentDialogActive
         ? 'dialog'
         : this.presentationMode,
@@ -1315,15 +1375,16 @@ export class CommerceHubConnect extends LitElement {
 
   private renderMissingInteractionResponseScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Configuration required',
+      title: this.translator.message('common.configurationRequired'),
       showClose: false,
       showDivider: false,
       content: html`
         <div class="payment-flow">
           ${renderAlert({
             variant: 'danger',
-            message:
-              'CommerceHub Connect requires an interaction response before it can load payment methods.',
+            message: this.translator.message(
+              'paymentMethods.missingInteraction'
+            ),
           })}
         </div>
       `,
@@ -1342,19 +1403,20 @@ export class CommerceHubConnect extends LitElement {
 
     if (isSubmitting) {
       overlay = renderWidgetLoadingOverlay({
-        title: 'Verifying code',
-        helper: 'Verifying your code, please wait.',
+        title: this.translator.message('otp.verifyingTitle'),
+        helper: this.translator.message('otp.verifyingHelper'),
       });
     } else if (isResending) {
       overlay = renderWidgetLoadingOverlay({
-        title: 'Sending code',
-        helper: 'Sending a new code, please wait.',
+        title: this.translator.message('otp.sendingTitle'),
+        helper: this.translator.message('otp.sendingHelper'),
       });
     }
 
     return this.renderWidgetShell({
       title: copy.title,
-      subtitle: copy.subtitle ?? defaultOtpSubtitle(destination),
+      subtitle:
+        copy.subtitle ?? defaultOtpSubtitle(destination, this.translator),
       showClose: false,
       showDivider: false,
       busy: isSubmitting || isResending,
@@ -1379,6 +1441,7 @@ export class CommerceHubConnect extends LitElement {
       {
         nativeBalances: this.nativeBalance.balances,
         nativeBalanceLoadingSourceIds: this.nativeBalance.loadingSourceIds,
+        translator: this.translator,
       }
     );
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
@@ -1417,13 +1480,17 @@ export class CommerceHubConnect extends LitElement {
           <div
             class="payment-method-toolbar-skeleton"
             role="status"
-            aria-label="Loading payment method actions"
+            aria-label=${this.translator.message(
+              'paymentMethods.loadingActions'
+            )}
           >
             <span></span><span></span><span></span>
           </div>
         `,
         showClose: false,
-        content: renderPaymentMethodsSkeletonScreen(),
+        content: renderPaymentMethodsSkeletonScreen(
+          this.translator.message('common.loadingPaymentMethods')
+        ),
       });
     }
 
@@ -1447,9 +1514,12 @@ export class CommerceHubConnect extends LitElement {
 
     const toolbar = showTransferAction
       ? html`
-          <div class="widget-toolbar" aria-label="Payment method actions">
+          <div
+            class="widget-toolbar"
+            aria-label=${this.translator.message('paymentMethods.actions')}
+          >
             ${renderTextLinkButton({
-              label: 'Transfer',
+              label: this.translator.message('transfer.title'),
               action: 'open-transfer',
               icon: 'transfer',
               disabled: isPaymentSourceActionPending,
@@ -1464,7 +1534,10 @@ export class CommerceHubConnect extends LitElement {
       headerAction: toolbar,
       showClose: false,
       busy: isPaymentSourceActionPending,
-      overlay: paymentSourceActionLoadingOverlay(this.pendingAction),
+      overlay: paymentSourceActionLoadingOverlay(
+        this.pendingAction,
+        this.translator
+      ),
       content: html`
         ${this.attachmentError
           ? renderAlert({
@@ -1493,7 +1566,7 @@ export class CommerceHubConnect extends LitElement {
           ? html`
               <div
                 class="payment-method-add-footer"
-                aria-label="Payment method actions"
+                aria-label=${this.translator.message('paymentMethods.actions')}
               >
                 ${canSelectPaymentSources
                   ? renderButton({
@@ -1510,7 +1583,9 @@ export class CommerceHubConnect extends LitElement {
                   : ''}
                 ${canAddPaymentSources
                   ? renderButton({
-                      label: 'Add payment method',
+                      label: this.translator.message(
+                        'actions.addPaymentMethod'
+                      ),
                       action: 'open-add-payment-source',
                       icon: 'plus',
                       disabled: isPaymentSourceActionPending,
@@ -1530,7 +1605,7 @@ export class CommerceHubConnect extends LitElement {
     );
 
     return this.renderWidgetShell({
-      title: 'Add payment method',
+      title: this.translator.message('actions.addPaymentMethod'),
       backAction: 'back-to-payment-methods',
       showClose: false,
       content: renderNoSavedPaymentMethodsScreen({
@@ -1560,6 +1635,7 @@ export class CommerceHubConnect extends LitElement {
       {
         nativeBalances: this.nativeBalance.balances,
         nativeBalanceLoadingSourceIds: this.nativeBalance.loadingSourceIds,
+        translator: this.translator,
       }
     );
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
@@ -1603,13 +1679,15 @@ export class CommerceHubConnect extends LitElement {
     canAddPaymentSources = false
   ): TemplateResult {
     const visibleMethods = paymentMethods.filter(
-      (method) =>
-        method.type === 'native' ||
-        method.selectionEligible
+      (method) => method.type === 'native' || method.selectionEligible
     );
-    const selectedSourceId =
-      defaultPaymentSourceIdFromInteractionResponse(this.interactionResponse) ??
-      '';
+    const requestedSelectedSourceId =
+      selectedPaymentSourceIdFromInteractionResponse(this.interactionResponse);
+    const selectedSourceId = visibleMethods.some(
+      (method) => method.id === requestedSelectedSourceId
+    )
+      ? requestedSelectedSourceId ?? ''
+      : '';
     const nativeMethods = visibleMethods.filter(
       (method) => method.type === 'native'
     );
@@ -1666,43 +1744,54 @@ export class CommerceHubConnect extends LitElement {
                     class="embedded-attach-spinner"
                     aria-hidden="true"
                   ></span>
-                  <span>Securing payment method…</span>
+                  <span
+                    >${this.translator.message('paymentMethods.securing')}</span
+                  >
                 </span>
               `
             : html`<span class="embedded-payment-radio-copy">
-            <strong>
-              ${selectedSourceId
-                ? orderedMethods.find((method) => method.id === selectedSourceId)
-                    ?.label ?? 'Selected payment method'
-                : 'Select a payment method'}
-            </strong>
-            <span>
-              ${selectedSourceId
-                ? orderedMethods.find((method) => method.id === selectedSourceId)
-                    ?.last4
-                  ? `Ending in ${visibleMethods.find(
-                      (method) => method.id === selectedSourceId
-                    )?.last4}`
-                  : ''
-                : 'Choose a saved card or bank account'}
-            </span>
-          </span>
-          ${selectedSourceId
-            ? html`<span
-                class="embedded-payment-radio-selected-check"
-                aria-hidden="true"
-                >✓</span
-              >`
-            : ''}
-          <span class="embedded-payment-radio-chevron" aria-hidden="true">⌄</span>
-          `}
+                  <strong>
+                    ${selectedSourceId
+                      ? orderedMethods.find(
+                          (method) => method.id === selectedSourceId
+                        )?.label ??
+                        this.translator.message('paymentMethods.selected')
+                      : this.translator.message('paymentMethods.selectPrompt')}
+                  </strong>
+                  <span>
+                    ${selectedSourceId
+                      ? orderedMethods.find(
+                          (method) => method.id === selectedSourceId
+                        )?.last4
+                        ? this.translator.message('paymentMethods.ending', {
+                            last4:
+                              visibleMethods.find(
+                                (method) => method.id === selectedSourceId
+                              )?.last4 ?? '',
+                          })
+                        : ''
+                      : this.translator.message('paymentMethods.chooseSaved')}
+                  </span>
+                </span>
+                ${selectedSourceId
+                  ? html`<span
+                      class="embedded-payment-radio-selected-check"
+                      aria-hidden="true"
+                      >✓</span
+                    >`
+                  : ''}
+                <span class="embedded-payment-radio-chevron" aria-hidden="true"
+                  >⌄</span
+                > `}
         </button>
         ${this.embeddedPaymentSelectorOpen
           ? html`
               <div
                 class="embedded-payment-radio-popup"
                 role="listbox"
-                aria-label="Fiserv Wallet payment methods"
+                aria-label=${this.translator.message(
+                  'paymentMethods.walletLabel'
+                )}
                 part="embedded-payment-method-popup"
               >
                 <div class="embedded-payment-radio-scroll">
@@ -1725,10 +1814,10 @@ export class CommerceHubConnect extends LitElement {
                   ${orderedMethods.length || canAddPaymentSources
                     ? ''
                     : html`
-              <div class="embedded-payment-radio-empty" role="status">
-                No payment methods
-              </div>
-            `}
+                        <div class="embedded-payment-radio-empty" role="status">
+                          ${this.translator.message('paymentMethods.noMethods')}
+                        </div>
+                      `}
                 </div>
                 ${canAddPaymentSources
                   ? html`
@@ -1748,8 +1837,16 @@ export class CommerceHubConnect extends LitElement {
                           >+</span
                         >
                         <span class="embedded-payment-radio-copy">
-                          <strong>Add payment method</strong>
-                          <span>Add a card or connect a bank account</span>
+                          <strong
+                            >${this.translator.message(
+                              'actions.addPaymentMethod'
+                            )}</strong
+                          >
+                          <span
+                            >${this.translator.message(
+                              'paymentMethods.addDescription'
+                            )}</span
+                          >
                         </span>
                         <span
                           class="embedded-payment-radio-chevron"
@@ -1820,9 +1917,13 @@ export class CommerceHubConnect extends LitElement {
     const eligibleMethods = paymentMethods.filter(
       (method) => method.type === 'native' || method.selectionEligible
     );
-    const selectedSourceId =
-      defaultPaymentSourceIdFromInteractionResponse(this.interactionResponse) ??
-      '';
+    const requestedSelectedSourceId =
+      selectedPaymentSourceIdFromInteractionResponse(this.interactionResponse);
+    const selectedSourceId = eligibleMethods.some(
+      (method) => method.id === requestedSelectedSourceId
+    )
+      ? requestedSelectedSourceId ?? ''
+      : '';
     const nativeMethods = eligibleMethods.filter(
       (method) => method.type === 'native'
     );
@@ -1853,44 +1954,55 @@ export class CommerceHubConnect extends LitElement {
         <select
           class="embedded-payment-select"
           data-embedded-payment-select="true"
-          aria-label="Payment method"
-          ?disabled=${attaching || (!hasPaymentMethods && !canAddPaymentSources)}
+          aria-label=${this.translator.message('paymentMethods.select')}
+          ?disabled=${attaching ||
+          (!hasPaymentMethods && !canAddPaymentSources)}
         >
-        <option value="" ?selected=${!selectedSourceId}>
-          ${hasPaymentMethods ? 'Select payment method' : 'No payment methods'}
-        </option>
-        ${displayedNativeMethods.map(
-          (method) => html`
-            <option
-              value=${method.id}
-              ?selected=${method.id === selectedSourceId}
-              ?disabled=${!method.selectionEligible}
-            >
-              ${[method.label, method.brand, method.last4 && `xx ${method.last4}`]
-                .filter(Boolean)
-                .join(' · ')}
-            </option>
-          `
-        )}
-        ${displayedSavedMethods.map(
-          (method) => html`
-            <option
-              value=${method.id}
-              ?selected=${method.id === selectedSourceId}
-            >
-              ${[method.label, method.brand, method.last4 && `xx ${method.last4}`]
-                .filter(Boolean)
-                .join(' · ')}
-            </option>
-          `
-        )}
-        ${canAddPaymentSources
-          ? html`
-              <option value=${EMBEDDED_ADD_PAYMENT_OPTION_VALUE}>
-                Add payment method
+          <option value="" ?selected=${!selectedSourceId}>
+            ${hasPaymentMethods
+              ? this.translator.message('paymentMethods.selectPrompt')
+              : this.translator.message('paymentMethods.noMethods')}
+          </option>
+          ${displayedNativeMethods.map(
+            (method) => html`
+              <option
+                value=${method.id}
+                ?selected=${method.id === selectedSourceId}
+                ?disabled=${!method.selectionEligible}
+              >
+                ${[
+                  method.label,
+                  method.brand,
+                  method.last4 && `xx ${method.last4}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </option>
             `
-          : ''}
+          )}
+          ${displayedSavedMethods.map(
+            (method) => html`
+              <option
+                value=${method.id}
+                ?selected=${method.id === selectedSourceId}
+              >
+                ${[
+                  method.label,
+                  method.brand,
+                  method.last4 && `xx ${method.last4}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </option>
+            `
+          )}
+          ${canAddPaymentSources
+            ? html`
+                <option value=${EMBEDDED_ADD_PAYMENT_OPTION_VALUE}>
+                  ${this.translator.message('actions.addPaymentMethod')}
+                </option>
+              `
+            : ''}
         </select>
         ${attaching
           ? html`
@@ -1899,12 +2011,9 @@ export class CommerceHubConnect extends LitElement {
                 data-embedded-attach-progress
                 role="status"
                 aria-live="polite"
-                aria-label="Securing payment method"
+                aria-label=${this.translator.message('paymentMethods.securing')}
               >
-                <span
-                  class="embedded-attach-spinner"
-                  aria-hidden="true"
-                ></span>
+                <span class="embedded-attach-spinner" aria-hidden="true"></span>
               </div>
             `
           : ''}
@@ -1914,7 +2023,7 @@ export class CommerceHubConnect extends LitElement {
 
   private renderPaymentSourceRefreshErrorScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Payment methods unavailable',
+      title: this.translator.message('paymentMethods.unavailable'),
       showClose: false,
       content: html`
         <div class="payment-flow">
@@ -1922,11 +2031,11 @@ export class CommerceHubConnect extends LitElement {
             variant: 'danger',
             message:
               this.interactionRefresh.errorMessage ??
-              "We couldn't load payment methods. Try again.",
+              this.translator.message('paymentMethods.loadFailed'),
           })}
           <div class="primitive-footer">
             ${renderButton({
-              label: 'Try again',
+              label: this.translator.message('actions.retry'),
               variant: 'primary',
               action: 'retry-interaction-refresh',
             })}
@@ -1948,9 +2057,9 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return this.renderWidgetShell({
-      title: 'Payment method saved',
+      title: this.translator.message('paymentMethods.saved'),
       headerAction: renderTextLinkButton({
-        label: 'Change',
+        label: this.translator.message('actions.change'),
         action: 'change-payment-source',
         disabled: this.pendingAction === 'attach-payment-source',
       }),
@@ -1961,9 +2070,9 @@ export class CommerceHubConnect extends LitElement {
         this.pendingAction === 'attach-payment-source'
           ? renderWidgetLoadingOverlay({
               title: isBankPaymentSource(selectedSource)
-                ? 'Saving bank account'
-                : 'Saving payment method',
-              helper: 'Saving your payment method, please wait.',
+                ? this.translator.message('bank.savingTitle')
+                : this.translator.message('paymentMethods.savingTitle'),
+              helper: this.translator.message('paymentMethods.savingHelper'),
             })
           : undefined,
       content: html`
@@ -1974,6 +2083,7 @@ export class CommerceHubConnect extends LitElement {
               nativeBalances: this.nativeBalance.balances,
               nativeBalanceLoadingSourceIds:
                 this.nativeBalance.loadingSourceIds,
+              translator: this.translator,
             })
           )}
         </div>
@@ -2006,7 +2116,8 @@ export class CommerceHubConnect extends LitElement {
     const source = this.savedSourceVerificationSource;
     const outcome = resolveSavedSourceVerificationOutcome(
       source,
-      this.savedSourceVerificationFailed
+      this.savedSourceVerificationFailed,
+      this.translator
     );
 
     return this.renderWidgetShell({
@@ -2020,7 +2131,7 @@ export class CommerceHubConnect extends LitElement {
             variant: outcome.variant,
             message: outcome.message,
           })}
-          ${source ? renderRequiredInfoSourceCard(source) : ''}
+          ${source ? renderRequiredInfoSourceCard(source, this.translator) : ''}
         </div>
       `,
     });
@@ -2039,7 +2150,7 @@ export class CommerceHubConnect extends LitElement {
     const canSubmit = this.canSubmitRequiredInfo();
 
     return this.renderWidgetShell({
-      title: 'Complete account verification',
+      title: this.translator.message('verification.complete'),
       backAction: 'back-to-payment-methods',
       backDisabled: isSubmitting,
       showClose: false,
@@ -2047,8 +2158,8 @@ export class CommerceHubConnect extends LitElement {
       busy: isSubmitting,
       overlay: isSubmitting
         ? renderWidgetLoadingOverlay({
-            title: 'Verifying account',
-            helper: 'Reviewing your verification information, please wait.',
+            title: this.translator.message('verification.accountTitle'),
+            helper: this.translator.message('verification.accountHelper'),
           })
         : undefined,
       content: html`
@@ -2056,7 +2167,7 @@ export class CommerceHubConnect extends LitElement {
           class="required-info-flow"
           data-submit-action="submit-required-info"
         >
-          ${renderRequiredInfoSourceCard(source)}
+          ${renderRequiredInfoSourceCard(source, this.translator)}
           ${this.requiredInfoSubmitError
             ? renderAlert({
                 variant: 'danger',
@@ -2066,7 +2177,7 @@ export class CommerceHubConnect extends LitElement {
 
           <div class="required-info-documents">
             <p class="required-info-section-title">
-              Information needed to complete verification
+              ${this.translator.message('document.informationNeeded')}
             </p>
             <div class="primitive-stack">
               ${docs.map((doc, index) => {
@@ -2082,6 +2193,7 @@ export class CommerceHubConnect extends LitElement {
                     key,
                     value: currentValue ?? '',
                     error,
+                    translator: this.translator,
                   });
                 }
 
@@ -2095,17 +2207,27 @@ export class CommerceHubConnect extends LitElement {
                   >
                     <div class="required-info-document-heading">
                       <span class="required-info-document-name"
-                        >${requiredInfoDocLabel(doc)}</span
+                        >${requiredInfoDocLabel(doc, this.translator)}</span
                       >
-                      ${renderRequiredInfoRequirementBadge(doc)}
+                      ${renderRequiredInfoRequirementBadge(
+                        doc,
+                        this.translator
+                      )}
                     </div>
                     ${renderUploadRow({
-                      label: 'Required document',
-                      requirements: requiredInfoDocLabel(doc),
-                      actionLabel: 'Choose file',
+                      label: this.translator.message(
+                        'verification.requiredDocument'
+                      ),
+                      requirements: requiredInfoDocLabel(doc, this.translator),
+                      actionLabel: this.translator.message(
+                        'document.chooseFile'
+                      ),
                       fileName: currentValue,
                       action: 'open-required-info-file-picker',
                       disabled: isSubmitting,
+                      noFileChosenLabel: this.translator.message(
+                        'common.noFileChosen'
+                      ),
                     })}
                     ${error
                       ? html`<p
@@ -2139,7 +2261,9 @@ export class CommerceHubConnect extends LitElement {
             data-required-info-doc-key=${firstUploadDocKey ?? ''}
           >
             ${renderButton({
-              label: isSubmitting ? 'Verifying...' : 'Verify',
+              label: this.translator.message(
+                isSubmitting ? 'verification.verifying' : 'verification.verify'
+              ),
               action: 'submit-required-info',
               type: 'submit',
               loading: isSubmitting,
@@ -2217,7 +2341,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (transferSources.length < 2) {
       return this.renderWidgetShell({
-        title: 'Transfer funds',
+        title: this.translator.message('transfer.title'),
         backAction,
         backDisabled: isSubmitting,
         showClose: false,
@@ -2225,9 +2349,8 @@ export class CommerceHubConnect extends LitElement {
         content: html`
           <div class="payment-flow">
             ${renderEmptyState({
-              title: 'Transfer unavailable',
-              message:
-                'At least two verified bank or native accounts are required to transfer funds.',
+              title: this.translator.message('transfer.unavailable'),
+              message: this.translator.message('transfer.requiresTwoAccounts'),
             })}
           </div>
         `,
@@ -2235,10 +2358,13 @@ export class CommerceHubConnect extends LitElement {
     }
 
     const accountOptions = [
-      {value: '', label: 'Select account'},
+      {
+        value: '',
+        label: this.translator.message('transfer.accountPlaceholder'),
+      },
       ...transferSources.map((source) => ({
         value: paymentSourceId(source),
-        label: paymentSourceDisplayName(source),
+        label: paymentSourceDisplayName(source, {}, this.translator),
       })),
     ];
     const normalizedDraft = normalizeTransferDraft(this.transferDraft);
@@ -2264,7 +2390,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return this.renderWidgetShell({
-      title: 'Transfer funds',
+      title: this.translator.message('transfer.title'),
       backAction,
       backDisabled: isSubmitting,
       showClose: false,
@@ -2272,8 +2398,8 @@ export class CommerceHubConnect extends LitElement {
       busy: isSubmitting,
       overlay: isSubmitting
         ? renderWidgetLoadingOverlay({
-            title: 'Initiating transfer',
-            helper: 'Submitting your transfer, please wait.',
+            title: this.translator.message('transfer.initiatingTitle'),
+            helper: this.translator.message('transfer.initiatingHelper'),
           })
         : undefined,
       content: html`
@@ -2290,14 +2416,14 @@ export class CommerceHubConnect extends LitElement {
           ${this.transferSubmitSuccess
             ? renderAlert({
                 variant: 'success',
-                message: 'Transfer initiated.',
+                message: this.translator.message('transfer.initiated'),
               })
             : ''}
           ${renderFormGrid([
             renderSelectField({
               id: 'transfer-from-source',
               name: 'fromSourceId',
-              label: 'From',
+              label: this.translator.message('transfer.from'),
               value: this.transferDraft.fromSourceId,
               options: accountOptions,
               span: 'full',
@@ -2312,7 +2438,7 @@ export class CommerceHubConnect extends LitElement {
             renderSelectField({
               id: 'transfer-to-source',
               name: 'toSourceId',
-              label: 'To',
+              label: this.translator.message('transfer.to'),
               value: this.transferDraft.toSourceId,
               options: accountOptions,
               span: 'full',
@@ -2327,7 +2453,7 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'transfer-amount',
               name: 'amount',
-              label: 'Amount',
+              label: this.translator.message('transfer.amount'),
               value: this.transferDraft.amount,
               variant: 'card-form',
               inputmode: 'decimal',
@@ -2342,7 +2468,9 @@ export class CommerceHubConnect extends LitElement {
           <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
-                label: isSubmitting ? 'Transferring' : 'Transfer',
+                label: this.translator.message(
+                  isSubmitting ? 'transfer.submitting' : 'transfer.submit'
+                ),
                 action: 'transfer',
                 type: 'submit',
                 loading: isSubmitting,
@@ -2365,7 +2493,7 @@ export class CommerceHubConnect extends LitElement {
     isSubmitting: boolean
   ): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Confirm transfer',
+      title: this.translator.message('transfer.confirm'),
       backAction: 'edit-transfer',
       backDisabled: isSubmitting,
       showClose: false,
@@ -2373,8 +2501,8 @@ export class CommerceHubConnect extends LitElement {
       busy: isSubmitting,
       overlay: isSubmitting
         ? renderWidgetLoadingOverlay({
-            title: 'Initiating transfer',
-            helper: 'Submitting your transfer, please wait.',
+            title: this.translator.message('transfer.initiatingTitle'),
+            helper: this.translator.message('transfer.initiatingHelper'),
           })
         : undefined,
       content: html`
@@ -2389,14 +2517,25 @@ export class CommerceHubConnect extends LitElement {
               })
             : ''}
           ${renderDetailList([
-            {label: 'From', value: paymentSourceDisplayName(fromSource)},
-            {label: 'To', value: paymentSourceDisplayName(toSource)},
-            {label: 'Amount', value: formatTransferAmountForReview(draft)},
+            {
+              label: this.translator.message('transfer.from'),
+              value: paymentSourceDisplayName(fromSource, {}, this.translator),
+            },
+            {
+              label: this.translator.message('transfer.to'),
+              value: paymentSourceDisplayName(toSource, {}, this.translator),
+            },
+            {
+              label: this.translator.message('transfer.amount'),
+              value: formatTransferAmountForReview(draft, this.translator),
+            },
           ])}
           <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
-                label: isSubmitting ? 'Transferring' : 'Confirm transfer',
+                label: this.translator.message(
+                  isSubmitting ? 'transfer.submitting' : 'transfer.confirm'
+                ),
                 action: 'confirm-transfer',
                 type: 'submit',
                 loading: isSubmitting,
@@ -2405,7 +2544,7 @@ export class CommerceHubConnect extends LitElement {
             </div>
             <div class="card-form-primary">
               ${renderButton({
-                label: 'Edit',
+                label: this.translator.message('actions.edit'),
                 variant: 'secondary',
                 action: 'edit-transfer',
                 disabled: isSubmitting,
@@ -2425,11 +2564,11 @@ export class CommerceHubConnect extends LitElement {
     const billingAddressOptions = [
       ...this.billingAddresses.map((address) => ({
         value: address.id ?? '',
-        label: billingAddressLabel(address),
+        label: billingAddressLabel(address, this.translator),
       })),
       {
         value: NEW_BILLING_ADDRESS_VALUE,
-        label: 'Add new billing address',
+        label: this.translator.message('card.addBillingAddress'),
       },
     ];
     const selectedBillingAddress = this.billingAddresses.find(
@@ -2449,16 +2588,16 @@ export class CommerceHubConnect extends LitElement {
         <div class="billing-address-summary field field-full">
           <div class="billing-address-summary-heading">
             <span class="billing-address-summary-label field-label"
-              >Billing address</span
+              >${this.translator.message('card.billingAddress')}</span
             >
             ${renderTextLinkButton({
-              label: 'Change',
+              label: this.translator.message('actions.change'),
               action: 'change-billing-address',
               disabled: isSaving,
             })}
           </div>
           <p class="billing-address-summary-value">
-            ${billingAddressLabel(selectedBillingAddress)}
+            ${billingAddressLabel(selectedBillingAddress, this.translator)}
           </p>
         </div>
       `);
@@ -2467,7 +2606,7 @@ export class CommerceHubConnect extends LitElement {
         renderSelectField({
           id: 'billing-address',
           name: 'billingAddress',
-          label: 'Billing address',
+          label: this.translator.message('card.billingAddress'),
           value: this.cardDraft.billingAddressValue,
           options: billingAddressOptions,
           span: 'full',
@@ -2484,9 +2623,12 @@ export class CommerceHubConnect extends LitElement {
         renderSelectField({
           id: 'billing-country',
           name: 'country',
-          label: 'Country or region',
+          label: this.translator.message('card.country'),
           value: this.cardDraft.country,
-          options: BILLING_COUNTRY_OPTIONS,
+          options: [
+            {value: '', label: this.translator.message('card.selectCountry')},
+            {value: 'US', label: this.translator.message('card.unitedStates')},
+          ],
           span: 'full',
           variant: 'card-form',
           dataField: 'country',
@@ -2496,9 +2638,9 @@ export class CommerceHubConnect extends LitElement {
         renderTextField({
           id: 'billing-address-line-1',
           name: 'addressLine1',
-          label: 'Address',
+          label: this.translator.message('card.address'),
           value: this.cardDraft.addressLine1,
-          placeholder: 'Street address',
+          placeholder: this.translator.message('card.addressPlaceholder'),
           span: 'full',
           variant: 'card-form',
           autocomplete: 'address-line1',
@@ -2509,9 +2651,9 @@ export class CommerceHubConnect extends LitElement {
         renderTextField({
           id: 'billing-address-line-2',
           name: 'addressLine2',
-          label: 'Address line 2',
+          label: this.translator.message('card.addressLine2'),
           value: this.cardDraft.addressLine2,
-          placeholder: 'Apartment, suite, unit',
+          placeholder: this.translator.message('card.addressLine2Placeholder'),
           span: 'full',
           variant: 'card-form',
           autocomplete: 'address-line2',
@@ -2522,7 +2664,7 @@ export class CommerceHubConnect extends LitElement {
         renderTextField({
           id: 'billing-city',
           name: 'city',
-          label: 'City',
+          label: this.translator.message('card.city'),
           value: this.cardDraft.city,
           span: 'full',
           variant: 'card-form',
@@ -2534,9 +2676,12 @@ export class CommerceHubConnect extends LitElement {
         renderSelectField({
           id: 'billing-state',
           name: 'state',
-          label: 'State',
+          label: this.translator.message('card.state'),
           value: this.cardDraft.state,
-          options: BILLING_STATE_SELECT_OPTIONS,
+          options: [
+            {value: '', label: this.translator.message('card.selectState')},
+            ...BILLING_STATE_OPTIONS,
+          ],
           span: 'full',
           variant: 'card-form',
           dataField: 'state',
@@ -2546,9 +2691,9 @@ export class CommerceHubConnect extends LitElement {
         renderTextField({
           id: 'billing-zip',
           name: 'zip',
-          label: 'ZIP code',
+          label: this.translator.message('card.zip'),
           value: this.cardDraft.zip,
-          placeholder: 'ZIP code',
+          placeholder: this.translator.message('card.zip'),
           span: 'full',
           variant: 'card-form',
           autocomplete: 'postal-code',
@@ -2561,7 +2706,7 @@ export class CommerceHubConnect extends LitElement {
     }
 
     return this.renderWidgetShell({
-      title: 'Add card',
+      title: this.translator.message('card.addTitle'),
       backAction: 'back-to-payment-methods',
       backDisabled: isSaving,
       showClose: false,
@@ -2569,8 +2714,8 @@ export class CommerceHubConnect extends LitElement {
       busy: isSaving,
       overlay: isSaving
         ? renderWidgetLoadingOverlay({
-            title: 'Saving card',
-            helper: 'Securely saving your card, please wait.',
+            title: this.translator.message('card.savingTitle'),
+            helper: this.translator.message('card.savingHelper'),
           })
         : undefined,
       content: html`
@@ -2585,9 +2730,9 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'card-label',
               name: 'name',
-              label: 'Card Name',
+              label: this.translator.message('card.name'),
               value: this.cardDraft.name,
-              placeholder: 'Corporate card',
+              placeholder: this.translator.message('card.namePlaceholder'),
               span: 'full',
               variant: 'card-form',
               dataField: 'name',
@@ -2597,9 +2742,9 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'card-number',
               name: 'cardNumber',
-              label: 'Card number',
+              label: this.translator.message('card.number'),
               value: this.cardDraft.cardNumber,
-              placeholder: '1234 1234 1234 1234',
+              placeholder: this.translator.message('card.numberPlaceholder'),
               span: 'full',
               variant: 'card-form',
               autocomplete: 'cc-number',
@@ -2609,6 +2754,12 @@ export class CommerceHubConnect extends LitElement {
               error: this.visibleCardDraftError('cardNumber'),
               disabled: isSaving,
               maskable: true,
+              revealShowLabel: this.translator.message(
+                'accessibility.showValue'
+              ),
+              revealHideLabel: this.translator.message(
+                'accessibility.hideValue'
+              ),
               revealed: this.revealedCardFields.has('cardNumber'),
               onToggleReveal: () => this.toggleCardFieldReveal('cardNumber'),
               maskReveal: maskRevealText(
@@ -2619,9 +2770,11 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'expiration-date',
               name: 'expirationDate',
-              label: 'Expiration',
+              label: this.translator.message('card.expiration'),
               value: this.cardDraft.expirationDate,
-              placeholder: 'MM / YY',
+              placeholder: this.translator.message(
+                'card.expirationPlaceholder'
+              ),
               variant: 'card-form',
               autocomplete: 'cc-exp',
               inputmode: 'numeric',
@@ -2633,9 +2786,9 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'card-cvv',
               name: 'cvv',
-              label: 'CVC',
+              label: this.translator.message('card.cvv'),
               value: this.cardDraft.cvv,
-              placeholder: '3 or 4 digits',
+              placeholder: this.translator.message('card.cvvPlaceholder'),
               variant: 'card-form',
               autocomplete: 'cc-csc',
               inputmode: 'numeric',
@@ -2644,6 +2797,12 @@ export class CommerceHubConnect extends LitElement {
               error: this.visibleCardDraftError('cvv'),
               disabled: isSaving,
               maskable: true,
+              revealShowLabel: this.translator.message(
+                'accessibility.showValue'
+              ),
+              revealHideLabel: this.translator.message(
+                'accessibility.hideValue'
+              ),
               revealed: this.revealedCardFields.has('cvv'),
               onToggleReveal: () => this.toggleCardFieldReveal('cvv'),
               maskReveal: maskRevealText(
@@ -2654,9 +2813,9 @@ export class CommerceHubConnect extends LitElement {
             renderTextField({
               id: 'name-on-card',
               name: 'fullName',
-              label: 'Full name',
+              label: this.translator.message('card.fullName'),
               value: this.cardDraft.fullName,
-              placeholder: 'Name on card',
+              placeholder: this.translator.message('card.fullNamePlaceholder'),
               span: 'full',
               variant: 'card-form',
               autocomplete: 'cc-name',
@@ -2669,7 +2828,9 @@ export class CommerceHubConnect extends LitElement {
           <div class="primitive-footer card-form-primary">
             <div class="card-form-primary">
               ${renderButton({
-                label: isSaving ? 'Saving payment method' : 'Save card',
+                label: isSaving
+                  ? this.translator.message('card.saving')
+                  : this.translator.message('card.save'),
                 action: 'save-card',
                 type: 'submit',
                 loading: isSaving,
@@ -2688,9 +2849,8 @@ export class CommerceHubConnect extends LitElement {
 
   private renderCardErrorScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Credit card not saved',
-      subtitle:
-        'We could not save this card. Check the card details or use a different payment method.',
+      title: this.translator.message('card.notSaved'),
+      subtitle: this.translator.message('card.notSavedMessage'),
       showClose: false,
       showDivider: false,
       content: renderOutcomeShell({
@@ -2700,11 +2860,11 @@ export class CommerceHubConnect extends LitElement {
           : undefined,
         actions: html`
           ${renderButton({
-            label: 'Edit card details',
+            label: this.translator.message('card.editDetails'),
             action: 'edit-card-details',
           })}
           ${renderTextLinkButton({
-            label: 'Use a different method',
+            label: this.translator.message('actions.useDifferentMethod'),
             action: 'use-different-method',
           })}
         `,
@@ -2714,7 +2874,7 @@ export class CommerceHubConnect extends LitElement {
 
   private renderBankProviderScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Connect your bank',
+      title: this.translator.message('bank.connect'),
       backAction: 'back-to-payment-methods',
       backDisabled: this.bankLinkLoading,
       showClose: false,
@@ -2722,29 +2882,29 @@ export class CommerceHubConnect extends LitElement {
       busy: this.bankLinkLoading,
       overlay: this.bankLinkLoading
         ? renderWidgetLoadingOverlay({
-            title: 'Connecting to your bank',
-            helper: 'Securely opening your bank connection, please wait.',
+            title: this.translator.message('bank.connectingTitle'),
+            helper: this.translator.message('bank.connectingHelper'),
           })
         : undefined,
       content: renderProviderFrame({
         containerId: PAY_BY_BANK_PROVIDER_CONTAINER_ID,
         loading: this.bankLinkLoading,
-        loadingLabel: 'Connecting to your bank',
+        loadingLabel: this.translator.message('bank.connectingTitle'),
       }),
     });
   }
 
   private renderManualBankAccountConfigLoadingScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Select bank account type',
+      title: this.translator.message('bank.selectType'),
       backAction: this.manualBankAccountExitAction(),
       backDisabled: true,
       showClose: false,
       showDivider: false,
       busy: true,
       overlay: renderWidgetLoadingOverlay({
-        title: 'Loading instrument schemas',
-        helper: 'Loading the available bank account options, please wait.',
+        title: this.translator.message('bank.loadingSchemasTitle'),
+        helper: this.translator.message('bank.loadingSchemasHelper'),
       }),
       content: html`<div class="payment-flow card-form-screen"></div>`,
     });
@@ -2752,7 +2912,7 @@ export class CommerceHubConnect extends LitElement {
 
   private renderManualBankAccountConfigErrorScreen(): TemplateResult {
     return this.renderWidgetShell({
-      title: 'Select bank account type',
+      title: this.translator.message('bank.selectType'),
       backAction: this.manualBankAccountExitAction(),
       showClose: false,
       showDivider: false,
@@ -2762,11 +2922,11 @@ export class CommerceHubConnect extends LitElement {
             variant: 'danger',
             message:
               this.bankAccountConfigError ??
-              'Unable to load instrument schemas. Try again.',
+              this.translator.message('bank.loadSchemasFailed'),
           })}
           <div class="primitive-footer card-form-primary">
             ${renderButton({
-              label: 'Try again',
+              label: this.translator.message('actions.retry'),
               action: 'add-ach-manually',
             })}
           </div>
@@ -2795,7 +2955,7 @@ export class CommerceHubConnect extends LitElement {
       : [];
 
     return this.renderWidgetShell({
-      title: 'Select bank account type',
+      title: this.translator.message('bank.selectType'),
       backAction: this.manualBankAccountExitAction(),
       showClose: false,
       showDivider: false,
@@ -2804,10 +2964,13 @@ export class CommerceHubConnect extends LitElement {
           ${renderSelectField({
             id: 'instrument-schema-currency',
             name: 'instrumentSchemaCurrency',
-            label: 'Currency',
+            label: this.translator.message('bank.currency'),
             value: this.selectedBankCurrencyCode,
             options: [
-              {value: '', label: 'Select currency'},
+              {
+                value: '',
+                label: this.translator.message('bank.selectCurrency'),
+              },
               ...currencyOptions,
             ],
             disabled: currencyOptions.length === 1,
@@ -2818,10 +2981,13 @@ export class CommerceHubConnect extends LitElement {
             ? renderSelectField({
                 id: 'instrument-schema-account-type',
                 name: 'instrumentSchemaAccountType',
-                label: 'Account type',
+                label: this.translator.message('bank.accountType'),
                 value: this.selectedBankAccountType,
                 options: [
-                  {value: '', label: 'Select account type'},
+                  {
+                    value: '',
+                    label: this.translator.message('bank.selectAccountType'),
+                  },
                   ...accountTypeOptions,
                 ],
                 disabled: accountTypeOptions.length === 1,
@@ -2833,10 +2999,13 @@ export class CommerceHubConnect extends LitElement {
             ? renderSelectField({
                 id: 'instrument-schema-payment-type',
                 name: 'instrumentSchemaPaymentType',
-                label: 'Payment type',
+                label: this.translator.message('bank.paymentType'),
                 value: this.selectedBankPaymentType,
                 options: [
-                  {value: '', label: 'Select payment type'},
+                  {
+                    value: '',
+                    label: this.translator.message('bank.selectPaymentType'),
+                  },
                   ...paymentTypeOptions,
                 ],
                 disabled: paymentTypeOptions.length === 1,
@@ -2846,7 +3015,7 @@ export class CommerceHubConnect extends LitElement {
             : ''}
           <div class="primitive-footer card-form-primary">
             ${renderButton({
-              label: 'Continue',
+              label: this.translator.message('actions.continue'),
               action: 'select-instrument-schema',
               disabled: !this.selectedBankAccountInstrumentSchemaCode,
             })}
@@ -2870,7 +3039,7 @@ export class CommerceHubConnect extends LitElement {
 
     const isSaving = this.pendingAction === 'save-bank-account';
     return this.renderWidgetShell({
-      title: 'Enter bank details',
+      title: this.translator.message('bank.enterDetails'),
       backAction: this.manualBankAccountDetailsBackAction(),
       showClose: false,
       showDivider: false,
@@ -2889,6 +3058,12 @@ export class CommerceHubConnect extends LitElement {
             .config=${{
               billingAddressTemplate:
                 this.renderBankBillingAddressControl(isSaving),
+              revealShowLabel: this.translator.message(
+                'accessibility.showValue'
+              ),
+              revealHideLabel: this.translator.message(
+                'accessibility.hideValue'
+              ),
               touchedValidation: {
                 fields: [...this.touchedBankFields],
                 showAll: this.bankAccountValidationAttempted,
@@ -2907,7 +3082,9 @@ export class CommerceHubConnect extends LitElement {
             : ''}
           <div class="primitive-footer card-form-primary">
             ${renderButton({
-              label: isSaving ? 'Saving bank account' : 'Save bank account',
+              label: this.translator.message(
+                isSaving ? 'bank.savingTitle' : 'bank.save'
+              ),
               action: 'save-bank-account',
               type: 'submit',
               loading: isSaving,
@@ -2929,11 +3106,11 @@ export class CommerceHubConnect extends LitElement {
     const billingAddressOptions = [
       ...this.billingAddresses.map((address) => ({
         value: address.id ?? '',
-        label: billingAddressLabel(address),
+        label: billingAddressLabel(address, this.translator),
       })),
       {
         value: NEW_BILLING_ADDRESS_VALUE,
-        label: 'Add new billing address',
+        label: this.translator.message('card.addBillingAddress'),
       },
     ];
     const selectedBillingAddress = this.billingAddresses.find(
@@ -2945,16 +3122,16 @@ export class CommerceHubConnect extends LitElement {
         <div class="billing-address-summary field field-full">
           <div class="billing-address-summary-heading">
             <span class="billing-address-summary-label field-label"
-              >Billing address</span
+              >${this.translator.message('card.billingAddress')}</span
             >
             ${renderTextLinkButton({
-              label: 'Change',
+              label: this.translator.message('actions.change'),
               action: 'change-bank-billing-address',
               disabled: isSaving,
             })}
           </div>
           <p class="billing-address-summary-value">
-            ${billingAddressLabel(selectedBillingAddress)}
+            ${billingAddressLabel(selectedBillingAddress, this.translator)}
           </p>
         </div>
       `;
@@ -2963,7 +3140,7 @@ export class CommerceHubConnect extends LitElement {
     return renderSelectField({
       id: 'bank-billing-address',
       name: 'bankBillingAddress',
-      label: 'Billing address',
+      label: this.translator.message('card.billingAddress'),
       value: this.bankBillingAddressValue,
       options: billingAddressOptions,
       span: 'full',
@@ -2979,7 +3156,7 @@ export class CommerceHubConnect extends LitElement {
     );
 
     return this.renderWidgetShell({
-      title: 'Enter bank details',
+      title: this.translator.message('bank.enterDetails'),
       backAction: this.manualBankAccountExitAction(),
       backDisabled: isSaving,
       showClose: false,
@@ -2987,8 +3164,8 @@ export class CommerceHubConnect extends LitElement {
       busy: isSaving,
       overlay: isSaving
         ? renderWidgetLoadingOverlay({
-            title: 'Saving bank account',
-            helper: 'Securely saving your bank account, please wait.',
+            title: this.translator.message('bank.savingTitle'),
+            helper: this.translator.message('bank.savingHelper'),
           })
         : undefined,
       content: html`
@@ -3004,7 +3181,7 @@ export class CommerceHubConnect extends LitElement {
             : ''}
           <commerce-hub-bank-account-jsonforms
             class="bank-account-jsonforms"
-            .schema=${legacyBankAccountFormSchema as JsonSchema}
+            .schema=${this.localizedLegacyBankAccountFormSchema as JsonSchema}
             .uischema=${LEGACY_BANK_ACCOUNT_UI_SCHEMA}
             .data=${this.legacyBankAccountDraft}
             .renderers=${bankAccountJsonFormsRenderers}
@@ -3020,6 +3197,12 @@ export class CommerceHubConnect extends LitElement {
               ),
               encryption: this.legacyBankAccountEncryption,
               disabled: isSaving,
+              revealShowLabel: this.translator.message(
+                'accessibility.showValue'
+              ),
+              revealHideLabel: this.translator.message(
+                'accessibility.hideValue'
+              ),
             }}
             .additionalErrors=${this.bankAccountValidationAttempted
               ? bankAccountDraftErrorsToJsonFormsErrors(
@@ -3032,7 +3215,9 @@ export class CommerceHubConnect extends LitElement {
           ></commerce-hub-bank-account-jsonforms>
           <div class="primitive-footer card-form-primary">
             ${renderButton({
-              label: isSaving ? 'Saving bank account' : 'Save bank account',
+              label: this.translator.message(
+                isSaving ? 'bank.savingTitle' : 'bank.save'
+              ),
               action: 'save-bank-account',
               type: 'submit',
               loading: isSaving,
@@ -3042,7 +3227,7 @@ export class CommerceHubConnect extends LitElement {
                 this.hasBlockingLegacyBankValidationErrors() ||
                 !hasRequiredBankAccountDraftValues(
                   this.legacyBankAccountDraft,
-                  legacyBankAccountFormSchema
+                  this.localizedLegacyBankAccountFormSchema
                 ),
             })}
           </div>
@@ -3052,7 +3237,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderBankOutcomeScreen(): TemplateResult {
-    const outcome = resolveBankOutcome(this.bankOutcomeSource);
+    const outcome = resolveBankOutcome(this.bankOutcomeSource, this.translator);
     const showHeaderDone =
       outcome.kind === 'declined' || outcome.kind === 'pending';
 
@@ -3060,7 +3245,7 @@ export class CommerceHubConnect extends LitElement {
       title: outcome.title,
       headerAction: showHeaderDone
         ? renderTextLinkButton({
-            label: 'Done',
+            label: this.translator.message('actions.done'),
             action: 'done-bank-outcome',
           })
         : undefined,
@@ -3070,7 +3255,10 @@ export class CommerceHubConnect extends LitElement {
         <div class="verification-outcome-flow">
           ${renderAlert({variant: outcome.variant, message: outcome.message})}
           ${this.bankOutcomeSource
-            ? renderRequiredInfoSourceCard(this.bankOutcomeSource)
+            ? renderRequiredInfoSourceCard(
+                this.bankOutcomeSource,
+                this.translator
+              )
             : ''}
           ${showHeaderDone
             ? ''
@@ -3078,25 +3266,27 @@ export class CommerceHubConnect extends LitElement {
                 <div class="primitive-footer">
                   ${outcome.kind === 'verified'
                     ? renderButton({
-                        label: 'Continue',
+                        label: this.translator.message('actions.continue'),
                         action: 'continue-bank-outcome',
                       })
                     : outcome.kind === 'pending'
                     ? renderButton({
-                        label: 'Done',
+                        label: this.translator.message('actions.done'),
                         action: 'done-bank-outcome',
                       })
                     : html`
                         ${renderButton({
                           label: this.bankLinkLoading
                             ? 'Retrying'
-                            : 'Try again',
+                            : this.translator.message('common.tryAgain'),
                           action: 'retry-bank-provider',
                           loading: this.bankLinkLoading,
                           disabled: this.bankLinkLoading,
                         })}
                         ${renderTextLinkButton({
-                          label: 'Use a different account',
+                          label: this.translator.message(
+                            'actions.useDifferentAccount'
+                          ),
                           action: 'use-different-bank-account',
                           disabled: this.bankLinkLoading,
                         })}
@@ -3587,7 +3777,8 @@ export class CommerceHubConnect extends LitElement {
       const currentIndex = options.indexOf(embeddedPaymentOption);
       const direction =
         event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
-      const nextIndex = (currentIndex + direction + options.length) % options.length;
+      const nextIndex =
+        (currentIndex + direction + options.length) % options.length;
       const nextOption = options[nextIndex];
 
       for (const option of options) {
@@ -3604,9 +3795,7 @@ export class CommerceHubConnect extends LitElement {
     ) {
       event.preventDefault();
       this.embeddedPaymentSelectorOpen = false;
-      this.focusAfterUpdate(
-        '[data-action="toggle-embedded-payment-selector"]'
-      );
+      this.focusAfterUpdate('[data-action="toggle-embedded-payment-selector"]');
       return;
     }
 
@@ -4250,15 +4439,17 @@ export class CommerceHubConnect extends LitElement {
     this.bankFlowScreen = 'manual-config-loading';
 
     if (!interactionId) {
-      this.bankAccountConfigError =
-        'CommerceHub Connect requires an interaction response before bank details can load.';
+      this.bankAccountConfigError = this.translator.message(
+        'bank.missingInteraction'
+      );
       this.bankFlowScreen = 'manual-config-error';
       return;
     }
 
     if (!country) {
-      this.bankAccountConfigError =
-        'Bank account details are not available because the interaction response is missing a country.';
+      this.bankAccountConfigError = this.translator.message(
+        'bank.missingCountry'
+      );
       this.bankFlowScreen = 'manual-config-error';
       return;
     }
@@ -4290,7 +4481,9 @@ export class CommerceHubConnect extends LitElement {
         (Array.isArray(rawInstrumentSchemas) &&
           rawInstrumentSchemas.length === 0)
       ) {
-        this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
+        this.bankAccountConfigError = this.translator.message(
+          'bank.unavailableSchemas'
+        );
         this.bankFlowScreen = 'manual-config-error';
         return;
       }
@@ -4299,7 +4492,9 @@ export class CommerceHubConnect extends LitElement {
       const selections = selectableInstrumentSchemas(instrumentSchemas);
 
       if (instrumentSchemas.length === 0 || selections.length === 0) {
-        this.bankAccountConfigError = NO_INSTRUMENT_SCHEMAS_ERROR;
+        this.bankAccountConfigError = this.translator.message(
+          'bank.unavailableSchemas'
+        );
         this.bankFlowScreen = 'manual-config-error';
         return;
       }
@@ -4493,7 +4688,7 @@ export class CommerceHubConnect extends LitElement {
         ...(schema.properties ?? {}),
         [BANK_BILLING_ADDRESS_FORM_PROPERTY]: {
           type: 'string',
-          title: 'Billing address',
+          title: this.translator.message('card.billingAddress'),
         },
       },
     } as JsonSchema;
@@ -4570,7 +4765,8 @@ export class CommerceHubConnect extends LitElement {
     this.transferDraft = nextDraft;
     this.transferDraftErrors = validateTransferDraft(
       nextDraft,
-      transferPaymentSourcesFromInteractionResponse(this.interactionResponse)
+      transferPaymentSourcesFromInteractionResponse(this.interactionResponse),
+      this.translator
     );
     this.transferFlowScreen = 'form';
     this.transferSubmitError = undefined;
@@ -4592,7 +4788,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private updateCardDraftFieldError(field: keyof CardDraft, draft: CardDraft) {
-    const fieldError = validateCardDraft(normalizeCardDraft(draft))[field];
+    const fieldError = validateCardDraft(
+      normalizeCardDraft(draft),
+      this.translator
+    )[field];
     const nextErrors = omitCardDraftError(this.cardDraftErrors, field);
 
     this.cardDraftErrors = fieldError
@@ -4654,7 +4853,7 @@ export class CommerceHubConnect extends LitElement {
       draft: this.legacyBankAccountDraft,
       errors: this.legacyBankAccountDraftErrors,
       encryption: this.legacyBankAccountEncryption,
-      schema: legacyBankAccountFormSchema,
+      schema: this.localizedLegacyBankAccountFormSchema,
       field,
       value,
     });
@@ -4754,7 +4953,11 @@ export class CommerceHubConnect extends LitElement {
     this.updateCardDraftField(field, value);
 
     const normalizedValue = normalizeSensitiveCardFieldValue(field, value);
-    const validationError = validateSensitiveCardField(field, value);
+    const validationError = validateSensitiveCardField(
+      field,
+      value,
+      this.translator
+    );
 
     if (!normalizedValue) {
       const nextErrors = omitCardDraftError(this.cardDraftErrors, field);
@@ -4837,7 +5040,7 @@ export class CommerceHubConnect extends LitElement {
 
       this.cardDraftErrors = {
         ...omitCardDraftError(this.cardDraftErrors, field),
-        [field]: buildCardEncryptionErrorMessage(field),
+        [field]: buildCardEncryptionErrorMessage(field, this.translator),
       };
       this.cardEncryption = {
         ...this.cardEncryption,
@@ -4884,7 +5087,7 @@ export class CommerceHubConnect extends LitElement {
           this.legacyBankAccountDraft,
           nextEncryption
         ),
-        legacyBankAccountFormSchema
+        this.localizedLegacyBankAccountFormSchema
       );
       return;
     }
@@ -4935,7 +5138,7 @@ export class CommerceHubConnect extends LitElement {
       this.legacyBankAccountEncryption = nextEncryption;
       this.legacyBankAccountDraftErrors = validateBankAccountDraft(
         normalizeBankAccountDraftForValidation(nextDraft, nextEncryption),
-        legacyBankAccountFormSchema
+        this.localizedLegacyBankAccountFormSchema
       );
     } catch (cause) {
       void cause;
@@ -4963,7 +5166,7 @@ export class CommerceHubConnect extends LitElement {
             this.legacyBankAccountDraft,
             nextEncryption
           ),
-          legacyBankAccountFormSchema
+          this.localizedLegacyBankAccountFormSchema
         ),
         [field]: buildBankAccountEncryptionErrorMessage(field),
       };
@@ -5039,8 +5242,12 @@ export class CommerceHubConnect extends LitElement {
 
     const normalizedDraft = normalizeCardDraft(this.cardDraft);
     const errors = {
-      ...validateCardEncryptionReadiness(normalizedDraft, this.cardEncryption),
-      ...validateCardDraft(normalizedDraft),
+      ...validateCardEncryptionReadiness(
+        normalizedDraft,
+        this.cardEncryption,
+        this.translator
+      ),
+      ...validateCardDraft(normalizedDraft, this.translator),
     };
 
     if (Object.keys(errors).length > 0) {
@@ -5081,7 +5288,9 @@ export class CommerceHubConnect extends LitElement {
 
       if (!expiration) {
         this.cardDraftErrors = {
-          expirationDate: 'Enter a valid expiration date.',
+          expirationDate: this.translator.message(
+            'card.error.expirationInvalid'
+          ),
         };
         return;
       }
@@ -5128,7 +5337,7 @@ export class CommerceHubConnect extends LitElement {
       ) as CardPaymentSource & {id: string};
       sourceIdFromVerificationResponse(
         verificationResponse,
-        'The card creation response did not include a source id.'
+        this.translator.message('card.error.creationMissingSource')
       );
       const nextInteractionResponse = this.interactionResponseWithAddedSource(
         interactionId,
@@ -5306,7 +5515,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (!refreshedSource || !sourceId) {
       throw new Error(
-        'The bank account was created but could not be resolved from the interaction.'
+        this.translator.message('bank.error.createdSourceMissing')
       );
     }
 
@@ -5346,7 +5555,7 @@ export class CommerceHubConnect extends LitElement {
     );
     const errors = validateBankAccountDraft(
       normalizedDraft,
-      legacyBankAccountFormSchema
+      this.localizedLegacyBankAccountFormSchema
     );
 
     if (Object.keys(errors).length > 0) {
@@ -5390,7 +5599,7 @@ export class CommerceHubConnect extends LitElement {
       );
       const postEncryptionErrors = validateBankAccountDraft(
         encryptedNormalizedDraft,
-        legacyBankAccountFormSchema
+        this.localizedLegacyBankAccountFormSchema
       );
 
       if (Object.keys(postEncryptionErrors).length > 0) {
@@ -5464,7 +5673,7 @@ export class CommerceHubConnect extends LitElement {
       ) as BankPaymentSource & {id: string};
       sourceIdFromVerificationResponse(
         verificationResponse,
-        'The bank account creation response did not include a source id.'
+        this.translator.message('bank.error.creationMissingSource')
       );
       const nextInteractionResponse = this.interactionResponseWithAddedSource(
         interactionId,
@@ -5537,7 +5746,11 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse
     );
     const normalizedDraft = normalizeTransferDraft(this.transferDraft);
-    const errors = validateTransferDraft(normalizedDraft, transferSources);
+    const errors = validateTransferDraft(
+      normalizedDraft,
+      transferSources,
+      this.translator
+    );
 
     if (Object.keys(errors).length > 0) {
       this.transferDraft = normalizedDraft;
@@ -5569,7 +5782,11 @@ export class CommerceHubConnect extends LitElement {
       this.interactionResponse
     );
     const normalizedDraft = normalizeTransferDraft(this.transferDraft);
-    const errors = validateTransferDraft(normalizedDraft, transferSources);
+    const errors = validateTransferDraft(
+      normalizedDraft,
+      transferSources,
+      this.translator
+    );
 
     if (Object.keys(errors).length > 0) {
       this.transferDraft = normalizedDraft;
@@ -5641,7 +5858,9 @@ export class CommerceHubConnect extends LitElement {
     const billingAddressId = response.value?.trim();
 
     if (!billingAddressId) {
-      throw new Error('The billing address response did not include an id.');
+      throw new Error(
+        this.translator.message('card.error.billingAddressMissingId')
+      );
     }
 
     return billingAddressId;
@@ -5796,7 +6015,7 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceView = 'list';
       this.attachmentError =
         apiErrorMessage(cause) ||
-        "We couldn't save this payment method. Please try again.";
+        this.translator.message('paymentMethods.saveFailed');
     } finally {
       this.clearPendingMutationAction(interactionId, 'attach-payment-source');
     }
@@ -5882,7 +6101,7 @@ export class CommerceHubConnect extends LitElement {
       this.paymentSourceView = 'list';
       this.attachmentError =
         apiErrorMessage(cause) ||
-        "We couldn't update the default payment method. Please try again.";
+        this.translator.message('paymentMethods.defaultFailed');
     } finally {
       this.clearPendingMutationAction(interactionId, 'attach-payment-source');
     }
@@ -6323,7 +6542,10 @@ export class CommerceHubConnect extends LitElement {
 
     const key =
       this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
-    const fileTypeError = await validateRequiredInfoDocumentFileContent(file);
+    const fileTypeError = await validateRequiredInfoDocumentFileContent(
+      file,
+      this.translator
+    );
 
     if (this.requiredInfoSource !== source) {
       return;
@@ -6408,13 +6630,14 @@ export class CommerceHubConnect extends LitElement {
 
     if (!hasValue) {
       return isRequiredInfoDocMandatory(doc)
-        ? requiredInfoMissingValueMessage(doc)
+        ? requiredInfoMissingValueMessage(doc, this.translator)
         : undefined;
     }
 
     if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
       return validateRequiredInfoSsn(
-        this.requiredInfoValues[key] ?? ''
+        this.requiredInfoValues[key] ?? '',
+        this.translator
       );
     }
 
@@ -6446,8 +6669,9 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (!this.canSubmitRequiredInfo()) {
-      this.requiredInfoSubmitError =
-        'Add required or optional information before verifying.';
+      this.requiredInfoSubmitError = this.translator.message(
+        'verification.missingInformation'
+      );
       return;
     }
 
@@ -6541,7 +6765,7 @@ export class CommerceHubConnect extends LitElement {
     } catch (cause) {
       this.requiredInfoSubmitError =
         apiErrorMessage(cause) ||
-        'We could not submit the required information. Please try again.';
+        this.translator.message('verification.submitFailed');
     } finally {
       if (this.pendingAction === 'submit-required-info') {
         this.pendingAction = undefined;
@@ -6777,7 +7001,7 @@ export class CommerceHubConnect extends LitElement {
       this.baseURL,
       this.interactionResponse
     );
-    const customerDetails = resolvePayByBankCustomerDetails(
+    const customer = resolvePayByBankCustomerDetails(
       this.interactionResponse?.entityData
     );
 
@@ -6812,7 +7036,7 @@ export class CommerceHubConnect extends LitElement {
         configId: payByBank.configId,
         environment: payByBank.environment,
         locale:
-          this.locale === 'en-US'
+          this.translator.locale === 'en-US'
             ? payByBank.locale
             : this.translator.locale,
         appearance: resolvePaymentSdkAppearance(
@@ -6822,7 +7046,7 @@ export class CommerceHubConnect extends LitElement {
         publicKey,
         pToken,
         aggregatorSessionId,
-        ...customerDetails,
+        ...(Object.keys(customer).length > 0 ? {customer} : {}),
         containerId,
         embed:
           this.presentationMode === 'embedded' &&
@@ -6867,12 +7091,15 @@ export class CommerceHubConnect extends LitElement {
             }
 
             const resolvedBankSource =
-              bankPaymentSourceFromVerificationResponse(verificationResponse);
+              bankPaymentSourceFromVerificationResponse(
+                verificationResponse,
+                this.translator
+              );
             const paymentSourceId = resolvedBankSource.id?.trim();
 
             if (!paymentSourceId) {
               throw new Error(
-                'Connect your bank completed but the resolved bank payment source did not include an id.'
+                this.translator.message('bank.error.resolvedSourceMissing')
               );
             }
             const nextInteractionResponse =
@@ -7248,7 +7475,7 @@ export class CommerceHubConnect extends LitElement {
 
     if (!publicKey || !keyId || !clientId || !tokenType || !accessToken) {
       throw new Error(
-        'Payment source encryption is not configured. Try again later.'
+        this.translator.message('security.encryptionUnavailable')
       );
     }
 
@@ -7459,19 +7686,28 @@ const findRequiredInfoSsnInput = (event: Event): HTMLInputElement | undefined =>
         item.classList.contains('required-info-ssn-input')
     );
 
-const billingAddressLabel = (address: Address): string => {
+const billingAddressLabel = (
+  address: Address,
+  translator: Translator = createTranslator()
+): string => {
   const stateZip = [address.stateOrProvince, address.postalCode]
     .filter(Boolean)
     .join(' ');
   const cityStateZip = [address.city, stateZip].filter(Boolean).join(', ');
   const label = [address.street, cityStateZip].filter(Boolean).join(', ');
 
-  return label || address.id || 'Saved billing address';
+  return (
+    label || address.id || translator.message('source.savedBillingAddress')
+  );
 };
 
 const hasBillingAddressDetails = (address: Address): boolean =>
-  [address.street, address.city, address.stateOrProvince, address.postalCode]
-    .some((value) => Boolean(value?.trim()));
+  [
+    address.street,
+    address.city,
+    address.stateOrProvince,
+    address.postalCode,
+  ].some((value) => Boolean(value?.trim()));
 
 const cardPaymentSourceFromPayload = (
   source: CardSourcePayload,
@@ -7490,11 +7726,12 @@ const cardPaymentSourceFromPayload = (
 };
 
 const bankPaymentSourceFromVerificationResponse = (
-  response: VerificationResponse
+  response: VerificationResponse,
+  translator: Translator = createTranslator()
 ): BankPaymentSource & {id: string} => ({
   id: sourceIdFromVerificationResponse(
     response,
-    'Connect your bank completed but the verification response did not include a source id.'
+    translator.message('bank.error.linkMissingSource')
   ),
   tenderType: 'BankAccount',
   verificationInfo: verificationInfoFromVerificationResponse(response),
@@ -7614,7 +7851,8 @@ const resolveOtpCopy = (
   return {
     title: copy?.title ?? translator.message('otp.title'),
     subtitle: copy?.subtitle,
-    failedMessage: copy?.failedMessage ?? translator.message('otp.failedMessage'),
+    failedMessage:
+      copy?.failedMessage ?? translator.message('otp.failedMessage'),
     resendPrefix: copy?.resendPrefix ?? translator.message('otp.resendPrefix'),
     resendButton: copy?.resendButton ?? translator.message('otp.resendButton'),
     resendPendingButton:
@@ -7623,7 +7861,10 @@ const resolveOtpCopy = (
     verifyButton: copy?.verifyButton ?? translator.message('otp.verifyButton'),
     verifyingButton:
       copy?.verifyingButton ?? translator.message('otp.verifyingButton'),
-    tryAgainButton: copy?.tryAgainButton ?? translator.message('otp.tryAgainButton'),
+    tryAgainButton:
+      copy?.tryAgainButton ?? translator.message('otp.tryAgainButton'),
+    verificationCodeLabel: translator.message('otp.verificationCode'),
+    digitLabel: translator.message('otp.digit'),
   };
 };
 
@@ -7647,6 +7888,8 @@ const resolvePaymentMethodsCopy = (
       copy?.continueButton ?? translator.message('paymentMethods.continue'),
     continuingButton:
       copy?.continuingButton ?? translator.message('paymentMethods.continuing'),
+    loadingLabel: translator.message('common.loadingPaymentMethods'),
+    listLabel: translator.message('paymentMethods.title'),
   };
 };
 
@@ -7672,6 +7915,15 @@ const resolveNoSavedPaymentMethodsCopy = (
     addCardSubtitle:
       copy?.addCardSubtitle ??
       translator.message('paymentMethods.addCardDescription'),
+    payByBankTitle: translator.message('paymentMethods.payByBank'),
+    payByBankSubtitle: translator.message(
+      'paymentMethods.payByBankDescription'
+    ),
+    manualBankTitle: translator.message('paymentMethods.manualBank'),
+    manualBankSubtitle: translator.message(
+      'paymentMethods.manualBankDescription'
+    ),
+    transferTitle: translator.message('transfer.title'),
   };
 };
 
@@ -7930,26 +8182,28 @@ const paymentSourceToPaymentMethod = (
     isDefault = false,
     nativeBalances = {},
     nativeBalanceLoadingSourceIds = [],
+    translator = createTranslator(),
   }: PaymentSourceToPaymentMethodOptions = {}
 ): PaymentMethod => {
   const sourceId = paymentSourceId(source);
   const nativeBalance = isNativePaymentSource(source)
     ? nativeAccountBalanceForSource(source, nativeBalances)
     : undefined;
-  const balanceValue = nativeBalance?.balance ?? nativeBalance?.availableBalance;
+  const balanceValue =
+    nativeBalance?.balance ?? nativeBalance?.availableBalance;
   const balance =
     balanceValue === undefined
       ? undefined
-      : formatNativeAccountBalance(balanceValue);
+      : formatNativeAccountBalance(balanceValue, translator);
   const featuredInformational = isEarningsNativePaymentSource(source);
 
   return {
     id: sourceId,
-    label: paymentSourceDisplayName(source, {selected}),
+    label: paymentSourceDisplayName(source, {selected}, translator),
     type: paymentSourcePaymentMethodType(source),
     presentation: featuredInformational ? 'featured-informational' : undefined,
-    brand: paymentSourceBrand(source),
-    accountLabel: paymentSourceAccountLabel(source),
+    brand: paymentSourceBrand(source, translator),
+    accountLabel: paymentSourceAccountLabel(source, translator),
     balanceLabel: balance,
     balanceLoading:
       isNativePaymentSource(source) &&
@@ -7960,7 +8214,20 @@ const paymentSourceToPaymentMethod = (
     ),
     showVerificationStatus:
       !featuredInformational && Boolean(source.verificationInfo?.status),
-    verificationLabel: paymentSourceVerificationLabel(source),
+    verificationLabel: paymentSourceVerificationLabel(source, translator),
+    selectLabel: translator.message('paymentMethods.selectAction', {
+      label: paymentSourceDisplayName(source, {selected}, translator),
+    }),
+    defaultLabel: translator.message('status.default'),
+    loadingBalanceLabel: translator.message('common.loadingBalance'),
+    deleteActionLabel: translator.message('paymentMethods.deleteAction', {
+      label: paymentSourceDisplayName(source, {selected}, translator),
+    }),
+    moreActionsLabel: translator.message('paymentMethods.moreActions', {
+      label: paymentSourceDisplayName(source, {selected}, translator),
+    }),
+    markDefaultLabel: translator.message('paymentMethods.markDefault'),
+    removeLabel: translator.message('paymentMethods.remove'),
     selectionEligible:
       !featuredInformational && isPaymentSourceSelectionEligible(source),
     isDefault: featuredInformational ? false : isDefault,
@@ -7969,93 +8236,118 @@ const paymentSourceToPaymentMethod = (
 
 const paymentSourceDisplayName = (
   source: PaymentSource,
-  {selected = false}: {selected?: boolean} = {}
+  {selected = false}: {selected?: boolean} = {},
+  translator: Translator = createTranslator()
 ): string => {
   if (isCardPaymentSource(source)) {
     if (selected) {
       return (
         source.name?.trim() ||
         source.card?.nameOnCard?.trim() ||
-        paymentSourceLabel(source)
+        paymentSourceLabel(source, translator)
       );
     }
 
     return (
       source.card?.nameOnCard?.trim() ||
       source.name?.trim() ||
-      paymentSourceLabel(source)
+      paymentSourceLabel(source, translator)
     );
   }
 
   if (isBankPaymentSource(source)) {
     const bankName = source.bankAccount?.bankName?.trim();
 
-    return bankName || source.name?.trim() || paymentSourceLabel(source);
+    return (
+      bankName || source.name?.trim() || paymentSourceLabel(source, translator)
+    );
   }
 
   if (isNativePaymentSource(source)) {
     return (
       source.account?.nickName?.trim() ||
       source.name?.trim() ||
-      paymentSourceLabel(source)
+      paymentSourceLabel(source, translator)
     );
   }
 
-  return source.name?.trim() || paymentSourceLabel(source);
+  return source.name?.trim() || paymentSourceLabel(source, translator);
 };
 
-const paymentSourceLabel = (source: PaymentSource): string => {
+const paymentSourceLabel = (
+  source: PaymentSource,
+  translator: Translator = createTranslator()
+): string => {
   if (isCardPaymentSource(source)) {
-    return 'Saved card';
+    return translator.message('source.savedCard');
   }
 
   if (isBankPaymentSource(source)) {
-    return source.bankAccount?.bankName?.trim() || 'Saved bank account';
+    return (
+      source.bankAccount?.bankName?.trim() ||
+      translator.message('source.savedBankAccount')
+    );
   }
 
   if (isNativePaymentSource(source)) {
-    return 'Native account';
+    return translator.message('source.nativeAccount');
   }
 
-  return 'Dynamic session card';
+  return translator.message('source.dynamicSessionCard');
 };
 
-const paymentSourceBrand = (source: PaymentSource): string => {
+const paymentSourceBrand = (
+  source: PaymentSource,
+  translator: Translator = createTranslator()
+): string => {
   if (isCardPaymentSource(source)) {
-    return source.card?.network ?? 'Card';
+    return source.card?.network ?? translator.message('source.card');
   }
 
   if (isBankPaymentSource(source)) {
-    return source.bankAccount?.bankName?.trim() || 'Bank account';
+    return (
+      source.bankAccount?.bankName?.trim() ||
+      translator.message('source.bankAccount')
+    );
   }
 
   if (isNativePaymentSource(source)) {
-    return source.account?.productType ?? 'Native account';
+    return (
+      source.account?.productType ?? translator.message('source.nativeAccount')
+    );
   }
 
   return 'DSC';
 };
 
-const paymentSourceAccountLabel = (source: PaymentSource): string => {
+const paymentSourceAccountLabel = (
+  source: PaymentSource,
+  translator: Translator = createTranslator()
+): string => {
   const last4 = paymentSourceLast4(source);
 
   if (isCardPaymentSource(source)) {
-    return `${source.card?.network?.trim() || 'Card'} xx ${last4}`;
+    return `${
+      source.card?.network?.trim() || translator.message('source.card')
+    } xx ${last4}`;
   }
 
   if (isBankPaymentSource(source)) {
     return `${
-      source.bankAccount?.accountType?.trim() || 'Bank account'
+      source.bankAccount?.accountType?.trim() ||
+      translator.message('source.bankAccount')
     } xx ${last4}`;
   }
 
   if (isNativePaymentSource(source)) {
     const accountType = source.account?.productType?.trim();
 
-    return `${accountType || 'Native account'} xx ${last4}`;
+    return `${
+      accountType || translator.message('source.nativeAccount')
+    } xx ${last4}`;
   }
 
-  return `Card xx ${last4}`;
+  return `${translator.message('source.card')} xx ${last4}`;
 };
 
 const paymentSourceLast4 = (source: PaymentSource): string => {
@@ -8077,13 +8369,9 @@ const paymentSourceLast4 = (source: PaymentSource): string => {
 const paymentSourceId = (source: PaymentSource): string =>
   source.id?.trim() || source.name?.trim() || source.tenderType;
 
-const defaultPaymentSourceIdFromInteractionResponse = (
+const selectedPaymentSourceIdFromInteractionResponse = (
   interactionResponse?: InteractionResponse
-): string | undefined =>
-  interactionResponse?.selectedSource?.id?.trim() ||
-  interactionResponse?.paymentSources
-    ?.find((source) => source.isDefault)
-    ?.id?.trim();
+): string | undefined => interactionResponse?.selectedSource?.id?.trim();
 
 const paymentSourcePaymentMethodType = (
   source: PaymentSource
@@ -8132,13 +8420,10 @@ const nativeAccountBalanceMatchKeys = (source: NativePaymentSource): string[] =>
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
 
-const formatNativeAccountBalance = (balance: number): string =>
-  nativeAccountBalanceFormatter.format(balance);
-
-const nativeAccountBalanceFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-});
+const formatNativeAccountBalance = (
+  balance: number,
+  translator: Translator
+): string => translator.currency(balance, 'USD');
 
 const resolveSelectedPaymentSourceId = (
   interactionResponse?: InteractionResponse,
@@ -8563,19 +8848,20 @@ const renderWidgetLoadingOverlay = ({
 `;
 
 const verificationActionLoadingOverlay = (
-  action?: VerificationOverlayAction
+  action: VerificationOverlayAction | undefined,
+  translator: Translator
 ): TemplateResult | undefined => {
   if (action === 'verify-payment-source') {
     return renderWidgetLoadingOverlay({
-      title: 'Verifying payment method',
-      helper: 'Verifying your payment method, please wait.',
+      title: translator.message('paymentMethods.verifyingTitle'),
+      helper: translator.message('paymentMethods.verifyingHelper'),
     });
   }
 
   if (action === 'submit-required-info') {
     return renderWidgetLoadingOverlay({
-      title: 'Verifying account',
-      helper: 'Reviewing your verification information, please wait.',
+      title: translator.message('verification.accountTitle'),
+      helper: translator.message('verification.accountHelper'),
     });
   }
 
@@ -8583,48 +8869,52 @@ const verificationActionLoadingOverlay = (
 };
 
 const paymentSourceActionLoadingOverlay = (
-  action?: FlowActionName
+  action: FlowActionName | undefined,
+  translator: Translator
 ): TemplateResult | undefined => {
   if (action === 'verify-payment-source') {
-    return verificationActionLoadingOverlay(action);
+    return verificationActionLoadingOverlay(action, translator);
   }
 
   if (action === 'delete-payment-source') {
     return renderWidgetLoadingOverlay({
-      title: 'Deleting payment method',
-      helper: 'Deleting your payment method, please wait.',
+      title: translator.message('paymentMethods.deletingTitle'),
+      helper: translator.message('paymentMethods.deletingHelper'),
     });
   }
 
   if (action === 'attach-payment-source') {
     return renderWidgetLoadingOverlay({
-      title: 'Saving payment method',
-      helper: 'Saving your payment method, please wait.',
+      title: translator.message('paymentMethods.savingTitle'),
+      helper: translator.message('paymentMethods.savingHelper'),
     });
   }
 
   return undefined;
 };
 
-const flowActionLiveMessage = (action?: FlowActionName): string => {
+const flowActionLiveMessage = (
+  action: FlowActionName | undefined,
+  translator: Translator
+): string => {
   switch (action) {
     case 'attach-payment-source':
-      return 'Saving the selected payment method.';
+      return translator.message('live.savingSelectedPaymentMethod');
     case 'verify-payment-source':
     case 'submit-required-info':
-      return 'Verifying the payment method.';
+      return translator.message('live.verifyingPaymentMethod');
     case 'delete-payment-source':
-      return 'Deleting the payment method.';
+      return translator.message('live.deletingPaymentMethod');
     case 'verify-otp':
-      return 'Verifying the code.';
+      return translator.message('live.verifyingCode');
     case 'resend-otp':
-      return 'Sending a new code.';
+      return translator.message('live.sendingCode');
     case 'save-card':
-      return 'Saving the card.';
+      return translator.message('live.savingCard');
     case 'save-bank-account':
-      return 'Saving the bank account.';
+      return translator.message('live.savingBankAccount');
     case 'transfer':
-      return 'Submitting the transfer.';
+      return translator.message('live.submittingTransfer');
     default:
       return '';
   }
@@ -8637,15 +8927,18 @@ type BankOutcome = {
   message: string;
 };
 
-const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
+const resolveBankOutcome = (
+  source: PaymentSource | undefined,
+  translator: Translator
+): BankOutcome => {
   const status = source?.verificationInfo?.status;
 
   if (status === 'VERIFIED') {
     return {
       kind: 'verified',
       variant: 'success',
-      title: 'Bank account verified',
-      message: 'Your bank account is connected and ready to use.',
+      title: translator.message('bank.verifiedTitle'),
+      message: translator.message('bank.verifiedMessage'),
     };
   }
 
@@ -8653,8 +8946,8 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'pending',
       variant: 'warning',
-      title: 'Bank account pending review',
-      message: 'We will update this bank account after review is complete.',
+      title: translator.message('bank.pendingTitle'),
+      message: translator.message('bank.pendingMessage'),
     };
   }
 
@@ -8662,9 +8955,8 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'requires-info',
       variant: 'warning',
-      title: 'Complete account verification',
-      message:
-        'Additional information is required before this bank account can be verified.',
+      title: translator.message('verification.complete'),
+      message: translator.message('bank.additionalInfoMessage'),
     };
   }
 
@@ -8672,36 +8964,36 @@ const resolveBankOutcome = (source?: PaymentSource): BankOutcome => {
     return {
       kind: 'declined',
       variant: 'danger',
-      title: 'Bank account verification failed',
-      message: 'This bank account could not be verified.',
+      title: translator.message('bank.failedTitle'),
+      message: translator.message('bank.failedMessage'),
     };
   }
 
   return {
     kind: 'failed',
     variant: 'danger',
-    title: 'Bank account not verified',
-    message: 'This bank account is not verified yet.',
+    title: translator.message('bank.notVerifiedTitle'),
+    message: translator.message('bank.notVerifiedMessage'),
   };
 };
 
 const resolveSavedSourceVerificationOutcome = (
-  source?: PaymentSource,
-  failed = false
+  source: PaymentSource | undefined,
+  failed: boolean,
+  translator: Translator
 ): BankOutcome => {
-  const subject = paymentSourceVerificationSubject(source);
-  const subjectLowerCase = subject.toLowerCase();
+  const subject = paymentSourceVerificationSubject(source, translator);
   const status = source?.verificationInfo?.status;
+  const bankAccount = Boolean(source && isBankPaymentSource(source));
 
   if (failed) {
     return {
       kind: 'failed',
       variant: 'danger',
-      title:
-        subject === 'Bank account'
-          ? 'Bank account verification failed'
-          : `${subject} not verified`,
-      message: `We could not verify this ${subjectLowerCase} right now.`,
+      title: bankAccount
+        ? translator.message('bank.failedTitle')
+        : translator.message('verification.notVerifiedTitle', {subject}),
+      message: translator.message('verification.failedMessage', {subject}),
     };
   }
 
@@ -8709,11 +9001,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'verified',
       variant: 'success',
-      title:
-        subject === 'Bank account'
-          ? 'Bank account verified'
-          : `${subject} saved`,
-      message: `This ${subjectLowerCase} is verified and ready to use.`,
+      title: bankAccount
+        ? translator.message('bank.verifiedTitle')
+        : translator.message('verification.savedTitle', {subject}),
+      message: translator.message('verification.readyMessage', {subject}),
     };
   }
 
@@ -8721,11 +9012,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'pending',
       variant: 'warning',
-      title:
-        subject === 'Bank account'
-          ? 'Bank account pending review'
-          : 'Verification pending review',
-      message: `We will update this ${subjectLowerCase} after review is complete.`,
+      title: bankAccount
+        ? translator.message('bank.pendingTitle')
+        : translator.message('verification.pendingTitle'),
+      message: translator.message('verification.pendingMessage', {subject}),
     };
   }
 
@@ -8733,8 +9023,10 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'requires-info',
       variant: 'warning',
-      title: 'Complete account verification',
-      message: `Additional information is required before this ${subjectLowerCase} can be verified.`,
+      title: translator.message('verification.complete'),
+      message: translator.message('verification.additionalInfoMessage', {
+        subject,
+      }),
     };
   }
 
@@ -8742,22 +9034,22 @@ const resolveSavedSourceVerificationOutcome = (
     return {
       kind: 'declined',
       variant: 'danger',
-      title:
-        subject === 'Bank account'
-          ? 'Bank account verification failed'
-          : `${subject} declined`,
-      message: `This ${subjectLowerCase} could not be verified.`,
+      title: bankAccount
+        ? translator.message('bank.failedTitle')
+        : translator.message('verification.declinedTitle', {subject}),
+      message: translator.message('verification.couldNotVerifyMessage', {
+        subject,
+      }),
     };
   }
 
   return {
     kind: 'failed',
     variant: 'danger',
-    title:
-      subject === 'Bank account'
-        ? 'Bank account not verified'
-        : `${subject} not verified`,
-    message: `This ${subjectLowerCase} is not verified yet.`,
+    title: bankAccount
+      ? translator.message('bank.notVerifiedTitle')
+      : translator.message('verification.notVerifiedTitle', {subject}),
+    message: translator.message('verification.notVerifiedMessage', {subject}),
   };
 };
 
@@ -8788,18 +9080,24 @@ const requiredInfoRequirementKind = (
 ): 'required' | 'optional' =>
   isRequiredInfoDocMandatory(doc) ? 'required' : 'optional';
 
-const requiredInfoRequirementLabel = (doc: RequiredInfoDoc): string =>
-  isRequiredInfoDocMandatory(doc) ? 'Required' : 'Optional';
+const requiredInfoRequirementLabel = (
+  doc: RequiredInfoDoc,
+  translator: Translator
+): string =>
+  isRequiredInfoDocMandatory(doc)
+    ? translator.message('verification.required')
+    : translator.message('verification.optional');
 
 const renderRequiredInfoRequirementBadge = (
-  doc: RequiredInfoDoc
+  doc: RequiredInfoDoc,
+  translator: Translator
 ): TemplateResult => html`
   <span
     class="required-info-requirement-badge required-info-requirement-badge-${requiredInfoRequirementKind(
       doc
     )}"
   >
-    ${requiredInfoRequirementLabel(doc)}
+    ${requiredInfoRequirementLabel(doc, translator)}
   </span>
 `;
 
@@ -8828,14 +9126,16 @@ const renderRequiredInfoTextField = ({
   key,
   value,
   error,
+  translator,
 }: {
   doc: RequiredInfoDoc;
   key: string;
   value: string;
   error?: string;
+  translator: Translator;
 }): TemplateResult => {
   if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
-    return renderRequiredInfoSsnField({doc, key, value, error});
+    return renderRequiredInfoSsnField({doc, key, value, error, translator});
   }
 
   const id = `required-info-${key}`;
@@ -8850,9 +9150,9 @@ const renderRequiredInfoTextField = ({
       <div class="field field-full">
         <div class="field-label-row">
           <label class="field-label" for=${id}
-            >${requiredInfoDocLabel(doc)}</label
+            >${requiredInfoDocLabel(doc, translator)}</label
           >
-          ${renderRequiredInfoRequirementBadge(doc)}
+          ${renderRequiredInfoRequirementBadge(doc, translator)}
         </div>
         <input
           class="field-input required-info-text-input"
@@ -8863,7 +9163,7 @@ const renderRequiredInfoTextField = ({
           autocomplete="off"
           inputmode=${requiredInfoTextInputMode(doc)}
           data-required-info-doc-key=${key}
-          aria-label=${requiredInfoDocLabel(doc)}
+          aria-label=${requiredInfoDocLabel(doc, translator)}
           aria-invalid=${error ? 'true' : 'false'}
           aria-describedby=${ifDefined(error ? errorId : undefined)}
         />
@@ -8880,13 +9180,15 @@ const renderRequiredInfoSsnField = ({
   key,
   value,
   error,
+  translator,
 }: {
   doc: RequiredInfoDoc;
   key: string;
   value: string;
   error?: string;
+  translator: Translator;
 }): TemplateResult => {
-  const label = requiredInfoDocLabel(doc);
+  const label = requiredInfoDocLabel(doc, translator);
   const segments = requiredInfoSsnSegments(value);
   const id = `required-info-${key}-ssn-0`;
   const errorId = `required-info-${key}-error`;
@@ -8900,7 +9202,7 @@ const renderRequiredInfoSsnField = ({
       <div class="field field-full">
         <div class="field-label-row">
           <label class="field-label" for=${id}>${label}</label>
-          ${renderRequiredInfoRequirementBadge(doc)}
+          ${renderRequiredInfoRequirementBadge(doc, translator)}
         </div>
         <div class="required-info-ssn-control" role="group" aria-label=${label}>
           ${REQUIRED_INFO_SSN_SEGMENT_LENGTHS.map(
@@ -8923,7 +9225,10 @@ const renderRequiredInfoSsnField = ({
                 maxlength=${length}
                 data-required-info-doc-key=${key}
                 data-required-info-ssn-segment=${String(index)}
-                aria-label=${`${label} part ${index + 1}`}
+                aria-label=${translator.message('document.part', {
+                  label,
+                  part: index + 1,
+                })}
                 aria-invalid=${error ? 'true' : 'false'}
                 aria-describedby=${ifDefined(error ? errorId : undefined)}
               />
@@ -8938,60 +9243,71 @@ const renderRequiredInfoSsnField = ({
   `;
 };
 
-const requiredInfoDocLabel = (doc: RequiredInfoDoc): string => {
+const requiredInfoDocLabel = (
+  doc: RequiredInfoDoc,
+  translator: Translator
+): string => {
   if (doc.docType === 'BANK_STATEMENT') {
-    return 'Bank statement';
+    return translator.message('document.bankStatement');
   }
 
   if (doc.docType === 'BANK_LETTER') {
-    return 'Bank letter';
+    return translator.message('document.bankLetter');
   }
 
   if (doc.docType === 'BANK_CHECK') {
-    return 'Bank check';
+    return translator.message('document.bankCheck');
   }
 
   if (doc.docType === 'DRIVER_LICENSE_PHOTO') {
-    return 'Driver license photo';
+    return translator.message('document.driverLicensePhoto');
   }
 
   if (doc.docType === 'DRIVER_LICENSE_NUMBER') {
-    return 'Driver license number';
+    return translator.message('document.driverLicenseNumber');
   }
 
   if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
-    return 'Social Security number';
+    return translator.message('document.socialSecurityNumber');
   }
 
-  return 'Required document';
+  return translator.message('verification.requiredDocument');
 };
 
-const requiredInfoMissingValueMessage = (doc: RequiredInfoDoc): string => {
-  const label = requiredInfoDocLabel(doc);
+const requiredInfoMissingValueMessage = (
+  doc: RequiredInfoDoc,
+  translator: Translator
+): string => {
+  const label = requiredInfoDocLabel(doc, translator).toLocaleLowerCase(
+    translator.locale
+  );
 
   if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
-    return 'Enter a Social Security number.';
+    return translator.message('document.ssnRequired');
   }
 
   return isRequiredInfoTextDoc(doc)
-    ? `Enter a ${label.toLowerCase()}.`
-    : `Choose a ${label.toLowerCase()}.`;
+    ? translator.message('document.enterValue', {label})
+    : translator.message('document.chooseValue', {label});
 };
 
-const requiredInfoSourceTypeLabel = (source: PaymentSource): string => {
+const requiredInfoSourceTypeLabel = (
+  source: PaymentSource,
+  translator: Translator
+): string => {
   if (isBankPaymentSource(source)) {
-    return 'Bank account';
+    return translator.message('source.bankAccount');
   }
 
   if (isCardPaymentSource(source)) {
-    return 'Card';
+    return translator.message('source.card');
   }
 
   if (isNativePaymentSource(source)) {
-    return 'Native account';
+    return translator.message('source.nativeAccount');
   }
 
-  return 'Dynamic session card';
+  return translator.message('source.dynamicSessionCard');
 };
 
 const requiredInfoSourceName = (source: PaymentSource): string => {
@@ -9053,7 +9369,8 @@ const paymentSourceIconMethod = (
 });
 
 const renderRequiredInfoSourceCard = (
-  source: PaymentSource
+  source: PaymentSource,
+  translator: Translator
 ): TemplateResult => {
   const iconMethod = paymentSourceIconMethod(source);
   const iconName = resolvePaymentMethodIconName(iconMethod);
@@ -9062,12 +9379,12 @@ const renderRequiredInfoSourceCard = (
   return html`
     <div
       class="required-info-card"
-      aria-label="Payment source requiring verification"
+      aria-label=${translator.message('verification.sourceAria')}
     >
       <div class="required-info-card-top">
         <div class="required-info-card-heading">
           <span class="required-info-card-label"
-            >${requiredInfoSourceTypeLabel(source)}</span
+            >${requiredInfoSourceTypeLabel(source, translator)}</span
           >
           <span
             class="required-info-card-field required-info-card-name"
@@ -9094,7 +9411,9 @@ const renderRequiredInfoSourceCard = (
 
       <div class="required-info-card-bottom">
         <div class="required-info-card-detail">
-          <span class="required-info-card-label">Status</span>
+          <span class="required-info-card-label"
+            >${translator.message('verification.status')}</span
+          >
           <span class="required-info-card-status">
             ${renderVerificationStatusBadge(
               verificationStatusToPaymentMethodStatus(
@@ -9106,7 +9425,9 @@ const renderRequiredInfoSourceCard = (
         ${expiry
           ? html`
               <div class="required-info-card-detail">
-                <span class="required-info-card-label">Expiry</span>
+                <span class="required-info-card-label"
+                  >${translator.message('verification.expiry')}</span
+                >
                 <span
                   class="required-info-card-field required-info-card-expiry"
                   data-required-info-card-field="expiry"
@@ -9123,12 +9444,15 @@ const renderRequiredInfoSourceCard = (
 const requiresAdditionalVerificationInfo = (source: PaymentSource): boolean =>
   source.verificationInfo?.status === 'REQUIRE_INFO';
 
-const paymentSourceVerificationSubject = (source?: PaymentSource): string =>
+const paymentSourceVerificationSubject = (
+  source: PaymentSource | undefined,
+  translator: Translator
+): string =>
   source && isBankPaymentSource(source)
-    ? 'Bank account'
+    ? translator.message('source.bankAccount')
     : source && isNativePaymentSource(source)
-    ? 'Native account'
-    : 'Payment method';
+    ? translator.message('source.nativeAccount')
+    : translator.message('source.paymentMethod');
 
 const isBankPaymentSource = (
   source: PaymentSource

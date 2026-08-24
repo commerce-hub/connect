@@ -124,6 +124,30 @@ Assign object-valued SDK inputs such as `.interactionResponse` and
 attributes can only carry strings. The `base-url` attribute is available only
 for the string `.baseURL` value.
 
+## Language support
+
+The SDK bundles English (United States) and French (Canada). English is the
+default. Set the `locale` property or reflected attribute before providing the
+interaction response:
+
+```html
+<commerce-hub-connect locale="fr-CA"></commerce-hub-connect>
+```
+
+```ts
+widget.locale = 'fr-CA';
+```
+
+`fr` and other French regional tags resolve to `fr-CA`. Unsupported locale
+values fall back to `en-US`. Changing `locale` at runtime rerenders SDK-owned
+copy, updates the component's `lang` and `dir` attributes, sends the resolved
+locale in the `Accept-Language` header on SDK-managed requests, and forwards it
+to the Pay by Bank SDK.
+
+Localization applies only to text owned by this SDK. Labels, descriptions,
+enum values, and validation errors supplied by CommerceHub configuration APIs
+are rendered unchanged; those APIs currently provide English content.
+
 ## Presentation modes
 
 The default `dialog` presentation keeps the viewport-sized framed widget used
@@ -231,17 +255,17 @@ For host analytics and UI orchestration, the SDK emits `onEvent` with
 For a team-shareable reference with exhaustive tables and examples, see
 `docs/superpowers/specs/2026-08-05-wallet-sdk-event-telemetry-reference.md`.
 
-| Type | Meaning |
-| --- | --- |
-| `view` | A widget screen became active. The event name is `view_loaded` and includes `screen` and `previousScreen`. |
-| `action` | A shopper-triggered widget action fired. Includes `name` and `isBackAction`. |
+| Type     | Meaning                                                                                                    |
+| -------- | ---------------------------------------------------------------------------------------------------------- |
+| `view`   | A widget screen became active. The event name is `view_loaded` and includes `screen` and `previousScreen`. |
+| `action` | A shopper-triggered widget action fired. Includes `name` and `isBackAction`.                               |
 
 Standardized `onEvent` fields:
 
-| Field | Values |
-| --- | --- |
-| `type` | `view` \| `action` |
-| `name` when `type=view` | `view_loaded` |
+| Field                     | Values                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| `type`                    | `view` \| `action`                                                                             |
+| `name` when `type=view`   | `view_loaded`                                                                                  |
 | `name` when `type=action` | Every `FlowActionName` value (for example `back-to-payment-methods`, `add-card`, `verify-otp`) |
 
 Use `onSelect` for checkout completion boundaries and `onEvent` for telemetry,

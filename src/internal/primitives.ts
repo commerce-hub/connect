@@ -157,7 +157,7 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
                 : ''}
               ${method.isDefault
                 ? html`<span class="payment-method-default-label"
-                    >Default</span
+                    >${method.defaultLabel ?? 'Default'}</span
                   >`
                 : ''}
             </span>
@@ -170,13 +170,14 @@ const renderPaymentMethodCopy = (method: PaymentMethod): TemplateResult => {
 const renderPaymentMethodBalance = ({
   balanceLabel,
   balanceLoading,
+  loadingBalanceLabel,
 }: PaymentMethod): TemplateResult | '' => {
   if (balanceLoading) {
     return html`
       <span
         class="payment-method-balance-loading"
         role="status"
-        aria-label="Loading balance"
+        aria-label=${loadingBalanceLabel ?? 'Loading balance'}
       ></span>
     `;
   }
@@ -200,9 +201,10 @@ const renderPaymentMethodTrailingContent = (
 const renderPaymentMethodDeleteAction = (
   paymentMethodId: string,
   paymentMethodLabel: string,
+  deleteActionLabel?: string,
   disabled = false
 ): TemplateResult => {
-  const deleteLabel = `Delete ${paymentMethodLabel}`;
+  const deleteLabel = deleteActionLabel ?? `Delete ${paymentMethodLabel}`;
 
   return html`
     <span class="payment-method-delete-action">
@@ -328,7 +330,7 @@ const renderPaymentMethodAffordance = (
           name="payment-method"
           value=${method.id}
           data-payment-method-radio="true"
-          aria-label=${`Select ${method.label}`}
+          aria-label=${method.selectLabel ?? `Select ${method.label}`}
           .checked=${selected}
           ?disabled=${method.disabled}
         />
@@ -381,7 +383,8 @@ const renderPaymentMethodOverflowAction = (
       <button
         class="payment-method-overflow-button"
         type="button"
-        aria-label=${`More actions for ${method.label}`}
+        aria-label=${method.moreActionsLabel ??
+        `More actions for ${method.label}`}
         aria-haspopup="true"
         aria-expanded=${menuOpen ? 'true' : 'false'}
         aria-controls=${menuId}
@@ -415,7 +418,7 @@ const renderPaymentMethodOverflowAction = (
                       data-payment-method-id=${method.id}
                       ?disabled=${method.disabled}
                     >
-                      Mark as default
+                      ${method.markDefaultLabel ?? 'Mark as default'}
                     </button>
                   `
                 : ''}
@@ -428,7 +431,7 @@ const renderPaymentMethodOverflowAction = (
                       data-payment-method-id=${method.id}
                       ?disabled=${method.disabled}
                     >
-                      Remove
+                      ${method.removeLabel ?? 'Remove'}
                     </button>
                   `
                 : ''}
@@ -510,6 +513,8 @@ export const renderTextField = ({
   revealed = false,
   onToggleReveal,
   maskReveal,
+  revealShowLabel = 'Show value',
+  revealHideLabel = 'Hide value',
 }: TextFieldOptions): TemplateResult => {
   const fieldClasses = joinClassNames(
     'field',
@@ -586,7 +591,10 @@ export const renderTextField = ({
           <button
             class="field-reveal-toggle"
             type="button"
-            aria-label=${revealFieldButtonLabel(revealed)}
+            aria-label=${revealFieldButtonLabel(revealed, {
+              show: revealShowLabel,
+              hide: revealHideLabel,
+            })}
             aria-pressed=${revealed ? 'true' : 'false'}
             aria-controls=${id}
             ?disabled=${disabled}
@@ -702,6 +710,7 @@ export const renderOtpGroup = ({
   length = 6,
   disabled = false,
   error = false,
+  digitLabel = 'digit',
 }: OtpGroupOptions): TemplateResult => {
   const digits = Array.from({length}, (_, index) => value[index] ?? '');
 
@@ -716,7 +725,7 @@ export const renderOtpGroup = ({
           (digit, index) => html`
             <input
               class="otp-input"
-              aria-label=${`${label} digit ${index + 1}`}
+              aria-label=${`${label} ${digitLabel} ${index + 1}`}
               inputmode="numeric"
               maxlength="1"
               pattern="[0-9]*"
@@ -791,6 +800,12 @@ export const renderPaymentMethodRow = (
     last4,
     showVerificationStatus,
     verificationLabel,
+    defaultLabel,
+    loadingBalanceLabel,
+    deleteActionLabel,
+    moreActionsLabel,
+    markDefaultLabel,
+    removeLabel,
     selectionEligible,
     isDefault,
     disabled = false,
@@ -827,6 +842,12 @@ export const renderPaymentMethodRow = (
     last4,
     showVerificationStatus,
     verificationLabel,
+    defaultLabel,
+    loadingBalanceLabel,
+    deleteActionLabel,
+    moreActionsLabel,
+    markDefaultLabel,
+    removeLabel,
     selectionEligible,
     isDefault,
     disabled,
@@ -849,7 +870,12 @@ export const renderPaymentMethodRow = (
         data-payment-method-id=${id}
       >
         ${renderPaymentMethodMain(method, false)}
-        ${renderPaymentMethodDeleteAction(id, label, deleteDisabled)}
+        ${renderPaymentMethodDeleteAction(
+          id,
+          label,
+          deleteActionLabel,
+          deleteDisabled
+        )}
       </div>
     `;
   }
@@ -901,7 +927,10 @@ export const renderPaymentMethodRow = (
         showMarkAsDefault,
       })}
       ${reservesAffordanceSpace
-        ? html`<span class="payment-method-row-spacer" aria-hidden="true"></span>`
+        ? html`<span
+            class="payment-method-row-spacer"
+            aria-hidden="true"
+          ></span>`
         : ''}
       ${renderPaymentMethodAffordance(method, {
         rendersRadio,
@@ -924,6 +953,12 @@ export const renderSelectedPaymentMethod = ({
   last4,
   showVerificationStatus,
   verificationLabel,
+  defaultLabel,
+  loadingBalanceLabel,
+  deleteActionLabel,
+  moreActionsLabel,
+  markDefaultLabel,
+  removeLabel,
   selectionEligible,
 }: PaymentMethod): TemplateResult => {
   const method: PaymentMethod = {
@@ -939,6 +974,12 @@ export const renderSelectedPaymentMethod = ({
     last4,
     showVerificationStatus,
     verificationLabel,
+    defaultLabel,
+    loadingBalanceLabel,
+    deleteActionLabel,
+    moreActionsLabel,
+    markDefaultLabel,
+    removeLabel,
     selectionEligible,
   };
 
@@ -1085,16 +1126,17 @@ export const renderUploadRow = ({
   action,
   error = false,
   disabled = false,
+  noFileChosenLabel = 'No file chosen',
 }: UploadRowOptions): TemplateResult => html`
   <button
     class="upload-row ${error ? 'upload-row-error' : ''}"
     type="button"
     data-action=${ifDefined(action)}
     ?disabled=${disabled}
-    aria-label=${`${actionLabel}. ${label}. ${fileName ?? 'No file chosen'}`}
+    aria-label=${`${actionLabel}. ${label}. ${fileName ?? noFileChosenLabel}`}
   >
     <span class="upload-row-action">${actionLabel}</span>
-    <span class="upload-row-file-name">${fileName ?? 'No file chosen'}</span>
+    <span class="upload-row-file-name">${fileName ?? noFileChosenLabel}</span>
     <span class="upload-row-label">${label}</span>
     <span class="upload-row-requirements">${requirements}</span>
   </button>
@@ -1292,6 +1334,8 @@ export const renderWidgetShell = ({
   layout = 'default',
   presentationMode = 'dialog',
   ariaLabel = 'Commerce Hub Connect',
+  backLabel = 'Back',
+  closeLabel = 'Close Commerce Hub Connect',
   closeAction = 'close',
   showClose = true,
   showDivider = false,
@@ -1317,7 +1361,7 @@ export const renderWidgetShell = ({
           <button
             class="widget-close"
             type="button"
-            aria-label="Close Commerce Hub Connect"
+            aria-label=${closeLabel}
             data-action=${closeAction}
           >
             ×
@@ -1331,7 +1375,7 @@ export const renderWidgetShell = ({
               <button
                 class="widget-back-button"
                 type="button"
-                aria-label="Back"
+                aria-label=${backLabel}
                 data-action=${backAction}
                 ?disabled=${backDisabled}
               >

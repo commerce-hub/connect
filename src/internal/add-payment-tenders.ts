@@ -22,6 +22,10 @@ export const resolveAddPaymentTenders = ({
     | 'addCardSubtitle'
     | 'addBankAccountTitle'
     | 'addBankAccountSubtitle'
+    | 'payByBankTitle'
+    | 'payByBankSubtitle'
+    | 'manualBankTitle'
+    | 'manualBankSubtitle'
   >;
 }): AddPaymentTenderOption[] => {
   const tenders: AddPaymentTenderOption[] = [];
@@ -54,15 +58,16 @@ export const resolveAddPaymentTenders = ({
   tenders.push(
     {
       action: 'add-pay-by-bank',
-      title: 'Pay by Bank',
-      subtitle: 'Directly connect with your bank account',
+      title: copy.payByBankTitle ?? 'Pay by Bank',
+      subtitle:
+        copy.payByBankSubtitle ?? 'Directly connect with your bank account',
       icon: 'bank',
       brandImage: PAY_BY_BANK_SOURCE_ACTION_BRAND_IMAGE,
     },
     {
       action: 'add-ach-manually',
-      title: 'Manual bank details',
-      subtitle: 'Add your account details manually',
+      title: copy.manualBankTitle ?? 'Manual bank details',
+      subtitle: copy.manualBankSubtitle ?? 'Add your account details manually',
       icon: 'bank',
       brandImage: MANUAL_BANK_SOURCE_ACTION_BRAND_IMAGE,
     }
