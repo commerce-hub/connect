@@ -1434,6 +1434,29 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('renders SDK-owned OTP copy in French Canadian and reflects language metadata', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-otp-fr',
+      status: 'OTP_VALIDATION_PENDING',
+      paymentSources: [],
+    });
+
+    el.locale = 'fr-CA';
+    await flushElement(el);
+
+    assert.equal(el.lang, 'fr-CA');
+    assert.equal(el.dir, 'ltr');
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Entrer le code de vérification'
+    );
+    assert.include(
+      el.shadowRoot!.textContent ?? '',
+      "Vous n'avez pas reçu le code?"
+    );
+    assert.include(el.shadowRoot!.textContent ?? '', 'Vérifier');
+  });
+
   test('renders OTP copy from partial designConfig overrides', async () => {
     const el = await renderConnect(
       {

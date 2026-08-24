@@ -129,6 +129,10 @@ import {
   validateTransferDraft,
 } from './internal/forms/transfer-form-state.js';
 import {resolveAddPaymentTenders} from './internal/add-payment-tenders.js';
+import {
+  createTranslator,
+  type Translator,
+} from './internal/localization/localization.js';
 import {resolvePayByBankCustomerDetails} from './internal/pay-by-bank-customer-details.js';
 import {
   resolvePaymentMethodIconDataUri,
@@ -721,6 +725,10 @@ export class CommerceHubConnect extends LitElement {
   @property({attribute: 'base-url'})
   baseURL?: CommerceHubBaseURLInput;
 
+  /** Locale used for SDK-owned shopper text. Supports en-US and fr-CA. */
+  @property({reflect: true})
+  locale = 'en-US';
+
   @state()
   private selectedPaymentSourceId?: string;
 
@@ -943,7 +951,17 @@ export class CommerceHubConnect extends LitElement {
   private minimumVerificationOverlayToken = 0;
   private lastReportedScreen?: WalletSdkScreenName;
 
+  private get translator(): Translator {
+    return createTranslator(this.locale);
+  }
+
   protected override willUpdate(changedProperties: PropertyValues<this>) {
+    if (changedProperties.has('locale')) {
+      const translator = this.translator;
+      this.lang = translator.locale;
+      this.dir = translator.direction;
+    }
+
     if (
       changedProperties.has('interactionResponse') &&
       this.interactionResponse
@@ -1315,7 +1333,7 @@ export class CommerceHubConnect extends LitElement {
   private renderOtpScreen(
     status: 'OTP_VALIDATION_PENDING' | 'OTP_VALIDATION_FAILED'
   ): TemplateResult {
-    const copy = resolveOtpCopy(this.designConfig);
+    const copy = resolveOtpCopy(this.designConfig, this.translator);
     const isSubmitting = this.pendingAction === 'verify-otp';
     const isResending =
       this.pendingAction === 'resend-otp' && !this.initialOtpSendPending;
@@ -1355,7 +1373,7 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderPaymentSourceScreen(): TemplateResult {
-    const copy = resolvePaymentMethodsCopy(this.designConfig);
+    const copy = resolvePaymentMethodsCopy(this.designConfig, this.translator);
     const paymentMethods = paymentMethodsFromInteractionResponse(
       this.interactionResponse,
       {
@@ -1506,7 +1524,10 @@ export class CommerceHubConnect extends LitElement {
 
   private renderAddPaymentSourceScreen(): TemplateResult {
     const tenders = this.addPaymentTenderOptions();
-    const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
+    const copy = resolveNoSavedPaymentMethodsCopy(
+      this.designConfig,
+      this.translator
+    );
 
     return this.renderWidgetShell({
       title: 'Add payment method',
@@ -2134,7 +2155,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private renderNoSavedPaymentMethods(): TemplateResult {
-    const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
+    const copy = resolveNoSavedPaymentMethodsCopy(
+      this.designConfig,
+      this.translator
+    );
     const isDeletePending = this.pendingAction === 'delete-payment-source';
     const allowedTenderOptions = allowedTenderOptionsFromInteractionResponse(
       this.interactionResponse
@@ -2158,7 +2182,10 @@ export class CommerceHubConnect extends LitElement {
   }
 
   private addPaymentTenderOptions(): AddPaymentTenderOption[] {
-    const copy = resolveNoSavedPaymentMethodsCopy(this.designConfig);
+    const copy = resolveNoSavedPaymentMethodsCopy(
+      this.designConfig,
+      this.translator
+    );
 
     return resolveAddPaymentTenders({
       isUsa: isUsaInteractionCountry(this.interactionResponse?.country),
@@ -6784,7 +6811,10 @@ export class CommerceHubConnect extends LitElement {
         accessToken,
         configId: payByBank.configId,
         environment: payByBank.environment,
-        locale: payByBank.locale,
+        locale:
+          this.locale === 'en-US'
+            ? payByBank.locale
+            : this.translator.locale,
         appearance: resolvePaymentSdkAppearance(
           this.designConfig,
           getComputedStyle(this).getPropertyValue(FONT_FAMILY_PROPERTY)
@@ -7183,6 +7213,10 @@ export class CommerceHubConnect extends LitElement {
 
     headers.set('x-interaction-id', interactionId);
 
+    if (!headers.has('Accept-Language')) {
+      headers.set('Accept-Language', this.translator.locale);
+    }
+
     if (accessToken && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${accessToken}`);
     }
@@ -7571,54 +7605,73 @@ const resolveOtpDestination = (
   return [countryCode, phoneNumber].filter(Boolean).join(' ') || undefined;
 };
 
-const resolveOtpCopy = (designConfig?: DesignConfig): ResolvedOtpCopy => {
+const resolveOtpCopy = (
+  designConfig: DesignConfig | undefined,
+  translator: Translator
+): ResolvedOtpCopy => {
   const copy = designConfig?.copy?.otp;
 
   return {
-    title: copy?.title ?? 'Enter verification code',
+    title: copy?.title ?? translator.message('otp.title'),
     subtitle: copy?.subtitle,
-    failedMessage: copy?.failedMessage ?? 'The code does not match. Try again.',
-    resendPrefix: copy?.resendPrefix ?? "Didn't receive the code?",
-    resendButton: copy?.resendButton ?? 'Resend code',
-    resendPendingButton: copy?.resendPendingButton ?? 'Sending code...',
-    verifyButton: copy?.verifyButton ?? 'Verify',
-    verifyingButton: copy?.verifyingButton ?? 'Verifying...',
-    tryAgainButton: copy?.tryAgainButton ?? 'Try again',
+    failedMessage: copy?.failedMessage ?? translator.message('otp.failedMessage'),
+    resendPrefix: copy?.resendPrefix ?? translator.message('otp.resendPrefix'),
+    resendButton: copy?.resendButton ?? translator.message('otp.resendButton'),
+    resendPendingButton:
+      copy?.resendPendingButton ??
+      translator.message('otp.resendPendingButton'),
+    verifyButton: copy?.verifyButton ?? translator.message('otp.verifyButton'),
+    verifyingButton:
+      copy?.verifyingButton ?? translator.message('otp.verifyingButton'),
+    tryAgainButton: copy?.tryAgainButton ?? translator.message('otp.tryAgainButton'),
   };
 };
 
 const resolvePaymentMethodsCopy = (
-  designConfig?: DesignConfig
+  designConfig: DesignConfig | undefined,
+  translator: Translator
 ): ResolvedPaymentMethodsCopy => {
   const copy = designConfig?.copy?.paymentMethods;
 
   return {
-    title: copy?.title ?? 'Payment methods',
+    title: copy?.title ?? translator.message('paymentMethods.title'),
     subtitle: copy?.subtitle ?? '',
-    addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
+    addBankAccountTitle:
+      copy?.addBankAccountTitle ??
+      translator.message('paymentMethods.addBankAccount'),
     addBankAccountSubtitle: copy?.addBankAccountSubtitle ?? '',
-    addCardTitle: copy?.addCardTitle ?? 'Credit or debit card',
+    addCardTitle:
+      copy?.addCardTitle ?? translator.message('paymentMethods.addCard'),
     addCardSubtitle: copy?.addCardSubtitle ?? '',
-    continueButton: copy?.continueButton ?? 'Use selected method',
-    continuingButton: copy?.continuingButton ?? 'Saving...',
+    continueButton:
+      copy?.continueButton ?? translator.message('paymentMethods.continue'),
+    continuingButton:
+      copy?.continuingButton ?? translator.message('paymentMethods.continuing'),
   };
 };
 
 const resolveNoSavedPaymentMethodsCopy = (
-  designConfig?: DesignConfig
+  designConfig: DesignConfig | undefined,
+  translator: Translator
 ): ResolvedNoSavedPaymentMethodsCopy => {
   const copy = designConfig?.copy?.noSavedPaymentMethods;
 
   return {
-    title: copy?.title ?? 'Payment methods',
+    title: copy?.title ?? translator.message('paymentMethods.title'),
     subtitle: copy?.subtitle ?? '',
     emptyTitle: copy?.emptyTitle ?? '',
     emptyMessage: copy?.emptyMessage ?? '',
-    addBankAccountTitle: copy?.addBankAccountTitle ?? 'Add bank account',
+    addBankAccountTitle:
+      copy?.addBankAccountTitle ??
+      translator.message('paymentMethods.addBankAccount'),
     addBankAccountSubtitle:
-      copy?.addBankAccountSubtitle ?? 'Connect or enter an account',
-    addCardTitle: copy?.addCardTitle ?? 'Credit or debit card',
-    addCardSubtitle: copy?.addCardSubtitle ?? 'Add your card details',
+      copy?.addBankAccountSubtitle ??
+      translator.message('paymentMethods.addBankAccountDescription'),
+    addCardTitle:
+      copy?.addCardTitle ?? translator.message('paymentMethods.addCard'),
+    addCardSubtitle:
+      copy?.addCardSubtitle ??
+      translator.message('paymentMethods.addCardDescription'),
   };
 };
 
