@@ -1,7 +1,7 @@
 {
   "name": "commerce-hub-connect-sdk",
   "private": true,
-  "version": "0.11.9",
+  "version": "0.12.0",
   "description": "CommerceHub Connect Web SDK widget primitives",
   "main": "commerce-hub-connect.js",
   "module": "commerce-hub-connect.js",
@@ -33,6 +33,7 @@
     "lint": "npm run lint:lit-analyzer && npm run lint:eslint",
     "lint:eslint": "eslint 'src/**/*.ts'",
     "lint:lit-analyzer": "lit-analyzer",
+    "check:localization": "node scripts/check-localization.mjs",
     "format": "prettier \"**/*.{cjs,html,js,json,md,ts}\" --ignore-path ./.eslintignore --write",
     "docs": "npm run docs:clean && npm run build && npm run analyze && npm run docs:build && npm run docs:assets && npm run docs:gen",
     "docs:clean": "rimraf docs",
@@ -45,7 +46,7 @@
     "analyze:watch": "cem analyze --litelement --globs \"src/**/*.ts\" --watch",
     "serve": "wds --watch",
     "serve:prod": "MODE=prod npm run serve",
-    "test": "npm run test:proxy-auth && npm run test:package-surface && npm run test:dev && npm run test:prod",
+    "test": "npm run check:localization && npm run test:proxy-auth && npm run test:package-surface && npm run test:dev && npm run test:prod",
     "test:e2e:add-bank-account": "node e2e-tests/add-bank-account-flow.mjs",
     "test:package-surface": "node --test dev/package-surface_test.js",
     "test:proxy-auth": "node --test dev/commerce-hub-dev-auth_test.js",
@@ -67,6 +68,7 @@
     "@jsonforms/core": "^3.8.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "intl-messageformat": "^10.7.18",
     "lit": "^3.2.0",
     "openapi-fetch": "^0.17.0"
   },

@@ -907,10 +907,12 @@ interface TestPaymentSdkInitConfiguration {
   aggregatorSessionId?: string;
   publicKey?: string;
   pToken?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
+  customer?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+  };
   embed?: boolean;
   width?: string | number;
   height?: string | number;
@@ -1434,6 +1436,29 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
+  test('renders SDK-owned OTP copy in French Canadian and reflects language metadata', async () => {
+    const el = await renderConnect({
+      interactionId: 'interaction-otp-fr',
+      status: 'OTP_VALIDATION_PENDING',
+      paymentSources: [],
+    });
+
+    el.locale = 'fr-CA';
+    await flushElement(el);
+
+    assert.equal(el.lang, 'fr-CA');
+    assert.equal(el.dir, 'ltr');
+    assert.equal(
+      el.shadowRoot!.querySelector('.widget-title')?.textContent?.trim(),
+      'Entrer le code de vérification'
+    );
+    assert.include(
+      el.shadowRoot!.textContent ?? '',
+      "Vous n'avez pas reçu le code?"
+    );
+    assert.include(el.shadowRoot!.textContent ?? '', 'Vérifier');
+  });
+
   test('renders OTP copy from partial designConfig overrides', async () => {
     const el = await renderConnect(
       {
@@ -1748,18 +1773,15 @@ suite('commerce-hub-connect flow', () => {
     );
     assert.deepEqual(
       tenderOptions.map((option) =>
-        option
-          .querySelector('.source-action-title')
-          ?.textContent?.trim()
+        option.querySelector('.source-action-title')?.textContent?.trim()
       ),
       ['Credit or debit card', 'Pay by Bank', 'Manual bank details']
     );
     assert.deepEqual(
       tenderOptions.map(
         (option) =>
-          option.querySelector<HTMLImageElement>(
-            '.source-action-brand-image'
-          )?.src
+          option.querySelector<HTMLImageElement>('.source-action-brand-image')
+            ?.src
       ),
       [
         CARD_SOURCE_ACTION_BRAND_IMAGE,
@@ -2054,9 +2076,9 @@ suite('commerce-hub-connect flow', () => {
     });
 
     await clickAction(el, 'open-add-payment-source');
-    el.shadowRoot!
-      .querySelector<HTMLButtonElement>('[data-action="add-ach-manually"]')!
-      .click();
+    el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="add-ach-manually"]'
+    )!.click();
     await el.updateComplete;
 
     assert.notExists(el.shadowRoot!.querySelector('.add-payment-sheet'));
@@ -7020,7 +7042,10 @@ suite('commerce-hub-connect flow', () => {
 
     await waitForRequest(requests, '/interaction/otp/send/email', 'POST');
     await clickAction(el, 'resend-otp');
-    await waitFor(() => requests.length === 2, 'manual OTP resend was not sent');
+    await waitFor(
+      () => requests.length === 2,
+      'manual OTP resend was not sent'
+    );
 
     assert.lengthOf(requests, 2);
     assert.equal(
@@ -7129,6 +7154,7 @@ suite('commerce-hub-connect flow', () => {
       requests[0].headers.get('x-interaction-id'),
       'interaction-payment'
     );
+    assert.equal(requests[0].headers.get('Accept-Language'), 'en-US');
     assert.equal(
       requests[0].headers.get('Authorization'),
       'Bearer gateway-access-token-3'
@@ -7853,10 +7879,7 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(initConfig?.environment, 'sandbox');
     assert.equal(initConfig?.locale, 'en-CA');
     assert.equal(initConfig?.containerId, 'commerce-hub-pbb-provider');
-    assert.notProperty(initConfig, 'firstName');
-    assert.notProperty(initConfig, 'lastName');
-    assert.notProperty(initConfig, 'email');
-    assert.notProperty(initConfig, 'phone');
+    assert.notProperty(initConfig, 'customer');
     assert.isUndefined(initConfig?.embed);
     assert.deepEqual(initConfig?.appearance, {
       branding: {
@@ -7890,7 +7913,6 @@ suite('commerce-hub-connect flow', () => {
       'interaction-payment'
     );
     assert.equal(requests[0].credentials, 'include');
-
   });
 
   test('passes interaction customer details to Pay by Bank initialization', async () => {
@@ -7926,15 +7948,25 @@ suite('commerce-hub-connect flow', () => {
       },
     });
 
+    el.locale = 'fr-CA';
+    await flushElement(el);
+
     await clickAction(el, 'add-pay-by-bank');
     await waitFor(() => Boolean(initConfig), 'PaymentSDK.init was not called');
 
-    assert.include(initConfig, {
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john@example.com',
-      phone: '2145550123',
+    assert.deepInclude(initConfig, {
+      customer: {
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '2145550123',
+      },
+      locale: 'fr-CA',
     });
+    assert.notProperty(initConfig, 'firstName');
+    assert.notProperty(initConfig, 'lastName');
+    assert.notProperty(initConfig, 'email');
+    assert.notProperty(initConfig, 'phone');
 
     await initConfig!.onEvent({type: 'cancel'});
     await flushElement(el);

@@ -11,11 +11,13 @@ import type {
   PaymentMethodsScreenModel,
 } from '../types.js';
 
-export const renderPaymentMethodsSkeletonScreen = (): TemplateResult => html`
+export const renderPaymentMethodsSkeletonScreen = (
+  label = 'Loading payment methods'
+): TemplateResult => html`
   <div class="payment-flow">
     ${renderPaymentMethodSkeletonRows({
       count: 3,
-      label: 'Loading payment methods',
+      label,
     })}
   </div>
 `;
@@ -29,6 +31,7 @@ export const renderPaymentMethodsScreen = ({
   openPaymentSourceMenuId,
   paymentSourceMenuPlacement = 'below',
   deleteConfirmationPaymentSourceId,
+  copy,
 }: PaymentMethodsScreenModel): TemplateResult => {
   const menuOpen = methods.some(
     (method) => method.id === openPaymentSourceMenuId && !method.isDefault
@@ -40,7 +43,7 @@ export const renderPaymentMethodsScreen = ({
         class=${menuOpen
           ? 'primitive-stack primitive-stack-menu-open'
           : 'primitive-stack'}
-        aria-label="Payment methods"
+        aria-label=${copy.listLabel ?? 'Payment methods'}
       >
         ${methods.map((method) =>
           renderPaymentMethodRow(
@@ -98,7 +101,7 @@ export const renderNoSavedPaymentMethodsScreen = ({
               )}
               ${showTransferAction
                 ? renderSourceAction({
-                    label: 'Transfer funds',
+                    label: copy.transferTitle ?? 'Transfer funds',
                     action: 'open-transfer',
                     icon: 'transfer',
                     variant: 'link',

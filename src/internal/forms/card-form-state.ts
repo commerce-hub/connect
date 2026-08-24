@@ -1,4 +1,8 @@
 import type {components} from '../../generated/openapi.js';
+import {
+  createTranslator,
+  type Translator,
+} from '../localization/localization.js';
 import type {
   CardDraft,
   CardDraftErrors,
@@ -142,54 +146,59 @@ export const normalizeCardDraft = (draft: CardDraft): CardDraft => ({
   zip: draft.zip.trim(),
 });
 
-export const validateCardDraft = (draft: CardDraft): CardDraftErrors => {
+export const validateCardDraft = (
+  draft: CardDraft,
+  translator: Translator = createTranslator()
+): CardDraftErrors => {
   const errors: CardDraftErrors = {};
 
   if (!draft.name) {
-    errors.name = 'Enter a card name.';
+    errors.name = translator.message('card.error.nameRequired');
   } else if (!/^[A-Za-z0-9 ]+$/.test(draft.name)) {
-    errors.name = 'Card name can only contain letters and numbers.';
+    errors.name = translator.message('card.error.namePattern');
   }
 
   if (!draft.fullName) {
-    errors.fullName = 'Enter the full name.';
+    errors.fullName = translator.message('card.error.fullNameRequired');
   }
 
   if (!isValidCardNumber(draft.cardNumber)) {
-    errors.cardNumber = 'Enter a valid card number.';
+    errors.cardNumber = translator.message('card.error.numberInvalid');
   }
 
   if (!parseExpirationDate(draft.expirationDate)) {
-    errors.expirationDate = 'Enter a valid expiration date.';
+    errors.expirationDate = translator.message('card.error.expirationInvalid');
   }
 
   if (!isValidCvv(draft.cvv)) {
-    errors.cvv = 'Enter a valid CVC.';
+    errors.cvv = translator.message('card.error.cvvInvalid');
   }
 
   if (!draft.billingAddressValue) {
-    errors.billingAddressValue = 'Select a billing address.';
+    errors.billingAddressValue = translator.message(
+      'card.error.billingAddressRequired'
+    );
   }
 
   if (draft.billingAddressValue === NEW_BILLING_ADDRESS_VALUE) {
     if (!draft.country) {
-      errors.country = 'Select a country or region.';
+      errors.country = translator.message('card.error.countryRequired');
     }
 
     if (!draft.addressLine1) {
-      errors.addressLine1 = 'Enter an address.';
+      errors.addressLine1 = translator.message('card.error.addressRequired');
     }
 
     if (!draft.city) {
-      errors.city = 'Enter a city.';
+      errors.city = translator.message('card.error.cityRequired');
     }
 
     if (!draft.state) {
-      errors.state = 'Select a state.';
+      errors.state = translator.message('card.error.stateRequired');
     }
 
     if (!/^\d{5}(?:-\d{4})?$/.test(draft.zip)) {
-      errors.zip = 'Enter a valid ZIP code.';
+      errors.zip = translator.message('card.error.zipInvalid');
     }
   }
 
@@ -228,21 +237,27 @@ export const hasRequiredCardDraftValues = (draft: CardDraft): boolean => {
 
 export const validateSensitiveCardField = (
   field: SensitiveCardField,
-  value: string
+  value: string,
+  translator: Translator = createTranslator()
 ): string | undefined => {
   if (field === 'cardNumber') {
-    return isValidCardNumber(value) ? undefined : 'Enter a valid card number.';
+    return isValidCardNumber(value)
+      ? undefined
+      : translator.message('card.error.numberInvalid');
   }
 
-  return isValidCvv(value) ? undefined : 'Enter a valid CVC.';
+  return isValidCvv(value)
+    ? undefined
+    : translator.message('card.error.cvvInvalid');
 };
 
 export const buildCardEncryptionErrorMessage = (
-  field: SensitiveCardField
+  field: SensitiveCardField,
+  translator: Translator = createTranslator()
 ): string =>
   field === 'cardNumber'
-    ? 'Unable to encrypt the card number. Try again.'
-    : 'Unable to encrypt the CVC. Try again.';
+    ? translator.message('card.error.numberEncryption')
+    : translator.message('card.error.cvvEncryption');
 
 export const resolveDirtyCardEncryptionState = (
   previous: CardFieldEncryptionState,
@@ -278,7 +293,8 @@ export const omitCardDraftError = (
 
 export const validateCardEncryptionReadiness = (
   draft: CardDraft,
-  encryption: CardEncryptionState
+  encryption: CardEncryptionState,
+  translator: Translator = createTranslator()
 ): CardDraftErrors => {
   const errors: CardDraftErrors = {};
 
@@ -301,10 +317,10 @@ export const validateCardEncryptionReadiness = (
     if (!isEncrypted) {
       errors[field] =
         encryptedField.status === 'failed'
-          ? buildCardEncryptionErrorMessage(field)
+          ? buildCardEncryptionErrorMessage(field, translator)
           : field === 'cardNumber'
-          ? 'Encrypt the card number before saving.'
-          : 'Encrypt the CVC before saving.';
+          ? translator.message('card.error.numberNotEncrypted')
+          : translator.message('card.error.cvvNotEncrypted');
     }
   }
 
@@ -366,8 +382,7 @@ export const isValidCardNumber = (value: string): boolean => {
   return sum % 10 === 0;
 };
 
-export const isValidCvv = (value: string): boolean =>
-  /^\d{3,4}$/.test(value);
+export const isValidCvv = (value: string): boolean => /^\d{3,4}$/.test(value);
 
 export const parseExpirationDate = (
   value: string,

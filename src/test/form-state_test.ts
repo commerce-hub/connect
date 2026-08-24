@@ -3,6 +3,7 @@ import {assert} from '@open-wc/testing';
 import {
   createBankAccountDraft,
   createBankAccountEncryptionState,
+  createLegacyBankAccountFormSchema,
   formatBankAccountDraftFieldValue,
   hasRequiredBankAccountDraftValues,
   isBankAccountDraftReady,
@@ -26,12 +27,15 @@ import {
   isValidCvv,
   normalizeCardDraft,
   parseExpirationDate,
+  buildCardEncryptionErrorMessage,
   resolveEncryptedCardFieldValue,
   validateCardDraft,
   validateCardEncryptionReadiness,
+  validateSensitiveCardField,
 } from '../internal/forms/card-form-state.js';
 import {hasRequiredJsonSchemaValues} from '../internal/forms/instrument-schema.js';
 import {maskRevealText} from '../internal/forms/mask-reveal.js';
+import {createTranslator} from '../internal/localization/localization.js';
 import {
   OTP_LENGTH,
   normalizeOtpValue,
@@ -120,6 +124,16 @@ const bankAccountFormSchema: BankAccountFormSchema = {
 };
 
 suite('form state models', () => {
+  test('localizes the SDK-owned legacy bank account schema', () => {
+    const schema = createLegacyBankAccountFormSchema(createTranslator('fr-CA'));
+
+    assert.equal(schema.properties.accountNickname?.title, 'Nom du compte');
+    assert.equal(
+      schema.properties.routingNumber?.['x-errorMessages']?.required,
+      'Entrez un numéro de routage.'
+    );
+  });
+
   test('formats and validates card draft fields without mounting the widget', () => {
     const draft = {
       ...createCardDraft(),
@@ -202,6 +216,17 @@ suite('form state models', () => {
         cvv: 'Encrypt the CVC before saving.',
       }
     );
+    assert.deepEqual(
+      validateCardEncryptionReadiness(
+        draft,
+        createCardEncryptionState(),
+        createTranslator('fr-CA')
+      ),
+      {
+        cardNumber: 'Chiffrez le numéro de carte avant de l’enregistrer.',
+        cvv: 'Chiffrez le CVC avant de l’enregistrer.',
+      }
+    );
   });
 
   test('accepts only three or four CVV digits', () => {
@@ -254,6 +279,23 @@ suite('form state models', () => {
     assert.isTrue(hasRequiredCardDraftValues(draft));
     assert.isNotEmpty(validateCardDraft(draft));
     assert.isFalse(hasRequiredCardDraftValues({...draft, fullName: '   '}));
+  });
+
+  test('localizes SDK-owned card validation and encryption errors', () => {
+    const translator = createTranslator('fr-CA');
+
+    assert.equal(
+      validateCardDraft(createCardDraft(), translator).name,
+      'Entrez un nom de carte.'
+    );
+    assert.equal(
+      validateSensitiveCardField('cardNumber', '123', translator),
+      'Entrez un numéro de carte valide.'
+    );
+    assert.equal(
+      buildCardEncryptionErrorMessage('cvv', translator),
+      'Impossible de chiffrer le CVC. Réessayez.'
+    );
   });
 
   test('rejects special characters in the card name', () => {
@@ -442,6 +484,10 @@ suite('form state models', () => {
     assert.deepEqual(validateTransferDraft(draft, sources), {});
     assert.isTrue(isTransferDraftReady(draft, sources));
     assert.equal(formatTransferAmountForReview(draft), '10.50 USD');
+    assert.equal(
+      formatTransferAmountForReview(draft, createTranslator('fr-CA')),
+      '10,50 USD'
+    );
     assert.deepEqual(validateTransferDraft({...draft, amount: '0'}, sources), {
       amount: 'Enter an amount greater than zero.',
     });
@@ -457,6 +503,17 @@ suite('form state models', () => {
     assert.isTrue(hasRequiredTransferDraftValues(draft));
     assert.isNotEmpty(validateTransferDraft(draft, [{id: 'same'}]));
     assert.isFalse(hasRequiredTransferDraftValues({...draft, amount: ''}));
+  });
+
+  test('localizes SDK-owned transfer validation errors', () => {
+    const errors = validateTransferDraft(
+      createTransferDraft(),
+      [],
+      createTranslator('fr-CA')
+    );
+
+    assert.equal(errors.fromSourceId, 'Sélectionnez un compte source.');
+    assert.equal(errors.amount, 'Entrez un montant.');
   });
 
   test('checks nested required JSON Schema values without format validation', () => {
@@ -528,6 +585,10 @@ suite('form state models', () => {
       validateRequiredInfoSsn('12345'),
       'Enter a 9-digit Social Security number.'
     );
+    assert.equal(
+      validateRequiredInfoSsn('12345', createTranslator('fr-CA')),
+      'Entrez un numéro de sécurité sociale à 9 chiffres.'
+    );
     assert.isUndefined(validateRequiredInfoSsn('123456789'));
     assert.isTrue(hasRequiredInfoTextValue(values, 'SOCIAL_SECURITY_NUMBER-0'));
     assert.isTrue(hasRequiredInfoFile(fileState.files, 'DOCUMENT-0'));
@@ -551,12 +612,18 @@ suite('form state models', () => {
     assert.isTrue(isAllowedRequiredInfoDocumentFile(png));
     assert.isTrue(isAllowedRequiredInfoDocumentFile(noMimeType));
     assert.isFalse(isAllowedRequiredInfoDocumentFile(text));
-    assert.isFalse(isAllowedRequiredInfoDocumentFile(noMimeTypeUnknownExtension));
+    assert.isFalse(
+      isAllowedRequiredInfoDocumentFile(noMimeTypeUnknownExtension)
+    );
 
     assert.isUndefined(validateRequiredInfoDocumentFile(pdf));
     assert.equal(
       validateRequiredInfoDocumentFile(text),
       'Upload a PDF, JPEG, or PNG file.'
+    );
+    assert.equal(
+      validateRequiredInfoDocumentFile(text, createTranslator('fr-CA')),
+      'Téléversez un fichier PDF, JPEG ou PNG.'
     );
   });
 
@@ -565,7 +632,11 @@ suite('form state models', () => {
       type: 'application/pdf',
     });
     const realPng = new File(
-      [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])],
+      [
+        new Uint8Array([
+          0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3,
+        ]),
+      ],
       'check.png',
       {type: 'image/png'}
     );
@@ -578,7 +649,9 @@ suite('form state models', () => {
 
     assert.isTrue(await hasValidRequiredInfoDocumentSignature(realPdf));
     assert.isTrue(await hasValidRequiredInfoDocumentSignature(realPng));
-    assert.isFalse(await hasValidRequiredInfoDocumentSignature(zipRenamedToPdf));
+    assert.isFalse(
+      await hasValidRequiredInfoDocumentSignature(zipRenamedToPdf)
+    );
 
     assert.isUndefined(await validateRequiredInfoDocumentFileContent(realPdf));
     assert.equal(

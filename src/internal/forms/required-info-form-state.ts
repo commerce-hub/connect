@@ -3,6 +3,10 @@ import type {
   RequiredInfoFiles,
   RequiredInfoValues,
 } from '../types.js';
+import {
+  createTranslator,
+  type Translator,
+} from '../localization/localization.js';
 
 export const REQUIRED_INFO_SSN_SEGMENT_LENGTHS = [3, 2, 4] as const;
 
@@ -20,10 +24,13 @@ export const requiredInfoSsnSegments = (
 export const requiredInfoSsnSegmentMaxLength = (segmentIndex: number): number =>
   REQUIRED_INFO_SSN_SEGMENT_LENGTHS[segmentIndex] ?? 0;
 
-export const validateRequiredInfoSsn = (value: string): string | undefined =>
+export const validateRequiredInfoSsn = (
+  value: string,
+  translator: Translator = createTranslator()
+): string | undefined =>
   normalizeRequiredInfoSsn(value).length === 9
     ? undefined
-    : 'Enter a 9-digit Social Security number.';
+    : translator.message('document.ssnRequired');
 
 export const storeRequiredInfoValue = (
   values: RequiredInfoValues,
@@ -72,11 +79,12 @@ export const isAllowedRequiredInfoDocumentFile = (file: File): boolean => {
 };
 
 export const validateRequiredInfoDocumentFile = (
-  file: File
+  file: File,
+  translator: Translator = createTranslator()
 ): string | undefined =>
   isAllowedRequiredInfoDocumentFile(file)
     ? undefined
-    : REQUIRED_INFO_DOCUMENT_FILE_TYPE_ERROR;
+    : translator.message('document.fileTypeError');
 
 // Magic-byte signatures for the allowed formats, used to catch files whose
 // extension/MIME type was spoofed (e.g. a .zip renamed to .pdf).
@@ -119,15 +127,18 @@ export const hasValidRequiredInfoDocumentSignature = async (
 // renamed file (e.g. a .zip renamed to .pdf) is rejected even though the
 // browser reports the spoofed MIME type.
 export const validateRequiredInfoDocumentFileContent = async (
-  file: File
+  file: File,
+  translator: Translator = createTranslator()
 ): Promise<string | undefined> => {
   if (!isAllowedRequiredInfoDocumentFile(file)) {
-    return REQUIRED_INFO_DOCUMENT_FILE_TYPE_ERROR;
+    return translator.message('document.fileTypeError');
   }
 
   const hasValidSignature = await hasValidRequiredInfoDocumentSignature(file);
 
-  return hasValidSignature ? undefined : REQUIRED_INFO_DOCUMENT_FILE_TYPE_ERROR;
+  return hasValidSignature
+    ? undefined
+    : translator.message('document.fileTypeError');
 };
 
 export const storeRequiredInfoFile = ({

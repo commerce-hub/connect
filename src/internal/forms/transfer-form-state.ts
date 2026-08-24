@@ -3,6 +3,10 @@ import type {
   TransferDraftErrors,
   TransferSource,
 } from '../types.js';
+import {
+  createTranslator,
+  type Translator,
+} from '../localization/localization.js';
 
 export const TRANSFER_CURRENCY = 'USD';
 
@@ -22,30 +26,33 @@ export const normalizeTransferDraft = (
 
 export const validateTransferDraft = (
   draft: TransferDraft,
-  sources: readonly TransferSource[]
+  sources: readonly TransferSource[],
+  translator: Translator = createTranslator()
 ): TransferDraftErrors => {
   const errors: TransferDraftErrors = {};
   const sourceIds = new Set(sources.map((source) => source.id));
   const amount = Number(draft.amount);
 
   if (!draft.fromSourceId) {
-    errors.fromSourceId = 'Select a source account.';
+    errors.fromSourceId = translator.message('transfer.error.sourceRequired');
   } else if (!sourceIds.has(draft.fromSourceId)) {
-    errors.fromSourceId = 'Select a verified bank or native account.';
+    errors.fromSourceId = translator.message('transfer.error.sourceInvalid');
   }
 
   if (!draft.toSourceId) {
-    errors.toSourceId = 'Select a destination account.';
+    errors.toSourceId = translator.message(
+      'transfer.error.destinationRequired'
+    );
   } else if (!sourceIds.has(draft.toSourceId)) {
-    errors.toSourceId = 'Select a verified bank or native account.';
+    errors.toSourceId = translator.message('transfer.error.destinationInvalid');
   } else if (draft.toSourceId === draft.fromSourceId) {
-    errors.toSourceId = 'Select a different destination account.';
+    errors.toSourceId = translator.message('transfer.error.destinationSame');
   }
 
   if (!draft.amount) {
-    errors.amount = 'Enter an amount.';
+    errors.amount = translator.message('transfer.error.amountRequired');
   } else if (!Number.isFinite(amount) || amount <= 0) {
-    errors.amount = 'Enter an amount greater than zero.';
+    errors.amount = translator.message('transfer.error.amountPositive');
   }
 
   return errors;
@@ -63,5 +70,11 @@ export const hasRequiredTransferDraftValues = (draft: TransferDraft): boolean =>
     Boolean(value.trim())
   );
 
-export const formatTransferAmountForReview = (draft: TransferDraft): string =>
-  `${Number(draft.amount).toFixed(2)} ${TRANSFER_CURRENCY}`;
+export const formatTransferAmountForReview = (
+  draft: TransferDraft,
+  translator: Translator = createTranslator()
+): string =>
+  `${translator.number(Number(draft.amount), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} ${TRANSFER_CURRENCY}`;

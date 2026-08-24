@@ -6,6 +6,10 @@ import type {
   SensitiveBankAccountField,
 } from '../types.js';
 import {
+  createTranslator,
+  type Translator,
+} from '../localization/localization.js';
+import {
   createCardEncryptionFieldState,
   resolveDirtyCardEncryptionState,
 } from './card-form-state.js';
@@ -36,43 +40,45 @@ export type BankAccountFormSchema = {
   required?: BankAccountFormField[];
 };
 
-export const legacyBankAccountFormSchema: BankAccountFormSchema = {
+export const createLegacyBankAccountFormSchema = (
+  translator: Translator
+): BankAccountFormSchema => ({
   type: 'object',
   properties: {
     accountNickname: {
       type: 'string',
       minLength: 3,
-      description: 'Please enter the account nickname',
-      title: 'Account Nickname',
+      description: translator.message('bank.accountNicknameDescription'),
+      title: translator.message('bank.accountNickname'),
       'x-errorMessages': {
-        required: 'Enter an account nickname of at least 3 characters.',
-        minLength: 'Enter an account nickname of at least 3 characters.',
+        required: translator.message('bank.error.accountNickname'),
+        minLength: translator.message('bank.error.accountNickname'),
       },
     },
     routingNumber: {
       type: 'string',
-      description: 'Please enter the routing number',
-      title: 'Routing number',
+      description: translator.message('bank.routingNumberDescription'),
+      title: translator.message('bank.routingNumber'),
       'x-errorMessages': {
-        required: 'Enter a routing number.',
+        required: translator.message('bank.error.routingNumberRequired'),
       },
     },
     accountNumber: {
       type: 'string',
-      description: 'Please enter the account number',
-      title: 'Account number',
+      description: translator.message('bank.accountNumberDescription'),
+      title: translator.message('bank.accountNumber'),
       'x-errorMessages': {
-        required: 'Enter an account number.',
+        required: translator.message('bank.error.accountNumberRequired'),
       },
     },
     confirmAccountNumber: {
       type: 'string',
-      description: 'Confirm the account number',
-      title: 'Confirm account number',
+      description: translator.message('bank.confirmAccountNumberDescription'),
+      title: translator.message('bank.confirmAccountNumber'),
       'x-equalsField': 'accountNumber',
       'x-errorMessages': {
-        required: 'Confirm the account number.',
-        equals: 'Account numbers must match.',
+        required: translator.message('bank.error.confirmAccountNumber'),
+        equals: translator.message('bank.error.accountNumbersMatch'),
       },
     },
   },
@@ -82,7 +88,11 @@ export const legacyBankAccountFormSchema: BankAccountFormSchema = {
     'accountNumber',
     'confirmAccountNumber',
   ],
-};
+});
+
+export const legacyBankAccountFormSchema = createLegacyBankAccountFormSchema(
+  createTranslator('en-US')
+);
 
 const bankAccountFormFields: readonly BankAccountFormField[] = [
   'accountNickname',

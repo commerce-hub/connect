@@ -240,6 +240,8 @@ export interface OtpScreenCopy {
   verifyButton: string;
   verifyingButton: string;
   tryAgainButton: string;
+  verificationCodeLabel?: string;
+  digitLabel?: string;
 }
 
 export interface AllowedTenderOptions {
@@ -269,6 +271,8 @@ export interface PaymentMethodsScreenCopy {
   addCardSubtitle: string;
   continueButton: string;
   continuingButton: string;
+  loadingLabel?: string;
+  listLabel?: string;
 }
 
 export interface NoSavedPaymentMethodsScreenCopy {
@@ -280,6 +284,11 @@ export interface NoSavedPaymentMethodsScreenCopy {
   addBankAccountSubtitle: string;
   addCardTitle: string;
   addCardSubtitle: string;
+  payByBankTitle?: string;
+  payByBankSubtitle?: string;
+  manualBankTitle?: string;
+  manualBankSubtitle?: string;
+  transferTitle?: string;
 }
 
 export interface PaymentMethodsScreenModel {
@@ -343,6 +352,8 @@ export interface TextFieldOptions {
   revealed?: boolean;
   onToggleReveal?: () => void;
   maskReveal?: string;
+  revealShowLabel?: string;
+  revealHideLabel?: string;
 }
 
 export interface SelectFieldOption {
@@ -405,6 +416,7 @@ export interface OtpGroupOptions {
   length?: number;
   disabled?: boolean;
   error?: boolean;
+  digitLabel?: string;
 }
 
 export type AlertVariant = 'success' | 'danger' | 'warning';
@@ -441,6 +453,13 @@ export interface PaymentMethod {
   status: PaymentMethodStatus;
   showVerificationStatus?: boolean;
   verificationLabel?: string;
+  defaultLabel?: string;
+  loadingBalanceLabel?: string;
+  deleteActionLabel?: string;
+  moreActionsLabel?: string;
+  markDefaultLabel?: string;
+  removeLabel?: string;
+  selectLabel?: string;
   selectionEligible?: boolean;
   isDefault?: boolean;
   disabled?: boolean;
@@ -479,6 +498,7 @@ export interface UploadRowOptions {
   action?: string;
   error?: boolean;
   disabled?: boolean;
+  noFileChosenLabel?: string;
 }
 
 export interface LoadingRowOptions {
@@ -537,6 +557,8 @@ export interface WidgetShellOptions {
   layout?: 'default' | 'payment-methods';
   presentationMode?: CommerceHubPresentationMode;
   ariaLabel?: string;
+  backLabel?: string;
+  closeLabel?: string;
   closeAction?: string;
   showClose?: boolean;
   showDivider?: boolean;

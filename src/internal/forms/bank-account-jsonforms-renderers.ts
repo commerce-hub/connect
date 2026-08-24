@@ -36,6 +36,8 @@ type BankAccountJsonFormsConfig = {
   encryption: BankAccountEncryptionState;
   disabled: boolean;
   billingAddressTemplate?: TemplateResult;
+  revealShowLabel?: string;
+  revealHideLabel?: string;
 };
 
 export const BANK_BILLING_ADDRESS_CONTROL_SCOPE =
@@ -209,7 +211,10 @@ export class CommerceHubBankAccountControl extends JsonFormsControl {
                 <button
                   class="field-reveal-toggle"
                   type="button"
-                  aria-label=${revealFieldButtonLabel(this.revealed)}
+                  aria-label=${revealFieldButtonLabel(this.revealed, {
+                    show: config?.revealShowLabel ?? 'Show value',
+                    hide: config?.revealHideLabel ?? 'Hide value',
+                  })}
                   aria-pressed=${this.revealed ? 'true' : 'false'}
                   aria-controls=${bankAccountFieldIds[field]}
                   ?disabled=${disabled}
