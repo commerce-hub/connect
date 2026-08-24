@@ -148,6 +148,9 @@ Localization applies only to text owned by this SDK. Labels, descriptions,
 enum values, and validation errors supplied by CommerceHub configuration APIs
 are rendered unchanged; those APIs currently provide English content.
 
+See [LOCALIZATION.md](LOCALIZATION.md) for the catalog architecture, message-key
+conventions, and instructions for adding or using translations.
+
 ## Presentation modes
 
 The default `dialog` presentation keeps the viewport-sized framed widget used
