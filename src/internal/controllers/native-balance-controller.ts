@@ -189,5 +189,6 @@ const paymentSourceId = (source: PaymentSource): string =>
 const isNativePaymentSource = (
   source: PaymentSource
 ): source is NativePaymentSource =>
+  source.productCode?.trim().toUpperCase() === 'EMFIWALLET' ||
   source.tenderType === 'NativeAccount' ||
   (source.tenderType as string) === 'NATIVE_ACCOUNT';

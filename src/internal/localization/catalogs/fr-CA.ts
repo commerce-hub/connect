@@ -39,6 +39,7 @@ export const frCAMessages: Partial<Record<MessageKey, string>> = {
   'actions.done': 'Terminé',
   'actions.edit': 'Modifier',
   'actions.retry': 'Réessayer',
+  'actions.save': 'Enregistrer',
   'actions.useDifferentAccount': 'Utiliser un autre compte',
   'actions.useDifferentMethod': 'Utiliser un autre mode',
   'common.configurationRequired': 'Configuration requise',
@@ -136,7 +137,7 @@ export const frCAMessages: Partial<Record<MessageKey, string>> = {
   'verification.couldNotVerifyMessage': 'Ce {subject} n’a pas pu être vérifié.',
   'verification.notVerifiedMessage': 'Ce {subject} n’est pas encore vérifié.',
   'verification.missingInformation':
-    'Ajoutez les renseignements requis ou facultatifs avant la vérification.',
+    'Fournissez les renseignements demandés avant la vérification.',
   'verification.submitFailed':
     'Impossible d’envoyer les renseignements requis. Veuillez réessayer.',
   'document.bankStatement': 'Relevé bancaire',
@@ -146,10 +147,19 @@ export const frCAMessages: Partial<Record<MessageKey, string>> = {
   'document.driverLicenseNumber': 'Numéro de permis de conduire',
   'document.socialSecurityNumber': 'Numéro de sécurité sociale',
   'document.ssnRequired': 'Entrez un numéro de sécurité sociale à 9 chiffres.',
-  'document.fileTypeError': 'Téléversez un fichier PDF, JPEG ou PNG.',
+  'document.fileTypeError':
+    'Type de fichier non pris en charge. Téléversez un fichier JPG, PNG ou PDF.',
   'document.informationNeeded':
     'Renseignements requis pour terminer la vérification',
+  'document.type': 'Choisissez un type de document',
+  'document.selectType': 'Sélectionnez un type de document',
+  'document.selectTypeError': 'Sélectionnez un type de document.',
+  'document.uploadOne': 'Téléverser le document',
+  'document.supportedTypes': 'JPG, PNG ou PDF',
   'document.chooseFile': 'Choisir un fichier',
+  'document.replaceFile': 'Remplacer le fichier',
+  'document.removeFile': 'Supprimer le fichier',
+  'document.fileRequired': 'Choisissez un fichier à téléverser.',
   'document.enterValue': 'Entrez {label}.',
   'document.chooseValue': 'Choisissez {label}.',
   'document.part': '{label}, partie {part}',

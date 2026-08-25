@@ -2411,6 +2411,85 @@ suite('commerce-hub-connect payment selection', () => {
     assert.notExists(earningsRow.querySelector('.verification-status-badge'));
   });
 
+  test('treats an EMFIWALLET bank payload as a featured native account', async () => {
+    window.fetch = async () =>
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: {'Content-Type': 'application/json'},
+      });
+
+    const el = await renderConnect({
+      interactionId: 'interaction-emfi-wallet',
+      status: 'PAYMENT_SOURCE_REQUESTED',
+      features: ['SELECT'],
+      paymentSources: [
+        {
+          id: 'card-1',
+          name: 'Corporate card',
+          tenderType: 'Card',
+          verificationInfo: {status: 'VERIFIED'},
+          card: {network: 'Visa', cardNumber: '4111111111114242'},
+        },
+        {
+          id: '98LHLTPA',
+          name: 'Marriot Crimson Card',
+          verificationInfo: {status: 'VERIFIED', docs: []},
+          bankAccount: {asset: {type: 'CURRENCY', id: 'USD'}},
+          productCode: 'EMFIWALLET',
+          recipient: {provisionStatus: 'PROVISIONED'},
+          isDefault: true,
+          tenderType: 'BANK_ACCOUNT' as PaymentSource['tenderType'],
+        },
+        {
+          id: 'bank-1',
+          name: 'Operating account',
+          tenderType: 'BankAccount',
+          verificationInfo: {status: 'VERIFIED'},
+          recipient: {provisionStatus: 'PROVISIONED'},
+          bankAccount: {accountNumber: '9876543210'},
+        },
+      ],
+    });
+
+    const rows = [
+      ...el.shadowRoot!.querySelectorAll<HTMLElement>('.payment-method-row'),
+    ];
+    assert.deepEqual(
+      rows.map((row) => row.dataset.paymentMethodId),
+      ['98LHLTPA', 'card-1', 'bank-1']
+    );
+
+    const walletRow = rows[0];
+    assert.isTrue(
+      walletRow.classList.contains(
+        'payment-method-row-featured-informational'
+      )
+    );
+    assert.equal(
+      walletRow.querySelector('.payment-method-title')?.textContent?.trim(),
+      'Marriot Crimson Card'
+    );
+    assert.equal(
+      walletRow.querySelector('.payment-method-meta')?.textContent?.trim(),
+      'Native account xx ----'
+    );
+    assert.exists(
+      walletRow.querySelector('[data-payment-method-icon="native"]')
+    );
+    assert.notExists(walletRow.querySelector('.payment-method-radio'));
+    assert.notExists(
+      walletRow.querySelector('[data-action="toggle-payment-source-menu"]')
+    );
+    assert.notExists(walletRow.querySelector('.verification-status-badge'));
+    assert.notExists(walletRow.querySelector('.payment-method-default-label'));
+    assert.equal(
+      el.shadowRoot!.querySelector<HTMLInputElement>(
+        '.payment-method-radio:checked'
+      )?.value,
+      'card-1'
+    );
+  });
+
   test('fades a partially visible next payment method when the list overflows', async () => {
     const paymentSources: PaymentSource[] = Array.from(
       {length: 10},
@@ -2991,13 +3070,14 @@ suite('commerce-hub-connect payment selection', () => {
       const buttonLabel = button.querySelector('.button-label')!;
       const buttonContentStyles = getComputedStyle(buttonContent);
       const plusIconStyles = getComputedStyle(plusIcon);
-      const labelRange = document.createRange();
-
-      labelRange.selectNodeContents(buttonLabel);
+      const buttonLabelStyles = getComputedStyle(buttonLabel);
 
       assert.strictEqual(buttonContent.firstElementChild, plusIcon);
-      assert.lengthOf(labelRange.getClientRects(), 1);
       assert.equal(buttonContentStyles.gap, '6px');
+      assert.equal(buttonContentStyles.maxWidth, '100%');
+      assert.equal(buttonLabelStyles.minWidth, '0px');
+      assert.equal(buttonLabelStyles.whiteSpace, 'normal');
+      assert.equal(buttonLabelStyles.overflowWrap, 'anywhere');
       assert.closeTo(
         parseFloat(plusIconStyles.width),
         parseFloat(plusIconStyles.fontSize) * 1.5,
@@ -3018,6 +3098,7 @@ suite('commerce-hub-connect payment selection', () => {
         getComputedStyle(button).color
       );
     });
+
   });
 
   test('SELECT with ADD_ACCOUNT renders selection and consolidated add actions', async () => {
@@ -3066,10 +3147,7 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.isTrue(addButton.classList.contains('button-primary'));
     assert.isTrue(primaryButton.classList.contains('button-primary'));
-    assert.equal(
-      getComputedStyle(addButton.querySelector('.button-icon-plus')!).fill,
-      addButtonStyles.color
-    );
+    assert.notExists(addButton.querySelector('.button-icon-plus'));
     assert.equal(
       getComputedStyle(addButton.querySelector('.button-label')!).color,
       addButtonStyles.color

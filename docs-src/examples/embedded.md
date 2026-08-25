@@ -219,6 +219,33 @@ Use the standard embedded container height because ADD_ACCOUNT may open multi-st
 
 <!-- PDF page break: #pagebreak() -->
 
+## Verification document upload
+
+When a payment source requires supporting documentation, the API can return several file-based document types. The SDK treats these as alternatives: the customer selects one document type and uploads one file. The `mandatory` value on file-based document entries is intentionally ignored.
+
+- Two to four document types are presented as an accessible radio group.
+- Longer lists use a native select control.
+- A single document type is selected automatically and does not require an additional selector.
+- No option is preselected when the customer must choose between multiple types.
+- Text-based requirements, including Social Security number and driver’s-license number, remain separate required fields.
+
+The SDK accepts JPG/JPEG, PNG, and PDF files. It validates the filename/MIME type and file signature locally before making a request. An unsupported or incorrectly identified file displays:
+
+> Unsupported file type. Upload a JPG, PNG, or PDF file.
+
+After a valid file is selected, the UI displays its filename and provides **Replace file** and **Remove file** actions. The Verify action remains disabled until the required text fields, document type, and one valid file are present.
+
+The selected document identifier is sent as `docType` in the existing endpoint path, while the file itself is sent in the multipart request body:
+
+```http
+POST /interaction/doc/upload/{sourceId}/{docType}
+Content-Type: multipart/form-data
+```
+
+Only the selected document is uploaded; the full document-definition object is not included in the request.
+
+<!-- PDF page break: #pagebreak() -->
+
 ## Design configuration
 
 Use `designConfig` for merchant-safe visual customization:

@@ -42,6 +42,7 @@ export interface PaymentSourceRecipient {
 export type PaymentSource = GeneratedPaymentSource & {
   recipient?: PaymentSourceRecipient;
   isDefault?: boolean;
+  productCode?: string;
 };
 
 export interface InteractionEntityData {
@@ -101,6 +102,7 @@ export type FlowActionName =
   | 'delete-payment-source'
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
+  | 'remove-required-info-file'
   | 'open-transfer'
   | 'edit-transfer'
   | 'confirm-transfer'

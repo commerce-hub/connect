@@ -59,7 +59,7 @@ export const REQUIRED_INFO_DOCUMENT_ACCEPT =
   '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 
 export const REQUIRED_INFO_DOCUMENT_FILE_TYPE_ERROR =
-  'Upload a PDF, JPEG, or PNG file.';
+  'Unsupported file type. Upload a JPG, PNG, or PDF file.';
 
 const requiredInfoFileExtension = (fileName: string): string =>
   fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase();

@@ -1,6 +1,7 @@
 import {IntlMessageFormat} from 'intl-messageformat';
 
 import {enUSMessages} from './catalogs/en-US.js';
+import {esUSMessages} from './catalogs/es-US.js';
 import {frCAMessages} from './catalogs/fr-CA.js';
 
 export type MessageKey = keyof typeof enUSMessages;
@@ -16,8 +17,10 @@ export interface Translator {
 }
 
 const localeConfigs = {
+  en: {messages: enUSMessages, direction: 'ltr'},
   'en-US': {messages: enUSMessages, direction: 'ltr'},
   'fr-CA': {messages: frCAMessages, direction: 'ltr'},
+  'es-US': {messages: esUSMessages, direction: 'ltr'},
 } as const;
 
 export type SupportedLocale = keyof typeof localeConfigs;

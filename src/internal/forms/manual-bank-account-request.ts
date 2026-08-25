@@ -40,6 +40,7 @@ const CONFIG_DRIVEN_ENCRYPTED_FIELDS = [
   'routingCode',
   'bsbCode',
   'interacAccount',
+  'clabe',
 ] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -164,6 +165,29 @@ const encryptConfigDrivenValue = async (
 };
 
 const IBAN_ACCOUNT_TYPE = 'IBAN';
+const ACCOUNT_NUMBER_SOURCE_FIELDS = [
+  'accountNumber',
+  'interacAccount',
+  'clabe',
+] as const;
+
+const configDrivenStringValue = (
+  request: ConfigDrivenBankAccountRequest,
+  fieldNames: readonly string[]
+): string | undefined => {
+  for (const fieldName of fieldNames) {
+    const requestKey = Object.keys(request).find(
+      (key) => key.toLowerCase() === fieldName.toLowerCase()
+    );
+    const value = requestKey ? stringValue(request[requestKey]) : '';
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+};
 
 // Only a top-level `iban` maps to the API's ACH-style account number fields;
 // a nested bankAccount.iban (if present) is left encrypted in place.
@@ -203,12 +227,14 @@ export const encryptConfigDrivenBankAccountRequest = async (
       encryptValue
     )) as ConfigDrivenBankAccountRequest
   );
-  const encryptedAccountNumber = encryptedRequest.accountNumber;
+  const encryptedAccountNumber = configDrivenStringValue(
+    encryptedRequest,
+    ACCOUNT_NUMBER_SOURCE_FIELDS
+  );
 
   return {
     ...encryptedRequest,
-    ...(typeof encryptedAccountNumber === 'string' &&
-    encryptedAccountNumber.trim()
+    ...(encryptedAccountNumber
       ? {accountNumberReEntered: encryptedAccountNumber}
       : {}),
   };

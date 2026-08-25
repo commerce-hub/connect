@@ -720,7 +720,7 @@ export class CommerceHubConnect extends LitElement {
   @property({attribute: 'base-url'})
   baseURL?: CommerceHubBaseURLInput;
 
-  /** Locale used for SDK-owned shopper text. Supports en-US and fr-CA. */
+  /** Locale used for SDK-owned shopper text. Supports en, en-US, fr-CA, and es-US. */
   @property({reflect: true})
   locale = 'en-US';
 
@@ -939,7 +939,8 @@ export class CommerceHubConnect extends LitElement {
   @state()
   private requiredInfoFileErrors: RequiredInfoFileErrors = {};
 
-  private pendingRequiredInfoDocKey?: string;
+  @state()
+  private selectedRequiredInfoUploadDocType?: string;
 
   private readonly interactionRefresh = new InteractionRefreshController(this);
   private readonly nativeBalance = new NativeBalanceController(this);
@@ -1587,7 +1588,7 @@ export class CommerceHubConnect extends LitElement {
                         'actions.addPaymentMethod'
                       ),
                       action: 'open-add-payment-source',
-                      icon: 'plus',
+                      icon: canSelectPaymentSources ? undefined : 'plus',
                       disabled: isPaymentSourceActionPending,
                     })
                   : ''}
@@ -2145,7 +2146,15 @@ export class CommerceHubConnect extends LitElement {
     }
 
     const docs = requiredInfoDocs(source);
-    const firstUploadDocKey = firstRequiredInfoUploadDocKey(docs);
+    const uploadEntries = requiredInfoUploadEntries(docs);
+    const selectedUploadEntry = uploadEntries.find(
+      ({doc}) => doc.docType === this.selectedRequiredInfoUploadDocType
+    );
+    const selectedUploadKey = selectedUploadEntry?.key;
+    const selectedUploadFileName = selectedUploadKey
+      ? this.requiredInfoFileNames[selectedUploadKey]
+      : undefined;
+    const uploadError = this.requiredInfoUploadValidationError(uploadEntries);
     const isSubmitting = this.pendingAction === 'submit-required-info';
     const canSubmit = this.canSubmitRequiredInfo();
 
@@ -2182,69 +2191,34 @@ export class CommerceHubConnect extends LitElement {
             <div class="primitive-stack">
               ${docs.map((doc, index) => {
                 const key = requiredInfoDocKey(doc, index);
-                const currentValue = isRequiredInfoTextDoc(doc)
-                  ? this.requiredInfoValues[key]
-                  : this.requiredInfoFileNames[key];
+                const currentValue = this.requiredInfoValues[key];
                 const error = this.visibleRequiredInfoError(doc, index);
 
-                if (isRequiredInfoTextDoc(doc)) {
-                  return renderRequiredInfoTextField({
-                    doc,
-                    key,
-                    value: currentValue ?? '',
-                    error,
-                    translator: this.translator,
-                  });
+                if (!isRequiredInfoTextDoc(doc)) {
+                  return '';
                 }
 
-                return html`
-                  <div
-                    class="required-info-document required-document-text-row"
-                    data-required-info-doc-key=${key}
-                    data-required-info-requirement=${requiredInfoRequirementKind(
-                      doc
-                    )}
-                  >
-                    <div class="required-info-document-heading">
-                      <span class="required-info-document-name"
-                        >${requiredInfoDocLabel(doc, this.translator)}</span
-                      >
-                      ${renderRequiredInfoRequirementBadge(
-                        doc,
-                        this.translator
-                      )}
-                    </div>
-                    ${renderUploadRow({
-                      label: this.translator.message(
-                        'verification.requiredDocument'
-                      ),
-                      requirements: requiredInfoDocLabel(doc, this.translator),
-                      actionLabel: this.translator.message(
-                        'document.chooseFile'
-                      ),
-                      fileName: currentValue,
-                      action: 'open-required-info-file-picker',
-                      disabled: isSubmitting,
-                      noFileChosenLabel: this.translator.message(
-                        'common.noFileChosen'
-                      ),
-                    })}
-                    ${error
-                      ? html`<p
-                          class="field-error"
-                          id=${`required-info-${key}-error`}
-                          role="alert"
-                        >
-                          ${error}
-                        </p>`
-                      : ''}
-                  </div>
-                `;
+                return renderRequiredInfoTextField({
+                  doc,
+                  key,
+                  value: currentValue ?? '',
+                  error,
+                  translator: this.translator,
+                });
               })}
+              ${uploadEntries.length > 0
+                ? this.renderRequiredInfoDocumentUpload(
+                    uploadEntries,
+                    selectedUploadKey,
+                    selectedUploadFileName,
+                    uploadError,
+                    isSubmitting
+                  )
+                : ''}
             </div>
           </div>
 
-          ${firstUploadDocKey
+          ${uploadEntries.length > 0
             ? html`
                 <input
                   class="required-info-file-input"
@@ -2258,7 +2232,7 @@ export class CommerceHubConnect extends LitElement {
 
           <div
             class="primitive-footer"
-            data-required-info-doc-key=${firstUploadDocKey ?? ''}
+            data-required-info-doc-key=${selectedUploadKey ?? ''}
           >
             ${renderButton({
               label: this.translator.message(
@@ -2276,6 +2250,166 @@ export class CommerceHubConnect extends LitElement {
         </form>
       `,
     });
+  }
+
+  private renderRequiredInfoDocumentUpload(
+    uploadEntries: RequiredInfoUploadEntry[],
+    selectedUploadKey: string | undefined,
+    fileName: string | undefined,
+    error: string | undefined,
+    isSubmitting: boolean
+  ): TemplateResult {
+    const hasMultipleTypes = uploadEntries.length > 1;
+    const useRadioGroup =
+      uploadEntries.length >= 2 && uploadEntries.length <= 4;
+    const descriptionId = 'required-info-upload-types';
+    const errorId = 'required-info-upload-error';
+
+    return html`
+      <div class="required-info-document-upload">
+        ${hasMultipleTypes
+          ? html`
+              <div class="required-info-document-type">
+                <p class="field-label" id="required-info-document-type-label">
+                  ${this.translator.message('document.type')}
+                </p>
+                ${useRadioGroup
+                  ? html`
+                      <div
+                        class="required-info-document-type-options"
+                        role="radiogroup"
+                        aria-labelledby="required-info-document-type-label"
+                      >
+                        ${uploadEntries.map(({doc, index}) => {
+                          const isSelected =
+                            doc.docType ===
+                            this.selectedRequiredInfoUploadDocType;
+
+                          return html`
+                            <div
+                              class=${isSelected
+                                ? 'required-info-document-type-option required-info-document-type-option-selected'
+                                : 'required-info-document-type-option'}
+                            >
+                              <input
+                                class="required-info-document-type-radio visually-hidden"
+                                id=${`required-info-document-type-${index}`}
+                                type="radio"
+                                name="requiredInfoDocumentType"
+                                value=${doc.docType ?? ''}
+                                .checked=${isSelected}
+                                ?disabled=${isSubmitting}
+                              />
+                              <label
+                                for=${`required-info-document-type-${index}`}
+                              >
+                                <span
+                                  class="required-info-document-type-indicator"
+                                  aria-hidden="true"
+                                >
+                                  <span></span>
+                                </span>
+                                <span class="required-info-document-type-label">
+                                  ${requiredInfoDocLabel(doc, this.translator)}
+                                </span>
+                              </label>
+                            </div>
+                          `;
+                        })}
+                      </div>
+                    `
+                  : html`
+                      <select
+                        class="field-input field-select required-info-document-type-select"
+                        name="requiredInfoDocumentType"
+                        aria-labelledby="required-info-document-type-label"
+                        aria-describedby=${descriptionId}
+                        .value=${this.selectedRequiredInfoUploadDocType ?? ''}
+                        ?disabled=${isSubmitting}
+                      >
+                        <option value="" disabled>
+                          ${this.translator.message('document.selectType')}
+                        </option>
+                        ${uploadEntries.map(
+                          ({doc}) => html`
+                            <option value=${doc.docType ?? ''}>
+                              ${requiredInfoDocLabel(doc, this.translator)}
+                            </option>
+                          `
+                        )}
+                      </select>
+                    `}
+                ${useRadioGroup
+                  ? ''
+                  : html`
+                      <p
+                        class="required-info-upload-helper"
+                        id=${descriptionId}
+                      >
+                        ${this.translator.message('document.selectType')}
+                      </p>
+                    `}
+              </div>
+            `
+          : html`
+              <p class="required-info-document-name">
+                ${requiredInfoDocLabel(uploadEntries[0].doc, this.translator)}
+              </p>
+            `}
+        <div class="required-info-upload-panel">
+          <div class="required-info-upload-copy">
+            <p class="required-info-upload-title">
+              ${this.translator.message('document.uploadOne')}
+            </p>
+            <p class="required-info-upload-formats">
+              ${this.translator.message('document.supportedTypes')}
+            </p>
+          </div>
+          <div class="required-info-upload-actions">
+            ${renderUploadRow({
+              label: this.translator.message('document.uploadOne'),
+              requirements: this.translator.message('document.supportedTypes'),
+              actionLabel: this.translator.message(
+                fileName ? 'document.replaceFile' : 'document.chooseFile'
+              ),
+              fileName,
+              action: 'open-required-info-file-picker',
+              error: Boolean(error),
+              disabled: isSubmitting || !selectedUploadKey,
+              noFileChosenLabel: this.translator.message('common.noFileChosen'),
+            })}
+            ${fileName
+              ? html`
+                  <button
+                    class="payment-method-delete-button required-info-file-remove"
+                    type="button"
+                    aria-label=${this.translator.message(
+                      'document.removeFile'
+                    )}
+                    data-action="remove-required-info-file"
+                    ?disabled=${isSubmitting}
+                  >
+                    <!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc. -->
+                    <svg
+                      class="payment-method-delete-action-icon"
+                      viewBox="0 0 640 640"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        d="M232.7 69.9L224 96L128 96C110.3 96 96 110.3 96 128C96 145.7 110.3 160 128 160L512 160C529.7 160 544 145.7 544 128C544 110.3 529.7 96 512 96L416 96L407.3 69.9C402.9 56.8 390.7 48 376.9 48L263.1 48C249.3 48 237.1 56.8 232.7 69.9zM512 208L128 208L149.1 531.1C150.7 556.4 171.7 576 197 576L443 576C468.3 576 489.3 556.4 490.9 531.1L512 208z"
+                      ></path>
+                    </svg>
+                  </button>
+                `
+              : ''}
+          </div>
+        </div>
+        ${error
+          ? html`<p class="field-error" id=${errorId} role="alert">${error}</p>`
+          : ''}
+      </div>
+    `;
   }
 
   private renderNoSavedPaymentMethods(): TemplateResult {
@@ -2747,7 +2881,6 @@ export class CommerceHubConnect extends LitElement {
               placeholder: this.translator.message('card.numberPlaceholder'),
               span: 'full',
               variant: 'card-form',
-              autocomplete: 'cc-number',
               inputmode: 'numeric',
               maxLength: CARD_NUMBER_MAX_DISPLAY_LENGTH,
               dataField: 'cardNumber',
@@ -2790,7 +2923,6 @@ export class CommerceHubConnect extends LitElement {
               value: this.cardDraft.cvv,
               placeholder: this.translator.message('card.cvvPlaceholder'),
               variant: 'card-form',
-              autocomplete: 'cc-csc',
               inputmode: 'numeric',
               maxLength: 4,
               dataField: 'cvv',
@@ -3038,6 +3170,13 @@ export class CommerceHubConnect extends LitElement {
     }
 
     const isSaving = this.pendingAction === 'save-bank-account';
+    const selectedSchema = this.bankAccountInstrumentSchemas.find(
+      (schema) =>
+        schema.bavSupportedCode === this.selectedBankAccountInstrumentSchemaCode
+    );
+    const isUpi =
+      selectedSchema?.productId.trim().toUpperCase() === 'POUPI' ||
+      selectedSchema?.bavSupportedCode.toUpperCase().includes('UPI') === true;
     return this.renderWidgetShell({
       title: this.translator.message('bank.enterDetails'),
       backAction: this.manualBankAccountDetailsBackAction(),
@@ -3083,7 +3222,13 @@ export class CommerceHubConnect extends LitElement {
           <div class="primitive-footer card-form-primary">
             ${renderButton({
               label: this.translator.message(
-                isSaving ? 'bank.savingTitle' : 'bank.save'
+                isUpi
+                  ? isSaving
+                    ? 'common.saving'
+                    : 'actions.save'
+                  : isSaving
+                    ? 'bank.savingTitle'
+                    : 'bank.save'
               ),
               action: 'save-bank-account',
               type: 'submit',
@@ -3457,12 +3602,17 @@ export class CommerceHubConnect extends LitElement {
     }
 
     if (action === 'open-required-info-file-picker') {
-      this.pendingRequiredInfoDocKey =
-        findDatasetValue(event, 'requiredInfoDocKey') ??
-        this.firstRequiredInfoDocKey();
       this.renderRoot
         .querySelector<HTMLInputElement>('.required-info-file-input')
         ?.click();
+      return;
+    }
+
+    if (action === 'remove-required-info-file') {
+      this.requiredInfoFiles = {};
+      this.requiredInfoFileNames = {};
+      this.requiredInfoFileErrors = {};
+      this.requiredInfoSubmitError = undefined;
       return;
     }
 
@@ -4035,6 +4185,25 @@ export class CommerceHubConnect extends LitElement {
     if (requiredInfoFileInput) {
       void this.storeRequiredInfoSelectedFile(requiredInfoFileInput.files?.[0]);
       requiredInfoFileInput.value = '';
+      return;
+    }
+
+    const requiredInfoDocumentTypeInput = event
+      .composedPath()
+      .find(
+        (item): item is HTMLInputElement | HTMLSelectElement =>
+          (item instanceof HTMLInputElement ||
+            item instanceof HTMLSelectElement) &&
+          item.name === 'requiredInfoDocumentType'
+      );
+
+    if (requiredInfoDocumentTypeInput) {
+      this.selectedRequiredInfoUploadDocType =
+        requiredInfoDocumentTypeInput.value || undefined;
+      this.requiredInfoFiles = {};
+      this.requiredInfoFileNames = {};
+      this.requiredInfoFileErrors = {};
+      this.requiredInfoSubmitError = undefined;
       return;
     }
 
@@ -6501,7 +6670,9 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoFileErrors = {};
     this.requiredInfoSubmitError = undefined;
     this.requiredInfoValidationAttempted = false;
-    this.pendingRequiredInfoDocKey = undefined;
+    this.selectedRequiredInfoUploadDocType = singleRequiredInfoUploadDocType(
+      requiredInfoDocs(source)
+    );
   }
 
   private resetRequiredInfo() {
@@ -6512,15 +6683,7 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoFileErrors = {};
     this.requiredInfoSubmitError = undefined;
     this.requiredInfoValidationAttempted = false;
-    this.pendingRequiredInfoDocKey = undefined;
-  }
-
-  private firstRequiredInfoDocKey(): string {
-    return (
-      firstRequiredInfoUploadDocKey(
-        requiredInfoDocs(this.requiredInfoSource)
-      ) ?? requiredInfoDocKey(requiredInfoDocs(this.requiredInfoSource)[0], 0)
-    );
+    this.selectedRequiredInfoUploadDocType = undefined;
   }
 
   private storeRequiredInfoValue(key: string, value: string) {
@@ -6536,12 +6699,18 @@ export class CommerceHubConnect extends LitElement {
     const source = this.requiredInfoSource;
 
     if (!source || !file) {
-      this.pendingRequiredInfoDocKey = undefined;
       return;
     }
 
-    const key =
-      this.pendingRequiredInfoDocKey ?? this.firstRequiredInfoDocKey();
+    const selectedEntry = requiredInfoUploadEntries(
+      requiredInfoDocs(source)
+    ).find(({doc}) => doc.docType === this.selectedRequiredInfoUploadDocType);
+
+    if (!selectedEntry) {
+      return;
+    }
+
+    const {key} = selectedEntry;
     const fileTypeError = await validateRequiredInfoDocumentFileContent(
       file,
       this.translator
@@ -6556,7 +6725,6 @@ export class CommerceHubConnect extends LitElement {
         ...this.requiredInfoFileErrors,
         [key]: fileTypeError,
       };
-      this.pendingRequiredInfoDocKey = undefined;
       return;
     }
 
@@ -6575,7 +6743,6 @@ export class CommerceHubConnect extends LitElement {
     this.requiredInfoFileErrors = remainingFileErrors;
 
     this.requiredInfoSubmitError = undefined;
-    this.pendingRequiredInfoDocKey = undefined;
   }
 
   private canSubmitRequiredInfo(): boolean {
@@ -6586,17 +6753,53 @@ export class CommerceHubConnect extends LitElement {
     }
 
     const docs = requiredInfoDocs(source);
-    const mandatoryEntries = docs
+    const textEntries = docs
       .map((doc, index) => ({doc, index}))
-      .filter(({doc}) => isRequiredInfoDocMandatory(doc));
+      .filter(({doc}) => isRequiredInfoTextDoc(doc));
+    const uploadEntries = requiredInfoUploadEntries(docs);
+    const selectedUploadEntry = uploadEntries.find(
+      ({doc}) => doc.docType === this.selectedRequiredInfoUploadDocType
+    );
 
-    if (mandatoryEntries.length > 0) {
-      return mandatoryEntries.every(({doc, index}) =>
-        this.hasRequiredInfoValue(doc, index)
+    const hasAllTextValues = textEntries.every(({doc, index}) =>
+      this.hasRequiredInfoValue(doc, index)
+    );
+    const hasUpload =
+      uploadEntries.length === 0 ||
+      Boolean(
+        selectedUploadEntry &&
+          hasRequiredInfoFile(this.requiredInfoFiles, selectedUploadEntry.key)
       );
+
+    return hasAllTextValues && hasUpload;
+  }
+
+  private requiredInfoUploadValidationError(
+    uploadEntries: RequiredInfoUploadEntry[]
+  ): string | undefined {
+    if (uploadEntries.length === 0) {
+      return undefined;
     }
 
-    return docs.some((doc, index) => this.hasRequiredInfoValue(doc, index));
+    const selectedEntry = uploadEntries.find(
+      ({doc}) => doc.docType === this.selectedRequiredInfoUploadDocType
+    );
+
+    if (!selectedEntry) {
+      return this.requiredInfoValidationAttempted
+        ? this.translator.message('document.selectTypeError')
+        : undefined;
+    }
+
+    const fileError = this.requiredInfoFileErrors[selectedEntry.key];
+    if (fileError) {
+      return fileError;
+    }
+
+    return this.requiredInfoValidationAttempted &&
+      !hasRequiredInfoFile(this.requiredInfoFiles, selectedEntry.key)
+      ? this.translator.message('document.fileRequired')
+      : undefined;
   }
 
   private visibleRequiredInfoError(
@@ -6626,12 +6829,14 @@ export class CommerceHubConnect extends LitElement {
       return fileError;
     }
 
+    if (!isRequiredInfoTextDoc(doc)) {
+      return undefined;
+    }
+
     const hasValue = this.hasRequiredInfoValue(doc, index);
 
     if (!hasValue) {
-      return isRequiredInfoDocMandatory(doc)
-        ? requiredInfoMissingValueMessage(doc, this.translator)
-        : undefined;
+      return requiredInfoMissingValueMessage(doc, this.translator);
     }
 
     if (doc.docType === 'SOCIAL_SECURITY_NUMBER') {
@@ -6662,6 +6867,11 @@ export class CommerceHubConnect extends LitElement {
     if (
       requiredInfoDocs(source).some((doc, index) =>
         Boolean(this.requiredInfoValidationError(doc, index))
+      ) ||
+      Boolean(
+        this.requiredInfoUploadValidationError(
+          requiredInfoUploadEntries(requiredInfoDocs(source))
+        )
       )
     ) {
       this.requiredInfoSubmitError = undefined;
@@ -6754,6 +6964,8 @@ export class CommerceHubConnect extends LitElement {
         this.requiredInfoFiles = {};
         this.requiredInfoFileErrors = {};
         this.requiredInfoValidationAttempted = false;
+        this.selectedRequiredInfoUploadDocType =
+          singleRequiredInfoUploadDocType(requiredInfoDocs(verifiedSource));
         return;
       }
 
@@ -6781,9 +6993,10 @@ export class CommerceHubConnect extends LitElement {
       .map((doc, index) => ({doc, index}))
       .filter(
         ({doc, index}) =>
-          (required
-            ? isRequiredInfoDocMandatory(doc)
-            : !isRequiredInfoDocMandatory(doc)) &&
+          (isRequiredInfoTextDoc(doc)
+            ? required
+            : required &&
+              doc.docType === this.selectedRequiredInfoUploadDocType) &&
           this.hasRequiredInfoValue(doc, index)
       );
   }
@@ -8084,6 +8297,13 @@ const designConfigColorProperties: {
 const DESIGN_CONFIG_FONT_WEIGHT_PROPERTY = '--chc-font-weight';
 const DESIGN_CONFIG_SHELL_PADDING_PROPERTY = '--chc-shell-padding';
 const EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX = ' - Earnings';
+const EMBEDDED_FINANCE_WALLET_PRODUCT_CODE = 'EMFIWALLET';
+
+const isEmbeddedFinanceWalletPaymentSource = (
+  source: PaymentSource
+): boolean =>
+  source.productCode?.trim().toUpperCase() ===
+  EMBEDDED_FINANCE_WALLET_PRODUCT_CODE;
 
 const designConfigStyleProperties = [
   ...designConfigColorProperties.map(({property}) => property),
@@ -8127,14 +8347,14 @@ const paymentMethodsFromInteractionResponse = (
       source.isDefault || (selectedSourceId && source.id === selectedSourceId)
     );
   const orderedSources = [
-    ...visibleSources.filter(isEarningsNativePaymentSource),
+    ...visibleSources.filter(isFeaturedNativePaymentSource),
     ...visibleSources.filter(
       (source) =>
-        !isEarningsNativePaymentSource(source) && isDefaultSource(source)
+        !isFeaturedNativePaymentSource(source) && isDefaultSource(source)
     ),
     ...visibleSources.filter(
       (source) =>
-        !isEarningsNativePaymentSource(source) && !isDefaultSource(source)
+        !isFeaturedNativePaymentSource(source) && !isDefaultSource(source)
     ),
   ];
 
@@ -8147,11 +8367,12 @@ const paymentMethodsFromInteractionResponse = (
 };
 
 const isVisiblePaymentListSource = (source: PaymentSource): boolean =>
-  !isNativePaymentSource(source) || isEarningsNativePaymentSource(source);
+  !isNativePaymentSource(source) || isFeaturedNativePaymentSource(source);
 
-const isEarningsNativePaymentSource = (source: PaymentSource): boolean =>
+const isFeaturedNativePaymentSource = (source: PaymentSource): boolean =>
   isNativePaymentSource(source) &&
-  source.name?.trim().endsWith(EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX) === true;
+  (isEmbeddedFinanceWalletPaymentSource(source) ||
+    source.name?.trim().endsWith(EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX) === true);
 
 const allowedTenderOptionsFromInteractionResponse = (
   interactionResponse?: InteractionResponse
@@ -8195,7 +8416,7 @@ const paymentSourceToPaymentMethod = (
     balanceValue === undefined
       ? undefined
       : formatNativeAccountBalance(balanceValue, translator);
-  const featuredInformational = isEarningsNativePaymentSource(source);
+  const featuredInformational = isFeaturedNativePaymentSource(source);
 
   return {
     id: sourceId,
@@ -8438,7 +8659,9 @@ const resolveSelectedPaymentSourceId = (
   }
 
   const verifiedSources = paymentSources.filter(
-    isPaymentSourceSelectionEligible
+    (source) =>
+      !isFeaturedNativePaymentSource(source) &&
+      isPaymentSourceSelectionEligible(source)
   );
 
   if (
@@ -9056,6 +9279,11 @@ const resolveSavedSourceVerificationOutcome = (
 type RequiredInfoDoc = NonNullable<
   NonNullable<PaymentSource['verificationInfo']>['docs']
 >[number];
+type RequiredInfoUploadEntry = {
+  doc: RequiredInfoDoc;
+  index: number;
+  key: string;
+};
 type RequiredInfoTextInputType = 'text' | 'password';
 type RequiredInfoTextInputMode = 'text' | 'numeric';
 
@@ -9072,43 +9300,31 @@ const isRequiredInfoTextDoc = (doc: RequiredInfoDoc): boolean =>
   doc.docType === 'DRIVER_LICENSE_NUMBER' ||
   doc.docType === 'SOCIAL_SECURITY_NUMBER';
 
-const isRequiredInfoDocMandatory = (doc: RequiredInfoDoc): boolean =>
-  doc.mandatory !== false;
-
-const requiredInfoRequirementKind = (
-  doc: RequiredInfoDoc
-): 'required' | 'optional' =>
-  isRequiredInfoDocMandatory(doc) ? 'required' : 'optional';
-
-const requiredInfoRequirementLabel = (
-  doc: RequiredInfoDoc,
-  translator: Translator
-): string =>
-  isRequiredInfoDocMandatory(doc)
-    ? translator.message('verification.required')
-    : translator.message('verification.optional');
-
 const renderRequiredInfoRequirementBadge = (
-  doc: RequiredInfoDoc,
   translator: Translator
 ): TemplateResult => html`
   <span
-    class="required-info-requirement-badge required-info-requirement-badge-${requiredInfoRequirementKind(
-      doc
-    )}"
+    class="required-info-requirement-badge required-info-requirement-badge-required"
   >
-    ${requiredInfoRequirementLabel(doc, translator)}
+    ${translator.message('verification.required')}
   </span>
 `;
 
-const firstRequiredInfoUploadDocKey = (
+const requiredInfoUploadEntries = (
+  docs: RequiredInfoDoc[]
+): RequiredInfoUploadEntry[] =>
+  docs.flatMap((doc, index) =>
+    isRequiredInfoTextDoc(doc)
+      ? []
+      : [{doc, index, key: requiredInfoDocKey(doc, index)}]
+  );
+
+const singleRequiredInfoUploadDocType = (
   docs: RequiredInfoDoc[]
 ): string | undefined => {
-  const uploadDocIndex = docs.findIndex((doc) => !isRequiredInfoTextDoc(doc));
+  const entries = requiredInfoUploadEntries(docs);
 
-  return uploadDocIndex >= 0
-    ? requiredInfoDocKey(docs[uploadDocIndex], uploadDocIndex)
-    : undefined;
+  return entries.length === 1 ? entries[0].doc.docType : undefined;
 };
 
 const requiredInfoTextInputType = (
@@ -9145,14 +9361,14 @@ const renderRequiredInfoTextField = ({
     <div
       class="required-info-document required-info-text-document required-document-text-row"
       data-required-info-doc-key=${key}
-      data-required-info-requirement=${requiredInfoRequirementKind(doc)}
+      data-required-info-requirement="required"
     >
       <div class="field field-full">
         <div class="field-label-row">
           <label class="field-label" for=${id}
             >${requiredInfoDocLabel(doc, translator)}</label
           >
-          ${renderRequiredInfoRequirementBadge(doc, translator)}
+          ${renderRequiredInfoRequirementBadge(translator)}
         </div>
         <input
           class="field-input required-info-text-input"
@@ -9197,12 +9413,12 @@ const renderRequiredInfoSsnField = ({
     <div
       class="required-info-document required-info-text-document required-info-ssn-document required-document-text-row"
       data-required-info-doc-key=${key}
-      data-required-info-requirement=${requiredInfoRequirementKind(doc)}
+      data-required-info-requirement="required"
     >
       <div class="field field-full">
         <div class="field-label-row">
           <label class="field-label" for=${id}>${label}</label>
-          ${renderRequiredInfoRequirementBadge(doc, translator)}
+          ${renderRequiredInfoRequirementBadge(translator)}
         </div>
         <div class="required-info-ssn-control" role="group" aria-label=${label}>
           ${REQUIRED_INFO_SSN_SEGMENT_LENGTHS.map(
@@ -9457,8 +9673,9 @@ const paymentSourceVerificationSubject = (
 const isBankPaymentSource = (
   source: PaymentSource
 ): source is BankPaymentSource =>
-  source.tenderType === 'BankAccount' ||
-  (source.tenderType as string) === 'BANK_ACCOUNT';
+  !isEmbeddedFinanceWalletPaymentSource(source) &&
+  (source.tenderType === 'BankAccount' ||
+    (source.tenderType as string) === 'BANK_ACCOUNT');
 
 const isCardPaymentSource = (
   source: PaymentSource
@@ -9468,6 +9685,7 @@ const isCardPaymentSource = (
 const isNativePaymentSource = (
   source: PaymentSource
 ): source is NativePaymentSource =>
+  isEmbeddedFinanceWalletPaymentSource(source) ||
   source.tenderType === 'NativeAccount' ||
   (source.tenderType as string) === 'NATIVE_ACCOUNT';
 

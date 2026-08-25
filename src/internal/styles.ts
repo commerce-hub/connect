@@ -992,6 +992,185 @@ export const primitiveStyles = css`
     gap: 0.375rem;
   }
 
+  .required-info-document-upload,
+  .required-info-document-type {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .required-info-document-type-options {
+    display: grid;
+    gap: 0;
+  }
+
+  .required-info-document-type-option {
+    position: relative;
+    z-index: 0;
+    min-height: 2.75rem;
+    border: 0.0625rem solid var(--chc-border-strong);
+    background: var(--chc-surface);
+    color: var(--chc-text);
+  }
+
+  .required-info-document-type-option + .required-info-document-type-option {
+    margin-top: -0.0625rem;
+  }
+
+  .required-info-document-type-option:first-child {
+    border-radius: var(--chc-radius-control) var(--chc-radius-control) 0 0;
+  }
+
+  .required-info-document-type-option:last-child {
+    border-radius: 0 0 var(--chc-radius-control) var(--chc-radius-control);
+  }
+
+  .required-info-document-type-option:only-child {
+    border-radius: var(--chc-radius-control);
+  }
+
+  .required-info-document-type-option-selected {
+    z-index: 1;
+    border-color: var(--chc-primary);
+    background: color-mix(
+      in srgb,
+      var(--chc-primary) 6%,
+      var(--chc-surface)
+    );
+  }
+
+  .required-info-document-type-option:not(:has(input:disabled)):hover {
+    border-color: var(--chc-primary);
+    background: color-mix(
+      in srgb,
+      var(--chc-primary) 3%,
+      var(--chc-surface)
+    );
+  }
+
+  .required-info-document-type-option label {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    cursor: pointer;
+  }
+
+  .required-info-document-type-option:has(input:disabled) {
+    color: var(--chc-muted);
+    opacity: 0.65;
+  }
+
+  .required-info-document-type-option:has(input:disabled) label {
+    cursor: not-allowed;
+  }
+
+  .required-info-document-type-radio:focus-visible + label {
+    position: relative;
+    z-index: 2;
+    border-radius: inherit;
+    outline: 0.1875rem solid var(--chc-focus-ring);
+    outline-offset: 0.0625rem;
+  }
+
+  .required-info-document-type-label {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-wrap: anywhere;
+  }
+
+  .required-info-document-type-indicator {
+    width: 1rem;
+    height: 1rem;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 0.09375rem solid var(--chc-border-strong);
+    border-radius: 50%;
+    background: var(--chc-surface);
+    transition: border-color var(--chc-motion-fast) var(--chc-ease-standard);
+  }
+
+  .required-info-document-type-indicator span {
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 50%;
+    background: transparent;
+  }
+
+  .required-info-document-type-option-selected
+    .required-info-document-type-indicator {
+    border-color: var(--chc-primary);
+  }
+
+  .required-info-document-type-option-selected
+    .required-info-document-type-indicator
+    span {
+    background: var(--chc-primary);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 0.0625rem;
+    height: 0.0625rem;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .required-info-upload-panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    border: 0.0625rem dashed var(--chc-border-strong);
+    border-radius: var(--chc-radius-control);
+    padding: 1rem;
+    background: color-mix(
+      in srgb,
+      var(--chc-soft-surface) 55%,
+      var(--chc-surface)
+    );
+    text-align: center;
+  }
+
+  .required-info-upload-copy {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .required-info-upload-title {
+    margin: 0;
+    color: var(--chc-text);
+    font-size: 0.875em;
+    font-weight: 600;
+  }
+
+  .required-info-upload-actions {
+    width: min(100%, 22rem);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .required-info-upload-panel .upload-row {
+    width: 100%;
+    background: var(--chc-surface);
+  }
+
+  .required-info-upload-helper,
+  .required-info-upload-formats {
+    margin: 0;
+    color: var(--chc-muted);
+    font-size: 0.75em;
+  }
+
+  .required-info-file-remove {
+    justify-self: end;
+  }
+
   .required-document-row {
     border: 0.0625rem solid var(--chc-border);
     border-radius: var(--chc-radius-card);
@@ -1081,7 +1260,7 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-primary);
     border-radius: var(--chc-radius-control);
     padding: 0 1rem;
-    font-size: 0.8125rem;
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
@@ -1115,10 +1294,18 @@ export const primitiveStyles = css`
 
   .button-content:has(.button-icon-plus) {
     gap: 0.375rem;
+    max-width: 100%;
   }
 
   .button-content:has(.button-icon-plus) .button-label {
-    white-space: nowrap;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
+  .button:has(.button-icon-plus) {
+    padding-block: 0.625rem;
   }
 
   .button-spinner,
@@ -2622,11 +2809,13 @@ export const primitiveStyles = css`
   }
 
   .source-action-title {
-    overflow: hidden;
+    overflow: visible;
     color: var(--chc-text);
     font-weight: inherit;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.35;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .source-action-subtitle {
@@ -2884,6 +3073,14 @@ export const primitiveStyles = css`
     white-space: nowrap;
   }
 
+  .upload-row-file-name-empty {
+    overflow: visible;
+    padding-block: 0.5rem;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .upload-row-action {
     align-self: stretch;
     display: inline-flex;
@@ -3061,6 +3258,7 @@ export const primitiveStyles = css`
   .widget-loading-overlay {
     position: absolute;
     inset: 0;
+    z-index: 100;
     display: grid;
     place-items: center;
     border-radius: inherit;

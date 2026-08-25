@@ -215,6 +215,64 @@ suite('manual bank account request', () => {
     );
   });
 
+  test('adds the encrypted Interac value as the account confirmation required by v2 ACH', async () => {
+    const request = createConfigDrivenBankAccountRequest({
+      data: {
+        accountHolderName: 'Example Business',
+        interacAccount: 'recipient@test.com',
+      },
+      schema: schema({
+        bavSupportedCode: 'CAD-Interac-B',
+        productId: 'POINTERAC',
+        countryCode: 'CA',
+        currencyCode: 'CAD',
+      }),
+      addressSelection: {kind: 'existing', id: 'address-id'},
+      id: 'source-id',
+    });
+
+    const encrypted = await encryptConfigDrivenBankAccountRequest(
+      request,
+      encryptValue
+    );
+
+    assert.equal(encrypted.interacAccount, 'encrypted:recipient@test.com');
+    assert.equal(
+      encrypted.accountNumberReEntered,
+      'encrypted:recipient@test.com'
+    );
+    assert.notProperty(encrypted, 'accountNumber');
+  });
+
+  test('encrypts CLABE and adds the account confirmation required by v2 ACH', async () => {
+    const request = createConfigDrivenBankAccountRequest({
+      data: {
+        accountHolderName: 'Example Business',
+        clabe: '012345678901234567',
+      },
+      schema: schema({
+        bavSupportedCode: 'MXN-CLABE-B',
+        productId: 'POCLABE',
+        countryCode: 'MX',
+        currencyCode: 'MXN',
+      }),
+      addressSelection: {kind: 'new'},
+      id: 'source-id',
+    });
+
+    const encrypted = await encryptConfigDrivenBankAccountRequest(
+      request,
+      encryptValue
+    );
+
+    assert.equal(encrypted.clabe, 'encrypted:012345678901234567');
+    assert.equal(
+      encrypted.accountNumberReEntered,
+      'encrypted:012345678901234567'
+    );
+    assert.notProperty(encrypted, 'accountNumber');
+  });
+
   test('maps configured address fields to a billing address', () => {
     assert.deepEqual(
       createManualBankBillingAddress(

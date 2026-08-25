@@ -1136,7 +1136,13 @@ export const renderUploadRow = ({
     aria-label=${`${actionLabel}. ${label}. ${fileName ?? noFileChosenLabel}`}
   >
     <span class="upload-row-action">${actionLabel}</span>
-    <span class="upload-row-file-name">${fileName ?? noFileChosenLabel}</span>
+    <span
+      class=${joinClassNames(
+        'upload-row-file-name',
+        !fileName && 'upload-row-file-name-empty'
+      )}
+      >${fileName ?? noFileChosenLabel}</span
+    >
     <span class="upload-row-label">${label}</span>
     <span class="upload-row-requirements">${requirements}</span>
   </button>
