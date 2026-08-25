@@ -7,17 +7,23 @@ TypeScript types generated from the CommerceHub OpenAPI schema.
 
 ## Install
 
-The package is currently private while the public NPM release is prepared. The
-planned package name is the current package name:
+Configure GitHub Packages authentication without committing the token:
+
+```ini
+@commerce-hub:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}
+```
+
+Then install a specific published version:
 
 ```bash
-npm install commerce-hub-connect-sdk
+npm install @commerce-hub/connect-wallet-sdk@0.12.1
 ```
 
 Import the module once in the page or bundle where you use the element:
 
 ```ts
-import 'commerce-hub-connect-sdk';
+import '@commerce-hub/connect-wallet-sdk';
 ```
 
 Then render the custom element:
@@ -64,13 +70,13 @@ type opens its entry flow directly. The same bottom-sheet behavior applies to
 `ADD_ACCOUNT`-only flows.
 
 ```ts
-import 'commerce-hub-connect-sdk';
+import '@commerce-hub/connect-wallet-sdk';
 import type {
   DesignConfig,
   InteractionResponse,
   OnEventEvent,
   OnSelectEvent,
-} from 'commerce-hub-connect-sdk';
+} from '@commerce-hub/connect-wallet-sdk';
 
 const interactionResponse: InteractionResponse = await fetch(
   '/api/commercehub/interaction'
@@ -407,7 +413,7 @@ import {
   createCommerceHubConfigClient,
   createCommerceHubClient,
   createCommerceHubMerchantClient,
-} from 'commerce-hub-connect-sdk';
+} from '@commerce-hub/connect-wallet-sdk';
 
 const runtimeClient = createCommerceHubClient({
   baseURL: 'QA',

@@ -7,6 +7,15 @@ const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 
 const packageJson = readJson('package.json');
 
+test('package is configured for public GitHub Packages distribution', () => {
+  assert.equal(packageJson.name, '@commerce-hub/connect-wallet-sdk');
+  assert.equal(packageJson.private, false);
+  assert.deepEqual(packageJson.publishConfig, {
+    access: 'public',
+    registry: 'https://npm.pkg.github.com',
+  });
+});
+
 test('published package metadata does not expose local file dependencies', () => {
   assert.notEqual(
     packageJson.dependencies?.['@jsonforms/lit'],

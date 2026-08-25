@@ -1,11 +1,19 @@
 {
-  "name": "commerce-hub-connect-sdk",
-  "private": true,
+  "name": "@commerce-hub/connect-wallet-sdk",
+  "private": false,
   "version": "0.12.1",
   "description": "CommerceHub Connect Web SDK widget primitives",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/commerce-hub/connect.git"
+  },
   "main": "commerce-hub-connect.js",
   "module": "commerce-hub-connect.js",
   "types": "commerce-hub-connect.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
+  },
   "exports": {
     ".": {
       "types": "./commerce-hub-connect.d.ts",
