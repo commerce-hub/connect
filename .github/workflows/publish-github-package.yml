@@ -1,0 +1,39 @@
+name: Publish GitHub Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SDK release version to publish
+        required: true
+        default: 0.12.1
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: '@commerce-hub'
+
+      - name: Download package archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release download "v${VERSION}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "commerce-hub-connect-wallet-sdk-${VERSION}.tgz"
+
+      - name: Publish package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: npm publish "commerce-hub-connect-wallet-sdk-${VERSION}.tgz" --access public
