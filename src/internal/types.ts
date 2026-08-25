@@ -42,6 +42,7 @@ export interface PaymentSourceRecipient {
 export type PaymentSource = GeneratedPaymentSource & {
   recipient?: PaymentSourceRecipient;
   isDefault?: boolean;
+  productCode?: string;
 };
 
 export interface InteractionEntityData {

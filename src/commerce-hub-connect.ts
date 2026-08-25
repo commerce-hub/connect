@@ -8284,6 +8284,13 @@ const designConfigColorProperties: {
 const DESIGN_CONFIG_FONT_WEIGHT_PROPERTY = '--chc-font-weight';
 const DESIGN_CONFIG_SHELL_PADDING_PROPERTY = '--chc-shell-padding';
 const EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX = ' - Earnings';
+const EMBEDDED_FINANCE_WALLET_PRODUCT_CODE = 'EMFIWALLET';
+
+const isEmbeddedFinanceWalletPaymentSource = (
+  source: PaymentSource
+): boolean =>
+  source.productCode?.trim().toUpperCase() ===
+  EMBEDDED_FINANCE_WALLET_PRODUCT_CODE;
 
 const designConfigStyleProperties = [
   ...designConfigColorProperties.map(({property}) => property),
@@ -8327,14 +8334,14 @@ const paymentMethodsFromInteractionResponse = (
       source.isDefault || (selectedSourceId && source.id === selectedSourceId)
     );
   const orderedSources = [
-    ...visibleSources.filter(isEarningsNativePaymentSource),
+    ...visibleSources.filter(isFeaturedNativePaymentSource),
     ...visibleSources.filter(
       (source) =>
-        !isEarningsNativePaymentSource(source) && isDefaultSource(source)
+        !isFeaturedNativePaymentSource(source) && isDefaultSource(source)
     ),
     ...visibleSources.filter(
       (source) =>
-        !isEarningsNativePaymentSource(source) && !isDefaultSource(source)
+        !isFeaturedNativePaymentSource(source) && !isDefaultSource(source)
     ),
   ];
 
@@ -8347,11 +8354,12 @@ const paymentMethodsFromInteractionResponse = (
 };
 
 const isVisiblePaymentListSource = (source: PaymentSource): boolean =>
-  !isNativePaymentSource(source) || isEarningsNativePaymentSource(source);
+  !isNativePaymentSource(source) || isFeaturedNativePaymentSource(source);
 
-const isEarningsNativePaymentSource = (source: PaymentSource): boolean =>
+const isFeaturedNativePaymentSource = (source: PaymentSource): boolean =>
   isNativePaymentSource(source) &&
-  source.name?.trim().endsWith(EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX) === true;
+  (isEmbeddedFinanceWalletPaymentSource(source) ||
+    source.name?.trim().endsWith(EARNINGS_NATIVE_ACCOUNT_NAME_SUFFIX) === true);
 
 const allowedTenderOptionsFromInteractionResponse = (
   interactionResponse?: InteractionResponse
@@ -8395,7 +8403,7 @@ const paymentSourceToPaymentMethod = (
     balanceValue === undefined
       ? undefined
       : formatNativeAccountBalance(balanceValue, translator);
-  const featuredInformational = isEarningsNativePaymentSource(source);
+  const featuredInformational = isFeaturedNativePaymentSource(source);
 
   return {
     id: sourceId,
@@ -8638,7 +8646,9 @@ const resolveSelectedPaymentSourceId = (
   }
 
   const verifiedSources = paymentSources.filter(
-    isPaymentSourceSelectionEligible
+    (source) =>
+      !isFeaturedNativePaymentSource(source) &&
+      isPaymentSourceSelectionEligible(source)
   );
 
   if (
@@ -9650,8 +9660,9 @@ const paymentSourceVerificationSubject = (
 const isBankPaymentSource = (
   source: PaymentSource
 ): source is BankPaymentSource =>
-  source.tenderType === 'BankAccount' ||
-  (source.tenderType as string) === 'BANK_ACCOUNT';
+  !isEmbeddedFinanceWalletPaymentSource(source) &&
+  (source.tenderType === 'BankAccount' ||
+    (source.tenderType as string) === 'BANK_ACCOUNT');
 
 const isCardPaymentSource = (
   source: PaymentSource
@@ -9661,6 +9672,7 @@ const isCardPaymentSource = (
 const isNativePaymentSource = (
   source: PaymentSource
 ): source is NativePaymentSource =>
+  isEmbeddedFinanceWalletPaymentSource(source) ||
   source.tenderType === 'NativeAccount' ||
   (source.tenderType as string) === 'NATIVE_ACCOUNT';
 
