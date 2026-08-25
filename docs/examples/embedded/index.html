@@ -63,6 +63,24 @@
 <p>The SDK presents the supported tender options defined by the interaction. After a payment method is created successfully, it emits <code>onAddPaymentMethod</code> with the created payment source.</p>
 <p>Use the standard embedded container height because ADD_ACCOUNT may open multi-step card, bank-account, verification, or required-information forms.</p>
 <!-- PDF page break: #pagebreak() -->
+<h2>Verification document upload</h2>
+<p>When a payment source requires supporting documentation, the API can return several file-based document types. The SDK treats these as alternatives: the customer selects one document type and uploads one file. The <code>mandatory</code> value on file-based document entries is intentionally ignored.</p>
+<ul>
+<li>Two to four document types are presented as an accessible radio group.</li>
+<li>Longer lists use a native select control.</li>
+<li>A single document type is selected automatically and does not require an additional selector.</li>
+<li>No option is preselected when the customer must choose between multiple types.</li>
+<li>Text-based requirements, including Social Security number and driver’s-license number, remain separate required fields.</li>
+</ul>
+<p>The SDK accepts JPG/JPEG, PNG, and PDF files. It validates the filename/MIME type and file signature locally before making a request. An unsupported or incorrectly identified file displays:</p>
+<blockquote>
+<p>Unsupported file type. Upload a JPG, PNG, or PDF file.</p>
+</blockquote>
+<p>After a valid file is selected, the UI displays its filename and provides <strong>Replace file</strong> and <strong>Remove file</strong> actions. The Verify action remains disabled until the required text fields, document type, and one valid file are present.</p>
+<p>The selected document identifier is sent as <code>docType</code> in the existing endpoint path, while the file itself is sent in the multipart request body:</p>
+<pre class="language-http"><code class="language-http">POST /interaction/doc/upload/{sourceId}/{docType}<br><span class="token header"><span class="token header-name keyword">Content-Type</span><span class="token punctuation">:</span> <span class="token header-value">multipart/form-data</span></span></code></pre>
+<p>Only the selected document is uploaded; the full document-definition object is not included in the request.</p>
+<!-- PDF page break: #pagebreak() -->
 <h2>Design configuration</h2>
 <p>Use <code>designConfig</code> for merchant-safe visual customization:</p>
 <pre class="language-ts"><code class="language-ts"><span class="token keyword">const</span> designConfig <span class="token operator">=</span> <span class="token punctuation">{</span><br>  colors<span class="token operator">:</span> <span class="token punctuation">{</span><br>    primary<span class="token operator">:</span> <span class="token string">'#5b3df5'</span><span class="token punctuation">,</span><br>    text<span class="token operator">:</span> <span class="token string">'#172033'</span><span class="token punctuation">,</span><br>    copy<span class="token operator">:</span> <span class="token string">'#667085'</span><span class="token punctuation">,</span><br>    border<span class="token operator">:</span> <span class="token string">'#e4e7ec'</span><span class="token punctuation">,</span><br>    surface<span class="token operator">:</span> <span class="token string">'#ffffff'</span><span class="token punctuation">,</span><br>    widgetBackground<span class="token operator">:</span> <span class="token string">'#ffffff'</span><span class="token punctuation">,</span><br>  <span class="token punctuation">}</span><span class="token punctuation">,</span><br>  baseFontSize<span class="token operator">:</span> <span class="token string">'16px'</span><span class="token punctuation">,</span><br><span class="token punctuation">}</span><span class="token punctuation">;</span></code></pre>
