@@ -3170,6 +3170,13 @@ export class CommerceHubConnect extends LitElement {
     }
 
     const isSaving = this.pendingAction === 'save-bank-account';
+    const selectedSchema = this.bankAccountInstrumentSchemas.find(
+      (schema) =>
+        schema.bavSupportedCode === this.selectedBankAccountInstrumentSchemaCode
+    );
+    const isUpi =
+      selectedSchema?.productId.trim().toUpperCase() === 'POUPI' ||
+      selectedSchema?.bavSupportedCode.toUpperCase().includes('UPI') === true;
     return this.renderWidgetShell({
       title: this.translator.message('bank.enterDetails'),
       backAction: this.manualBankAccountDetailsBackAction(),
@@ -3215,7 +3222,13 @@ export class CommerceHubConnect extends LitElement {
           <div class="primitive-footer card-form-primary">
             ${renderButton({
               label: this.translator.message(
-                isSaving ? 'bank.savingTitle' : 'bank.save'
+                isUpi
+                  ? isSaving
+                    ? 'common.saving'
+                    : 'actions.save'
+                  : isSaving
+                    ? 'bank.savingTitle'
+                    : 'bank.save'
               ),
               action: 'save-bank-account',
               type: 'submit',

@@ -39,6 +39,7 @@ export const frCAMessages: Partial<Record<MessageKey, string>> = {
   'actions.done': 'Terminé',
   'actions.edit': 'Modifier',
   'actions.retry': 'Réessayer',
+  'actions.save': 'Enregistrer',
   'actions.useDifferentAccount': 'Utiliser un autre compte',
   'actions.useDifferentMethod': 'Utiliser un autre mode',
   'common.configurationRequired': 'Configuration requise',

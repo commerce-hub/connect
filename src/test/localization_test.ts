@@ -69,6 +69,12 @@ suite('localization', () => {
       createTranslator('es-US').message('document.fileTypeError'),
       'Tipo de archivo no compatible. Cargue un archivo JPG, PNG o PDF.'
     );
+    assert.equal(createTranslator('en').message('actions.save'), 'Save');
+    assert.equal(
+      createTranslator('fr-CA').message('actions.save'),
+      'Enregistrer'
+    );
+    assert.equal(createTranslator('es-US').message('actions.save'), 'Guardar');
   });
 
   test('formats ICU message parameters and plurals', () => {

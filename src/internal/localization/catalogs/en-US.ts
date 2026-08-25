@@ -35,6 +35,7 @@ export const enUSMessages = {
   'actions.done': 'Done',
   'actions.edit': 'Edit',
   'actions.retry': 'Try again',
+  'actions.save': 'Save',
   'actions.useDifferentAccount': 'Use a different account',
   'actions.useDifferentMethod': 'Use a different method',
   'common.configurationRequired': 'Configuration required',

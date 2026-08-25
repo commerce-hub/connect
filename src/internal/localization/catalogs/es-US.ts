@@ -45,6 +45,7 @@ export const esUSMessages: Record<MessageKey, string> = {
   'actions.done': 'Listo',
   'actions.edit': 'Editar',
   'actions.retry': 'Intentar de nuevo',
+  'actions.save': 'Guardar',
   'actions.useDifferentAccount': 'Usar otra cuenta',
   'actions.useDifferentMethod': 'Usar otro método',
   'common.configurationRequired': 'Configuración requerida',
