@@ -42,11 +42,3 @@ jobs:
           else
             npm publish "commerce-hub-connect-wallet-sdk-${VERSION}.tgz" --access public
           fi
-
-      - name: Make package public
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method PATCH \
-            "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/npm/connect-wallet-sdk" \
-            -f visibility=public
