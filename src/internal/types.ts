@@ -101,6 +101,7 @@ export type FlowActionName =
   | 'delete-payment-source'
   | 'done-payment-source-verification'
   | 'open-required-info-file-picker'
+  | 'remove-required-info-file'
   | 'open-transfer'
   | 'edit-transfer'
   | 'confirm-transfer'

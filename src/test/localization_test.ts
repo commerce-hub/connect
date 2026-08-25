@@ -32,6 +32,22 @@ suite('localization', () => {
       createTranslator('fr-CA').message('verification.verifying'),
       'Vérification...'
     );
+    assert.equal(
+      createTranslator('en-US').message('document.type'),
+      'Choose a document type'
+    );
+    assert.equal(
+      createTranslator('fr-CA').message('document.type'),
+      'Choisissez un type de document'
+    );
+    assert.equal(
+      createTranslator('en-US').message('document.uploadOne'),
+      'Upload document'
+    );
+    assert.equal(
+      createTranslator('fr-CA').message('document.uploadOne'),
+      'Téléverser le document'
+    );
   });
 
   test('formats ICU message parameters and plurals', () => {

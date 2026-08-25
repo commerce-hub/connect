@@ -514,20 +514,43 @@ const requestPaymentSourceDeletion = async (
 
 const selectRequiredInfoFile = async (
   el: CommerceHubConnect,
-  fileName: string
+  fileName: string,
+  {
+    contents = '%PDF-1.4 synthetic document',
+    type = 'application/pdf',
+  }: {contents?: BlobPart; type?: string} = {}
 ) => {
   const input = el.shadowRoot!.querySelector<HTMLInputElement>(
     '.required-info-file-input'
   )!;
-  const file = new File(['synthetic document'], fileName, {
-    type: 'application/pdf',
-  });
+  const file = new File([contents], fileName, {type});
 
   Object.defineProperty(input, 'files', {
     configurable: true,
     value: [file],
   });
   input.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+  await flushElement(el);
+};
+
+const selectRequiredInfoDocumentType = async (
+  el: CommerceHubConnect,
+  docType: string
+) => {
+  const radio = el.shadowRoot!.querySelector<HTMLInputElement>(
+    `.required-info-document-type-radio[value="${docType}"]`
+  );
+  const select = el.shadowRoot!.querySelector<HTMLSelectElement>(
+    '.required-info-document-type-select'
+  );
+
+  if (radio) {
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+  } else {
+    select!.value = docType;
+    select!.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+  }
   await flushElement(el);
 };
 
@@ -8444,27 +8467,15 @@ suite('commerce-hub-connect flow', () => {
       el.shadowRoot!.querySelectorAll(
         '.required-info-document.required-document-text-row'
       ),
+      0
+    );
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll('.required-info-document-type-radio'),
       2
     );
-    assert.deepEqual(
-      [...el.shadowRoot!.querySelectorAll('.upload-row-requirements')].map(
-        (node) => node.textContent?.trim()
-      ),
-      ['Bank statement', 'Driver license photo']
-    );
-    assert.deepEqual(
-      [
-        ...el.shadowRoot!.querySelectorAll('.required-info-requirement-badge'),
-      ].map((node) => node.textContent?.trim()),
-      ['Required', 'Optional']
-    );
-    assert.deepEqual(
-      [
-        ...el.shadowRoot!.querySelectorAll<HTMLElement>(
-          '.required-info-document'
-        ),
-      ].map((node) => node.dataset.requiredInfoRequirement),
-      ['required', 'optional']
+    assert.lengthOf(el.shadowRoot!.querySelectorAll('.upload-row'), 1);
+    assert.notExists(
+      el.shadowRoot!.querySelector('.required-info-requirement-badge')
     );
     assert.equal(
       el
@@ -8502,7 +8513,7 @@ suite('commerce-hub-connect flow', () => {
     );
   });
 
-  test('Connect your bank required-info treats bank letter and bank check as upload documents', async () => {
+  test('Connect your bank required-info presents a short upload-document list as one unselected radio group', async () => {
     const {el} = await completePayByBankFlow({
       finalizedStatus: 'REQUIRE_INFO',
       verificationStatus: 'REQUIRE_INFO',
@@ -8512,14 +8523,94 @@ suite('commerce-hub-connect flow', () => {
       ],
     });
 
-    assert.deepEqual(
-      [...el.shadowRoot!.querySelectorAll('.upload-row-requirements')].map(
-        (node) => node.textContent?.trim()
+    const documentTypeRadios = [
+      ...el.shadowRoot!.querySelectorAll<HTMLInputElement>(
+        '.required-info-document-type-radio'
       ),
-      ['Bank letter', 'Bank check']
+    ];
+
+    assert.deepEqual(
+      documentTypeRadios.map((radio) => [
+        radio.value,
+        el
+          .shadowRoot!.querySelector(`label[for="${radio.id}"]`)
+          ?.textContent?.trim(),
+        radio.checked,
+      ]),
+      [
+        ['BANK_LETTER', 'Bank letter', false],
+        ['BANK_CHECK', 'Bank check', false],
+      ]
+    );
+    const documentTypeOptions = [
+      ...el.shadowRoot!.querySelectorAll<HTMLElement>(
+        '.required-info-document-type-option'
+      ),
+    ];
+    assert.lengthOf(documentTypeOptions, 2);
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('#required-info-document-type-label')
+        ?.textContent?.trim(),
+      'Choose a document type'
+    );
+    assert.isTrue(
+      documentTypeRadios.every((radio) =>
+        radio.classList.contains('visually-hidden')
+      )
+    );
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll(
+        '.required-info-document-type-indicator'
+      ),
+      2
+    );
+    assert.lengthOf(
+      el.shadowRoot!.querySelectorAll(
+        '.required-info-document-type-option-selected'
+      ),
+      0
+    );
+    assert.lengthOf(el.shadowRoot!.querySelectorAll('.upload-row'), 1);
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.required-info-upload-title')
+        ?.textContent?.trim(),
+      'Upload document'
+    );
+    assert.equal(
+      el
+        .shadowRoot!.querySelector('.required-info-upload-formats')
+        ?.textContent?.trim(),
+      'JPG, PNG, or PDF'
+    );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>('.upload-row')!.disabled
     );
     assert.notExists(el.shadowRoot!.querySelector('.required-info-text-input'));
     assert.exists(el.shadowRoot!.querySelector('.required-info-file-input'));
+
+    documentTypeOptions[1]
+      .querySelector<HTMLLabelElement>('label')!
+      .click();
+    await el.updateComplete;
+
+    const selectedOption = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-document-type-option-selected'
+    );
+    assert.isFalse(documentTypeRadios[0].checked);
+    assert.isTrue(documentTypeRadios[1].checked);
+    assert.equal(
+      selectedOption?.querySelector('.required-info-document-type-label')
+        ?.textContent?.trim(),
+      'Bank check'
+    );
+    assert.exists(
+      selectedOption?.querySelector('.required-info-document-type-indicator')
+    );
+    assert.isFalse(
+      el.shadowRoot!.querySelector<HTMLButtonElement>('.upload-row')!.disabled
+    );
   });
 
   test('Connect your bank REQUIRE_INFO verification response opens the required-info screen and keeps file selection local only', async () => {
@@ -8563,10 +8654,11 @@ suite('commerce-hub-connect flow', () => {
     assert.isUndefined(el.interactionResponse?.selectedSource);
   });
 
-  test('Connect your bank required-info Verify requires every mandatory document', async () => {
-    const {el} = await completePayByBankFlow({
+  test('Connect your bank required-info ignores upload mandatory flags and submits one selected document', async () => {
+    const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'NOT_VERIFIED',
       verificationStatus: 'REQUIRE_INFO',
+      requiredInfoStep2Status: 'VERIFIED',
       verificationDocs: [
         {docType: 'BANK_STATEMENT', mandatory: true},
         {docType: 'BANK_LETTER', mandatory: true},
@@ -8576,34 +8668,91 @@ suite('commerce-hub-connect flow', () => {
     const verifyButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
       '.primitive-footer button[data-action="submit-required-info"]'
     )!;
-    const optionalUploadRow = el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '[data-required-info-requirement="optional"] .upload-row'
-    )!;
-    const requiredUploadRows = [
-      ...el.shadowRoot!.querySelectorAll<HTMLButtonElement>(
-        '[data-required-info-requirement="required"] .upload-row'
-      ),
-    ];
+
+    assert.equal(verifyButton.disabled, true);
+    assert.notExists(
+      el.shadowRoot!.querySelector('.required-info-requirement-badge')
+    );
+
+    await selectRequiredInfoDocumentType(el, 'BANK_LETTER');
 
     assert.equal(verifyButton.disabled, true);
 
-    optionalUploadRow.click();
-    await flushElement(el);
-    await selectRequiredInfoFile(el, 'driver-license.pdf');
-
-    assert.equal(verifyButton.disabled, true);
-
-    requiredUploadRows[0].click();
-    await flushElement(el);
-    await selectRequiredInfoFile(el, 'bank-statement.pdf');
-
-    assert.equal(verifyButton.disabled, true);
-
-    requiredUploadRows[1].click();
-    await flushElement(el);
     await selectRequiredInfoFile(el, 'bank-letter.pdf');
 
     assert.equal(verifyButton.disabled, false);
+    assert.equal(
+      el
+        .shadowRoot!.querySelector<HTMLButtonElement>('.upload-row-action')
+        ?.textContent?.trim(),
+      'Replace file'
+    );
+    const removeFileButton = el.shadowRoot!.querySelector<HTMLButtonElement>(
+      '[data-action="remove-required-info-file"]'
+    );
+    assert.exists(removeFileButton);
+    assert.equal(removeFileButton?.textContent?.trim(), '');
+    assert.equal(removeFileButton?.getAttribute('aria-label'), 'Remove file');
+    assert.isTrue(
+      removeFileButton?.classList.contains('payment-method-delete-button')
+    );
+    assert.exists(
+      removeFileButton?.querySelector(
+        '.payment-method-delete-action-icon[aria-hidden="true"]'
+      )
+    );
+    assert.equal(
+      removeFileButton?.parentElement?.className,
+      'required-info-upload-actions'
+    );
+
+    await clickAction(el, 'remove-required-info-file');
+
+    assert.equal(verifyButton.disabled, true);
+    assert.notExists(
+      el.shadowRoot!.querySelector('[data-action="remove-required-info-file"]')
+    );
+
+    await selectRequiredInfoFile(el, 'bank-letter.pdf');
+
+    await clickAction(el, 'submit-required-info');
+    await waitForRequest(
+      requests,
+      '/interaction/doc/upload/bank-new/BANK_LETTER',
+      'POST'
+    );
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/doc/upload/bank-new/BANK_STATEMENT'
+    );
+    assert.notInclude(
+      requests.map((request) => new URL(request.url).pathname),
+      '/interaction/doc/upload/bank-new/DRIVER_LICENSE_PHOTO'
+    );
+  });
+
+  test('Connect your bank required-info rejects unsupported files locally with an actionable error', async () => {
+    const {el, requests} = await completePayByBankFlow({
+      finalizedStatus: 'NOT_VERIFIED',
+      verificationStatus: 'REQUIRE_INFO',
+    });
+    const requestCountBeforeFileSelection = requests.length;
+
+    await selectRequiredInfoFile(el, 'account-details.txt', {
+      contents: 'not a supported document',
+      type: 'text/plain',
+    });
+
+    assert.include(
+      el.shadowRoot!.querySelector('.field-error')?.textContent?.trim() ?? '',
+      'Unsupported file type. Upload a JPG, PNG, or PDF file.'
+    );
+    assert.isTrue(
+      el.shadowRoot!.querySelector<HTMLButtonElement>(
+        '.primitive-footer button[data-action="submit-required-info"]'
+      )!.disabled
+    );
+    assert.lengthOf(requests, requestCountBeforeFileSelection);
   });
 
   test('Connect your bank required-info Verify shows an account verification overlay while pending', async () => {
@@ -8631,6 +8780,24 @@ suite('commerce-hub-connect flow', () => {
     assert.include(
       el.shadowRoot!.querySelector('.widget-loading-helper')?.textContent ?? '',
       'Reviewing your verification information'
+    );
+    const loadingOverlay = el.shadowRoot!.querySelector<HTMLElement>(
+      '.widget-loading-overlay'
+    )!;
+    const selectedDocument = el.shadowRoot!.querySelector<HTMLElement>(
+      '.required-info-document-type-option-selected'
+    )!;
+    const stickyFooter = el.shadowRoot!.querySelector<HTMLElement>(
+      '.primitive-footer'
+    )!;
+    const overlayZIndex = Number(getComputedStyle(loadingOverlay).zIndex);
+    assert.isAbove(
+      overlayZIndex,
+      Number(getComputedStyle(selectedDocument).zIndex)
+    );
+    assert.isAbove(
+      overlayZIndex,
+      Number(getComputedStyle(stickyFooter).zIndex)
     );
 
     pendingUpload.resolve(new Response(undefined, {status: 200}));
@@ -8706,6 +8873,7 @@ suite('commerce-hub-connect flow', () => {
         requiredInfoStep2SourceId: 'bank-verified',
       });
 
+    await selectRequiredInfoDocumentType(el, 'BANK_STATEMENT');
     await selectRequiredInfoFile(el, 'may-bank-statement.pdf');
     await clickAction(el, 'submit-required-info');
     await waitForRequest(requests, '/interaction/verify/step2');
@@ -8793,7 +8961,7 @@ suite('commerce-hub-connect flow', () => {
     ]);
   });
 
-  test('Pay by Bank required-info Verify submits required information before optional information', async () => {
+  test('Pay by Bank required-info Verify submits only the chosen upload document', async () => {
     const {el, requests} = await completePayByBankFlow({
       finalizedStatus: 'NOT_VERIFIED',
       verificationStatus: 'REQUIRE_INFO',
@@ -8801,24 +8969,10 @@ suite('commerce-hub-connect flow', () => {
         {docType: 'BANK_STATEMENT', mandatory: true},
         {docType: 'DRIVER_LICENSE_PHOTO', mandatory: false},
       ],
-      requiredInfoStep2Responses: [
-        {
-          status: 'REQUIRE_INFO',
-          docs: [
-            {docType: 'BANK_STATEMENT', mandatory: true},
-            {docType: 'DRIVER_LICENSE_PHOTO', mandatory: false},
-          ],
-        },
-        {status: 'UNDER_REVIEW'},
-      ],
+      requiredInfoStep2Status: 'UNDER_REVIEW',
     });
-    const optionalUploadRow = el.shadowRoot!.querySelector<HTMLButtonElement>(
-      '[data-required-info-requirement="optional"] .upload-row'
-    )!;
 
-    await selectRequiredInfoFile(el, 'may-bank-statement.pdf');
-    optionalUploadRow.click();
-    await flushElement(el);
+    await selectRequiredInfoDocumentType(el, 'DRIVER_LICENSE_PHOTO');
     await selectRequiredInfoFile(el, 'driver-license.pdf');
     await clickAction(el, 'submit-required-info');
     await waitFor(
@@ -8833,16 +8987,12 @@ suite('commerce-hub-connect flow', () => {
         .slice(3)
         .map((request) => `${request.method} ${new URL(request.url).pathname}`),
       [
-        'POST /interaction/doc/upload/bank-new/BANK_STATEMENT',
-        'POST /interaction/verify/step2',
         'POST /interaction/doc/upload/bank-new/DRIVER_LICENSE_PHOTO',
         'POST /interaction/verify/step2',
       ]
     );
-    assert.include(requests[3].bodyText, 'filename="may-bank-statement.pdf"');
+    assert.include(requests[3].bodyText, 'filename="driver-license.pdf"');
     assert.equal(requests[4].bodyText, JSON.stringify({value: 'bank-new'}));
-    assert.include(requests[5].bodyText, 'filename="driver-license.pdf"');
-    assert.equal(requests[6].bodyText, JSON.stringify({value: 'bank-new'}));
     assert.equal(
       el.interactionResponse?.paymentSources?.[0]?.verificationInfo?.status,
       'UNDER_REVIEW'

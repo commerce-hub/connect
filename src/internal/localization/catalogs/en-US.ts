@@ -125,7 +125,7 @@ export const enUSMessages = {
   'verification.couldNotVerifyMessage': 'This {subject} could not be verified.',
   'verification.notVerifiedMessage': 'This {subject} is not verified yet.',
   'verification.missingInformation':
-    'Add required or optional information before verifying.',
+    'Complete the requested information before verifying.',
   'verification.submitFailed':
     'We could not submit the required information. Please try again.',
   'document.bankStatement': 'Bank statement',
@@ -135,9 +135,18 @@ export const enUSMessages = {
   'document.driverLicenseNumber': 'Driver license number',
   'document.socialSecurityNumber': 'Social Security number',
   'document.ssnRequired': 'Enter a 9-digit Social Security number.',
-  'document.fileTypeError': 'Upload a PDF, JPEG, or PNG file.',
+  'document.fileTypeError':
+    'Unsupported file type. Upload a JPG, PNG, or PDF file.',
   'document.informationNeeded': 'Information needed to complete verification',
+  'document.type': 'Choose a document type',
+  'document.selectType': 'Select a document type',
+  'document.selectTypeError': 'Select a document type.',
+  'document.uploadOne': 'Upload document',
+  'document.supportedTypes': 'JPG, PNG, or PDF',
   'document.chooseFile': 'Choose file',
+  'document.replaceFile': 'Replace file',
+  'document.removeFile': 'Remove file',
+  'document.fileRequired': 'Choose a file to upload.',
   'document.enterValue': 'Enter a {label}.',
   'document.chooseValue': 'Choose a {label}.',
   'document.part': '{label} part {part}',

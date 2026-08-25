@@ -619,11 +619,11 @@ suite('form state models', () => {
     assert.isUndefined(validateRequiredInfoDocumentFile(pdf));
     assert.equal(
       validateRequiredInfoDocumentFile(text),
-      'Upload a PDF, JPEG, or PNG file.'
+      'Unsupported file type. Upload a JPG, PNG, or PDF file.'
     );
     assert.equal(
       validateRequiredInfoDocumentFile(text, createTranslator('fr-CA')),
-      'Téléversez un fichier PDF, JPEG ou PNG.'
+      'Type de fichier non pris en charge. Téléversez un fichier JPG, PNG ou PDF.'
     );
   });
 
@@ -656,7 +656,7 @@ suite('form state models', () => {
     assert.isUndefined(await validateRequiredInfoDocumentFileContent(realPdf));
     assert.equal(
       await validateRequiredInfoDocumentFileContent(zipRenamedToPdf),
-      'Upload a PDF, JPEG, or PNG file.'
+      'Unsupported file type. Upload a JPG, PNG, or PDF file.'
     );
   });
 });
