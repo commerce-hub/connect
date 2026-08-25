@@ -1,7 +1,7 @@
 {
   "name": "@commerce-hub/connect-wallet-sdk",
   "private": false,
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "CommerceHub Connect Web SDK widget primitives",
   "repository": {
     "type": "git",

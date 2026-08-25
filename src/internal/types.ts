@@ -28,6 +28,7 @@ export interface InteractionOAuth {
   token_type?: string;
   issued_at?: string;
   client_id?: string;
+  configuration_id?: string;
   access_token?: string;
   expires_in?: string;
   status?: string;

@@ -53,6 +53,7 @@ const TEST_INTERACTION_FEATURES: NonNullable<InteractionResponse['features']> =
 const TEST_SOURCE_CREATE_OAUTH = {
   access_token: 'test-access-token',
   client_id: 'test-client-id',
+  configuration_id: 'test-configuration-id',
   token_type: 'Bearer',
 };
 const TEST_SOURCE_ENCRYPTION_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
@@ -7893,8 +7894,8 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(backButton?.textContent?.trim(), '');
     assert.exists(backButton?.closest('.widget-heading-row'));
     assert.equal(getComputedStyle(backButton!).color, 'rgb(31, 41, 55)');
-    assert.equal(initConfig?.apiKey, 'override-api-key');
-    assert.equal(initConfig?.configId, 'override-config-id');
+    assert.equal(initConfig?.apiKey, 'test-client-id');
+    assert.equal(initConfig?.configId, 'test-configuration-id');
     assert.equal(initConfig?.accessToken, 'access-token-1');
     assert.equal(initConfig?.aggregatorSessionId, 'agg-session-1');
     assert.equal(initConfig?.pToken, 'p-token-1');
@@ -7934,6 +7935,11 @@ suite('commerce-hub-connect flow', () => {
     assert.equal(
       requests[0].headers.get('x-interaction-id'),
       'interaction-payment'
+    );
+    assert.equal(requests[0].headers.get('x-pbb-api-key'), 'test-client-id');
+    assert.equal(
+      requests[0].headers.get('x-pbb-configuration-id'),
+      'test-configuration-id'
     );
     assert.equal(requests[0].credentials, 'include');
   });
@@ -7995,7 +8001,7 @@ suite('commerce-hub-connect flow', () => {
     await flushElement(el);
   });
 
-  test('add bank account uses built-in Pay by Bank credentials when designConfig omits them', async () => {
+  test('Pay by Bank uses OAuth credentials when designConfig omits them', async () => {
     let initConfig: TestPaymentSdkInitConfiguration | undefined;
 
     paymentSdkWindow.PaymentSDK = {
@@ -8029,9 +8035,9 @@ suite('commerce-hub-connect flow', () => {
 
     assert.equal(
       initConfig?.apiKey,
-      'YqIvg89urE1WsAdgWwM1EiQTRM1ajSYCaLhnDvimvmHeB78A'
+      'test-client-id'
     );
-    assert.equal(initConfig?.configId, 'cce84049-0940-4926-9a54-9eaca0c09830');
+    assert.equal(initConfig?.configId, 'test-configuration-id');
     assert.isTrue(initConfig?.embed);
     assert.deepEqual(initConfig?.appearance, {
       branding: {
@@ -8077,8 +8083,10 @@ suite('commerce-hub-connect flow', () => {
       {
         interactionId: 'interaction-payment',
         status: 'PAYMENT_SOURCE_REQUESTED',
-        apiKey: 'api-interaction-key',
-        configurationId: 'api-interaction-config-id',
+        oauth: {
+          client_id: 'api-interaction-key',
+          configuration_id: 'api-interaction-config-id',
+        },
         paymentSources: [],
       },
       {

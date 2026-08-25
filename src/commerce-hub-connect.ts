@@ -7197,10 +7197,24 @@ export class CommerceHubConnect extends LitElement {
     containerId: string,
     requestToken: number
   ) {
+    const apiKey = this.interactionResponse?.oauth?.client_id?.trim();
+    const configId = this.interactionResponse?.oauth?.configuration_id?.trim();
+
+    if (!apiKey || !configId) {
+      throw new Error('Pay by Bank OAuth configuration is unavailable.');
+    }
+
     const session = await this.requestCommerceHubJson<PayByBankSession>(
       '/interaction/source/pbb/session',
       interactionId,
-      {method: 'GET', credentials: 'include'}
+      {
+        method: 'GET',
+        headers: {
+          'x-pbb-api-key': apiKey,
+          'x-pbb-configuration-id': configId,
+        },
+        credentials: 'include',
+      }
     );
 
     if (!this.isCurrentPayByBankProviderRequest(requestToken, interactionId)) {
@@ -7211,8 +7225,7 @@ export class CommerceHubConnect extends LitElement {
       resolvePayByBankSession(session);
     const payByBank = resolvePayByBankOptions(
       this.designConfig?.payByBank,
-      this.baseURL,
-      this.interactionResponse
+      this.baseURL
     );
     const customer = resolvePayByBankCustomerDetails(
       this.interactionResponse?.entityData
@@ -7244,9 +7257,9 @@ export class CommerceHubConnect extends LitElement {
       destroyPaymentSdk();
 
       paymentSdk.init({
-        apiKey: payByBank.apiKey,
+        apiKey,
         accessToken,
-        configId: payByBank.configId,
+        configId,
         environment: payByBank.environment,
         locale:
           this.translator.locale === 'en-US'
@@ -7650,8 +7663,12 @@ export class CommerceHubConnect extends LitElement {
   ): Headers {
     const headers = new Headers(init);
     const accessToken = this.interactionResponse?.oauth?.access_token?.trim();
+    const apiKey = this.interactionResponse?.oauth?.client_id?.trim();
 
     headers.set('x-interaction-id', interactionId);
+    if (apiKey) {
+      headers.set('api-key', apiKey);
+    }
 
     if (!headers.has('Accept-Language')) {
       headers.set('Accept-Language', this.translator.locale);
@@ -7674,6 +7691,7 @@ export class CommerceHubConnect extends LitElement {
     headers.set('Api-Key', sourceCreateContext.clientId);
     headers.set('Auth-Token-Type', sourceCreateContext.tokenType);
     headers.set('x-key-id', sourceCreateContext.keyId);
+    headers.set('x-pbb-api-key', sourceCreateContext.keyId);
 
     return headers;
   }
@@ -8142,24 +8160,16 @@ const resolveNoSavedPaymentMethodsCopy = (
 
 const resolvePayByBankOptions = (
   options?: DesignConfigPayByBank,
-  baseURL?: CommerceHubBaseURLInput,
-  interactionResponse?: Pick<InteractionResponse, 'apiKey' | 'configurationId'>
+  baseURL?: CommerceHubBaseURLInput
 ): Required<DesignConfigPayByBank> => {
   const definedOverrides = Object.fromEntries(
     Object.entries(options ?? {}).filter(([, value]) => value !== undefined)
   ) as DesignConfigPayByBank;
-  const apiCredentials = Object.fromEntries(
-    Object.entries({
-      apiKey: interactionResponse?.apiKey,
-      configId: interactionResponse?.configurationId,
-    }).filter(([, value]) => value !== undefined)
-  ) as Pick<DesignConfigPayByBank, 'apiKey' | 'configId'>;
   const preset = payByBankBaseURLPreset(baseURL);
 
   return {
     ...DEFAULT_PAY_BY_BANK_OPTIONS,
     ...definedOverrides,
-    ...apiCredentials,
     ...(preset
       ? {
           paymentSdkUrl: payByBankSdkUrl(preset),
