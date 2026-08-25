@@ -237,6 +237,17 @@ suite('commerce-hub-connect primitives', () => {
     );
   });
 
+  test('allows add payment method headings to wrap without truncation', () => {
+    assert.include(
+      primitiveStyles.cssText,
+      '.source-action-title {\n    overflow: visible;'
+    );
+    assert.include(
+      primitiveStyles.cssText,
+      'line-height: 1.35;\n    text-overflow: clip;\n    white-space: normal;\n    overflow-wrap: anywhere;'
+    );
+  });
+
   test('renders payment method logos in POC-style icon tiles', async () => {
     const interactionResponse: InteractionResponse = {
       status: 'PAYMENT_SOURCE_REQUESTED',
@@ -861,6 +872,12 @@ suite('commerce-hub-connect primitives', () => {
       root.querySelector('.upload-row-file-name')?.textContent?.trim(),
       'No file chosen'
     );
+    const emptyFileLabel = root.querySelector<HTMLElement>(
+      '.upload-row-file-name-empty'
+    )!;
+    assert.exists(emptyFileLabel);
+    assert.equal(getComputedStyle(emptyFileLabel).whiteSpace, 'normal');
+    assert.equal(getComputedStyle(emptyFileLabel).textOverflow, 'clip');
     assert.equal(
       root.querySelector('.loading-row-title')?.textContent?.trim(),
       'Verifying code'

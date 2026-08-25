@@ -3070,13 +3070,14 @@ suite('commerce-hub-connect payment selection', () => {
       const buttonLabel = button.querySelector('.button-label')!;
       const buttonContentStyles = getComputedStyle(buttonContent);
       const plusIconStyles = getComputedStyle(plusIcon);
-      const labelRange = document.createRange();
-
-      labelRange.selectNodeContents(buttonLabel);
+      const buttonLabelStyles = getComputedStyle(buttonLabel);
 
       assert.strictEqual(buttonContent.firstElementChild, plusIcon);
-      assert.lengthOf(labelRange.getClientRects(), 1);
       assert.equal(buttonContentStyles.gap, '6px');
+      assert.equal(buttonContentStyles.maxWidth, '100%');
+      assert.equal(buttonLabelStyles.minWidth, '0px');
+      assert.equal(buttonLabelStyles.whiteSpace, 'normal');
+      assert.equal(buttonLabelStyles.overflowWrap, 'anywhere');
       assert.closeTo(
         parseFloat(plusIconStyles.width),
         parseFloat(plusIconStyles.fontSize) * 1.5,
@@ -3097,6 +3098,7 @@ suite('commerce-hub-connect payment selection', () => {
         getComputedStyle(button).color
       );
     });
+
   });
 
   test('SELECT with ADD_ACCOUNT renders selection and consolidated add actions', async () => {
@@ -3145,10 +3147,7 @@ suite('commerce-hub-connect payment selection', () => {
 
     assert.isTrue(addButton.classList.contains('button-primary'));
     assert.isTrue(primaryButton.classList.contains('button-primary'));
-    assert.equal(
-      getComputedStyle(addButton.querySelector('.button-icon-plus')!).fill,
-      addButtonStyles.color
-    );
+    assert.notExists(addButton.querySelector('.button-icon-plus'));
     assert.equal(
       getComputedStyle(addButton.querySelector('.button-label')!).color,
       addButtonStyles.color

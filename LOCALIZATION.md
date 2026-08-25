@@ -2,8 +2,9 @@
 
 CommerceHub Connect owns and bundles its shopper-facing translations. Hosts
 select a locale through `<commerce-hub-connect locale="fr-CA">`; they do not
-provide translation catalogs. The SDK currently supports `en-US` and `fr-CA`,
-with `en-US` as the fallback.
+provide translation catalogs. The SDK supports `en`, `en-US`, `fr-CA`, and
+`es-US`, with `en-US` as the default and fallback. `en` reuses the US English
+messages while remaining `en` for formatting and downstream locale headers.
 
 ## Architecture
 
@@ -41,7 +42,15 @@ Add the matching French Canadian message to
   'Supprimer la carte se terminant par {last4}?',
 ```
 
-Every locale must use the same ICU parameters. Catalog keys should describe
+Add the matching US Spanish message to
+`src/internal/localization/catalogs/es-US.ts`:
+
+```ts
+'card.removeConfirmation':
+  '¿Eliminar la tarjeta que termina en {last4}?',
+```
+
+Every translated locale must use the same ICU parameters. Catalog keys should describe
 meaning rather than repeat English text.
 
 ## Use a message
@@ -75,7 +84,8 @@ translator.date(new Date());
 3. Add locale-resolution tests in `src/test/localization_test.ts`.
 4. Add representative component tests for translated copy and accessibility
    labels.
-5. Document the supported locale in `README.md`.
+5. Add the locale to every sample-app language selector.
+6. Document the supported locale in `README.md`.
 
 ## Validate catalogs
 

@@ -720,7 +720,7 @@ export class CommerceHubConnect extends LitElement {
   @property({attribute: 'base-url'})
   baseURL?: CommerceHubBaseURLInput;
 
-  /** Locale used for SDK-owned shopper text. Supports en-US and fr-CA. */
+  /** Locale used for SDK-owned shopper text. Supports en, en-US, fr-CA, and es-US. */
   @property({reflect: true})
   locale = 'en-US';
 
@@ -1588,7 +1588,7 @@ export class CommerceHubConnect extends LitElement {
                         'actions.addPaymentMethod'
                       ),
                       action: 'open-add-payment-source',
-                      icon: 'plus',
+                      icon: canSelectPaymentSources ? undefined : 'plus',
                       disabled: isPaymentSourceActionPending,
                     })
                   : ''}

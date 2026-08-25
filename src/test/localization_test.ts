@@ -7,10 +7,16 @@ import {
 
 suite('localization', () => {
   test('resolves exact, base-language, and English fallback locales', () => {
+    assert.equal(resolveSupportedLocale('en'), 'en');
+    assert.equal(resolveSupportedLocale('en-US'), 'en-US');
+    assert.equal(resolveSupportedLocale('EN_us'), 'en-US');
     assert.equal(resolveSupportedLocale('fr-CA'), 'fr-CA');
     assert.equal(resolveSupportedLocale('fr-FR'), 'fr-CA');
     assert.equal(resolveSupportedLocale('FR_ca'), 'fr-CA');
-    assert.equal(resolveSupportedLocale('en-GB'), 'en-US');
+    assert.equal(resolveSupportedLocale('en-GB'), 'en');
+    assert.equal(resolveSupportedLocale('es-US'), 'es-US');
+    assert.equal(resolveSupportedLocale('es'), 'es-US');
+    assert.equal(resolveSupportedLocale('es-MX'), 'es-US');
     assert.equal(resolveSupportedLocale('unsupported'), 'en-US');
     assert.equal(resolveSupportedLocale(undefined), 'en-US');
   });
@@ -50,6 +56,21 @@ suite('localization', () => {
     );
   });
 
+  test('formats US Spanish messages', () => {
+    assert.equal(
+      createTranslator('es-US').message('actions.continue'),
+      'Continuar'
+    );
+    assert.equal(
+      createTranslator('es-US').message('paymentMethods.title'),
+      'Métodos de pago'
+    );
+    assert.equal(
+      createTranslator('es-US').message('document.fileTypeError'),
+      'Tipo de archivo no compatible. Cargue un archivo JPG, PNG o PDF.'
+    );
+  });
+
   test('formats ICU message parameters and plurals', () => {
     const translator = createTranslator('fr-CA');
 
@@ -76,5 +97,7 @@ suite('localization', () => {
 
   test('reuses translators for the same resolved locale', () => {
     assert.strictEqual(createTranslator('fr'), createTranslator('fr-CA'));
+    assert.strictEqual(createTranslator('es'), createTranslator('es-US'));
+    assert.notStrictEqual(createTranslator('en'), createTranslator('en-US'));
   });
 });

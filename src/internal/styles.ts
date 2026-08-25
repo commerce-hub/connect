@@ -1260,7 +1260,7 @@ export const primitiveStyles = css`
     border: 0.0625rem solid var(--chc-primary);
     border-radius: var(--chc-radius-control);
     padding: 0 1rem;
-    font-size: 0.8125rem;
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     transition: border-color var(--chc-motion-fast) var(--chc-ease-standard),
@@ -1294,10 +1294,18 @@ export const primitiveStyles = css`
 
   .button-content:has(.button-icon-plus) {
     gap: 0.375rem;
+    max-width: 100%;
   }
 
   .button-content:has(.button-icon-plus) .button-label {
-    white-space: nowrap;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
+  .button:has(.button-icon-plus) {
+    padding-block: 0.625rem;
   }
 
   .button-spinner,
@@ -2801,11 +2809,13 @@ export const primitiveStyles = css`
   }
 
   .source-action-title {
-    overflow: hidden;
+    overflow: visible;
     color: var(--chc-text);
     font-weight: inherit;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.35;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .source-action-subtitle {
@@ -3061,6 +3071,14 @@ export const primitiveStyles = css`
     font-weight: inherit;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .upload-row-file-name-empty {
+    overflow: visible;
+    padding-block: 0.5rem;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .upload-row-action {

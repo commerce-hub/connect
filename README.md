@@ -126,7 +126,8 @@ for the string `.baseURL` value.
 
 ## Language support
 
-The SDK bundles English (United States) and French (Canada). English is the
+The SDK supports English (`en`), English (United States) (`en-US`), French
+(Canada) (`fr-CA`), and Spanish (United States) (`es-US`). `en-US` is the
 default. Set the `locale` property or reflected attribute before providing the
 interaction response:
 
@@ -138,8 +139,10 @@ interaction response:
 widget.locale = 'fr-CA';
 ```
 
-`fr` and other French regional tags resolve to `fr-CA`. Unsupported locale
-values fall back to `en-US`. Changing `locale` at runtime rerenders SDK-owned
+Generic and unsupported regional variants resolve to their supported language:
+English variants resolve to `en`, French variants to `fr-CA`, and Spanish
+variants to `es-US`. Unsupported languages fall back to `en-US`. Changing
+`locale` at runtime rerenders SDK-owned
 copy, updates the component's `lang` and `dir` attributes, sends the resolved
 locale in the `Accept-Language` header on SDK-managed requests, and forwards it
 to the Pay by Bank SDK.
