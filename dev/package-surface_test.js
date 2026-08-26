@@ -7,13 +7,11 @@ const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 
 const packageJson = readJson('package.json');
 
-test('package is configured for public GitHub Packages distribution', () => {
-  assert.equal(packageJson.name, '@commerce-hub/connect-wallet-sdk');
+test('package is configured as the unscoped v0.12.3 release', () => {
+  assert.equal(packageJson.name, 'connect-wallet-sdk');
+  assert.equal(packageJson.version, '0.12.3');
   assert.equal(packageJson.private, false);
-  assert.deepEqual(packageJson.publishConfig, {
-    access: 'public',
-    registry: 'https://npm.pkg.github.com',
-  });
+  assert.equal(packageJson.publishConfig, undefined);
 });
 
 test('published package metadata does not expose local file dependencies', () => {
