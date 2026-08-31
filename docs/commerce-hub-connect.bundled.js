@@ -93,6 +93,7 @@ const S$=Symbol.for(""),C$=e=>{if(e?.r===S$)return e?._$litStatic$},j$=new Map,B
           name=${e.path}
           type="text"
           .value=${e.data??""}
+          maxlength=${aw(e.schema.maxLength)}
           ?disabled=${a}
           ?readonly=${o}
           ?required=${e.required}
